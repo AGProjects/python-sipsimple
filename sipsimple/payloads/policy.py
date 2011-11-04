@@ -6,11 +6,6 @@ Generic data types to be used in policy applications, according to
 RFC4745.
 """
 
-import datetime
-
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild, XMLStringElement
-from sipsimple.util import Timestamp
-
 
 __all__ = ['namespace',
            'CommonPolicyApplication',
@@ -31,6 +26,12 @@ __all__ = ['namespace',
            # Extensions
            'FalseCondition',
            'RuleDisplayName']
+
+
+import datetime
+
+from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild, XMLStringElement
+from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:common-policy'

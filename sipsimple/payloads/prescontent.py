@@ -22,10 +22,12 @@ class MIMEType(XMLStringElement):
     _xml_namespace = namespace
     _xml_application = PresenceContentApplication
 
+
 class Encoding(XMLStringElement):
     _xml_tag = 'encoding'
     _xml_namespace = namespace
     _xml_application = PresenceContentApplication
+
 
 class Description(XMLStringElement):
     _xml_tag = 'description'
@@ -33,10 +35,12 @@ class Description(XMLStringElement):
     _xml_application = PresenceContentApplication
     _xml_lang = True
 
+
 class Data(XMLStringElement):
     _xml_tag = 'data'
     _xml_namespace = namespace
     _xml_application = PresenceContentApplication
+
 
 class PresenceContent(XMLRootElement):
     content_type = "application/vnd.oma.pres-content+xml"

@@ -5,17 +5,17 @@
 
 
 __all__ = ['namespace',
-        'DialogInfoApplication',
-        'DialogState',
-        'Replaces',
-        'ReferredBy',
-        'Identity',
-        'Param',
-        'Target',
-        'Local',
-        'Remote',
-        'Dialog',
-        'DialogInfo']
+           'DialogInfoApplication',
+           'DialogState',
+           'Replaces',
+           'ReferredBy',
+           'Identity',
+           'Param',
+           'Target',
+           'Local',
+           'Remote',
+           'Dialog',
+           'DialogInfo']
 
 
 from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
@@ -35,6 +35,7 @@ class StateValue(str):
             raise ValueError("illegal value for state")
         return str.__new__(cls, value)
 
+
 class VersionValue(int):
     def __new__(cls, value):
         value = int.__new__(cls, value)
@@ -42,11 +43,13 @@ class VersionValue(int):
             raise ValueError("illegal value for version")
         return value
 
+
 class DirectionValue(str):
     def __new__(cls, value):
         if value not in ('initiator', 'recipient'):
             raise ValueError("illegal value for direction")
         return str.__new__(cls, value)
+
 
 class DialogEventValue(str):
     def __new__(cls, value):
@@ -54,11 +57,13 @@ class DialogEventValue(str):
             raise ValueError("illegal value for dialog state event")
         return str.__new__(cls, value)
 
+
 class DialogStateValue(str):
     def __new__(cls, value):
         if value not in ('trying', 'proceeding', 'early', 'confirmed', 'terminated'):
             raise ValueError("illegal value for dialog state")
         return str.__new__(cls, value)
+
 
 class CodeValue(int):
     def __new__(cls, value):
@@ -67,21 +72,26 @@ class CodeValue(int):
             raise ValueError("illegal value for code")
         return value
 
+
 # Elements
+
 class CallId(XMLStringElement):
     _xml_tag = 'call-id'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
+
 
 class LocalTag(XMLStringElement):
     _xml_tag = 'local-tag'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
 
+
 class RemoteTag(XMLStringElement):
     _xml_tag = 'remote-tag'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
+
 
 class DialogState(XMLStringElement):
     _xml_tag = 'state'
@@ -92,11 +102,13 @@ class DialogState(XMLStringElement):
     code = XMLAttribute('code', type=int, required=False, test_equal=True)
     event = XMLAttribute('event', type=DialogEventValue, required=False, test_equal=True)
 
+
 class Duration(XMLStringElement):
     _xml_tag = 'duration'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
     _xml_value_type = int
+
 
 class Replaces(XMLEmptyElement):
     _xml_tag = 'replaces'
@@ -113,6 +125,7 @@ class Replaces(XMLEmptyElement):
         self.local_tag = local_tag
         self.remote_tag = remote_tag
 
+
 class ReferredBy(XMLStringElement):
     _xml_tag = 'referred-by'
     _xml_namespace = namespace
@@ -120,12 +133,14 @@ class ReferredBy(XMLStringElement):
 
     display = XMLAttribute('display', type=str, required=False, test_equal=True)
 
+
 class Identity(XMLStringElement):
     _xml_tag = 'identity'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
 
     display = XMLAttribute('display', type=str, required=False, test_equal=True)
+
 
 class Param(XMLEmptyElement):
     _xml_tag = 'param'
@@ -140,6 +155,7 @@ class Param(XMLEmptyElement):
         self.pname = pname
         self.pval = pval
 
+
 class Target(XMLListElement):
     _xml_tag = 'target'
     _xml_namespace = namespace
@@ -151,6 +167,7 @@ class Target(XMLListElement):
     def __init__(self, uri, params=[]):
         self.uri = uri
         self.update(params)
+
 
 class Participant(XMLElement):
     _xml_tag = ''   # To be set by a subclass
@@ -165,11 +182,14 @@ class Participant(XMLElement):
         self.identity = identity
         self.target = target
 
+
 class Local(Participant):
     _xml_tag = 'local'
 
+
 class Remote(Participant):
     _xml_tag = 'remote'
+
 
 class Dialog(XMLElement):
     _xml_tag = 'dialog'
@@ -204,6 +224,7 @@ class Dialog(XMLElement):
         self.referred_by = referred_by
         self.local = local
         self.remote = remote
+
 
 class DialogInfo(XMLListRootElement):
     content_type = "application/dialog-info+xml"

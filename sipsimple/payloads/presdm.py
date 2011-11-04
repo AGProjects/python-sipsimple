@@ -1,14 +1,8 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""
-PIDF handling according to RFC3863 and RFC4479
-"""
+"""PIDF handling according to RFC3863 and RFC4479"""
 
-import datetime
-
-from sipsimple import util
-from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
 
 __all__ = ['pidf_namespace',
            'dm_namespace',
@@ -31,6 +25,12 @@ __all__ = ['pidf_namespace',
            'PersonTimestamp',
            'Person',
            'PIDF']
+
+
+import datetime
+
+from sipsimple import util
+from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'

@@ -1,15 +1,8 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""
-Parses and builds application/rls-services+xml documents according to
-RFC4826.
-"""
+"""RFC4826 compliant parser/builder for application/rls-services+xml documents."""
 
-import urllib
-
-from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
-from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
 __all__ = ['rl_namespace',
            'rls_namespace',
@@ -20,6 +13,12 @@ __all__ = ['rl_namespace',
            'RLSList',
            'Service',
            'RLSServices']
+
+
+import urllib
+
+from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
+from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
 
 rls_namespace = 'urn:ietf:params:xml:ns:rls-services'

@@ -10,11 +10,13 @@ from cStringIO import StringIO
 
 from sipsimple.payloads import ValidationError
 
+
 class BooleanValue(object):
     def __new__(cls, value):
         if type(value) is str and value.lower() in ('yes', 'no'):
             return True if value == 'yes' else False
         raise ValueError("invalid value for boolean value")
+
 
 class MessageSummary(object):
 

@@ -8,13 +8,14 @@ This module provides an extension to RFC4745 (Common Policy) to
 support condition extensions defined by OMA.
 """
 
+
+__all__ = ['OtherIdentity', 'ExternalList', 'AnonymousRequest']
+
+
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLAttribute, uri_attribute_builder, uri_attribute_parser
 from sipsimple.payloads.policy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesApplication
 
-__all__ = ['OtherIdentity',
-           'ExternalList',
-           'AnonymousRequest']
 
 oma_cp_namespace = 'urn:oma:xml:xdm:common-policy'
 PresRulesApplication.register_namespace(oma_cp_namespace, prefix='ocp')

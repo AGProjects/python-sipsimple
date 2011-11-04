@@ -1,14 +1,6 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-import os
-import sys
-import urllib
-from collections import defaultdict, deque
-from weakref import WeakValueDictionary
-
-from application.python.descriptor import classproperty
-from lxml import etree
 
 __all__ = ['ParserError',
            'BuilderError',
@@ -29,6 +21,16 @@ __all__ = ['ParserError',
            'XMLStringListElement',
            'uri_attribute_builder',
            'uri_attribute_parser']
+
+
+import os
+import sys
+import urllib
+from collections import defaultdict, deque
+from weakref import WeakValueDictionary
+
+from application.python.descriptor import classproperty
+from lxml import etree
 
 
 ## Exceptions

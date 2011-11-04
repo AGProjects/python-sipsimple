@@ -1,14 +1,8 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""
-Parses and produces Presence Authorization Rules documents according to
-RFC5025.
-"""
+"""Parses and produces Presence Authorization Rules documents according to RFC5025."""
 
-from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute
-from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
-from sipsimple.util import All
 
 __all__ = ['cp_namespace',
            'pr_namespace',
@@ -42,6 +36,11 @@ __all__ = ['cp_namespace',
            'ProvideUnknownAttribute',
            'ProvideAllAttributes',
            'PresRules']
+
+
+from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute
+from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
+from sipsimple.util import All
 
 
 pr_namespace = 'urn:ietf:params:xml:ns:pres-rules'

@@ -8,13 +8,6 @@ This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
 support rich presence.
 """
 
-from lxml import etree
-
-from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
-from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
-from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
-from sipsimple.payloads.util import UnsignedLong
-from sipsimple.util import Timestamp
 
 __all__ = ['rpid_namespace',
            'ActivityElement',
@@ -44,6 +37,16 @@ __all__ = ['rpid_namespace',
            'TimeOffset',
            'UserInput',
            'Class']
+
+
+from lxml import etree
+
+from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
+from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
+from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
+from sipsimple.payloads.util import UnsignedLong
+from sipsimple.util import Timestamp
+
 
 rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
 PIDFApplication.register_namespace(rpid_namespace, prefix='rpid')

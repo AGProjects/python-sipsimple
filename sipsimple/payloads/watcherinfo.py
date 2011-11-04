@@ -1,12 +1,8 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""
-Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858.
-"""
+"""Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858."""
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute
-from sipsimple.payloads.util import UnsignedLong, SIPURI
 
 __all__ = ['namespace',
            'NeedFullUpdateError',
@@ -16,7 +12,12 @@ __all__ = ['namespace',
            'WatcherInfo']
 
 
+from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute
+from sipsimple.payloads.util import UnsignedLong, SIPURI
+
+
 namespace = 'urn:ietf:params:xml:ns:watcherinfo'
+
 
 class NeedFullUpdateError(Exception): pass
 
@@ -33,11 +34,13 @@ class WatcherStatus(str):
             raise ValueError('illegal status value for watcher')
         return str.__new__(cls, value)
 
+
 class WatcherEvent(str):
     def __new__(cls, value):
         if value not in ('subscribe', 'approved', 'deactivated', 'probation', 'rejected', 'timeout', 'giveup', 'noresource'):
             raise ValueError('illegal event value for watcher')
         return str.__new__(cls, value)
+
 
 class WatcherInfoState(str):
     def __new__(cls, value):

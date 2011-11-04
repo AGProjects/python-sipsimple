@@ -8,14 +8,12 @@ RFC for this we'll use common-policy format (RFC 4745).
 NOTE: Subscription Handling has been taken from RFC 5025. 
 """
 
+
+__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesApplication', 'SubHandling', 'DialogRules']
+
+
 from sipsimple.payloads import XMLStringElement
 from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, RuleSet
-
-__all__ = ['cp_namespace',
-           'dlg_namespace',
-           'DialogRulesApplication',
-           'SubHandling',
-           'DialogRules']
 
 
 dlg_namespace = 'http://openxcap.org/ns/dialog-rules'

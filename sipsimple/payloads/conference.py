@@ -87,9 +87,11 @@ class State(str):
             raise ValueError("illegal value for state")
         return str.__new__(cls, value)
 
+
 class Version(str):
     def __new__(cls, value):
         return str.__new__(cls, int(value))
+
 
 class BooleanValue(object):
     def __new__(cls, value):
@@ -102,21 +104,25 @@ class BooleanValue(object):
         else:
             return str.__new__(str, 'false')
 
+
 class When(XMLStringElement):
     _xml_tag = 'when'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = Timestamp
 
+
 class Reason(XMLStringElement):
     _xml_tag = 'reason'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class By(XMLStringElement):
     _xml_tag = 'by'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class ExecutionType(XMLElement):
     _xml_tag = None     # To be set by the subclass
@@ -133,23 +139,28 @@ class ExecutionType(XMLElement):
         self.reason = reason
         self.by = by
 
+
 class Uri(XMLStringElement):
     _xml_tag = 'uri'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class DisplayText(XMLStringElement):
     _xml_tag = 'display-text'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class UrisTypePurpose(XMLStringElement):
     _xml_tag = 'purpose'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class UrisTypeModified(ExecutionType):
     _xml_tag = 'modified'
+
 
 class UrisTypeEntry(XMLElement):
     _xml_tag = 'entry'
@@ -171,20 +182,24 @@ class UrisTypeEntry(XMLElement):
         self.purpose = purpose
         self.modified = modified
 
+
 class Subject(XMLStringElement):
     _xml_tag = 'subject'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class FreeText(XMLStringElement):
     _xml_tag = 'free-text'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class Keywords(XMLStringElement):
     _xml_tag = 'keywords'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class ConfUrisPurposeValue(str):
     def __new__(cls, value):
@@ -192,11 +207,14 @@ class ConfUrisPurposeValue(str):
             raise ValueError("illegal value for purpose element")
         return str.__new__(cls, value)
 
+
 class ConfUrisPurpose(UrisTypePurpose):
     _xml_value_type = ConfUrisPurposeValue
 
+
 class ConfUrisEntry(UrisTypeEntry):
     purpose = XMLElementChild('purpose', type=ConfUrisPurpose, required=False, test_equal=True)
+
 
 class ConfUris(XMLListElement):
     _xml_tag = 'conf-uris'
@@ -208,17 +226,21 @@ class ConfUris(XMLListElement):
         XMLListElement.__init__(self)
         self.update(entries)
 
+
 class ServiceUrisPurposeValue(str):
     def __new__(cls, value):
         if value not in ('web-page', 'recording', 'event'):
             raise ValueError("illegal value for purpose element")
         return str.__new__(cls, value)
 
+
 class ServiceUrisPurpose(UrisTypePurpose):
     _xml_value_type = ServiceUrisPurposeValue
 
+
 class ServiceUrisEntry(UrisTypeEntry):
     purpose = XMLElementChild('purpose', type=ServiceUrisPurpose, required=False, test_equal=True)
+
 
 class ServiceUris(XMLListElement):
     _xml_tag = 'service-uris'
@@ -230,11 +252,13 @@ class ServiceUris(XMLListElement):
         XMLListElement.__init__(self)
         self.update(entries)
 
+
 class MaximumUserCount(XMLStringElement):
     _xml_tag = 'maximum-user-count'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = int
+
 
 class MediaTypeValue(str):
     def __new__(cls, value):
@@ -242,11 +266,13 @@ class MediaTypeValue(str):
             raise ValueError("illegal value for type element")
         return str.__new__(cls, value)
 
+
 class MediaType(XMLStringElement):
     _xml_tag = 'type'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = MediaTypeValue
+
 
 class MediaTypeStatusValue(str):
     def __new__(cls, value):
@@ -254,11 +280,13 @@ class MediaTypeStatusValue(str):
             raise ValueError("illegal value for status element")
         return str.__new__(cls, value)
 
+
 class MediaTypeStatus(XMLStringElement):
     _xml_tag = 'status'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = MediaTypeStatusValue
+
 
 class AvailableMediaEntry(XMLElement):
     _xml_tag = 'entry'
@@ -282,6 +310,7 @@ class AvailableMediaEntry(XMLElement):
         self.display_text = display_text
         self.status = status
 
+
 class AvailableMedia(XMLListElement):
     _xml_tag = 'available-media'
     _xml_namespace = namespace
@@ -291,6 +320,7 @@ class AvailableMedia(XMLListElement):
     def __init__(self, entries=[]):
         XMLListElement.__init__(self)
         self.update(entries)
+
 
 class ConferenceDescription(XMLElement):
     _xml_tag = 'conference-description'
@@ -318,10 +348,12 @@ class ConferenceDescription(XMLElement):
         self.maximum_user_count = maximum_user_count
         self.available_media = available_media
 
+
 class WebPage(XMLStringElement):
     _xml_tag = 'web-page'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class HostInfoUris(XMLListElement):
     _xml_tag = 'uris'
@@ -349,11 +381,13 @@ class HostInfo(XMLElement):
         self.web_page = web_page
         self.uris = uris
 
+
 class UserCount(XMLStringElement):
     _xml_tag = 'user-count'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = int
+
 
 class Active(XMLStringElement):
     _xml_tag = 'active'
@@ -361,11 +395,13 @@ class Active(XMLStringElement):
     _xml_application = ConferenceApplication
     _xml_value_type = BooleanValue
 
+
 class Locked(XMLStringElement):
     _xml_tag = 'locked'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = BooleanValue
+
 
 class ConferenceState(XMLElement):
     _xml_tag = 'conference-state'
@@ -381,6 +417,7 @@ class ConferenceState(XMLElement):
         self.user_count = user_count
         self.active = active
         self.locked = locked
+
 
 class AssociatedAors(XMLListElement):
     _xml_tag = 'associated-aors'
@@ -398,6 +435,7 @@ class Role(XMLStringElement):
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class Roles(XMLListElement):
     _xml_tag = 'roles'
     _xml_namespace = namespace
@@ -408,18 +446,22 @@ class Roles(XMLListElement):
         XMLListElement.__init__(self)
         self.update(roles)
 
+
 class Languages(XMLStringElement):
     _xml_tag = 'languages'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class CascadedFocus(XMLStringElement):
     _xml_tag = 'cascaded-focus'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class Referred(ExecutionType):
     _xml_tag = 'referred'
+
 
 class EndpointStatusValue(str):
     def __new__(cls, value):
@@ -427,11 +469,13 @@ class EndpointStatusValue(str):
             raise ValueError("illegal value for status element")
         return str.__new__(cls, value)
 
+
 class EndpointStatus(XMLStringElement):
     _xml_tag = 'status'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = EndpointStatusValue
+
 
 class JoiningMethodValue(str):
     def __new__(cls, value):
@@ -439,14 +483,17 @@ class JoiningMethodValue(str):
             raise ValueError("illegal value for joining method element")
         return str.__new__(cls, value)
 
+
 class JoiningMethod(XMLStringElement):
     _xml_tag = 'joining-method'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = JoiningMethodValue
 
+
 class JoiningInfo(ExecutionType):
     _xml_tag = 'joining-info'
+
 
 class DisconnectionMethodValue(str):
     def __new__(cls, value):
@@ -454,24 +501,29 @@ class DisconnectionMethodValue(str):
             raise ValueError("illegal value for disconnection method element")
         return str.__new__(cls, value)
 
+
 class DisconnectionMethod(XMLStringElement):
     _xml_tag = 'disconnection-method'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
     _xml_value_type = DisconnectionMethodValue
 
+
 class DisconnectionInfo(ExecutionType):
     _xml_tag = 'disconnection-info'
+
 
 class Label(XMLStringElement):
     _xml_tag = 'label'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class SrcId(XMLStringElement):
     _xml_tag = 'src-id'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class Media(XMLElement):
     _xml_tag = 'media'
@@ -495,20 +547,24 @@ class Media(XMLElement):
         self.src_id = src_id
         self.status = status
 
+
 class CallId(XMLStringElement):
     _xml_tag = 'call-id'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class FromTag(XMLStringElement):
     _xml_tag = 'from-tag'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
+
 class ToTag(XMLStringElement):
     _xml_tag = 'to-tag'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+
 
 class Sip(XMLElement):
     _xml_tag = 'sip'
@@ -527,6 +583,7 @@ class Sip(XMLElement):
         self.from_tag = from_tag
         self.to_tag = to_tag
 
+
 class CallInfo(XMLElement):
     _xml_tag = 'call-info'
     _xml_namespace = namespace
@@ -537,6 +594,7 @@ class CallInfo(XMLElement):
     def __init__(self, sip=None):
         XMLElement.__init__(self)
         self.sip = sip
+
 
 class Endpoint(XMLListElement):
     _xml_tag = 'endpoint'
@@ -574,6 +632,7 @@ class Endpoint(XMLListElement):
         args = ('entity', 'state', 'display_text', 'referred', 'status', 'joining_method', 'joining_info', 'disconnection_method', 'disconnection_info', 'call_info')
         return "%s(%s, media=%r)" % (self.__class__.__name__, ', '.join("%s=%r" % (name, getattr(self, name)) for name in args), list(self))
 
+
 class User(XMLListElement):
     _xml_tag = 'user'
     _xml_namespace = namespace
@@ -604,6 +663,7 @@ class User(XMLListElement):
         args = ('entity', 'state', 'display_text', 'associated_aors', 'roles', 'languages', 'cascaded_focus')
         return "%s(%s, endpoints=%r)" % (self.__class__.__name__, ', '.join("%s=%r" % (name, getattr(self, name)) for name in args), list(self))
 
+
 class Users(XMLListElement):
     _xml_tag = 'users'
     _xml_namespace = namespace
@@ -620,6 +680,7 @@ class Users(XMLListElement):
     def __repr__(self):
         return "%s(state=%r, users=%r)" % (self.__class__.__name__, self.state, list(self))
 
+
 class SidebarsByRef(XMLListElement):
     _xml_tag = 'sidebars-by-ref'
     _xml_namespace = namespace
@@ -629,6 +690,7 @@ class SidebarsByRef(XMLListElement):
     def __init__(self, entries=[]):
         XMLListElement.__init__(self)
         self.update(entries)
+
 
 class SidebarsByVal(XMLListElement):
     _xml_tag = 'sidebars-by-val'
@@ -645,6 +707,7 @@ class SidebarsByVal(XMLListElement):
 
     def __repr__(self):
         return "%s(state=%r, entries=%r)" % (self.__class__.__name__, self.state, list(self))
+
 
 class SidebarsByValEntry(XMLElement):
     _xml_tag = 'entry'
@@ -676,6 +739,7 @@ class SidebarsByValEntry(XMLElement):
             raise ValidationError("A full conference document must at least include the <conference-description> and <users> child elements.")
 
 SidebarsByVal._xml_item_type = SidebarsByValEntry
+
 
 class Conference(XMLRootElement):
     content_type = "application/conference-info+xml"
@@ -725,6 +789,7 @@ class Conference(XMLRootElement):
 agp_conf_namespace = 'urn:ag-projects:xml:ns:conference-info'
 ConferenceApplication.register_namespace(agp_conf_namespace, prefix='agp-conf')
 
+
 class FileResource(XMLElement):
     _xml_tag = 'file'
     _xml_namespace = agp_conf_namespace
@@ -744,6 +809,7 @@ class FileResource(XMLElement):
         self.sender = sender
         self.status = status
 
+
 class FileResources(XMLListElement):
     _xml_tag = 'files'
     _xml_namespace = agp_conf_namespace
@@ -753,6 +819,7 @@ class FileResources(XMLListElement):
     def __init__(self, files=[]):
         XMLListElement.__init__(self)
         self.update(files)
+
 
 class Resources(XMLElement, ConferenceDescriptionExtension):
     _xml_tag = 'resources'

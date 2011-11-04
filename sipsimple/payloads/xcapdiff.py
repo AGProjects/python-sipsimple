@@ -1,18 +1,18 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""
-This module allows parsing and building xcap-diff documents according to
-draft-ietf-simple-xcap-diff.
-"""
+"""Parsing and building xcap-diff documents according to draft-ietf-simple-xcap-diff."""
 
-from sipsimple.payloads import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
-from sipsimple.payloads.util import XCAPURI, Boolean
 
 __all__ = ['namespace', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
 
 
+from sipsimple.payloads import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads.util import XCAPURI, Boolean
+
+
 namespace = 'urn:ietf:params:xml:ns:xcap-diff'
+
 
 class XCAPDiffApplication(XMLApplication): pass
 XCAPDiffApplication.register_namespace(namespace, prefix=None)
