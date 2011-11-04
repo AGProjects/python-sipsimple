@@ -4,8 +4,7 @@
 """
 RPID handling according to RFC4480
 
-This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
-support rich presence.
+This module provides an extension to PIDF to support rich presence.
 """
 
 
@@ -43,7 +42,7 @@ from lxml import etree
 
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
-from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
+from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
 from sipsimple.payloads.util import UnsignedLong
 from sipsimple.util import Timestamp
 

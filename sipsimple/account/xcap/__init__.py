@@ -39,7 +39,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
-from sipsimple.payloads import dialogrules, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
+from sipsimple.payloads import dialogrules, omapolicy, pidf, policy as common_policy, prescontent, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command
 from sipsimple.util import All, Any, TimestampedNotificationData
@@ -294,7 +294,7 @@ class StatusIconDocument(Document):
 
 class PIDFManipulationDocument(Document):
     name            = 'pidf-manipulation'
-    payload_type    = presdm.PIDF
+    payload_type    = pidf.PIDF
     application     = 'pidf-manipulation'
     global_tree     = False
     filename        = 'index'
@@ -3120,11 +3120,11 @@ class XCAPManager(object):
         if operation.status is None:
             self.pidf_manipulation.content = None
         else:
-            self.pidf_manipulation.content = presdm.PIDF('sip:'+self.account.id)
-            person = presdm.Person('offline_status')
-            person.timestamp = presdm.PersonTimestamp()
+            self.pidf_manipulation.content = pidf.PIDF('sip:'+self.account.id)
+            person = pidf.Person('offline_status')
+            person.timestamp = pidf.PersonTimestamp()
             if operation.status.note:
-                person.notes.add(presdm.Note(operation.status.note))
+                person.notes.add(pidf.Note(operation.status.note))
             if operation.status.activity:
                 person.activities = rpid.Activities()
                 person.activities.add(operation.status.activity)
@@ -3456,7 +3456,7 @@ class XCAPManager(object):
             icon = None
         if self.pidf_manipulation.supported and self.pidf_manipulation.content:
             pidf_manipulation = self.pidf_manipulation.content
-            persons = [child for child in pidf_manipulation if isinstance(child, presdm.Person)]
+            persons = [child for child in pidf_manipulation if isinstance(child, pidf.Person)]
             try:
                 note = unicode(chain(*(person.notes for person in persons if person.notes)).next())
             except StopIteration:

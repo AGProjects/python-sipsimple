@@ -18,8 +18,8 @@
 """
 User Agent Capability Extension handling according to RFC5196
 
-This module provides an extension to PIDF (module sipsimple.payloads.presdm)
-to describe a user-agent capabilities in the PIDF documents.
+This module provides an extension to PIDF to describe a user-agent
+capabilities in the PIDF documents.
 """
 
 
@@ -60,7 +60,7 @@ __all__ = ['caps_namespace',
 
 
 from sipsimple.payloads import XMLStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLStringListElement, XMLAttribute, XMLEmptyElementRegistryType
-from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, Service, DeviceExtension, Device
+from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, Service, DeviceExtension, Device
 
 
 caps_namespace = "urn:ietf:params:xml:ns:pidf:caps"
