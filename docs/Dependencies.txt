@@ -7,7 +7,7 @@ http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
- * python                   http://python.org                           2.5, 2.6, 2.7
+ * python                   http://python.org                                2.6, 2.7
  * python-application       http://pypi.python.org/simple/python-application  >=1.2.8
  * python-backports         http://download.ag-projects.com/SipClient         >=1.0.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
