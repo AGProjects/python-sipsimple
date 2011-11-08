@@ -9,7 +9,7 @@ NOTE: Subscription Handling has been taken from RFC 5025.
 """
 
 
-__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesApplication', 'SubHandling', 'DialogRules']
+__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesApplication', 'ExternalList', 'SubHandling', 'DialogRules']
 
 
 from sipsimple.payloads import XMLAttribute, XMLElement, XMLListElement, XMLStringElement, uri_attribute_builder, uri_attribute_parser
