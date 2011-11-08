@@ -1838,7 +1838,7 @@ class XCAPManager(object):
             # While filtering candidates, also remove any reference to the uri from unwanted services
             rls_services = self.rls_services.content
             for service in rls_services:
-                packages = set(package for package in (service.packages or []))
+                packages = set(service.packages or [])
                 if isinstance(service.list, rlsservices.RLSList):
                     expanded_list = [service.list]
                 elif isinstance(service.list, rlsservices.ResourceList):
@@ -2310,7 +2310,7 @@ class XCAPManager(object):
                 # Only bother reading the rls services document if we don't change at least one of the subsccribe_to_* flags
                 rls_services = self.rls_services.content
                 for service in rls_services:
-                    packages = set(package for package in (service.packages or []))
+                    packages = set(service.packages or [])
                     if isinstance(service.list, rlsservices.RLSList):
                         expanded_list = [service.list]
                     elif isinstance(service.list, rlsservices.ResourceList):
@@ -2475,7 +2475,7 @@ class XCAPManager(object):
         if self.rls_services.supported:
             rls_services = self.rls_services.content
             for service in rls_services:
-                packages = set(package for package in (service.packages or []))
+                packages = set(service.packages or [])
                 if isinstance(service.list, rlsservices.RLSList):
                     expanded_list = [service.list]
                 elif isinstance(service.list, rlsservices.ResourceList):
