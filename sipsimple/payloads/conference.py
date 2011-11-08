@@ -74,7 +74,7 @@ namespace = 'urn:ietf:params:xml:ns:conference-info'
 
 
 class ConferenceApplication(XMLApplication): pass
-ConferenceApplication.register_namespace(namespace, prefix=None)
+ConferenceApplication.register_namespace(namespace, prefix=None, schema='conference.xsd')
 
 
 # Marker mixins
@@ -747,7 +747,6 @@ class Conference(XMLRootElement):
     _xml_tag = 'conference-info'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
-    _xml_schema_file = 'conference.xsd'
     _xml_children_order = {ConferenceDescription.qname: 0,
                            HostInfo.qname: 1,
                            ConferenceState.qname: 2,

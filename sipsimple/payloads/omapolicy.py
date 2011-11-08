@@ -18,7 +18,7 @@ from sipsimple.payloads.presrules import PresRulesApplication
 
 
 oma_cp_namespace = 'urn:oma:xml:xdm:common-policy'
-PresRulesApplication.register_namespace(oma_cp_namespace, prefix='ocp')
+PresRulesApplication.register_namespace(oma_cp_namespace, prefix='ocp', schema='oma-common-policy.xsd')
 
 
 class OtherIdentity(XMLEmptyElement, ConditionElement):

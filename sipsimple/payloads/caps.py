@@ -64,7 +64,8 @@ from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, Service, 
 
 
 caps_namespace = "urn:ietf:params:xml:ns:pidf:caps"
-PIDFApplication.register_namespace(caps_namespace, prefix='caps')
+PIDFApplication.register_namespace(caps_namespace, prefix='caps', schema='caps.xsd')
+
 
 
 # Marker mixins

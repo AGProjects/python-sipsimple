@@ -14,7 +14,7 @@ namespace = 'urn:oma:xml:prs:pres-content'
 
 
 class PresenceContentApplication(XMLApplication): pass
-PresenceContentApplication.register_namespace(namespace, prefix=None)
+PresenceContentApplication.register_namespace(namespace, prefix=None, schema='oma-pres-content.xsd')
 
 # Elements
 class MIMEType(XMLStringElement):
@@ -48,7 +48,6 @@ class PresenceContent(XMLRootElement):
     _xml_tag = 'content'
     _xml_namespace = namespace
     _xml_application = PresenceContentApplication
-    _xml_schema_file = 'oma-pres-content.xsd'
     _xml_children_order = {MIMEType.qname: 0,
                            Encoding.qname: 1,
                            Description.qname: 2,

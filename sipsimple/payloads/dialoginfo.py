@@ -25,7 +25,7 @@ namespace = 'urn:ietf:params:xml:ns:dialog-info'
 
 
 class DialogInfoApplication(XMLApplication): pass
-DialogInfoApplication.register_namespace(namespace, prefix=None)
+DialogInfoApplication.register_namespace(namespace, prefix=None, schema='dialog-info.xsd')
 
 
 # Attribute value types
@@ -232,7 +232,6 @@ class DialogInfo(XMLListRootElement):
     _xml_tag = 'dialog-info'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
-    _xml_schema_file = 'dialog-info.xsd'
     _xml_children_order = {Dialog.qname: 0,
                            None: 1}
     _xml_item_type = Dialog

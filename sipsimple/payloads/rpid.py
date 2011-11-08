@@ -48,7 +48,7 @@ from sipsimple.util import Timestamp
 
 
 rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
-PIDFApplication.register_namespace(rpid_namespace, prefix='rpid')
+PIDFApplication.register_namespace(rpid_namespace, prefix='rpid', schema='rpid.xsd')
 
 
 ## Marker mixins

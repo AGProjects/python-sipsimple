@@ -27,6 +27,7 @@ import os
 import sys
 import urllib
 from collections import defaultdict, deque
+from cStringIO import StringIO
 from weakref import WeakValueDictionary
 
 from application.python.descriptor import classproperty
@@ -54,17 +55,44 @@ def parse_qname(qname):
 
 class XMLApplicationType(type):
     def __init__(cls, name, bases, dct):
+        cls._xml_root_element = None
         cls._xml_classes = {}
+        cls._xml_schema_map = {}
         cls.xml_nsmap = {}
         for base in reversed(bases):
             if hasattr(base, '_xml_classes'):
                 cls._xml_classes.update(base._xml_classes)
+            if hasattr(base, '_xml_schema_map'):
+                cls._xml_schema_map.update(base._xml_schema_map)
             if hasattr(base, 'xml_nsmap'):
                 cls.xml_nsmap.update(base.xml_nsmap)
 
 
 class XMLApplication(object):
     __metaclass__ = XMLApplicationType
+
+    _validate_input = True
+    _validate_output = True
+    
+    _xml_schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
+
+    # dinamically generated
+    _xml_parser = None
+    _xml_schema = None
+
+    @classmethod
+    def _build_schema(cls):
+        schema = """<?xml version="1.0"?>
+            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                %s
+            </xs:schema>
+        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.join(cls._xml_schema_dir, file))) for ns, file in cls._xml_schema_map.iteritems())
+        schema_doc = etree.parse(StringIO(schema))
+        cls._xml_schema = etree.XMLSchema(schema_doc)
+        if cls._validate_input:
+            cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
+        else:
+            cls._xml_parser = etree.XMLParser(remove_blank_text=True)
 
     @classmethod
     def register_element(cls, xml_class):
@@ -73,14 +101,17 @@ class XMLApplication(object):
             child.register_element(xml_class)
 
     @classmethod
-    def register_namespace(cls, namespace, prefix=None):
+    def register_namespace(cls, namespace, prefix=None, schema=None):
         if prefix in cls.xml_nsmap:
             raise ValueError("prefix %s is already registered in %s" % (prefix, cls.__name__))
         if namespace in cls.xml_nsmap.itervalues():
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
         cls.xml_nsmap[prefix] = namespace
+        if schema is not None:
+            cls._xml_schema_map[namespace] = schema
+            cls._build_schema()
         for child in cls.__subclasses__():
-            child.register_namespace(namespace, prefix)
+            child.register_namespace(namespace, prefix, schema)
 
     @classmethod
     def unregister_namespace(cls, namespace):
@@ -89,6 +120,8 @@ class XMLApplication(object):
         except StopIteration:
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
         del cls.xml_nsmap[prefix]
+        cls._xml_schema_map.pop(namespace, None)
+        cls._build_schema()
         for child in cls.__subclasses__():
             try:
                 child.unregister_namespace(namespace)
@@ -487,13 +520,10 @@ class XMLElement(object):
 class XMLRootElementType(XMLElementType):
     def __init__(cls, name, bases, dct):
         super(XMLRootElementType, cls).__init__(name, bases, dct)
-        if cls._xml_schema is None and cls._xml_schema_file is not None:
-            cls._xml_schema = etree.XMLSchema(etree.parse(open(os.path.join(cls._xml_schema_dir, cls._xml_schema_file), 'r')))
-        if cls._xml_parser is None:
-            if cls._xml_schema is not None and cls._validate_input:
-                cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
-            else:
-                cls._xml_parser = etree.XMLParser(remove_blank_text=True)
+        if cls._xml_application is not None:
+            if cls._xml_application._xml_root_element is not None:
+                raise TypeError('there is already another root element registered for %s application' % cls.__name__)
+            cls._xml_application._xml_root_element = cls
 
 class XMLRootElement(XMLElement):
     __metaclass__ = XMLRootElementType
@@ -501,18 +531,9 @@ class XMLRootElement(XMLElement):
     encoding = 'UTF-8'
     content_type = None
     
-    _validate_input = True
-    _validate_output = True
-    
     _xml_nsmap = {}
-    _xml_schema_file = None
-    _xml_schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
     _xml_declaration = True
     
-    # dinamically generated
-    _xml_parser = None
-    _xml_schema = None
-
     def __init__(self):
         XMLElement.__init__(self)
         self.cache = WeakValueDictionary({self.element: self})
@@ -525,23 +546,26 @@ class XMLRootElement(XMLElement):
     
     @classmethod
     def parse(cls, document, *args, **kwargs):
+        parser = cls._xml_application._xml_parser
         try:
             if isinstance(document, str):
-                xml = etree.XML(document, parser=cls._xml_parser)
+                xml = etree.XML(document, parser=parser)
             elif isinstance(document, unicode):
-                xml = etree.XML(document.encode('utf-8'), parser=cls._xml_parser)
+                xml = etree.XML(document.encode('utf-8'), parser=parser)
             else:
-                xml = etree.parse(document, parser=cls._xml_parser).getroot()
+                xml = etree.parse(document, parser=parser).getroot()
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
             kwargs.setdefault('xml_application', cls._xml_application)
             return cls.from_element(xml, *args, **kwargs)
-    
+
     def toxml(self, *args, **kwargs):
         element = self.to_element(*args, **kwargs)
-        if kwargs.pop('validate', self._validate_output) and self._xml_schema is not None:
-            self._xml_schema.assertValid(element)
+        validate_output = self._xml_application._validate_output
+        xml_schema = self._xml_application._xml_schema
+        if kwargs.pop('validate', validate_output) and xml_schema is not None:
+            xml_schema.assertValid(element)
         
         kwargs.setdefault('encoding', self.encoding)
         kwargs.setdefault('xml_declaration', self._xml_declaration)

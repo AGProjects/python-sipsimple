@@ -46,7 +46,7 @@ from sipsimple.util import All
 pr_namespace = 'urn:ietf:params:xml:ns:pres-rules'
 
 class PresRulesApplication(CommonPolicyApplication): pass
-PresRulesApplication.register_namespace(pr_namespace, prefix='pr')
+PresRulesApplication.register_namespace(pr_namespace, prefix='pr', schema='pres-rules.xsd')
 
 
 ## Marker mixins
@@ -377,8 +377,5 @@ class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
 
 class PresRules(RuleSet):
     _xml_application = PresRulesApplication
-    _xml_schema_file = 'pres-rules.xsd'
-    _xml_nsmap = {'pr': pr_namespace,
-                  'cr': cp_namespace}
 
 

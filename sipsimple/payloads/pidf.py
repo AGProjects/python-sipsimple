@@ -38,8 +38,8 @@ dm_namespace = 'urn:ietf:params:xml:ns:pidf:data-model'
 
 
 class PIDFApplication(XMLApplication): pass
-PIDFApplication.register_namespace(pidf_namespace, prefix=None)
-PIDFApplication.register_namespace(dm_namespace, prefix='dm')
+PIDFApplication.register_namespace(pidf_namespace, prefix=None, schema='pidf.xsd')
+PIDFApplication.register_namespace(dm_namespace, prefix='dm', schema='data-model.xsd')
 
 
 ## Marker mixin
@@ -393,7 +393,6 @@ class PIDF(XMLListRootElement):
     _xml_tag = 'presence'
     _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
-    _xml_schema_file = 'pidf.xsd'
     _xml_children_order = {Service.qname: 0,
                            PIDFNote.qname: 1,
                            Person.qname: 2,
@@ -435,5 +434,4 @@ class PIDF(XMLListRootElement):
             except StopIteration:
                 raise KeyError(item)
         super(PIDF, self).remove(item)
-
 

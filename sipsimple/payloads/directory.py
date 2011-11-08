@@ -15,7 +15,7 @@ namespace = 'urn:oma:xml:xdm:xcap-directory'
 
 
 class XCAPDirectoryApplication(XMLApplication): pass
-XCAPDirectoryApplication.register_namespace(namespace, prefix=None)
+XCAPDirectoryApplication.register_namespace(namespace, prefix=None, schema='xcap-directory.xsd')
 
 
 # Attribute value types
@@ -72,7 +72,6 @@ class XCAPDirectory(XMLListRootElement):
     _xml_tag = 'xcap-directory'
     _xml_namespace = namespace
     _xml_application = XCAPDirectoryApplication
-    _xml_schema_file = 'xcap-directory.xsd'
     _xml_item_type = Folder
 
     def __init__(self, folders=[]):

@@ -50,7 +50,7 @@ namespace = 'urn:ietf:params:xml:ns:resource-lists'
 
 
 class ResourceListsApplication(XMLApplication): pass
-ResourceListsApplication.register_namespace(namespace, prefix='rl')
+ResourceListsApplication.register_namespace(namespace, prefix='rl', schema='resourcelists.xsd')
 
 
 ## Marker mixins
@@ -177,7 +177,6 @@ class ResourceLists(XMLListRootElement):
     _xml_tag = 'resource-lists'
     _xml_namespace = namespace
     _xml_application = ResourceListsApplication
-    _xml_schema_file = 'resourcelists.xsd'
     _xml_children_order = {List.qname: 0}
     _xml_item_type = List
 

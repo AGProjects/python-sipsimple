@@ -41,8 +41,5 @@ class SubHandling(XMLStringElement, ActionElement):
 
 class DialogRules(RuleSet):
     _xml_application = DialogRulesApplication
-    _xml_schema_file = 'common-policy.xsd'
-    _xml_nsmap = {'dr': dlg_namespace,
-                  'cr': cp_namespace}
 
 

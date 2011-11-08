@@ -15,7 +15,7 @@ namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
 
 
 class IsComposingApplication(XMLApplication): pass
-IsComposingApplication.register_namespace(namespace, prefix=None)
+IsComposingApplication.register_namespace(namespace, prefix=None, schema='im-iscomposing.xsd')
 
 
 # Attribute value types
@@ -68,7 +68,6 @@ class IsComposingMessage(XMLRootElement):
     _xml_tag = 'isComposing'
     _xml_namespace = namespace
     _xml_application = IsComposingApplication
-    _xml_schema_file = 'im-iscomposing.xsd'
     _xml_children_order = {State.qname: 0,
                            LastActive.qname: 1,
                            ContentType.qname: 2,

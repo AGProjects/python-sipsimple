@@ -14,7 +14,8 @@ from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, PersonExt
 __all__ = ['cipid_namespace', 'Card', 'DisplayName', 'Homepage', 'Icon', 'Map', 'Sound']
 
 cipid_namespace = "urn:ietf:params:xml:ns:pidf:cipid"
-PIDFApplication.register_namespace(cipid_namespace, prefix='c')
+PIDFApplication.register_namespace(cipid_namespace, prefix='c', schema='cipid.xsd')
+
 
 class Card(XMLStringElement, PersonExtension, ServiceExtension):
     _xml_tag = 'card'

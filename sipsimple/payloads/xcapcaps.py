@@ -15,7 +15,7 @@ namespace = 'urn:ietf:params:xml:ns:xcap-caps'
 
 
 class XCAPCapabilitiesApplication(XMLApplication): pass
-XCAPCapabilitiesApplication.register_namespace(namespace, prefix=None)
+XCAPCapabilitiesApplication.register_namespace(namespace, prefix=None, schema='xcap-caps.xsd')
 
 
 ## Elements
@@ -124,7 +124,6 @@ class XCAPCapabilities(XMLRootElement):
     _xml_tag = 'xcap-caps'
     _xml_namespace = namespace
     _xml_application = XCAPCapabilitiesApplication
-    _xml_schema_file = 'xcap-caps.xsd'
     _xml_children_order = {AUIDS.qname: 0,
                            Extensions.qname: 1,
                            Namespaces.qname: 2}

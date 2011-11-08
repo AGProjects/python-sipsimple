@@ -38,7 +38,7 @@ namespace = 'urn:ietf:params:xml:ns:common-policy'
 
 
 class CommonPolicyApplication(XMLApplication): pass
-CommonPolicyApplication.register_namespace(namespace, prefix='cp')
+CommonPolicyApplication.register_namespace(namespace, prefix='cp', schema='common-policy.xsd')
 
 
 ## Mixin types for extensibility
@@ -334,7 +334,6 @@ class RuleSet(XMLListRootElement):
     _xml_tag = 'ruleset'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
-    _xml_schema_file = 'common-policy.xsd'
     _xml_item_type = Rule
 
     def __init__(self, rules=[]):

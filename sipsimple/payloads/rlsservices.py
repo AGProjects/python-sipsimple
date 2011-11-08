@@ -25,7 +25,7 @@ rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
 
 
 class RLSServicesApplication(ResourceListsApplication): pass
-RLSServicesApplication.register_namespace(rls_namespace, prefix=None)
+RLSServicesApplication.register_namespace(rls_namespace, prefix=None, schema='rlsservices.xsd')
 
 ## Marker mixins
 
@@ -131,7 +131,6 @@ class RLSServices(XMLListRootElement):
     _xml_tag = 'rls-services'
     _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
-    _xml_schema_file = 'rlsservices.xsd'
     _xml_children_order = {Service.qname: 0}
     _xml_item_type = Service
 

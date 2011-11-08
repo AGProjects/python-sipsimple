@@ -23,7 +23,7 @@ class NeedFullUpdateError(Exception): pass
 
 
 class WatcherInfoApplication(XMLApplication): pass
-WatcherInfoApplication.register_namespace(namespace, prefix=None)
+WatcherInfoApplication.register_namespace(namespace, prefix=None, schema='watcherinfo.xsd')
 
 
 ## Attribute value types
@@ -180,7 +180,6 @@ class WatcherInfo(XMLListRootElement):
     _xml_tag = 'watcherinfo'
     _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
-    _xml_schema_file = 'watcherinfo.xsd'
     _xml_children_order = {WatcherList.qname: 0}
     _xml_item_type = WatcherList
 
