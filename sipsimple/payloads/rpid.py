@@ -42,7 +42,7 @@ from lxml import etree
 
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
-from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
+from sipsimple.payloads.pidf import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteMap, NoteList, Service, Person, Device
 from sipsimple.payloads.util import UnsignedLong
 from sipsimple.util import Timestamp
 
@@ -161,9 +161,10 @@ class Activities(XMLStringListElement, PersonExtension):
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
 
+    _note_map = NoteMap()
+
     def __init__(self, id=None, since=None, until=None, activities=[], notes=[]):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
@@ -237,9 +238,10 @@ class Mood(XMLStringListElement, PersonExtension):
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
     
+    _note_map = NoteMap()
+    
     def __init__(self, id=None, since=None, until=None, moods=[], notes=[]):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
@@ -317,9 +319,10 @@ class PlaceIs(XMLElement, PersonExtension):
     video = XMLElementChild('video', type=VideoPlaceInformation, required=False, test_equal=True)
     text = XMLElementChild('text', type=TextPlaceInformation, required=False, test_equal=True)
 
+    _note_map = NoteMap()
+
     def __init__(self, id=None, since=None, until=None, audio=None, video=None, text=None, notes=[]):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
@@ -355,9 +358,10 @@ class PlaceType(XMLElement, PersonExtension):
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
     value = XMLStringChoiceChild('value', other_type=RPIDOther, extension_type=PlaceTypeElement)
 
+    _note_map = NoteMap()
+
     def __init__(self, id=None, since=None, until=None, placetype=None, notes=[]):
         super(PlaceType, self).__init__()
-        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
@@ -448,9 +452,10 @@ class Privacy(XMLElement, PersonExtension):
     video = XMLElementChild('video', type=VideoPrivacy, required=False, test_equal=True)
     unknown = property(lambda self: all(getattr(self, name) is None for name in self._privacy_attributes))
 
+    _note_map = NoteMap()
+
     def __init__(self, id=None, since=None, until=None, notes=[], audio=False, text=False, video=False):
         super(Privacy, self).__init__()
-        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
@@ -499,9 +504,10 @@ class Relationship(XMLElement, ServiceExtension):
 
     value = XMLStringChoiceChild('value', registry=RelationshipRegistry, other_type=RPIDOther, extension_type=RelationshipElement)
 
+    _note_map = NoteMap()
+
     def __init__(self, relationship='self', notes=[]):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.value = relationship
         self.notes.update(notes)
 
@@ -537,9 +543,10 @@ class ServiceClass(XMLElement, ServiceExtension):
     
     value = XMLStringChoiceChild('value', registry=ServiceClassRegistry, extension_type=ServiceClassElement)
     
+    _note_map = NoteMap()
+    
     def __init__(self, service_class=None, notes=[]):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.value = service_class
         self.notes.update(notes)
 

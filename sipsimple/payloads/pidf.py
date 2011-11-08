@@ -25,6 +25,7 @@ __all__ = ['pidf_namespace',
 
 
 import datetime
+import weakref
 
 from sipsimple import util
 from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
@@ -130,6 +131,24 @@ class DMNote(XMLStringElement):
 
     def __unicode__(self):
         return Note(self.value, self.lang)
+
+
+class NoteMap(object):
+    """Descriptor to be used for _note_map attributes on XML elements with notes"""
+
+    def __init__(self):
+        self.object_map = weakref.WeakKeyDictionary()
+
+    def __get__(self, obj, type):
+        if obj is None:
+            return self
+        return self.object_map.setdefault(obj, {})
+
+    def __set__(self, obj, value):
+        raise AttributeError("cannot set attribute")
+
+    def __delete__(self, obj):
+        raise AttributeError("cannot delete attribute")
 
 
 class NoteList(object):
@@ -271,9 +290,10 @@ class Service(XMLElement):
     device_id = XMLElementChild('device_id', type=DeviceID, required=False, test_equal=True)
     _xml_id = id
 
+    _note_map = NoteMap()
+
     def __init__(self, id, notes=[], status=None, contact=None, timestamp=None, device_id=None):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.status = status
         self.contact = contact
@@ -318,9 +338,10 @@ class Device(XMLElement):
     timestamp = XMLElementChild('timestamp', type=DeviceTimestamp, required=False, test_equal=True)
     _xml_id = id
 
+    _note_map = NoteMap()
+
     def __init__(self, id, device_id=None, notes=[], timestamp=None):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.device_id = device_id
         self.timestamp = timestamp
@@ -361,9 +382,10 @@ class Person(XMLElement):
     timestamp = XMLElementChild('timestamp', type=PersonTimestamp, required=False, test_equal=True)
     _xml_id = id
 
+    _note_map = NoteMap()
+
     def __init__(self, id, notes=[], timestamp=None):
         XMLElement.__init__(self)
-        self._note_map = {}
         self.id = id
         self.timestamp = timestamp
         self.notes.update(notes)
