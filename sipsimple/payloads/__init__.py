@@ -545,7 +545,6 @@ class XMLRootElement(XMLElement):
     encoding = 'UTF-8'
     content_type = None
     
-    _xml_nsmap = {}
     _xml_declaration = True
     
     def __init__(self):
