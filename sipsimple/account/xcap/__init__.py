@@ -322,9 +322,6 @@ class Contact(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash(self.uri)
-
 
 class Service(object):
     def __init__(self, uri, packages, entries=None):
@@ -419,9 +416,6 @@ class Policy(object):
     def __ne__(self, other):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
-
-    def __hash__(self):
-        return hash(self.id)
 
 
 # elements to represent provide_(devices|persons|services) components for pres-rules
