@@ -44,12 +44,6 @@ class Document(XMLElement):
         self.new_etag = new_etag
         self.previous_etag = previous_etag
 
-    def _parse_element(self, element, *args, **kwargs):
-        pass
-
-    def _build_element(self, *args, **kwargs):
-        pass
-
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.selector, self.new_etag, self.previous_etag)
 
@@ -78,12 +72,6 @@ class Element(XMLElement):
         XMLElement.__init__(self)
         self.selector = selector
         self.exists = exists
-
-    def _parse_element(self, element, *args, **kwargs):
-        pass
-
-    def _build_element(self, *args, **kwargs):
-        pass
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.selector, self.exists)
