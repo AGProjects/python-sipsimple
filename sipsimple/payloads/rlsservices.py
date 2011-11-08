@@ -7,7 +7,6 @@
 __all__ = ['rl_namespace',
            'rls_namespace',
            'RLSServicesApplication',
-           'Package',
            'Packages',
            'ResourceList',
            'RLSList',
