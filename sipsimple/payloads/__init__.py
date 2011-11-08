@@ -26,9 +26,9 @@ __all__ = ['ParserError',
 import os
 import sys
 import urllib
+import weakref
 from collections import defaultdict, deque
 from cStringIO import StringIO
-from weakref import WeakValueDictionary
 
 from application.python.descriptor import classproperty
 from lxml import etree
@@ -153,12 +153,13 @@ class XMLAttribute(object):
         if obj is None:
             return self
         try:
-            return self.values[id(obj)]
+            return self.values[id(obj)][0]
         except KeyError:
             value = self.default
             if value is not None:
                 obj.element.set(self.xmlname, self.builder(value))
-            self.values[id(obj)] = value
+            obj_id = id(obj)
+            self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
             return value
     
     def __set__(self, obj, value):
@@ -168,7 +169,8 @@ class XMLAttribute(object):
             obj.element.set(self.xmlname, self.builder(value))
         else:
             obj.element.attrib.pop(self.xmlname, None)
-        self.values[id(obj)] = value
+        obj_id = id(obj)
+        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
         if self.onset:
             self.onset(obj, self, value)
 
@@ -202,17 +204,22 @@ class XMLElementChild(object):
         if obj is None:
             return self
         try:
-            return self.values[id(obj)]
+            return self.values[id(obj)][0]
         except KeyError:
             return None
 
     def __set__(self, obj, value):
         if value is not None and not isinstance(value, self.type):
             value = self.type(value)
-        old_value = self.values.get(id(obj), None)
-        if old_value is not None:
-            obj.element.remove(old_value.element)
-        self.values[id(obj)] = value
+        obj_id = id(obj)
+        try:
+            old_value = self.values[obj_id][0]
+        except KeyError:
+            pass
+        else:
+            if old_value is not None:
+                obj.element.remove(old_value.element)
+        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
         if value is not None:
             obj._insert_element(value.element)
         if self.onset:
@@ -220,9 +227,12 @@ class XMLElementChild(object):
 
     def __delete__(self, obj):
         try:
-            del self.values[id(obj)]
+            old_value = self.values.pop(id(obj))[0]
         except KeyError:
             pass
+        else:
+            if old_value is not None:
+                obj.element.remove(old_value.element)
         if self.ondel:
             self.ondel(obj, self)
 
@@ -241,17 +251,22 @@ class XMLElementChoiceChild(object):
         if obj is None:
             return self
         try:
-            return self.values[id(obj)]
+            return self.values[id(obj)][0]
         except KeyError:
             return None
 
     def __set__(self, obj, value):
         if value is not None and not isinstance(value, self.types):
             raise TypeError("%s is not an acceptable type for %s" % (value.__class__.__name__, obj.__class__.__name__))
-        old_value = self.values.get(id(obj), None)
-        if old_value is not None:
-            obj.element.remove(old_value.element)
-        self.values[id(obj)] = value
+        obj_id = id(obj)
+        try:
+            old_value = self.values[obj_id][0]
+        except KeyError:
+            pass
+        else:
+            if old_value is not None:
+                obj.element.remove(old_value.element)
+        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
         if value is not None:
             obj._insert_element(value.element)
         if self.onset:
@@ -259,9 +274,12 @@ class XMLElementChoiceChild(object):
 
     def __delete__(self, obj):
         try:
-            del self.values[id(obj)]
+            old_value = self.values.pop(id(obj))[0]
         except KeyError:
             pass
+        else:
+            if old_value is not None:
+                obj.element.remove(old_value.element)
         if self.ondel:
             self.ondel(obj, self)
 
@@ -512,10 +530,6 @@ class XMLElement(object):
                 return hash((self._xml_tag, self._xml_namespace))
             return sum(hashes)
 
-    def __del__(self):
-        for name in self._xml_attributes.keys() + self._xml_element_children.keys():
-            delattr(self, name)
-
 
 class XMLRootElementType(XMLElementType):
     def __init__(cls, name, bases, dct):
@@ -536,12 +550,12 @@ class XMLRootElement(XMLElement):
     
     def __init__(self):
         XMLElement.__init__(self)
-        self.cache = WeakValueDictionary({self.element: self})
+        self.cache = weakref.WeakValueDictionary({self.element: self})
 
     @classmethod
     def from_element(cls, element, *args, **kwargs):
         obj = super(XMLRootElement, cls).from_element(element, *args, **kwargs)
-        obj.cache = WeakValueDictionary({obj.element: obj})
+        obj.cache = weakref.WeakValueDictionary({obj.element: obj})
         return obj
     
     @classmethod
