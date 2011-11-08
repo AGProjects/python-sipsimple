@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns="urn:ietf:params:xml:ns:xcap-diff"
+    targetNamespace="urn:ietf:params:xml:ns:xcap-diff"
+    elementFormDefault="qualified"
+    attributeFormDefault="unqualified">
+
+    <!-- include patch-ops -->
+    <!--<xs:include-->
+        <!--schemaLocation="urn:ietf:params:xml:schema:patch-ops"/>-->
+    <xs:include
+        schemaLocation="patchops.xsd"/>
+
+    <!-- document root -->
+    <xs:element name="xcap-diff">
+        <xs:complexType>
+            <xs:sequence minOccurs="0">
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:choice>
+                        <xs:element name="document" type="documentType"/>
+                        <xs:element name="element" type="elementType"/>
+                        <xs:element name="attribute" type="attributeType"/>
+                    </xs:choice>
+                </xs:sequence>
+                <xs:any namespace="##other" processContents="lax"
+                    minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="xcap-root" type="xs:anyURI" use="required"/>
+            <xs:anyAttribute processContents="lax"/>
+        </xs:complexType>
+    </xs:element>
+
+    <!-- xcap document type -->
+    <xs:complexType name="documentType">
+        <xs:choice minOccurs="0">
+            <xs:element name="body-not-changed" type="emptyType"/>
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:choice>
+                    <xs:element name="add">
+                        <xs:complexType mixed="true">
+                            <xs:complexContent>
+                                <xs:extension base="add">
+                                    <xs:anyAttribute processContents="lax"/>
+                                </xs:extension>
+                            </xs:complexContent>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:element name="remove">
+                        <xs:complexType>
+                            <xs:complexContent>
+                                <xs:extension base="remove">
+                                    <xs:anyAttribute processContents="lax"/>
+                                </xs:extension>
+                            </xs:complexContent>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:element name="replace">
+                        <xs:complexType mixed="true">
+                            <xs:complexContent>
+                                <xs:extension base="replace">
+                                    <xs:anyAttribute processContents="lax"/>
+                                </xs:extension>
+                            </xs:complexContent>
+                        </xs:complexType>
+                    </xs:element>
+                    <xs:any namespace="##other" processContents="lax"/>
+                </xs:choice>
+            </xs:sequence>
+        </xs:choice>
+        <xs:attribute name="sel" type="xs:anyURI" use="required"/>
+        <xs:attribute name="new-etag" type="xs:string"/>
+        <xs:attribute name="previous-etag" type="xs:string"/>
+        <xs:anyAttribute processContents="lax"/>
+    </xs:complexType>
+
+    <!-- xcap element type -->
+    <xs:complexType name="elementType">
+        <xs:complexContent mixed="true">
+            <xs:restriction base="xs:anyType">
+                <xs:sequence>
+                    <xs:any processContents="lax" namespace="##any"
+                        minOccurs="0" maxOccurs="1"/>
+                </xs:sequence>
+                <xs:attribute name="sel" type="xs:string"
+                    use="required"/>
+                <xs:attribute name="exists" type="xs:boolean"/>
+                <xs:anyAttribute processContents="lax"/>
+            </xs:restriction>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- xcap attribute type -->
+    <xs:complexType name="attributeType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="sel" type="xs:string"
+                    use="required"/>
+                <xs:attribute name="exists" type="xs:boolean"/>
+                <xs:anyAttribute processContents="lax"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <!-- empty type -->
+    <xs:complexType name="emptyType"/>
+</xs:schema>
+

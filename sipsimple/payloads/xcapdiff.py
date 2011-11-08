@@ -1,7 +1,10 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-"""Parsing and building xcap-diff documents according to draft-ietf-simple-xcap-diff."""
+"""
+This module allows parsing and building xcap-diff documents according to
+RFC 5874.
+"""
 
 
 __all__ = ['namespace', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
@@ -15,7 +18,7 @@ namespace = 'urn:ietf:params:xml:ns:xcap-diff'
 
 
 class XCAPDiffApplication(XMLApplication): pass
-XCAPDiffApplication.register_namespace(namespace, prefix=None)
+XCAPDiffApplication.register_namespace(namespace, prefix=None, schema='xcapdiff.xsd')
 
 
 class BodyNotChanged(XMLEmptyElement):
