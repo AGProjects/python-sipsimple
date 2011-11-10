@@ -112,13 +112,6 @@ The SDK consists of four parts:
  3. MSRP library
  4. SIP SIMPLE library
 
-When compiling as non-root user, setup the following evironment variables:
-
-export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386 -arch x86_64"
-export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-
-
 # Eventlet
 if [ -d python-eventlet ]; then
         cd python-eventlet
