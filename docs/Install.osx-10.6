@@ -98,6 +98,9 @@ easy_install -U python-gnutls dnspython twisted python-application PIL cython==0
 # Install lxml python module
 STATIC_DEPS=true easy_install lxml
 
+# Stop being root
+exit
+
 
 Step 3. Install SIP SIMPLE client SDK
 -------------------------------------
@@ -132,13 +135,17 @@ cd ..
 if [ -d python-greenlet ]; then
         cd python-greenlet
         darcs pull -a
-        sudo python setup.py install
 else
         darcs get http://devel.ag-projects.com/repositories/python-greenlet
         cd python-greenlet
-        python setup.py build
-        sudo python setup.py install
 fi
+sudo -s
+export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
+export ARCHFLAGS="-arch i386 -arch x86_64"
+export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
+python setup.py build
+python setup.py install
+exit
 cd ..
 
 # Backports
@@ -183,8 +190,8 @@ if [ -d python-sipsimple ]; then
     darcs pull -a
 else 
     darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+    cd python-sipsimple
 fi
-cd..
 
 Note: 64 bit architecture is not yet fully supported, namely there is
 hissing sound in the audio input layer that manifests itself only when
@@ -193,7 +200,6 @@ building in 64 bit mode.  Until a fix is found, the workaround is to use the
 
 Build and install SIP SIMPLE library:
 
-cd python-sipsimple
 sudo -s
 # build only for 32 bit architechture to avoid the audio input bug
 export SIPSIMPLE_OSX_ARCH="i386"
@@ -208,6 +214,7 @@ if [ -d sipclients ]; then
     darcs pull -a
 else 
     darcs get http://devel.ag-projects.com/repositories/sipclients
+    cd sipclients
 fi
 sudo python setup.py install
 cd ..
