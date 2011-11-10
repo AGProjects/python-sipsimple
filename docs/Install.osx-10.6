@@ -96,7 +96,7 @@ export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Develo
 easy_install -U python-gnutls dnspython twisted python-application PIL cython==0.14 python-dateutil pyOpenSSL
 
 # Install lxml python module
-STATIC_DEPS=true easy_install lxml
+STATIC_DEPS=true CFLAGS="-arch i386" easy_install lxml
 
 # Stop being root
 exit
