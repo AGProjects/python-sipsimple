@@ -48,7 +48,7 @@ curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.10.tar.bz2
 tar -xjvf libgpg-error-1.10.tar.bz2
 cd libgpg-error-1.10
 make clean
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -57,7 +57,7 @@ curl -O http://ftp.gnu.org/pub/gnu/libtasn1/libtasn1-2.10.tar.gz
 tar zxvf libtasn1-2.10.tar.gz 
 cd libtasn1-2.10
 make clean
-CFLAGS="-arch i386 -arch x86_64" ./configure --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -66,7 +66,7 @@ curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.5.0.tar.bz2
 tar -xjvf libgcrypt-1.5.0.tar.bz2
 cd libgcrypt-1.5.0
 make clean
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
 cd ..
@@ -76,7 +76,7 @@ curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.12.14.tar.bz2
 tar -xjvf gnutls-2.12.14.tar.bz2
 cd gnutls-2.12.14
 make clean
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking --without-p11-kit --with-libgcrypt
+CFLAGS="-arch i386" CXXFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking --without-p11-kit --with-libgcrypt
 make
 sudo make install
 cd ..
@@ -90,7 +90,7 @@ before starting the build process:
 
 sudo -s
 export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386 -arch x86_64"
+export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 
 easy_install -U python-gnutls dnspython twisted python-application PIL cython==0.14 python-dateutil pyOpenSSL
@@ -134,7 +134,7 @@ else
 fi
 sudo -s
 export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386 -arch x86_64"
+export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 python setup.py build
 python setup.py install
