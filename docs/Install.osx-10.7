@@ -90,7 +90,7 @@ before starting the build process:
 
 sudo -s
 export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386 -arch x86_64"
+export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 
 easy_install -U python-gnutls dnspython twisted python-application PIL cython==0.14 python-dateutil pyOpenSSL
@@ -134,7 +134,7 @@ else
 fi
 sudo -s
 export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386 -arch x86_64"
+export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 python setup.py build
 python setup.py install
