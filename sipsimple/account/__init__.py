@@ -15,6 +15,7 @@ import re
 import string
 
 from itertools import chain
+from threading import Lock
 from time import time
 from weakref import WeakKeyDictionary
 
@@ -42,7 +43,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.messagesummary import MessageSummary
-from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading import call_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
 from sipsimple.util import Route, TimestampedNotificationData, user_info
 
@@ -1482,6 +1483,7 @@ class AccountManager(object):
     implements(IObserver)
 
     def __init__(self):
+        self._lock = Lock()
         self.accounts = {}
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectWasActivated')
@@ -1597,17 +1599,22 @@ class AccountManager(object):
     def _set_default_account(self, account):
         if account is not None and not account.enabled:
             raise ValueError("account %s is not enabled" % account.id)
-        settings = SIPSimpleSettings()
-        old_account = self.accounts.get(settings.default_account, None)
-        if account is old_account:
-            return
-        if account is None:
-            settings.default_account = None
-        else:
-            settings.default_account = account.id
-        settings.save()
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=TimestampedNotificationData(old_account=old_account, account=account))
+        settings = SIPSimpleSettings()
+        with self._lock:
+            old_account = self.accounts.get(settings.default_account, None)
+            if account is old_account:
+                return
+            if account is None:
+                settings.default_account = None
+            else:
+                settings.default_account = account.id
+            settings.save()
+            # we need to post the notification in the file-io thread in order to have it serialized after the
+            # SIPAccountManagerDidAddAccount notification that is triggered when the account is saved the first
+            # time, because save is executed in the file-io thread while this runs in the current thread. -Dan
+            data=TimestampedNotificationData(old_account=old_account, account=account)
+            call_in_thread('file-io', notification_center.post_notification, 'SIPAccountManagerDidChangeDefaultAccount', sender=self, data=data)
 
     default_account = property(_get_default_account, _set_default_account)
     del _get_default_account, _set_default_account
