@@ -18,7 +18,7 @@ __all__ = ['namespace',
            'DialogInfo']
 
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
+from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
@@ -196,7 +196,8 @@ class Dialog(XMLElement):
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
 
-    id = XMLAttribute('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=str, required=True, test_equal=True)
+
     call_id = XMLAttribute('call_id', xmlname='call-id', type=str, required=False, test_equal=True)
     local_tag = XMLAttribute('local_tag', xmlname='local-tag', type=str, required=False, test_equal=True)
     remote_tag = XMLAttribute('remote_tag', xmlname='remote-tag', type=str, required=False, test_equal=True)
@@ -208,8 +209,6 @@ class Dialog(XMLElement):
     referred_by = XMLElementChild('referred_by', type=ReferredBy, required=False, test_equal=True)
     local = XMLElementChild('local', type=Local, required=False, test_equal=True)
     remote = XMLElementChild('remote', type=Remote, required=False, test_equal=True)
-
-    _xml_id = id
 
     def __init__(self, id, state, call_id=None, local_tag=None, remote_tag=None, direction=None, duration=None, replaces=None, referred_by=None, local=None, remote=None):
         XMLElement.__init__(self)

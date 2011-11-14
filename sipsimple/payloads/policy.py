@@ -30,7 +30,7 @@ __all__ = ['namespace',
 
 import datetime
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild, XMLStringElement
+from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLStringElement
 from sipsimple.util import Timestamp
 
 
@@ -56,8 +56,7 @@ class IdentityOne(XMLElement):
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
-    id = XMLAttribute('id', type=str, required=True, test_equal=True)
-    _xml_id = id
+    id = XMLElementID('id', type=str, required=True, test_equal=True)
 
     def __init__(self, id):
         XMLElement.__init__(self)
@@ -311,11 +310,11 @@ class Rule(XMLElement):
                            Actions.qname: 1,
                            Transformations.qname: 2}
 
-    id = XMLAttribute('id', type=unicode, required=True, test_equal=True)
+    id = XMLElementID('id', type=unicode, required=True, test_equal=True)
+
     conditions = XMLElementChild('conditions', type=Conditions, required=False, test_equal=True)
     actions = XMLElementChild('actions', type=Actions, required=False, test_equal=True)
     transformations = XMLElementChild('transformations', type=Transformations, required=False, test_equal=True)
-    _xml_id = id
 
     def __init__(self, id, conditions=None, actions=None, transformations=None):
         XMLElement.__init__(self)

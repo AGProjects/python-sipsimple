@@ -10,7 +10,7 @@ RFC 5874.
 __all__ = ['namespace', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
 
 
-from sipsimple.payloads import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads.util import XCAPURI, Boolean
 
 
@@ -32,11 +32,10 @@ class Document(XMLElement):
     _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
-    selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
+    selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     new_etag = XMLAttribute('new_etag', xmlname='new-etag', type=str, required=False, test_equal=True)
     previous_etag = XMLAttribute('previous_etag', xmlname='previous-etag', type=str, required=False, test_equal=True)
     body_not_changed = XMLElementChild('body_not_changed', type=BodyNotChanged, required=False, test_equal=True)
-    _xml_id = selector
 
     def __init__(self, selector, new_etag=None, previous_etag=None):
         XMLElement.__init__(self)
@@ -64,9 +63,8 @@ class Element(XMLElement):
     _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
-    selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
+    selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     exists = XMLAttribute('exists', type=Boolean, required=False, test_equal=True)
-    _xml_id = selector
 
     def __init__(self, selector, exists=None):
         XMLElement.__init__(self)
@@ -82,10 +80,9 @@ class Attribute(XMLStringElement):
     _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
-    selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
+    selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     exists = XMLAttribute('exists', type=Boolean, required=False, test_equal=True)
-    _xml_id = selector
-    
+
     def __init__(self, selector, exists=None):
         XMLStringElement.__init__(self)
         self.selector = selector
@@ -103,8 +100,7 @@ class XCAPDiff(XMLListRootElement):
     _xml_application = XCAPDiffApplication
     _xml_item_type = (Document, Element, Attribute)
 
-    xcap_root = XMLAttribute('xcap_root', xmlname='xcap-root', type=str, required=True, test_equal=True)
-    _xml_id = xcap_root
+    xcap_root = XMLElementID('xcap_root', xmlname='xcap-root', type=str, required=True, test_equal=True)
 
     def __init__(self, xcap_root, children=[]):
         XMLListRootElement.__init__(self)

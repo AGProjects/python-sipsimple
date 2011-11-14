@@ -8,6 +8,7 @@ __all__ = ['ParserError',
            'parse_qname',
            'XMLApplication',
            'XMLAttribute',
+           'XMLElementID',
            'XMLElementChild',
            'XMLElementChoiceChild',
            'XMLStringChoiceChild',
@@ -190,6 +191,19 @@ class XMLAttribute(object):
         return self.builder(value)
 
 
+class XMLElementID(XMLAttribute):
+    """An XMLAttribute that represents the ID of an element (immutable)."""
+
+    def __set__(self, obj, value):
+        obj_id = id(obj)
+        if obj_id in self.values:
+            raise AttributeError("An XML element ID cannot be changed")
+        super(XMLElementID, self).__set__(obj, value)
+
+    def __delete__(self, obj):
+        raise AttributeError("An XML element ID cannot be deleted")
+
+
 class XMLElementChild(object):
     def __init__(self, name, type, required=False, test_equal=True, onset=None, ondel=None):
         self.name = name
@@ -334,7 +348,12 @@ class XMLElementType(type):
                 cls._xml_element_children.update(base._xml_element_children)
                 cls._xml_children_qname_map.update(base._xml_children_qname_map)
         for name, value in dct.items():
-            if isinstance(value, XMLAttribute):
+            if isinstance(value, XMLElementID):
+                if cls._xml_id is not None:
+                    raise AttributeError("Only one XMLElementID attribute can be defined in the %s class" % cls.__name__)
+                cls._xml_id = value
+                cls._xml_attributes[value.name] = value
+            elif isinstance(value, XMLAttribute):
                 cls._xml_attributes[value.name] = value
             elif isinstance(value, XMLElementChild):
                 cls._xml_element_children[value.name] = value
@@ -355,7 +374,7 @@ class XMLElement(object):
     _xml_namespace = None # To be defined in subclass
     _xml_application = None # To be defined in subclass
     _xml_extension_type = None # Can be defined in subclass
-    _xml_id = None # Can be defined in subclass
+    _xml_id = None # Can be defined in subclass, or will be set by the metaclass to the XMLElementID attribute (if present)
     _xml_children_order = {} # Can be defined in subclass
 
     # dynamically generated

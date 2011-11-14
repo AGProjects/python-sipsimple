@@ -16,7 +16,7 @@ __all__ = ['rl_namespace',
 
 import urllib
 
-from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
+from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, XMLElementChoiceChild
 from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
 
@@ -109,11 +109,10 @@ class Service(XMLElement):
                            ResourceList.qname: 0,
                            Packages.qname: 1}
 
-    uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
+    uri = XMLElementID('uri', type=str, required=True, test_equal=True)
     list = XMLElementChoiceChild('list', types=(ResourceList, RLSList), required=True, test_equal=True)
     packages = XMLElementChild('packages', type=Packages, required=False, test_equal=True)
-    _xml_id = uri
-    
+
     def __init__(self, uri, list=RLSList(), packages=Packages()):
         XMLElement.__init__(self)
         self.uri = uri

@@ -12,7 +12,7 @@ NOTE: Subscription Handling has been taken from RFC 5025.
 __all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesApplication', 'ExternalList', 'SubHandling', 'DialogRules']
 
 
-from sipsimple.payloads import XMLAttribute, XMLElement, XMLListElement, XMLStringElement, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLElementID, XMLElement, XMLListElement, XMLStringElement, uri_attribute_builder, uri_attribute_parser
 from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, ConditionElement, RuleSet
 
 
@@ -45,8 +45,7 @@ class Entry(XMLElement):
     _xml_namespace = dlg_namespace
     _xml_application = DialogRulesApplication
 
-    uri = XMLAttribute('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
-    _xml_id = uri
+    uri = XMLElementID('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
 
     def __init__(self, uri):
         XMLElement.__init__(self)

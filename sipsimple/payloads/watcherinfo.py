@@ -12,7 +12,7 @@ __all__ = ['namespace',
            'WatcherInfo']
 
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
 from sipsimple.payloads.util import UnsignedLong, SIPURI
 
 
@@ -69,14 +69,13 @@ class Watcher(XMLElement):
     _xml_tag = 'watcher'
     _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
-    
-    id           = XMLAttribute('id', type=str, required=True, test_equal=True)
+
+    id           = XMLElementID('id', type=str, required=True, test_equal=True)
     status       = XMLAttribute('status', type=WatcherStatus, required=True, test_equal=True)
     event        = XMLAttribute('event', type=WatcherEvent, required=True, test_equal=True)
     display_name = XMLAttribute('display_name', xmlname='display-name', type=str, required=False, test_equal=True)
     expiration   = XMLAttribute('expiration', type=UnsignedLong, required=False, test_equal=False)
     duration     = XMLAttribute('duration', xmlname='duration-subscribed', type=UnsignedLong, required=False, test_equal=False)
-    _xml_id      = id
 
     def __init__(self, sipuri, id, status, event, display_name=None, expiration=None, duration=None):
         XMLElement.__init__(self)
@@ -133,9 +132,8 @@ class WatcherList(XMLListElement):
     _xml_children_order = {Watcher.qname: 0}
     _xml_item_type = Watcher
 
-    resource = XMLAttribute('resource', type=SIPURI, required=True, test_equal=True)
+    resource = XMLElementID('resource', type=SIPURI, required=True, test_equal=True)
     package  = XMLAttribute('package', type=str, required=True, test_equal=True)
-    _xml_id  = resource
 
     def __init__(self, resource, package, watchers=[]):
         XMLListElement.__init__(self)

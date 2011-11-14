@@ -20,7 +20,7 @@ from collections import deque
 from lxml import etree
 from xml.sax.saxutils import quoteattr
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
 
 
 namespace = 'urn:ietf:params:xml:ns:resource-lists'
@@ -75,9 +75,8 @@ class Entry(XMLElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    uri = XMLAttribute('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    uri = XMLElementID('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
-    _xml_id = uri
 
     def __init__(self, uri, display_name=None):
         XMLElement.__init__(self)
@@ -97,9 +96,8 @@ class EntryRef(XMLElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    ref = XMLAttribute('ref', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    ref = XMLElementID('ref', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
-    _xml_id = ref
 
     def __init__(self, ref, display_name=None):
         XMLElement.__init__(self)
@@ -119,9 +117,8 @@ class External(XMLElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    anchor = XMLAttribute('anchor', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    anchor = XMLElementID('anchor', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
-    _xml_id = anchor
 
     def __init__(self, anchor, display_name=None):
         XMLElement.__init__(self)
@@ -147,9 +144,8 @@ class List(XMLListElement):
                            External.qname: 1}
     _xml_item_type = (Entry, EntryRef, External, List, ListElement)
 
-    name = XMLAttribute('name', type=unicode, required=False, test_equal=True)
+    name = XMLElementID('name', type=unicode, required=False, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
-    _xml_id = name
 
     def __init__(self, entries=[], name=None, display_name=None):
         XMLListElement.__init__(self)
