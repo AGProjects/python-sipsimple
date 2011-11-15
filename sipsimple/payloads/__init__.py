@@ -544,10 +544,7 @@ class XMLElement(object):
         if self.__class__._xml_id is not None:
             return hash(self._xml_id)
         else:
-            hashes = [hash(getattr(self, name)) for name, child in self._xml_attributes.items() + self._xml_element_children.items() if child.test_equal]
-            if len(hashes) == 0:
-                return hash((self._xml_tag, self._xml_namespace))
-            return sum(hashes)
+            return object.__hash__(self)
 
 
 class XMLRootElementType(XMLElementType):
@@ -813,9 +810,6 @@ class XMLStringElement(XMLElement):
         else:
             return NotImplemented
 
-    def __hash__(self):
-        return hash(self.value)
-
 
 class XMLEmptyElement(XMLElement):
     def __init__(self):
@@ -825,7 +819,7 @@ class XMLEmptyElement(XMLElement):
     def __eq__(self, other):
         return type(self) is type(other) or NotImplemented
     def __hash__(self):
-        return hash(type(self))
+        return hash(self.__class__)
 
 
 class XMLEmptyElementRegistryType(type):
