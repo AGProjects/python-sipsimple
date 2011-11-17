@@ -734,7 +734,7 @@ class TransferHandler(object):
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
-            except DNSLookupError:
+            except DNSLookupError, e:
                 self.state = 'failed'
                 notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
                 try:
