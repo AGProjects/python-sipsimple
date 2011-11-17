@@ -251,10 +251,57 @@ class XMLElementChild(object):
             self.ondel(obj, self)
 
 
+class XMLElementChoiceChildWrapper(object):
+    __slots__ = ('descriptor', 'type')
+
+    def __init__(self, descriptor, type):
+        self.descriptor = descriptor
+        self.type = type
+
+    def __getattribute__(self, name):
+        if name in ('descriptor', 'type', 'register_extension', 'unregister_extension'):
+            return super(XMLElementChoiceChildWrapper, self).__getattribute__(name)
+        else:
+            return self.descriptor.__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if name in ('descriptor', 'type'):
+            super(XMLElementChoiceChildWrapper, self).__setattr__(name, value)
+        else:
+            setattr(self.descriptor, name, value)
+
+    def __dir__(self):
+        return dir(self.descriptor) + ['descriptor', 'type', 'register_extension', 'unregister_extension']
+
+    def register_extension(self, type):
+        if self.extension_type is None:
+            raise ValueError("The %s XML choice element of %s does not support extensions" % (self.name, self.type.__name__))
+        if not issubclass(type, XMLElement) or not issubclass(type, self.extension_type):
+            raise TypeError("type is not a subclass of XMLElement and/or %s: %s" % (self.extension_type.__name__, type.__name__))
+        if type in self.types:
+            raise ValueError("%s is already registered as a choice extension" % type.__name__)
+        self.types.add(type)
+        self.type._xml_children_qname_map[type.qname] = (self.descriptor, type)
+        for child_class in self.type.__subclasses__():
+            child_class._xml_children_qname_map[type.qname] = (self.descriptor, type)
+
+    def unregister_extension(self, type):
+        if self.extension_type is None:
+            raise ValueError("The %s XML choice element of %s does not support extensions" % (self.name, self.type.__name__))
+        try:
+            self.types.remove(type)
+        except ValueError:
+            raise ValueError("%s is not a registered choice extension on %s" % (type.__name__, self.type.__name__))
+        del self.type._xml_children_qname_map[type.qname]
+        for child_class in self.type.__subclasses__():
+            del child_class._xml_children_qname_map[type.qname]
+
+
 class XMLElementChoiceChild(object):
-    def __init__(self, name, types, required=False, test_equal=True, onset=None, ondel=None):
+    def __init__(self, name, types, extension_type=None, required=False, test_equal=True, onset=None, ondel=None):
         self.name = name
-        self.types = types
+        self.types = set(types)
+        self.extension_type = extension_type
         self.required = required
         self.test_equal = test_equal
         self.onset = onset
@@ -263,14 +310,14 @@ class XMLElementChoiceChild(object):
 
     def __get__(self, obj, objtype):
         if obj is None:
-            return self
+            return XMLElementChoiceChildWrapper(self, objtype)
         try:
             return self.values[id(obj)][0]
         except KeyError:
             return None
 
     def __set__(self, obj, value):
-        if value is not None and not isinstance(value, self.types):
+        if value is not None and type(value) not in self.types:
             raise TypeError("%s is not an acceptable type for %s" % (value.__class__.__name__, obj.__class__.__name__))
         obj_id = id(obj)
         try:
@@ -311,9 +358,9 @@ class XMLStringChoiceChild(XMLElementChoiceChild):
         self.registry = registry
         self.other_type = other_type
         self.extension_type = extension_type
-        types = registry.classes if registry is not None else ()
-        types += tuple(type for type in (other_type, extension_type) if type is not None)
-        super(XMLStringChoiceChild, self).__init__(name, types, required=True, test_equal=True)
+        types  = registry.classes if registry is not None else ()
+        types += (other_type,) if other_type is not None else ()
+        super(XMLStringChoiceChild, self).__init__(name, types, extension_type=extension_type, required=True, test_equal=True)
 
     def __get__(self, obj, objtype):
         value = super(XMLStringChoiceChild, self).__get__(obj, objtype)
@@ -360,7 +407,7 @@ class XMLElementType(type):
                 cls._xml_children_qname_map[value.type.qname] = (value, value.type)
             elif isinstance(value, XMLElementChoiceChild):
                 cls._xml_element_children[value.name] = value
-                for type in (type for type in value.types if issubclass(type, XMLElement)):
+                for type in value.types:
                     cls._xml_children_qname_map[type.qname] = (value, type)
 
         # register class in its XMLDocument
