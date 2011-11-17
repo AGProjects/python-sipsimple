@@ -195,6 +195,12 @@ hissing sound in the audio input layer that manifests itself only when
 building in 64 bit mode.  Until a fix is found, the workaround is to use the
 32 bit mode.
 
+By default the system version SDK will be used to build SIPSIMPLE SDK. That is,
+if you are running Mac OSX 10.6 the 10.6 SDK will be used. This can be overridden
+by setting the following environment variable:
+
+export SIPSIMPLE_OSX_SDK="10.6"
+
 Build and install SIP SIMPLE library:
 
 sudo -s
