@@ -5,7 +5,7 @@
 
 
 __all__ = ['namespace',
-           'ResourceListsApplication',
+           'ResourceListsDocument',
            'DisplayName',
            'Entry',
            'EntryRef',
@@ -20,7 +20,7 @@ from collections import deque
 from lxml import etree
 from xml.sax.saxutils import quoteattr
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
 
 
 namespace = 'urn:ietf:params:xml:ns:resource-lists'
@@ -49,8 +49,8 @@ namespace = 'urn:ietf:params:xml:ns:resource-lists'
 # anchor must be an absolute http uri that resolves into <list>
 
 
-class ResourceListsApplication(XMLApplication): pass
-ResourceListsApplication.register_namespace(namespace, prefix='rl', schema='resourcelists.xsd')
+class ResourceListsDocument(XMLDocument): pass
+ResourceListsDocument.register_namespace(namespace, prefix='rl', schema='resourcelists.xsd')
 
 
 ## Marker mixins
@@ -64,7 +64,7 @@ class EntryExtension(object): pass
 class DisplayName(XMLStringElement):
     _xml_tag = 'display-name'
     _xml_namespace = namespace
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_lang = True
 
 
@@ -72,7 +72,7 @@ class Entry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
     _xml_extension_type = EntryExtension
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
     uri = XMLElementID('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
@@ -93,7 +93,7 @@ class Entry(XMLElement):
 class EntryRef(XMLElement):
     _xml_tag = 'entry-ref'
     _xml_namespace = namespace
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
     ref = XMLElementID('ref', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
@@ -114,7 +114,7 @@ class EntryRef(XMLElement):
 class External(XMLElement):
     _xml_tag = 'external'
     _xml_namespace = namespace
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
     anchor = XMLElementID('anchor', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
@@ -137,7 +137,7 @@ List = ThisClass # a List can contain items of its own kind
 class List(XMLListElement):
     _xml_tag = 'list'
     _xml_namespace = namespace
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0,
                            Entry.qname: 1,
                            EntryRef.qname: 1,
@@ -172,7 +172,7 @@ class ResourceLists(XMLListRootElement):
     
     _xml_tag = 'resource-lists'
     _xml_namespace = namespace
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
     _xml_children_order = {List.qname: 0}
     _xml_item_type = List
 
@@ -189,7 +189,7 @@ class ResourceLists(XMLListRootElement):
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
             raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
-        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_application.xml_nsmap.iteritems())
+        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_document.xml_nsmap.iteritems())
         namespaces[self._xml_namespace] = ''
         prefix = namespaces[self._xml_namespace]
         root_xpath = '/%s:%s' % (prefix, self._xml_tag) if prefix else '/'+self._xml_tag
@@ -259,7 +259,7 @@ class ResourceLists(XMLListRootElement):
 class EntryAttributes(XMLElement, EntryExtension):
     _xml_tag = 'attributes'
     _xml_namespace = 'urn:ag-projects:xml:ns:resource-lists'
-    _xml_application = ResourceListsApplication
+    _xml_document = ResourceListsDocument
 
     def __init__(self, attributes={}):
         XMLElement.__init__(self)
@@ -279,7 +279,7 @@ class EntryAttributes(XMLElement, EntryExtension):
         self.element.clear()
         attribute_tag = '{%s}attribute' % self._xml_namespace
         for key, value in self.iteritems():
-            child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_application.xml_nsmap)
+            child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_document.xml_nsmap)
             child.attrib['name'] = key
             if value is None:
                 child.attrib['nil'] = 'true'
@@ -337,7 +337,7 @@ class EntryAttributes(XMLElement, EntryExtension):
     def update(self, attributes):
         self._attributes.update(attributes)
 
-ResourceListsApplication.register_namespace(EntryAttributes._xml_namespace, prefix='agp-rl')
+ResourceListsDocument.register_namespace(EntryAttributes._xml_namespace, prefix='agp-rl')
 Entry.register_extension('attributes', EntryAttributes)
 
 

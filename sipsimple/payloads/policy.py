@@ -8,7 +8,7 @@ RFC4745.
 
 
 __all__ = ['namespace',
-           'CommonPolicyApplication',
+           'CommonPolicyDocument',
            'ConditionElement',
            'ActionElement',
            'TransformationElement',
@@ -30,15 +30,15 @@ __all__ = ['namespace',
 
 import datetime
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLStringElement
+from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLStringElement
 from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:common-policy'
 
 
-class CommonPolicyApplication(XMLApplication): pass
-CommonPolicyApplication.register_namespace(namespace, prefix='cp', schema='common-policy.xsd')
+class CommonPolicyDocument(XMLDocument): pass
+CommonPolicyDocument.register_namespace(namespace, prefix='cp', schema='common-policy.xsd')
 
 
 ## Mixin types for extensibility
@@ -54,7 +54,7 @@ class RuleExtension(object): pass
 class IdentityOne(XMLElement):
     _xml_tag = 'one'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
     id = XMLElementID('id', type=str, required=True, test_equal=True)
 
@@ -75,7 +75,7 @@ class IdentityOne(XMLElement):
 class IdentityExcept(XMLElement):
     _xml_tag = 'except'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
     def _onset_id(self, attribute, value):
         if value is not None:
@@ -113,7 +113,7 @@ class IdentityExcept(XMLElement):
 class IdentityMany(XMLListElement):
     _xml_tag = 'many'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_children_order = {IdentityExcept.qname: 0}
     _xml_item_type = IdentityExcept
 
@@ -140,7 +140,7 @@ class IdentityMany(XMLListElement):
 class Identity(XMLListElement):
     _xml_tag = 'identity'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_item_type = (IdentityOne, IdentityMany)
 
     def __init__(self, identities=[]):
@@ -157,7 +157,7 @@ class Identity(XMLListElement):
 class Sphere(XMLElement):
     _xml_tag = 'sphere'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
     value = XMLAttribute('value', type=str, required=True, test_equal=True)
 
@@ -172,7 +172,7 @@ class Sphere(XMLElement):
 class ValidFrom(XMLElement):
     _xml_tag = 'from'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
     def __init__(self, timestamp):
         if isinstance(timestamp, (datetime.datetime, str)):
@@ -186,7 +186,7 @@ class ValidFrom(XMLElement):
 class ValidUntil(XMLElement):
     _xml_tag = 'until'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
     def __init__(self, timestamp):
         if isinstance(timestamp, (datetime.datetime, str)):
@@ -223,7 +223,7 @@ class ValidityInterval(object):
 class Validity(XMLListElement):
     _xml_tag = 'validity'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_item_type = ValidityInterval
 
     def __init__(self, children=[]):
@@ -268,7 +268,7 @@ class Validity(XMLListElement):
 class Conditions(XMLListElement):
     _xml_tag = 'conditions'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_children_order = {Identity.qname: 0,
                            Sphere.qname: 1,
                            Validity.qname: 2}
@@ -282,7 +282,7 @@ class Conditions(XMLListElement):
 class Actions(XMLListElement):
     _xml_tag = 'actions'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_item_type = ActionElement
 
     def __init__(self, actions=[]):
@@ -293,7 +293,7 @@ class Actions(XMLListElement):
 class Transformations(XMLListElement):
     _xml_tag = 'transformations'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_item_type = TransformationElement
 
     def __init__(self, transformations=[]):
@@ -305,7 +305,7 @@ class Rule(XMLElement):
     _xml_tag = 'rule'
     _xml_namespace = namespace
     _xml_extension_type = RuleExtension
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_children_order = {Conditions.qname: 0,
                            Actions.qname: 1,
                            Transformations.qname: 2}
@@ -332,7 +332,7 @@ class RuleSet(XMLListRootElement):
 
     _xml_tag = 'ruleset'
     _xml_namespace = namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_item_type = Rule
 
     def __init__(self, rules=[]):
@@ -351,20 +351,20 @@ class RuleSet(XMLListRootElement):
 #
 
 agp_cp_namespace = 'urn:ag-projects:xml:ns:common-policy'
-CommonPolicyApplication.register_namespace(agp_cp_namespace, prefix='agp-cp')
+CommonPolicyDocument.register_namespace(agp_cp_namespace, prefix='agp-cp')
 
 # A condition element in the AG Projects namespace, it will always be evaluated to false
 # because it's not understood by servers
 class FalseCondition(XMLElement, ConditionElement):
     _xml_tag = 'false-condition'
     _xml_namespace = agp_cp_namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
 
 
 class RuleDisplayName(XMLStringElement, RuleExtension):
     _xml_tag = 'display-name'
     _xml_namespace = agp_cp_namespace
-    _xml_application = CommonPolicyApplication
+    _xml_document = CommonPolicyDocument
     _xml_lang = True
 
 Rule.register_extension('display_name', RuleDisplayName)

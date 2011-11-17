@@ -9,17 +9,17 @@ NOTE: Subscription Handling has been taken from RFC 5025.
 """
 
 
-__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesApplication', 'ExternalList', 'SubHandling', 'DialogRules']
+__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesDocument', 'ExternalList', 'SubHandling', 'DialogRules']
 
 
 from sipsimple.payloads import XMLElementID, XMLElement, XMLListElement, XMLStringElement, uri_attribute_builder, uri_attribute_parser
-from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, ConditionElement, RuleSet
+from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyDocument, ActionElement, ConditionElement, RuleSet
 
 
 dlg_namespace = 'http://openxcap.org/ns/dialog-rules'
 
-class DialogRulesApplication(CommonPolicyApplication): pass
-DialogRulesApplication.register_namespace(dlg_namespace, prefix='dr')
+class DialogRulesDocument(CommonPolicyDocument): pass
+DialogRulesDocument.register_namespace(dlg_namespace, prefix='dr')
 
 
 ## Attribute value types
@@ -34,7 +34,7 @@ class SubHandlingValue(str):
 class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = dlg_namespace
-    _xml_application = DialogRulesApplication
+    _xml_document = DialogRulesDocument
     _xml_lang = False
     _xml_value_type = SubHandlingValue
 
@@ -43,7 +43,7 @@ class SubHandling(XMLStringElement, ActionElement):
 class Entry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = dlg_namespace
-    _xml_application = DialogRulesApplication
+    _xml_document = DialogRulesDocument
 
     uri = XMLElementID('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
 
@@ -61,7 +61,7 @@ class Entry(XMLElement):
 class ExternalList(XMLListElement, ConditionElement):
     _xml_tag = 'external-list'
     _xml_namespace = dlg_namespace
-    _xml_application = DialogRulesApplication
+    _xml_document = DialogRulesDocument
     _xml_item_type = Entry
 
     def __init__(self, entries=[]):
@@ -89,5 +89,5 @@ class ExternalList(XMLListElement, ConditionElement):
 
 
 class DialogRules(RuleSet):
-    _xml_application = DialogRulesApplication
+    _xml_document = DialogRulesDocument
 

@@ -6,7 +6,7 @@ __all__ = ['ParserError',
            'BuilderError',
            'ValidationError',
            'parse_qname',
-           'XMLApplication',
+           'XMLDocument',
            'XMLAttribute',
            'XMLElementID',
            'XMLElementChild',
@@ -52,9 +52,9 @@ def parse_qname(qname):
         return None, qname
 
 
-## XMLApplication
+## XMLDocument
 
-class XMLApplicationType(type):
+class XMLDocumentType(type):
     def __init__(cls, name, bases, dct):
         cls._xml_root_element = None
         cls._xml_classes = {}
@@ -69,8 +69,8 @@ class XMLApplicationType(type):
                 cls.xml_nsmap.update(base.xml_nsmap)
 
 
-class XMLApplication(object):
-    __metaclass__ = XMLApplicationType
+class XMLDocument(object):
+    __metaclass__ = XMLDocumentType
 
     _validate_input = True
     _validate_output = True
@@ -363,16 +363,16 @@ class XMLElementType(type):
                 for type in (type for type in value.types if issubclass(type, XMLElement)):
                     cls._xml_children_qname_map[type.qname] = (value, type)
 
-        # register class in its XMLApplication
-        if cls._xml_application is not None:
-            cls._xml_application.register_element(cls)
+        # register class in its XMLDocument
+        if cls._xml_document is not None:
+            cls._xml_document.register_element(cls)
 
 class XMLElement(object):
     __metaclass__ = XMLElementType
     
     _xml_tag = None # To be defined in subclass
     _xml_namespace = None # To be defined in subclass
-    _xml_application = None # To be defined in subclass
+    _xml_document = None # To be defined in subclass
     _xml_extension_type = None # Can be defined in subclass
     _xml_id = None # Can be defined in subclass, or will be set by the metaclass to the XMLElementID attribute (if present)
     _xml_children_order = {} # Can be defined in subclass
@@ -385,7 +385,7 @@ class XMLElement(object):
     qname = classproperty(lambda cls: '{%s}%s' % (cls._xml_namespace, cls._xml_tag))
 
     def __init__(self):
-        self.element = etree.Element(self.qname, nsmap=self._xml_application.xml_nsmap)
+        self.element = etree.Element(self.qname, nsmap=self._xml_document.xml_nsmap)
 
     def check_validity(self):
         # check attributes
@@ -426,10 +426,10 @@ class XMLElement(object):
     @classmethod
     def from_element(cls, element, *args, **kwargs):
         obj = cls.__new__(cls)
-        if 'xml_application' in kwargs:
-            obj._xml_application = kwargs['xml_application']
+        if 'xml_document' in kwargs:
+            obj._xml_document = kwargs['xml_document']
         else:
-            kwargs['xml_application'] = cls._xml_application
+            kwargs['xml_document'] = cls._xml_document
         obj.element = element
         # set known attributes
         for name, attribute in cls._xml_attributes.items():
@@ -550,10 +550,10 @@ class XMLElement(object):
 class XMLRootElementType(XMLElementType):
     def __init__(cls, name, bases, dct):
         super(XMLRootElementType, cls).__init__(name, bases, dct)
-        if cls._xml_application is not None:
-            if cls._xml_application._xml_root_element is not None:
+        if cls._xml_document is not None:
+            if cls._xml_document._xml_root_element is not None:
                 raise TypeError('there is already another root element registered for %s application' % cls.__name__)
-            cls._xml_application._xml_root_element = cls
+            cls._xml_document._xml_root_element = cls
 
 class XMLRootElement(XMLElement):
     __metaclass__ = XMLRootElementType
@@ -575,7 +575,7 @@ class XMLRootElement(XMLElement):
     
     @classmethod
     def parse(cls, document, *args, **kwargs):
-        parser = cls._xml_application._xml_parser
+        parser = cls._xml_document._xml_parser
         try:
             if isinstance(document, str):
                 xml = etree.XML(document, parser=parser)
@@ -586,13 +586,13 @@ class XMLRootElement(XMLElement):
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
-            kwargs.setdefault('xml_application', cls._xml_application)
+            kwargs.setdefault('xml_document', cls._xml_document)
             return cls.from_element(xml, *args, **kwargs)
 
     def toxml(self, *args, **kwargs):
         element = self.to_element(*args, **kwargs)
-        validate_output = self._xml_application._validate_output
-        xml_schema = self._xml_application._xml_schema
+        validate_output = self._xml_document._validate_output
+        xml_schema = self._xml_document._xml_schema
         if kwargs.pop('validate', validate_output) and xml_schema is not None:
             xml_schema.assertValid(element)
         
@@ -711,7 +711,7 @@ class XMLListMixin(object):
         self._element_map.clear()
         self._xmlid_map.clear()
         for child in element[:]:
-            child_class = self._xml_application.get_element(child.tag, type(None))
+            child_class = self._xml_document.get_element(child.tag, type(None))
             if child_class in self._xml_item_element_types or issubclass(child_class, self._xml_item_extension_types):
                 try:
                     value = child_class.from_element(child, *args, **kwargs)
@@ -838,7 +838,7 @@ class XMLEmptyElementRegistryType(type):
             class ElementType(BaseElementType):
                 _xml_tag = name
                 _xml_namespace = cls._xml_namespace
-                _xml_application = cls._xml_application
+                _xml_document = cls._xml_document
                 _xml_id = name
             ElementType.__name__ = typename + name.title().translate(None, '-_')
             cls.class_map[name] = ElementType

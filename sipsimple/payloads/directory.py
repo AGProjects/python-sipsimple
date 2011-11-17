@@ -4,18 +4,18 @@
 """Parses xcap-directory messages according to OMA TS XDM Core 1.1"""
 
 
-__all__ = ['namespace', 'XCAPDirectoryApplication', 'Folder', 'Entry', 'ErrorCode']
+__all__ = ['namespace', 'XCAPDirectoryDocument', 'Folder', 'Entry', 'ErrorCode']
 
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLStringElement, XMLListElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLStringElement, XMLListElement, XMLAttribute, XMLElementChild
 from sipsimple.util import Timestamp
 
 
 namespace = 'urn:oma:xml:xdm:xcap-directory'
 
 
-class XCAPDirectoryApplication(XMLApplication): pass
-XCAPDirectoryApplication.register_namespace(namespace, prefix=None, schema='xcap-directory.xsd')
+class XCAPDirectoryDocument(XMLDocument): pass
+XCAPDirectoryDocument.register_namespace(namespace, prefix=None, schema='xcap-directory.xsd')
 
 
 # Attribute value types
@@ -31,7 +31,7 @@ class SizeValue(int):
 class Entry(XMLStringElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
-    _xml_application = XCAPDirectoryApplication
+    _xml_document = XCAPDirectoryDocument
 
     uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
     etag = XMLAttribute('etag', type=str, required=True, test_equal=True)
@@ -41,12 +41,12 @@ class Entry(XMLStringElement):
 class ErrorCode(XMLStringElement):
     _xml_tag = 'error-code'
     _xml_namespace = namespace
-    _xml_application = XCAPDirectoryApplication
+    _xml_document = XCAPDirectoryDocument
 
 class Folder(XMLListElement):
     _xml_tag = 'folder'
     _xml_namespace = namespace
-    _xml_application = XCAPDirectoryApplication
+    _xml_document = XCAPDirectoryDocument
     _xml_item_type = Entry
 
     auid = XMLAttribute('auid', type=str, required=True, test_equal=True)
@@ -71,7 +71,7 @@ class XCAPDirectory(XMLListRootElement):
 
     _xml_tag = 'xcap-directory'
     _xml_namespace = namespace
-    _xml_application = XCAPDirectoryApplication
+    _xml_document = XCAPDirectoryDocument
     _xml_item_type = Folder
 
     def __init__(self, folders=[]):

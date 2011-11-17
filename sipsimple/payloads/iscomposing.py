@@ -4,18 +4,18 @@
 """Parses and produces isComposing messages according to RFC3994."""
 
 
-__all__ = ['namespace', 'IsComposingApplication', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
+__all__ = ['namespace', 'IsComposingDocument', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
 
 
-from sipsimple.payloads import XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild
+from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XMLElementChild
 from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
 
 
-class IsComposingApplication(XMLApplication): pass
-IsComposingApplication.register_namespace(namespace, prefix=None, schema='im-iscomposing.xsd')
+class IsComposingDocument(XMLDocument): pass
+IsComposingDocument.register_namespace(namespace, prefix=None, schema='im-iscomposing.xsd')
 
 
 # Attribute value types
@@ -38,27 +38,27 @@ class RefreshValue(int):
 class State(XMLStringElement):
     _xml_tag = 'state'
     _xml_namespace = namespace
-    _xml_application = IsComposingApplication
+    _xml_document = IsComposingDocument
     _xml_value_type = StateValue
 
 
 class LastActive(XMLStringElement):
     _xml_tag = 'lastactive'
     _xml_namespace = namespace
-    _xml_application = IsComposingApplication
+    _xml_document = IsComposingDocument
     _xml_value_type = Timestamp
 
 
 class ContentType(XMLStringElement):
     _xml_tag = 'contenttype'
     _xml_namespace = namespace
-    _xml_application = IsComposingApplication
+    _xml_document = IsComposingDocument
 
 
 class Refresh(XMLStringElement):
     _xml_tag = 'refresh'
     _xml_namespace = namespace
-    _xml_application = IsComposingApplication
+    _xml_document = IsComposingDocument
     _xml_value_type = RefreshValue
     
 
@@ -67,7 +67,7 @@ class IsComposingMessage(XMLRootElement):
 
     _xml_tag = 'isComposing'
     _xml_namespace = namespace
-    _xml_application = IsComposingApplication
+    _xml_document = IsComposingDocument
     _xml_children_order = {State.qname: 0,
                            LastActive.qname: 1,
                            ContentType.qname: 2,

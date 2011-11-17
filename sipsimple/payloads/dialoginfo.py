@@ -5,7 +5,7 @@
 
 
 __all__ = ['namespace',
-           'DialogInfoApplication',
+           'DialogInfoDocument',
            'DialogState',
            'Replaces',
            'ReferredBy',
@@ -18,14 +18,14 @@ __all__ = ['namespace',
            'DialogInfo']
 
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
 
 
-class DialogInfoApplication(XMLApplication): pass
-DialogInfoApplication.register_namespace(namespace, prefix=None, schema='dialog-info.xsd')
+class DialogInfoDocument(XMLDocument): pass
+DialogInfoDocument.register_namespace(namespace, prefix=None, schema='dialog-info.xsd')
 
 
 # Attribute value types
@@ -78,25 +78,25 @@ class CodeValue(int):
 class CallId(XMLStringElement):
     _xml_tag = 'call-id'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
 
 class LocalTag(XMLStringElement):
     _xml_tag = 'local-tag'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
 
 class RemoteTag(XMLStringElement):
     _xml_tag = 'remote-tag'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
 
 class DialogState(XMLStringElement):
     _xml_tag = 'state'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
     _xml_value_type = DialogStateValue
 
     code = XMLAttribute('code', type=int, required=False, test_equal=True)
@@ -106,14 +106,14 @@ class DialogState(XMLStringElement):
 class Duration(XMLStringElement):
     _xml_tag = 'duration'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
     _xml_value_type = int
 
 
 class Replaces(XMLEmptyElement):
     _xml_tag = 'replaces'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     call_id = XMLAttribute('call_id', xmlname='call-id', type=str, required=True, test_equal=True)
     local_tag = XMLAttribute('local_tag', xmlname='local-tag', type=str, required=True, test_equal=True)
@@ -129,7 +129,7 @@ class Replaces(XMLEmptyElement):
 class ReferredBy(XMLStringElement):
     _xml_tag = 'referred-by'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     display = XMLAttribute('display', type=str, required=False, test_equal=True)
 
@@ -137,7 +137,7 @@ class ReferredBy(XMLStringElement):
 class Identity(XMLStringElement):
     _xml_tag = 'identity'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     display = XMLAttribute('display', type=str, required=False, test_equal=True)
 
@@ -145,7 +145,7 @@ class Identity(XMLStringElement):
 class Param(XMLEmptyElement):
     _xml_tag = 'param'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     pname = XMLAttribute('pname', type=str, required=True, test_equal=True)
     pval = XMLAttribute('pval', type=str, required=True, test_equal=True)
@@ -159,7 +159,7 @@ class Param(XMLEmptyElement):
 class Target(XMLListElement):
     _xml_tag = 'target'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
     _xml_item_type = Param
 
     uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
@@ -172,7 +172,7 @@ class Target(XMLListElement):
 class Participant(XMLElement):
     _xml_tag = ''   # To be set by a subclass
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     identity = XMLElementChild('identity', type=Identity, required=False, test_equal=True)
     target = XMLElementChild('target', type=Target, required=False, test_equal=True)
@@ -194,7 +194,7 @@ class Remote(Participant):
 class Dialog(XMLElement):
     _xml_tag = 'dialog'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
 
     id = XMLElementID('id', type=str, required=True, test_equal=True)
 
@@ -230,7 +230,7 @@ class DialogInfo(XMLListRootElement):
 
     _xml_tag = 'dialog-info'
     _xml_namespace = namespace
-    _xml_application = DialogInfoApplication
+    _xml_document = DialogInfoDocument
     _xml_children_order = {Dialog.qname: 0,
                            None: 1}
     _xml_item_type = Dialog

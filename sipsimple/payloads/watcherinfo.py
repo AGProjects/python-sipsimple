@@ -6,13 +6,13 @@
 
 __all__ = ['namespace',
            'NeedFullUpdateError',
-           'WatcherInfoApplication',
+           'WatcherInfoDocument',
            'Watcher',
            'WatcherList',
            'WatcherInfo']
 
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
 from sipsimple.payloads.util import UnsignedLong, SIPURI
 
 
@@ -22,8 +22,8 @@ namespace = 'urn:ietf:params:xml:ns:watcherinfo'
 class NeedFullUpdateError(Exception): pass
 
 
-class WatcherInfoApplication(XMLApplication): pass
-WatcherInfoApplication.register_namespace(namespace, prefix=None, schema='watcherinfo.xsd')
+class WatcherInfoDocument(XMLDocument): pass
+WatcherInfoDocument.register_namespace(namespace, prefix=None, schema='watcherinfo.xsd')
 
 
 ## Attribute value types
@@ -68,7 +68,7 @@ class Watcher(XMLElement):
     """
     _xml_tag = 'watcher'
     _xml_namespace = namespace
-    _xml_application = WatcherInfoApplication
+    _xml_document = WatcherInfoDocument
 
     id           = XMLElementID('id', type=str, required=True, test_equal=True)
     status       = XMLAttribute('status', type=WatcherStatus, required=True, test_equal=True)
@@ -128,7 +128,7 @@ class WatcherList(XMLListElement):
 
     _xml_tag = 'watcher-list'
     _xml_namespace = namespace
-    _xml_application = WatcherInfoApplication
+    _xml_document = WatcherInfoDocument
     _xml_children_order = {Watcher.qname: 0}
     _xml_item_type = Watcher
 
@@ -177,7 +177,7 @@ class WatcherInfo(XMLListRootElement):
 
     _xml_tag = 'watcherinfo'
     _xml_namespace = namespace
-    _xml_application = WatcherInfoApplication
+    _xml_document = WatcherInfoDocument
     _xml_children_order = {WatcherList.qname: 0}
     _xml_item_type = WatcherList
 

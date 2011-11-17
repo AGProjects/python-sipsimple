@@ -7,30 +7,30 @@ RFC 5874.
 """
 
 
-__all__ = ['namespace', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
+__all__ = ['namespace', 'XCAPDiffDocument', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
 
 
-from sipsimple.payloads import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import XMLDocument, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads.util import XCAPURI, Boolean
 
 
 namespace = 'urn:ietf:params:xml:ns:xcap-diff'
 
 
-class XCAPDiffApplication(XMLApplication): pass
-XCAPDiffApplication.register_namespace(namespace, prefix=None, schema='xcapdiff.xsd')
+class XCAPDiffDocument(XMLDocument): pass
+XCAPDiffDocument.register_namespace(namespace, prefix=None, schema='xcapdiff.xsd')
 
 
 class BodyNotChanged(XMLEmptyElement):
     _xml_tag = 'body-not-changed'
     _xml_namespace = namespace
-    _xml_application = XCAPDiffApplication
+    _xml_document = XCAPDiffDocument
 
 
 class Document(XMLElement):
     _xml_tag = 'document'
     _xml_namespace = namespace
-    _xml_application = XCAPDiffApplication
+    _xml_document = XCAPDiffDocument
 
     selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     new_etag = XMLAttribute('new_etag', xmlname='new-etag', type=str, required=False, test_equal=True)
@@ -61,7 +61,7 @@ class Document(XMLElement):
 class Element(XMLElement):
     _xml_tag = 'element'
     _xml_namespace = namespace
-    _xml_application = XCAPDiffApplication
+    _xml_document = XCAPDiffDocument
 
     selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     exists = XMLAttribute('exists', type=Boolean, required=False, test_equal=True)
@@ -78,7 +78,7 @@ class Element(XMLElement):
 class Attribute(XMLStringElement):
     _xml_tag = 'attribute'
     _xml_namespace = namespace
-    _xml_application = XCAPDiffApplication
+    _xml_document = XCAPDiffDocument
 
     selector = XMLElementID('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
     exists = XMLAttribute('exists', type=Boolean, required=False, test_equal=True)
@@ -97,7 +97,7 @@ class XCAPDiff(XMLListRootElement):
 
     _xml_tag = 'xcap-diff'
     _xml_namespace = namespace
-    _xml_application = XCAPDiffApplication
+    _xml_document = XCAPDiffDocument
     _xml_item_type = (Document, Element, Attribute)
 
     xcap_root = XMLElementID('xcap_root', xmlname='xcap-root', type=str, required=True, test_equal=True)

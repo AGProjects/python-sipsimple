@@ -32,7 +32,7 @@
 
 
 __all__ = ['namespace', 
-        'ConferenceApplication',
+        'ConferenceDocument',
         'ConferenceDescription',
         'ConfUris',
         'ConfUrisEntry',
@@ -66,15 +66,15 @@ __all__ = ['namespace',
         'Resources']
 
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild, XMLElement, XMLListElement, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLDocument, XMLRootElement, XMLStringElement, XMLElementChild, XMLElement, XMLListElement, XMLAttribute
 from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:conference-info'
 
 
-class ConferenceApplication(XMLApplication): pass
-ConferenceApplication.register_namespace(namespace, prefix=None, schema='conference.xsd')
+class ConferenceDocument(XMLDocument): pass
+ConferenceDocument.register_namespace(namespace, prefix=None, schema='conference.xsd')
 
 
 # Marker mixins
@@ -108,26 +108,26 @@ class BooleanValue(object):
 class When(XMLStringElement):
     _xml_tag = 'when'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = Timestamp
 
 
 class Reason(XMLStringElement):
     _xml_tag = 'reason'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class By(XMLStringElement):
     _xml_tag = 'by'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class ExecutionType(XMLElement):
     _xml_tag = None     # To be set by the subclass
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     when = XMLElementChild('when', type=When, required=False, test_equal=True)
     reason = XMLElementChild('reason', type=Reason, required=False, test_equal=True)
@@ -143,19 +143,19 @@ class ExecutionType(XMLElement):
 class Uri(XMLStringElement):
     _xml_tag = 'uri'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class DisplayText(XMLStringElement):
     _xml_tag = 'display-text'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class UrisTypePurpose(XMLStringElement):
     _xml_tag = 'purpose'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class UrisTypeModified(ExecutionType):
@@ -165,7 +165,7 @@ class UrisTypeModified(ExecutionType):
 class UrisTypeEntry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
 
@@ -186,19 +186,19 @@ class UrisTypeEntry(XMLElement):
 class Subject(XMLStringElement):
     _xml_tag = 'subject'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class FreeText(XMLStringElement):
     _xml_tag = 'free-text'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class Keywords(XMLStringElement):
     _xml_tag = 'keywords'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class ConfUrisPurposeValue(str):
@@ -219,7 +219,7 @@ class ConfUrisEntry(UrisTypeEntry):
 class ConfUris(XMLListElement):
     _xml_tag = 'conf-uris'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = ConfUrisEntry
 
     def __init__(self, entries=[]):
@@ -245,7 +245,7 @@ class ServiceUrisEntry(UrisTypeEntry):
 class ServiceUris(XMLListElement):
     _xml_tag = 'service-uris'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = ServiceUrisEntry
 
     def __init__(self, entries=[]):
@@ -256,7 +256,7 @@ class ServiceUris(XMLListElement):
 class MaximumUserCount(XMLStringElement):
     _xml_tag = 'maximum-user-count'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = int
 
 
@@ -270,7 +270,7 @@ class MediaTypeValue(str):
 class MediaType(XMLStringElement):
     _xml_tag = 'type'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = MediaTypeValue
 
 
@@ -284,14 +284,14 @@ class MediaTypeStatusValue(str):
 class MediaTypeStatus(XMLStringElement):
     _xml_tag = 'status'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = MediaTypeStatusValue
 
 
 class AvailableMediaEntry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_children_order = {DisplayText.qname: 0,
                            MediaType.qname: 1,
                            MediaTypeStatus.qname: 2,
@@ -314,7 +314,7 @@ class AvailableMediaEntry(XMLElement):
 class AvailableMedia(XMLListElement):
     _xml_tag = 'available-media'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = AvailableMediaEntry
 
     def __init__(self, entries=[]):
@@ -325,7 +325,7 @@ class AvailableMedia(XMLListElement):
 class ConferenceDescription(XMLElement):
     _xml_tag = 'conference-description'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_extension_type = ConferenceDescriptionExtension
 
     display_text = XMLElementChild('display_text', type=DisplayText, required=False, test_equal=True)
@@ -352,13 +352,13 @@ class ConferenceDescription(XMLElement):
 class WebPage(XMLStringElement):
     _xml_tag = 'web-page'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class HostInfoUris(XMLListElement):
     _xml_tag = 'uris'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = UrisTypeEntry
 
     def __init__(self, entries=[]):
@@ -369,7 +369,7 @@ class HostInfoUris(XMLListElement):
 class HostInfo(XMLElement):
     _xml_tag = 'host-info'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     display_text = XMLElementChild('display_text', type=DisplayText, required=False, test_equal=True)
     web_page = XMLElementChild('web_page', type=WebPage, required=False, test_equal=True)
@@ -385,28 +385,28 @@ class HostInfo(XMLElement):
 class UserCount(XMLStringElement):
     _xml_tag = 'user-count'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = int
 
 
 class Active(XMLStringElement):
     _xml_tag = 'active'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = BooleanValue
 
 
 class Locked(XMLStringElement):
     _xml_tag = 'locked'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = BooleanValue
 
 
 class ConferenceState(XMLElement):
     _xml_tag = 'conference-state'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     user_count = XMLElementChild('user_count', type=UserCount, required=False, test_equal=True)
     active = XMLElementChild('active', type=Active, required=False, test_equal=True)
@@ -422,7 +422,7 @@ class ConferenceState(XMLElement):
 class AssociatedAors(XMLListElement):
     _xml_tag = 'associated-aors'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = UrisTypeEntry
 
     def __init__(self, entries=[]):
@@ -433,13 +433,13 @@ class AssociatedAors(XMLListElement):
 class Role(XMLStringElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class Roles(XMLListElement):
     _xml_tag = 'roles'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = Role
 
     def __init__(self, roles=[]):
@@ -450,13 +450,13 @@ class Roles(XMLListElement):
 class Languages(XMLStringElement):
     _xml_tag = 'languages'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class CascadedFocus(XMLStringElement):
     _xml_tag = 'cascaded-focus'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class Referred(ExecutionType):
@@ -473,7 +473,7 @@ class EndpointStatusValue(str):
 class EndpointStatus(XMLStringElement):
     _xml_tag = 'status'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = EndpointStatusValue
 
 
@@ -487,7 +487,7 @@ class JoiningMethodValue(str):
 class JoiningMethod(XMLStringElement):
     _xml_tag = 'joining-method'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = JoiningMethodValue
 
 
@@ -505,7 +505,7 @@ class DisconnectionMethodValue(str):
 class DisconnectionMethod(XMLStringElement):
     _xml_tag = 'disconnection-method'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_value_type = DisconnectionMethodValue
 
 
@@ -516,19 +516,19 @@ class DisconnectionInfo(ExecutionType):
 class Label(XMLStringElement):
     _xml_tag = 'label'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class SrcId(XMLStringElement):
     _xml_tag = 'src-id'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class Media(XMLElement):
     _xml_tag = 'media'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     id = XMLAttribute('id', type=str, required=True, test_equal=False)
 
@@ -551,25 +551,25 @@ class Media(XMLElement):
 class CallId(XMLStringElement):
     _xml_tag = 'call-id'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class FromTag(XMLStringElement):
     _xml_tag = 'from-tag'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class ToTag(XMLStringElement):
     _xml_tag = 'to-tag'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
 
 class Sip(XMLElement):
     _xml_tag = 'sip'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     display_text = XMLElementChild('display_text', type=DisplayText, required=False, test_equal=True)
     call_id = XMLElementChild('call_id', type=CallId, required=False, test_equal=True)
@@ -587,7 +587,7 @@ class Sip(XMLElement):
 class CallInfo(XMLElement):
     _xml_tag = 'call-info'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     sip = XMLElementChild('sip', type=Sip, required=False, test_equal=True)
 
@@ -599,7 +599,7 @@ class CallInfo(XMLElement):
 class Endpoint(XMLListElement):
     _xml_tag = 'endpoint'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = Media
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
@@ -636,7 +636,7 @@ class Endpoint(XMLListElement):
 class User(XMLListElement):
     _xml_tag = 'user'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = Endpoint
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
@@ -667,7 +667,7 @@ class User(XMLListElement):
 class Users(XMLListElement):
     _xml_tag = 'users'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = User
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -684,7 +684,7 @@ class Users(XMLListElement):
 class SidebarsByRef(XMLListElement):
     _xml_tag = 'sidebars-by-ref'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = UrisTypeEntry
 
     def __init__(self, entries=[]):
@@ -695,7 +695,7 @@ class SidebarsByRef(XMLListElement):
 class SidebarsByVal(XMLListElement):
     _xml_tag = 'sidebars-by-val'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = None # will be set later, after the item type is defined below
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -712,7 +712,7 @@ class SidebarsByVal(XMLListElement):
 class SidebarsByValEntry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -746,7 +746,7 @@ class Conference(XMLRootElement):
 
     _xml_tag = 'conference-info'
     _xml_namespace = namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_children_order = {ConferenceDescription.qname: 0,
                            HostInfo.qname: 1,
                            ConferenceState.qname: 2,
@@ -786,13 +786,13 @@ class Conference(XMLRootElement):
 #
 
 agp_conf_namespace = 'urn:ag-projects:xml:ns:conference-info'
-ConferenceApplication.register_namespace(agp_conf_namespace, prefix='agp-conf')
+ConferenceDocument.register_namespace(agp_conf_namespace, prefix='agp-conf')
 
 
 class FileResource(XMLElement):
     _xml_tag = 'file'
     _xml_namespace = agp_conf_namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     name = XMLAttribute('name', type=unicode, required=True, test_equal=False)
     hash = XMLAttribute('hash', type=str, required=True, test_equal=False)
@@ -812,7 +812,7 @@ class FileResource(XMLElement):
 class FileResources(XMLListElement):
     _xml_tag = 'files'
     _xml_namespace = agp_conf_namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
     _xml_item_type = FileResource
 
     def __init__(self, files=[]):
@@ -823,7 +823,7 @@ class FileResources(XMLListElement):
 class Resources(XMLElement, ConferenceDescriptionExtension):
     _xml_tag = 'resources'
     _xml_namespace = agp_conf_namespace
-    _xml_application = ConferenceApplication
+    _xml_document = ConferenceDocument
 
     files = XMLElementChild('files', type=FileResources, required=False, test_equal=True)
 

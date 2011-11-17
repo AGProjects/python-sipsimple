@@ -14,23 +14,23 @@ __all__ = ['OtherIdentity', 'ExternalList', 'AnonymousRequest']
 
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLElementID, uri_attribute_builder, uri_attribute_parser
 from sipsimple.payloads.policy import ConditionElement
-from sipsimple.payloads.presrules import PresRulesApplication
+from sipsimple.payloads.presrules import PresRulesDocument
 
 
 oma_cp_namespace = 'urn:oma:xml:xdm:common-policy'
-PresRulesApplication.register_namespace(oma_cp_namespace, prefix='ocp', schema='oma-common-policy.xsd')
+PresRulesDocument.register_namespace(oma_cp_namespace, prefix='ocp', schema='oma-common-policy.xsd')
 
 
 class OtherIdentity(XMLEmptyElement, ConditionElement):
     _xml_tag = 'other-identity'
     _xml_namespace = oma_cp_namespace
-    _xml_application = PresRulesApplication
+    _xml_document = PresRulesDocument
 
 
 class Entry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = oma_cp_namespace
-    _xml_application = PresRulesApplication
+    _xml_document = PresRulesDocument
 
     uri = XMLElementID('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
 
@@ -48,7 +48,7 @@ class Entry(XMLElement):
 class ExternalList(XMLListElement, ConditionElement):
     _xml_tag = 'external-list'
     _xml_namespace = oma_cp_namespace
-    _xml_application = PresRulesApplication
+    _xml_document = PresRulesDocument
     _xml_item_type = Entry
 
     def __init__(self, entries=[]):
@@ -78,5 +78,5 @@ class ExternalList(XMLListElement, ConditionElement):
 class AnonymousRequest(XMLEmptyElement, ConditionElement):
     _xml_tag = 'anonymous-request'
     _xml_namespace = oma_cp_namespace
-    _xml_application = PresRulesApplication
+    _xml_document = PresRulesDocument
 

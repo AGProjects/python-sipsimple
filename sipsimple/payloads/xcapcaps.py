@@ -5,17 +5,17 @@
 """Support for parsing and building xcap-caps documents, as defined by RFC4825."""
 
 
-__all__ = ['XCAPCapabilitiesApplication', 'AUIDS', 'Extensions', 'Namespaces', 'XCAPCapabilities']
+__all__ = ['XCAPCapabilitiesDocument', 'AUIDS', 'Extensions', 'Namespaces', 'XCAPCapabilities']
 
 
-from sipsimple.payloads import XMLApplication, XMLElementChild, XMLListElement, XMLRootElement, XMLStringElement
+from sipsimple.payloads import XMLDocument, XMLElementChild, XMLListElement, XMLRootElement, XMLStringElement
 
 
 namespace = 'urn:ietf:params:xml:ns:xcap-caps'
 
 
-class XCAPCapabilitiesApplication(XMLApplication): pass
-XCAPCapabilitiesApplication.register_namespace(namespace, prefix=None, schema='xcap-caps.xsd')
+class XCAPCapabilitiesDocument(XMLDocument): pass
+XCAPCapabilitiesDocument.register_namespace(namespace, prefix=None, schema='xcap-caps.xsd')
 
 
 ## Elements
@@ -23,13 +23,13 @@ XCAPCapabilitiesApplication.register_namespace(namespace, prefix=None, schema='x
 class AUID(XMLStringElement):
     _xml_tag = 'auid'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
 
 
 class AUIDS(XMLListElement):
     _xml_tag = 'auids'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
     _xml_item_type = AUID
 
     def __init__(self, children=[]):
@@ -56,13 +56,13 @@ class AUIDS(XMLListElement):
 class Extension(XMLStringElement):
     _xml_tag = 'extension'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
 
 
 class Extensions(XMLListElement):
     _xml_tag = 'extensions'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
     _xml_item_type = Extension
 
     def __init__(self, children=[]):
@@ -89,13 +89,13 @@ class Extensions(XMLListElement):
 class Namespace(XMLStringElement):
     _xml_tag = 'extension'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
 
 
 class Namespaces(XMLListElement):
     _xml_tag = 'namespaces'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
     _xml_item_type = Namespace
 
     def __init__(self, children=[]):
@@ -123,7 +123,7 @@ class XCAPCapabilities(XMLRootElement):
     content_type = 'application/xcap-caps+xml'
     _xml_tag = 'xcap-caps'
     _xml_namespace = namespace
-    _xml_application = XCAPCapabilitiesApplication
+    _xml_document = XCAPCapabilitiesDocument
     _xml_children_order = {AUIDS.qname: 0,
                            Extensions.qname: 1,
                            Namespaces.qname: 2}
