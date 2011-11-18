@@ -394,7 +394,7 @@ class XMLElementType(type):
             if hasattr(base, '_xml_element_children') and hasattr(base, '_xml_children_qname_map'):
                 cls._xml_element_children.update(base._xml_element_children)
                 cls._xml_children_qname_map.update(base._xml_children_qname_map)
-        for name, value in dct.items():
+        for name, value in dct.iteritems():
             if isinstance(value, XMLElementID):
                 if cls._xml_id is not None:
                     raise AttributeError("Only one XMLElementID attribute can be defined in the %s class" % cls.__name__)
@@ -436,13 +436,13 @@ class XMLElement(object):
 
     def check_validity(self):
         # check attributes
-        for name, attribute in self._xml_attributes.items():
+        for name, attribute in self._xml_attributes.iteritems():
             # if attribute has default but it was not set, will also be added with this occasion
             value = getattr(self, name, None)
             if attribute.required and value is None:
                 raise ValidationError("required attribute %s of %s is not set" % (name, self.__class__.__name__))
         # check element children
-        for name, element_child in self._xml_element_children.items():
+        for name, element_child in self._xml_element_children.iteritems():
             # if child has default but it was not set, will also be added with this occasion
             child = getattr(self, name, None)
             if child is None and element_child.required:
@@ -479,7 +479,7 @@ class XMLElement(object):
             kwargs['xml_document'] = cls._xml_document
         obj.element = element
         # set known attributes
-        for name, attribute in cls._xml_attributes.items():
+        for name, attribute in cls._xml_attributes.iteritems():
             xmlvalue = element.get(attribute.xmlname, None)
             if xmlvalue is not None:
                 try:
@@ -564,11 +564,11 @@ class XMLElement(object):
     
     def __eq__(self, other):
         if isinstance(other, XMLElement):
-            for name, attribute in self._xml_attributes.items():
+            for name, attribute in self._xml_attributes.iteritems():
                 if attribute.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
                         return False
-            for name, element_child in self._xml_element_children.items():
+            for name, element_child in self._xml_element_children.iteritems():
                 if element_child.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
                         return False
