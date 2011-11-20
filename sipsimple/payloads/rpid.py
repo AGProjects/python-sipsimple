@@ -178,13 +178,13 @@ class Activities(XMLStringListElement, PersonExtension):
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
 
-    def _parse_element(self, element, *args, **kwargs):
-        super(Activities, self)._parse_element(element, *args, **kwargs)
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        super(Activities, self)._parse_element(element)
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        super(Activities, self)._build_element(*args, **kwargs)
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        super(Activities, self)._build_element()
+        self.notes._build_element()
 
     def add(self, activity):
         if isinstance(activity, basestring):
@@ -255,13 +255,13 @@ class Mood(XMLStringListElement, PersonExtension):
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
 
-    def _parse_element(self, element, *args, **kwargs):
-        super(Mood, self)._parse_element(element, *args, **kwargs)
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        super(Mood, self)._parse_element(element)
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        super(Mood, self)._build_element(*args, **kwargs)
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        super(Mood, self)._build_element()
+        self.notes._build_element()
 
     def add(self, mood):
         if isinstance(mood, basestring):
@@ -335,11 +335,11 @@ class PlaceIs(XMLElement, PersonExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        self.notes._build_element()
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, list(self.notes))
@@ -375,11 +375,11 @@ class PlaceType(XMLElement, PersonExtension):
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.value, list(self.notes))
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        self.notes._build_element()
 
 Person.register_extension('place_type', type=PlaceType)
 
@@ -471,10 +471,10 @@ class Privacy(XMLElement, PersonExtension):
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self.notes), self.audio, self.text, self.video)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         if self.unknown:
             if self.element.find('{%s}unknown' % self._xml_namespace) is None:
                 etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_document.xml_nsmap)
@@ -482,7 +482,7 @@ class Privacy(XMLElement, PersonExtension):
             unknown_element = self.element.find('{%s}unknown' % self._xml_namespace)
             if unknown_element is not None:
                 self.element.remove(unknown_element)
-        self.notes._build_element(*args, **kwargs)
+        self.notes._build_element()
 
 Person.register_extension('privacy', type=Privacy)
 
@@ -518,11 +518,11 @@ class Relationship(XMLElement, ServiceExtension):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        self.notes._build_element()
 
 Service.register_extension('relationship', type=Relationship)
 
@@ -557,11 +557,11 @@ class ServiceClass(XMLElement, ServiceExtension):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        self.notes._build_element()
 
 Service.register_extension('service_class', type=ServiceClass)
 

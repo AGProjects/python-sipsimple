@@ -266,7 +266,7 @@ class EntryAttributes(XMLElement, EntryExtension):
         self._attributes = dict()
         self.update(attributes)
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         self._attributes = dict()
         attribute_tag = '{%s}attribute' % self._xml_namespace
         for child in (child for child in element if child.tag == attribute_tag):
@@ -275,7 +275,7 @@ class EntryAttributes(XMLElement, EntryExtension):
             else:
                 self[child.attrib['name']] = unicode(child.text or u'')
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         self.element.clear()
         attribute_tag = '{%s}attribute' % self._xml_namespace
         for key, value in self.iteritems():

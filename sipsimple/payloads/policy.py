@@ -230,7 +230,7 @@ class Validity(XMLListElement):
         XMLListElement.__init__(self)
         self.update(children)
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         iterator = iter(element)
         for first_child in iterator:
             second_child = iterator.next()
@@ -242,10 +242,10 @@ class Validity(XMLListElement):
                 else:
                     self._element_map[item.valid_from.element] = item
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         for child in self:
-            child.valid_from.to_element(*args, **kwargs)
-            child.valid_until.to_element(*args, **kwargs)
+            child.valid_from.to_element()
+            child.valid_until.to_element()
 
     def add(self, item):
         if not isinstance(item, ValidityInterval):

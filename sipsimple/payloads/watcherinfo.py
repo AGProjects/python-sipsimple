@@ -87,13 +87,13 @@ class Watcher(XMLElement):
         self.expiration = expiration
         self.duration = duration
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         try:
             self.sipuri = element.text
         except ValueError, e:
             raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         pass
 
     def __repr__(self):

@@ -259,13 +259,13 @@ class BooleanProvideElement(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         if element.text.lower() == 'true':
             self.value = True
         else:
             self.value = False
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         self.element.text = str(self.value).lower()
     
     def __nonzero__(self):

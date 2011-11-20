@@ -67,10 +67,10 @@ class Timestamp(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         self.value = element.text
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         self.element.text = util.Timestamp.format(self.value)
     
     def _set_value(self, value):
@@ -172,20 +172,20 @@ class NoteList(object):
     def __nonzero__(self):
         return bool(self.xml_element._note_map)
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         self.xml_element._note_map.clear()
         for child in element:
             if child.tag == self.note_type.qname:
                 try:
-                    note = self.note_type.from_element(child, *args, **kwargs)
+                    note = self.note_type.from_element(child)
                 except ValidationError:
                     pass
                 else:
                     self.xml_element._note_map[note.element] = note
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         for note in self.xml_element._note_map.itervalues():
-            note.to_element(*args, **kwargs)
+            note.to_element()
 
     def add(self, item):
         if isinstance(item, Note):
@@ -305,13 +305,13 @@ class Service(XMLElement):
     def notes(self):
         return NoteList(self, PIDFNote)
 
-    def _parse_element(self, element, *args, **kwargs):
-        super(Service, self)._parse_element(element, *args, **kwargs)
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        super(Service, self)._parse_element(element)
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        super(Service, self)._build_element(*args, **kwargs)
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        super(Service, self)._build_element()
+        self.notes._build_element()
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
@@ -350,13 +350,13 @@ class Device(XMLElement):
     def notes(self):
         return NoteList(self, DMNote)
 
-    def _parse_element(self, element, *args, **kwargs):
-        super(Device, self)._parse_element(element, *args, **kwargs)
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        super(Device, self)._parse_element(element)
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        super(Device, self)._build_element(*args, **kwargs)
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        super(Device, self)._build_element()
+        self.notes._build_element()
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.device_id, list(self.notes), self.timestamp)
@@ -392,13 +392,13 @@ class Person(XMLElement):
     def notes(self):
         return NoteList(self, DMNote)
 
-    def _parse_element(self, element, *args, **kwargs):
-        super(Person, self)._parse_element(element, *args, **kwargs)
-        self.notes._parse_element(element, *args, **kwargs)
+    def _parse_element(self, element):
+        super(Person, self)._parse_element(element)
+        self.notes._parse_element(element)
 
-    def _build_element(self, *args, **kwargs):
-        super(Person, self)._build_element(*args, **kwargs)
-        self.notes._build_element(*args, **kwargs)
+    def _build_element(self):
+        super(Person, self)._build_element()
+        self.notes._build_element()
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.timestamp)

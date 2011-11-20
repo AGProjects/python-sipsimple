@@ -77,10 +77,10 @@ class ResourceList(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
-    def _parse_element(self, element, *args, **kw):
+    def _parse_element(self, element):
         self.value = urllib.unquote(element.text).decode('utf-8')
 
-    def _build_element(self, *args, **kw):
+    def _build_element(self):
         self.element.text = urllib.quote(self.value.encode('utf-8'))
 
     def _get_value(self):

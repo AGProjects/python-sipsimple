@@ -448,7 +448,7 @@ class XMLElement(object):
             if child is None and element_child.required:
                 raise ValidationError("element child %s of %s is not set" % (name, self.__class__.__name__))
 
-    def to_element(self, *args, **kwargs):
+    def to_element(self):
         try:
             self.check_validity()
         except ValidationError, e:
@@ -457,21 +457,21 @@ class XMLElement(object):
         for name in self._xml_element_children:
             child = getattr(self, name, None)
             if child is not None:
-                child.to_element(*args, **kwargs)
-        self._build_element(*args, **kwargs)
+                child.to_element()
+        self._build_element()
         return self.element
     
     # To be defined in subclass
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         try:
             build_element = super(XMLElement, self)._build_element
         except AttributeError:
             pass
         else:
-            build_element(*args, **kwargs)
+            build_element()
 
     @classmethod
-    def from_element(cls, element, *args, **kwargs):
+    def from_element(cls, element):
         obj = cls.__new__(cls)
         obj.element = element
         # set known attributes
@@ -490,7 +490,7 @@ class XMLElement(object):
             element_child, type = cls._xml_children_qname_map.get(child.tag, (None, None))
             if element_child is not None:
                 try:
-                    value = type.from_element(child, *args, **kwargs)
+                    value = type.from_element(child)
                 except ValidationError:
                     pass # we should accept partially valid documents
                 else:
@@ -499,18 +499,18 @@ class XMLElement(object):
                     setattr(obj, element_child.name, value)
         if required_children:
             raise ValidationError("not all required sub elements exist in %s element" % cls.__name__)
-        obj._parse_element(element, *args, **kwargs)
+        obj._parse_element(element)
         obj.check_validity()
         return obj
     
     # To be defined in subclass
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         try:
             parse_element = super(XMLElement, self)._parse_element
         except AttributeError:
             pass
         else:
-            parse_element(element, *args, **kwargs)
+            parse_element(element)
     
     @classmethod
     def _register_xml_attribute(cls, attribute, element):
@@ -611,13 +611,13 @@ class XMLRootElement(XMLElement):
         self.cache = weakref.WeakValueDictionary({self.element: self})
 
     @classmethod
-    def from_element(cls, element, *args, **kwargs):
-        obj = super(XMLRootElement, cls).from_element(element, *args, **kwargs)
+    def from_element(cls, element):
+        obj = super(XMLRootElement, cls).from_element(element)
         obj.cache = weakref.WeakValueDictionary({obj.element: obj})
         return obj
     
     @classmethod
-    def parse(cls, document, *args, **kwargs):
+    def parse(cls, document):
         parser = cls._xml_document._xml_parser
         try:
             if isinstance(document, str):
@@ -629,10 +629,10 @@ class XMLRootElement(XMLElement):
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
-            return cls.from_element(xml, *args, **kwargs)
+            return cls.from_element(xml)
 
     def toxml(self, *args, **kwargs):
-        element = self.to_element(*args, **kwargs)
+        element = self.to_element()
         validate_output = self._xml_document._validate_output
         xml_schema = self._xml_document._xml_schema
         if kwargs.pop('validate', validate_output) and xml_schema is not None:
@@ -749,14 +749,14 @@ class XMLListMixin(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         self._element_map.clear()
         self._xmlid_map.clear()
         for child in element[:]:
             child_class = self._xml_document.get_element(child.tag, type(None))
             if child_class in self._xml_item_element_types or issubclass(child_class, self._xml_item_extension_types):
                 try:
-                    value = child_class.from_element(child, *args, **kwargs)
+                    value = child_class.from_element(child)
                 except ValidationError:
                     pass
                 else:
@@ -767,9 +767,9 @@ class XMLListMixin(object):
                             self._xmlid_map[child_class][value._xml_id] = value
                         self._element_map[value.element] = value
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         for child in self._element_map.itervalues():
-            child.to_element(*args, **kwargs)
+            child.to_element()
 
     def add(self, item):
         if not (item.__class__ in self._xml_item_element_types or isinstance(item, self._xml_item_extension_types)):
@@ -809,14 +809,14 @@ class XMLStringElement(XMLElement):
         self.value = value
         self.lang = lang
 
-    def _parse_element(self, element, *args, **kwargs):
+    def _parse_element(self, element):
         self.value = element.text
         if self._xml_lang:
             self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
         else:
             self.lang = None
 
-    def _build_element(self, *args, **kwargs):
+    def _build_element(self):
         if self.value is not None:
             self.element.text = unicode(self.value)
         else:
