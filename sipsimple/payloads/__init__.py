@@ -604,8 +604,6 @@ class XMLRootElement(XMLElement):
     encoding = 'UTF-8'
     content_type = None
     
-    _xml_declaration = True
-    
     def __init__(self):
         XMLElement.__init__(self)
         self.cache = weakref.WeakValueDictionary({self.element: self})
@@ -631,16 +629,13 @@ class XMLRootElement(XMLElement):
         else:
             return cls.from_element(xml)
 
-    def toxml(self, *args, **kwargs):
+    def toxml(self, encoding=None, pretty_print=False, validate=True):
         element = self.to_element()
-        validate_output = self._xml_document._validate_output
-        xml_schema = self._xml_document._xml_schema
-        if kwargs.pop('validate', validate_output) and xml_schema is not None:
-            xml_schema.assertValid(element)
-        
-        kwargs.setdefault('encoding', self.encoding)
-        kwargs.setdefault('xml_declaration', self._xml_declaration)
-        return etree.tostring(element, *args, **kwargs)
+        if validate and self._xml_document._xml_schema is not None:
+            self._xml_document._xml_schema.assertValid(element)
+        if encoding is None:
+            encoding = self.encoding
+        return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
 
     def xpath(self, xpath, namespaces=None):
         result = []
