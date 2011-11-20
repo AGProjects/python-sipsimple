@@ -473,10 +473,6 @@ class XMLElement(object):
     @classmethod
     def from_element(cls, element, *args, **kwargs):
         obj = cls.__new__(cls)
-        if 'xml_document' in kwargs:
-            obj._xml_document = kwargs['xml_document']
-        else:
-            kwargs['xml_document'] = cls._xml_document
         obj.element = element
         # set known attributes
         for name, attribute in cls._xml_attributes.iteritems():
@@ -633,7 +629,6 @@ class XMLRootElement(XMLElement):
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
-            kwargs.setdefault('xml_document', cls._xml_document)
             return cls.from_element(xml, *args, **kwargs)
 
     def toxml(self, *args, **kwargs):
