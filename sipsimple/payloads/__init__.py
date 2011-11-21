@@ -69,14 +69,14 @@ class XMLDocumentType(type):
             if hasattr(base, 'xml_nsmap'):
                 cls.xml_nsmap.update(base.xml_nsmap)
         if cls._xml_schema_map:
-            cls._build_schema()
+            cls._update_schema()
 
 
 class XMLDocument(object):
     __metaclass__ = XMLDocumentType
 
     @classmethod
-    def _build_schema(cls):
+    def _update_schema(cls):
         schema = """<?xml version="1.0"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 %s
@@ -104,7 +104,7 @@ class XMLDocument(object):
         cls.xml_nsmap[prefix] = namespace
         if schema is not None:
             cls._xml_schema_map[namespace] = os.path.join(os.path.dirname(__file__), 'xml-schemas', schema)
-            cls._build_schema()
+            cls._update_schema()
         for child in cls.__subclasses__():
             child.register_namespace(namespace, prefix, schema)
 
@@ -117,7 +117,7 @@ class XMLDocument(object):
         del cls.xml_nsmap[prefix]
         schema = cls._xml_schema_map.pop(namespace, None)
         if schema is not None:
-            cls._build_schema()
+            cls._update_schema()
         for child in cls.__subclasses__():
             try:
                 child.unregister_namespace(namespace)
