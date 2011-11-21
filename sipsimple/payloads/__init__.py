@@ -77,12 +77,11 @@ class XMLDocument(object):
 
     @classmethod
     def _build_schema(cls):
-        schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
         schema = """<?xml version="1.0"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 %s
             </xs:schema>
-        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.join(schema_dir, schema))) for ns, schema in cls._xml_schema_map.iteritems())
+        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls._xml_schema_map.iteritems())
         cls._xml_schema = etree.XMLSchema(etree.XML(schema))
         cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
 
@@ -104,7 +103,7 @@ class XMLDocument(object):
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
         cls.xml_nsmap[prefix] = namespace
         if schema is not None:
-            cls._xml_schema_map[namespace] = schema
+            cls._xml_schema_map[namespace] = os.path.join(os.path.dirname(__file__), 'xml-schemas', schema)
             cls._build_schema()
         for child in cls.__subclasses__():
             child.register_namespace(namespace, prefix, schema)
