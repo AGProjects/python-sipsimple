@@ -820,12 +820,12 @@ class XMLStringElement(XMLElement):
             del self.element.attrib[self.__class__.lang.xmlname]
 
     def _get_value(self):
-        return self._value
+        return self.__dict__['value']
 
     def _set_value(self, value):
         if value is not None and not isinstance(value, self._xml_value_type):
             value = self._xml_value_type(value)
-        self._value = value
+        self.__dict__['value'] = value
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value

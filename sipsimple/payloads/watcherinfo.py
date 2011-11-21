@@ -103,12 +103,12 @@ class Watcher(XMLElement):
         return self.display_name and '"%s" <%s>' % (self.display_name, self.sipuri) or self.sipuri
 
     def _get_sipuri(self):
-        return self._sipuri
+        return self.__dict__['sipuri']
 
     def _set_sipuri(self, value):
         if not isinstance(value, SIPURI):
             value = SIPURI(value)
-        self._sipuri = value
+        self.__dict__['sipuri'] = value
 
     sipuri = property(_get_sipuri, _set_sipuri)
     del _get_sipuri, _set_sipuri

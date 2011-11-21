@@ -72,7 +72,10 @@ class Timestamp(XMLElement):
 
     def _build_element(self):
         self.element.text = util.Timestamp.format(self.value)
-    
+
+    def _get_value(self):
+        return self.__dict__['value']
+
     def _set_value(self, value):
         if value is None:
             value = datetime.datetime.now()
@@ -80,10 +83,11 @@ class Timestamp(XMLElement):
             value = util.Timestamp.parse(value)
         elif isinstance(value, Timestamp):
             value = value.value
-        self.__value = value
+        self.__dict__['value'] = value
 
-    value = property(lambda self: self.__value, _set_value)
-    
+    value = property(_get_value, _set_value)
+    del _get_value, _set_value
+
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
