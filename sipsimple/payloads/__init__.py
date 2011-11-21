@@ -58,6 +58,8 @@ class XMLDocumentType(type):
         cls._xml_root_element = None
         cls._xml_classes = {}
         cls._xml_schema_map = {}
+        cls._xml_schema = None
+        cls._xml_parser = etree.XMLParser(remove_blank_text=True)
         cls.xml_nsmap = {}
         for base in reversed(bases):
             if hasattr(base, '_xml_classes'):
@@ -75,10 +77,6 @@ class XMLDocument(object):
     _validate_output = True
     
     _xml_schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
-
-    # dinamically generated
-    _xml_parser = None
-    _xml_schema = None
 
     @classmethod
     def _build_schema(cls):
