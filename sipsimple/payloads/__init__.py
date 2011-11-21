@@ -68,6 +68,8 @@ class XMLDocumentType(type):
                 cls._xml_schema_map.update(base._xml_schema_map)
             if hasattr(base, 'xml_nsmap'):
                 cls.xml_nsmap.update(base.xml_nsmap)
+        if cls._xml_schema_map:
+            cls._build_schema()
 
 
 class XMLDocument(object):
