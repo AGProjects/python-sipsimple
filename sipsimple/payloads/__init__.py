@@ -68,8 +68,7 @@ class XMLDocumentType(type):
                 cls._xml_schema_map.update(base._xml_schema_map)
             if hasattr(base, 'xml_nsmap'):
                 cls.xml_nsmap.update(base.xml_nsmap)
-        if cls._xml_schema_map:
-            cls._update_schema()
+        cls._update_schema()
 
 
 class XMLDocument(object):
@@ -77,13 +76,17 @@ class XMLDocument(object):
 
     @classmethod
     def _update_schema(cls):
-        schema = """<?xml version="1.0"?>
-            <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-                %s
-            </xs:schema>
-        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls._xml_schema_map.iteritems())
-        cls._xml_schema = etree.XMLSchema(etree.XML(schema))
-        cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
+        if cls._xml_schema_map:
+            schema = """<?xml version="1.0"?>
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                    %s
+                </xs:schema>
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls._xml_schema_map.iteritems())
+            cls._xml_schema = etree.XMLSchema(etree.XML(schema))
+            cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
+        else:
+            cls._xml_schema = None
+            cls._xml_parser = etree.XMLParser(remove_blank_text=True)
 
     @classmethod
     def register_element(cls, xml_class):
