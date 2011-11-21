@@ -94,7 +94,7 @@ class Watcher(XMLElement):
             raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
 
     def _build_element(self):
-        pass
+        self.element.text = self.sipuri
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.sipuri, self.id, self.status, self.event, self.display_name, self.expiration, self.duration)
@@ -109,8 +109,7 @@ class Watcher(XMLElement):
         if not isinstance(value, SIPURI):
             value = SIPURI(value)
         self._sipuri = value
-        self.element.text = value
-    
+
     sipuri = property(_get_sipuri, _set_sipuri)
     del _get_sipuri, _set_sipuri
 
