@@ -115,8 +115,9 @@ class XMLDocument(object):
         except StopIteration:
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
         del cls.xml_nsmap[prefix]
-        cls._xml_schema_map.pop(namespace, None)
-        cls._build_schema()
+        schema = cls._xml_schema_map.pop(namespace, None)
+        if schema is not None:
+            cls._build_schema()
         for child in cls.__subclasses__():
             try:
                 child.unregister_namespace(namespace)
