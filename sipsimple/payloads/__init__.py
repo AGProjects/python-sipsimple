@@ -75,23 +75,16 @@ class XMLDocumentType(type):
 class XMLDocument(object):
     __metaclass__ = XMLDocumentType
 
-    _validate_input = True
-    _validate_output = True
-    
-    _xml_schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
-
     @classmethod
     def _build_schema(cls):
+        schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
         schema = """<?xml version="1.0"?>
             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                 %s
             </xs:schema>
-        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.join(cls._xml_schema_dir, file))) for ns, file in cls._xml_schema_map.iteritems())
+        """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.join(schema_dir, schema))) for ns, schema in cls._xml_schema_map.iteritems())
         cls._xml_schema = etree.XMLSchema(etree.XML(schema))
-        if cls._validate_input:
-            cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
-        else:
-            cls._xml_parser = etree.XMLParser(remove_blank_text=True)
+        cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
 
     @classmethod
     def register_element(cls, xml_class):
