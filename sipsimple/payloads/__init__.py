@@ -58,8 +58,6 @@ class XMLDocumentType(type):
         cls._xml_root_element = None
         cls._xml_classes = {}
         cls._xml_schema_map = {}
-        cls._xml_schema = None
-        cls._xml_parser = etree.XMLParser(remove_blank_text=True)
         cls.xml_nsmap = {}
         for base in reversed(bases):
             if hasattr(base, '_xml_classes'):
@@ -70,11 +68,6 @@ class XMLDocumentType(type):
                 cls.xml_nsmap.update(base.xml_nsmap)
         cls._update_schema()
 
-
-class XMLDocument(object):
-    __metaclass__ = XMLDocumentType
-
-    @classmethod
     def _update_schema(cls):
         if cls._xml_schema_map:
             schema = """<?xml version="1.0"?>
@@ -87,6 +80,10 @@ class XMLDocument(object):
         else:
             cls._xml_schema = None
             cls._xml_parser = etree.XMLParser(remove_blank_text=True)
+
+
+class XMLDocument(object):
+    __metaclass__ = XMLDocumentType
 
     @classmethod
     def register_element(cls, xml_class):
