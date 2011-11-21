@@ -29,7 +29,6 @@ import sys
 import urllib
 import weakref
 from collections import defaultdict, deque
-from cStringIO import StringIO
 
 from application.python.descriptor import classproperty
 from lxml import etree
@@ -88,8 +87,7 @@ class XMLDocument(object):
                 %s
             </xs:schema>
         """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.join(cls._xml_schema_dir, file))) for ns, file in cls._xml_schema_map.iteritems())
-        schema_doc = etree.parse(StringIO(schema))
-        cls._xml_schema = etree.XMLSchema(schema_doc)
+        cls._xml_schema = etree.XMLSchema(etree.XML(schema))
         if cls._validate_input:
             cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
         else:
