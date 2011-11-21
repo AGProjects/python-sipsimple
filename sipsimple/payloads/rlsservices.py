@@ -77,12 +77,6 @@ class ResourceList(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
-    def _parse_element(self, element):
-        self.value = urllib.unquote(element.text).decode('utf-8')
-
-    def _build_element(self):
-        self.element.text = urllib.quote(self.value.encode('utf-8'))
-
     def _get_value(self):
         return self.__dict__['value']
 
@@ -91,6 +85,12 @@ class ResourceList(XMLElement):
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value
+
+    def _parse_element(self, element):
+        self.value = urllib.unquote(element.text).decode('utf-8')
+
+    def _build_element(self):
+        self.element.text = urllib.quote(self.value.encode('utf-8'))
 
 
 # This is identical to the list element in resourcelists, except for the

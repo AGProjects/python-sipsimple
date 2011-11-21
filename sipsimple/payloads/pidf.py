@@ -67,11 +67,11 @@ class Timestamp(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
-    def _parse_element(self, element):
-        self.value = element.text
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    def _build_element(self):
-        self.element.text = util.Timestamp.format(self.value)
+    def __str__(self):
+        return str(self.value)
 
     def _get_value(self):
         return self.__dict__['value']
@@ -88,11 +88,11 @@ class Timestamp(XMLElement):
     value = property(_get_value, _set_value)
     del _get_value, _set_value
 
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.value)
+    def _parse_element(self, element):
+        self.value = element.text
 
-    def __str__(self):
-        return str(self.value)
+    def _build_element(self):
+        self.element.text = util.Timestamp.format(self.value)
 
 
 class Note(unicode):
@@ -309,6 +309,9 @@ class Service(XMLElement):
     def notes(self):
         return NoteList(self, PIDFNote)
 
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
+
     def _parse_element(self, element):
         super(Service, self)._parse_element(element)
         self.notes._parse_element(element)
@@ -316,9 +319,6 @@ class Service(XMLElement):
     def _build_element(self):
         super(Service, self)._build_element()
         self.notes._build_element()
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
 
 
 class DeviceTimestamp(Timestamp):
@@ -354,6 +354,9 @@ class Device(XMLElement):
     def notes(self):
         return NoteList(self, DMNote)
 
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.device_id, list(self.notes), self.timestamp)
+
     def _parse_element(self, element):
         super(Device, self)._parse_element(element)
         self.notes._parse_element(element)
@@ -361,9 +364,6 @@ class Device(XMLElement):
     def _build_element(self):
         super(Device, self)._build_element()
         self.notes._build_element()
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.device_id, list(self.notes), self.timestamp)
 
 
 class PersonTimestamp(Timestamp):
@@ -396,6 +396,9 @@ class Person(XMLElement):
     def notes(self):
         return NoteList(self, DMNote)
 
+    def __repr__(self):
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.timestamp)
+
     def _parse_element(self, element):
         super(Person, self)._parse_element(element)
         self.notes._parse_element(element)
@@ -403,9 +406,6 @@ class Person(XMLElement):
     def _build_element(self):
         super(Person, self)._build_element()
         self.notes._build_element()
-
-    def __repr__(self):
-        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.timestamp)
 
 
 class PIDF(XMLListRootElement):

@@ -87,15 +87,6 @@ class Watcher(XMLElement):
         self.expiration = expiration
         self.duration = duration
 
-    def _parse_element(self, element):
-        try:
-            self.sipuri = element.text
-        except ValueError, e:
-            raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
-
-    def _build_element(self):
-        self.element.text = self.sipuri
-
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.sipuri, self.id, self.status, self.event, self.display_name, self.expiration, self.duration)
 
@@ -112,6 +103,15 @@ class Watcher(XMLElement):
 
     sipuri = property(_get_sipuri, _set_sipuri)
     del _get_sipuri, _set_sipuri
+
+    def _parse_element(self, element):
+        try:
+            self.sipuri = element.text
+        except ValueError, e:
+            raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
+
+    def _build_element(self):
+        self.element.text = self.sipuri
 
 
 class WatcherList(XMLListElement):

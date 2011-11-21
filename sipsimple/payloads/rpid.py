@@ -335,14 +335,14 @@ class PlaceIs(XMLElement, PersonExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, list(self.notes))
+
     def _parse_element(self, element):
         self.notes._parse_element(element)
 
     def _build_element(self):
         self.notes._build_element()
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, list(self.notes))
 
 Person.register_extension('place_is', type=PlaceIs)
 

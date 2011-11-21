@@ -259,6 +259,12 @@ class BooleanProvideElement(XMLElement):
         XMLElement.__init__(self)
         self.value = value
 
+    def __nonzero__(self):
+        return self.value
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+
     def _parse_element(self, element):
         if element.text.lower() == 'true':
             self.value = True
@@ -267,12 +273,6 @@ class BooleanProvideElement(XMLElement):
 
     def _build_element(self):
         self.element.text = str(self.value).lower()
-    
-    def __nonzero__(self):
-        return self.value
-
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.value)
 
 
 class ProvideActivities(BooleanProvideElement, TransformationElement):

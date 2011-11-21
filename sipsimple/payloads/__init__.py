@@ -102,6 +102,10 @@ class XMLDocument(object):
             child.register_element(xml_class)
 
     @classmethod
+    def get_element(cls, qname, default=None):
+        return cls._xml_classes.get(qname, default)
+
+    @classmethod
     def register_namespace(cls, namespace, prefix=None, schema=None):
         if prefix in cls.xml_nsmap:
             raise ValueError("prefix %s is already registered in %s" % (prefix, cls.__name__))
@@ -128,10 +132,6 @@ class XMLDocument(object):
                 child.unregister_namespace(namespace)
             except KeyError:
                 pass
-
-    @classmethod
-    def get_element(cls, qname, default=None):
-        return cls._xml_classes.get(qname, default)
 
 
 ## Children descriptors
@@ -798,11 +798,39 @@ class XMLStringElement(XMLElement):
     _xml_value_type = unicode # To be defined in subclass
 
     lang = XMLAttribute('lang', xmlname='{http://www.w3.org/XML/1998/namespace}lang', type=str, required=False, test_equal=True)
-    
+
     def __init__(self, value, lang=None):
         XMLElement.__init__(self)
         self.value = value
         self.lang = lang
+
+    def __eq__(self, other):
+        if isinstance(other, XMLStringElement):
+            return self.lang == other.lang and self.value == other.value
+        elif isinstance(other, basestring) and (self._xml_lang is False or self.lang is None):
+            return self.value == other
+        else:
+            return NotImplemented
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
+
+    def __str__(self):
+        return str(self.value)
+
+    def __unicode__(self):
+        return unicode(self.value)
+
+    def _get_value(self):
+        return self.__dict__['value']
+
+    def _set_value(self, value):
+        if value is not None and not isinstance(value, self._xml_value_type):
+            value = self._xml_value_type(value)
+        self.__dict__['value'] = value
+
+    value = property(_get_value, _set_value)
+    del _get_value, _set_value
 
     def _parse_element(self, element):
         self.value = element.text
@@ -818,34 +846,6 @@ class XMLStringElement(XMLElement):
             self.element.text = None
         if not self._xml_lang and self.lang is not None:
             del self.element.attrib[self.__class__.lang.xmlname]
-
-    def _get_value(self):
-        return self.__dict__['value']
-
-    def _set_value(self, value):
-        if value is not None and not isinstance(value, self._xml_value_type):
-            value = self._xml_value_type(value)
-        self.__dict__['value'] = value
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
-
-    def __repr__(self):
-        return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
-
-    def __str__(self):
-        return str(self.value)
-
-    def __unicode__(self):
-        return unicode(self.value)
-
-    def __eq__(self, other):
-        if isinstance(other, XMLStringElement):
-            return self.lang == other.lang and self.value == other.value
-        elif isinstance(other, basestring) and (self._xml_lang is False or self.lang is None):
-            return self.value == other
-        else:
-            return NotImplemented
 
 
 class XMLEmptyElement(XMLElement):
