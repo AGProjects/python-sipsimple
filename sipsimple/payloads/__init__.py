@@ -586,7 +586,7 @@ class XMLRootElementType(XMLElementType):
         super(XMLRootElementType, cls).__init__(name, bases, dct)
         if cls._xml_document is not None:
             if cls._xml_document._xml_root_element is not None:
-                raise TypeError('there is already another root element registered for %s application' % cls.__name__)
+                raise TypeError('there is already a root element registered for %s' % cls.__name__)
             cls._xml_document._xml_root_element = cls
 
 class XMLRootElement(XMLElement):
