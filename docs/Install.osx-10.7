@@ -205,6 +205,8 @@ Build and install SIP SIMPLE library:
 sudo -s
 # build only for 32 bit architechture to avoid the audio input bug
 export SIPSIMPLE_OSX_ARCH="i386"
+# compatible with Snow Leopard
+export SIPSIMPLE_OSX_SDK="10.6"
 python setup.py build_ext --pjsip-clean-compile
 python setup.py install
 
