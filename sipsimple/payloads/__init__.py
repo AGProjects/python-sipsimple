@@ -55,31 +55,33 @@ def parse_qname(qname):
 
 class XMLDocumentType(type):
     def __init__(cls, name, bases, dct):
-        cls._xml_root_element = None
-        cls._xml_classes = {}
-        cls._xml_schema_map = {}
-        cls.xml_nsmap = {}
+        cls.nsmap = {}
+        cls.schema_map = {}
+        cls.element_map = {}
+        cls.root_element = None
+        cls.schema = None
+        cls.parser = None
         for base in reversed(bases):
-            if hasattr(base, '_xml_classes'):
-                cls._xml_classes.update(base._xml_classes)
-            if hasattr(base, '_xml_schema_map'):
-                cls._xml_schema_map.update(base._xml_schema_map)
-            if hasattr(base, 'xml_nsmap'):
-                cls.xml_nsmap.update(base.xml_nsmap)
+            if hasattr(base, 'element_map'):
+                cls.element_map.update(base.element_map)
+            if hasattr(base, 'schema_map'):
+                cls.schema_map.update(base.schema_map)
+            if hasattr(base, 'nsmap'):
+                cls.nsmap.update(base.nsmap)
         cls._update_schema()
 
     def _update_schema(cls):
-        if cls._xml_schema_map:
+        if cls.schema_map:
             schema = """<?xml version="1.0"?>
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     %s
                 </xs:schema>
-            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls._xml_schema_map.iteritems())
-            cls._xml_schema = etree.XMLSchema(etree.XML(schema))
-            cls._xml_parser = etree.XMLParser(schema=cls._xml_schema, remove_blank_text=True)
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls.schema_map.iteritems())
+            cls.schema = etree.XMLSchema(etree.XML(schema))
+            cls.parser = etree.XMLParser(schema=cls.schema, remove_blank_text=True)
         else:
-            cls._xml_schema = None
-            cls._xml_parser = etree.XMLParser(remove_blank_text=True)
+            cls.schema = None
+            cls.parser = etree.XMLParser(remove_blank_text=True)
 
 
 class XMLDocument(object):
@@ -87,23 +89,23 @@ class XMLDocument(object):
 
     @classmethod
     def register_element(cls, xml_class):
-        cls._xml_classes[xml_class.qname] = xml_class
+        cls.element_map[xml_class.qname] = xml_class
         for child in cls.__subclasses__():
             child.register_element(xml_class)
 
     @classmethod
     def get_element(cls, qname, default=None):
-        return cls._xml_classes.get(qname, default)
+        return cls.element_map.get(qname, default)
 
     @classmethod
     def register_namespace(cls, namespace, prefix=None, schema=None):
-        if prefix in cls.xml_nsmap:
+        if prefix in cls.nsmap:
             raise ValueError("prefix %s is already registered in %s" % (prefix, cls.__name__))
-        if namespace in cls.xml_nsmap.itervalues():
+        if namespace in cls.nsmap.itervalues():
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
-        cls.xml_nsmap[prefix] = namespace
+        cls.nsmap[prefix] = namespace
         if schema is not None:
-            cls._xml_schema_map[namespace] = os.path.join(os.path.dirname(__file__), 'xml-schemas', schema)
+            cls.schema_map[namespace] = os.path.join(os.path.dirname(__file__), 'xml-schemas', schema)
             cls._update_schema()
         for child in cls.__subclasses__():
             child.register_namespace(namespace, prefix, schema)
@@ -111,11 +113,11 @@ class XMLDocument(object):
     @classmethod
     def unregister_namespace(cls, namespace):
         try:
-            prefix = (prefix for prefix in cls.xml_nsmap if cls.xml_nsmap[prefix]==namespace).next()
+            prefix = (prefix for prefix in cls.nsmap if cls.nsmap[prefix]==namespace).next()
         except StopIteration:
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
-        del cls.xml_nsmap[prefix]
-        schema = cls._xml_schema_map.pop(namespace, None)
+        del cls.nsmap[prefix]
+        schema = cls.schema_map.pop(namespace, None)
         if schema is not None:
             cls._update_schema()
         for child in cls.__subclasses__():
@@ -423,7 +425,7 @@ class XMLElement(object):
     qname = classproperty(lambda cls: '{%s}%s' % (cls._xml_namespace, cls._xml_tag))
 
     def __init__(self):
-        self.element = etree.Element(self.qname, nsmap=self._xml_document.xml_nsmap)
+        self.element = etree.Element(self.qname, nsmap=self._xml_document.nsmap)
 
     def check_validity(self):
         # check attributes
@@ -585,9 +587,9 @@ class XMLRootElementType(XMLElementType):
     def __init__(cls, name, bases, dct):
         super(XMLRootElementType, cls).__init__(name, bases, dct)
         if cls._xml_document is not None:
-            if cls._xml_document._xml_root_element is not None:
+            if cls._xml_document.root_element is not None:
                 raise TypeError('there is already a root element registered for %s' % cls.__name__)
-            cls._xml_document._xml_root_element = cls
+            cls._xml_document.root_element = cls
 
 class XMLRootElement(XMLElement):
     __metaclass__ = XMLRootElementType
@@ -607,7 +609,7 @@ class XMLRootElement(XMLElement):
     
     @classmethod
     def parse(cls, document):
-        parser = cls._xml_document._xml_parser
+        parser = cls._xml_document.parser
         try:
             if isinstance(document, str):
                 xml = etree.XML(document, parser=parser)
@@ -622,8 +624,8 @@ class XMLRootElement(XMLElement):
 
     def toxml(self, encoding=None, pretty_print=False, validate=True):
         element = self.to_element()
-        if validate and self._xml_document._xml_schema is not None:
-            self._xml_document._xml_schema.assertValid(element)
+        if validate and self._xml_document.schema is not None:
+            self._xml_document.schema.assertValid(element)
         if encoding is None:
             encoding = self.encoding
         return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)

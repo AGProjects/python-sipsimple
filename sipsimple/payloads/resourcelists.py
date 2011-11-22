@@ -189,7 +189,7 @@ class ResourceLists(XMLListRootElement):
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
             raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
-        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_document.xml_nsmap.iteritems())
+        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_document.nsmap.iteritems())
         namespaces[self._xml_namespace] = ''
         prefix = namespaces[self._xml_namespace]
         root_xpath = '/%s:%s' % (prefix, self._xml_tag) if prefix else '/'+self._xml_tag
@@ -279,7 +279,7 @@ class EntryAttributes(XMLElement, EntryExtension):
         self.element.clear()
         attribute_tag = '{%s}attribute' % self._xml_namespace
         for key, value in self.iteritems():
-            child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_document.xml_nsmap)
+            child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_document.nsmap)
             child.attrib['name'] = key
             if value is None:
                 child.attrib['nil'] = 'true'

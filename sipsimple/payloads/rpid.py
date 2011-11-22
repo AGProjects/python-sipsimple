@@ -477,7 +477,7 @@ class Privacy(XMLElement, PersonExtension):
     def _build_element(self):
         if self.unknown:
             if self.element.find('{%s}unknown' % self._xml_namespace) is None:
-                etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_document.xml_nsmap)
+                etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_document.nsmap)
         else:
             unknown_element = self.element.find('{%s}unknown' % self._xml_namespace)
             if unknown_element is not None:
