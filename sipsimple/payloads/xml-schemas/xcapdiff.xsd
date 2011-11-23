@@ -8,8 +8,7 @@
     <!-- include patch-ops -->
     <!--<xs:include-->
         <!--schemaLocation="urn:ietf:params:xml:schema:patch-ops"/>-->
-    <xs:include
-        schemaLocation="patchops.xsd"/>
+    <xs:include schemaLocation="patchops.xsd"/>
 
     <!-- document root -->
     <xs:element name="xcap-diff">
@@ -22,8 +21,7 @@
                         <xs:element name="attribute" type="attributeType"/>
                     </xs:choice>
                 </xs:sequence>
-                <xs:any namespace="##other" processContents="lax"
-                    minOccurs="0" maxOccurs="unbounded"/>
+                <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
             <xs:attribute name="xcap-root" type="xs:anyURI" use="required"/>
             <xs:anyAttribute processContents="lax"/>
@@ -78,11 +76,9 @@
         <xs:complexContent mixed="true">
             <xs:restriction base="xs:anyType">
                 <xs:sequence>
-                    <xs:any processContents="lax" namespace="##any"
-                        minOccurs="0" maxOccurs="1"/>
+                    <xs:any processContents="lax" namespace="##any" minOccurs="0" maxOccurs="1"/>
                 </xs:sequence>
-                <xs:attribute name="sel" type="xs:string"
-                    use="required"/>
+                <xs:attribute name="sel" type="xs:string" use="required"/>
                 <xs:attribute name="exists" type="xs:boolean"/>
                 <xs:anyAttribute processContents="lax"/>
             </xs:restriction>
@@ -93,8 +89,7 @@
     <xs:complexType name="attributeType">
         <xs:simpleContent>
             <xs:extension base="xs:string">
-                <xs:attribute name="sel" type="xs:string"
-                    use="required"/>
+                <xs:attribute name="sel" type="xs:string" use="required"/>
                 <xs:attribute name="exists" type="xs:boolean"/>
                 <xs:anyAttribute processContents="lax"/>
             </xs:extension>
