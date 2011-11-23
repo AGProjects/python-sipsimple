@@ -507,10 +507,7 @@ class XMLElement(object):
                     setattr(obj, name, attribute.parse(xmlvalue))
                 except (ValueError, TypeError):
                     raise ValidationError("got illegal value for attribute %s of %s: %s" % (name, cls.__name__, xmlvalue))
-            elif attribute.required:
-                raise ValidationError("attribute %s of %s is required but is not present" % (name, cls.__name__))
         # set element children
-        required_children = set(child for child in cls._xml_element_children.itervalues() if child.required)
         for child in element:
             element_child, type = cls._xml_children_qname_map.get(child.tag, (None, None))
             if element_child is not None:
@@ -519,15 +516,11 @@ class XMLElement(object):
                 except ValidationError:
                     pass # we should accept partially valid documents
                 else:
-                    if element_child.required:
-                        required_children.remove(element_child)
                     setattr(obj, element_child.name, value)
-        if required_children:
-            raise ValidationError("not all required sub elements exist in %s element" % cls.__name__)
         obj._parse_element(element)
         obj.check_validity()
         return obj
-    
+
     # To be defined in subclass
     def _parse_element(self, element):
         try:
