@@ -73,7 +73,9 @@ from sipsimple.util import Timestamp
 namespace = 'urn:ietf:params:xml:ns:conference-info'
 
 
-class ConferenceDocument(XMLDocument): pass
+class ConferenceDocument(XMLDocument):
+    content_type = "application/conference-info+xml"
+
 ConferenceDocument.register_namespace(namespace, prefix=None, schema='conference.xsd')
 
 
@@ -742,8 +744,6 @@ SidebarsByVal._xml_item_type = SidebarsByValEntry
 
 
 class Conference(XMLRootElement):
-    content_type = "application/conference-info+xml"
-
     _xml_tag = 'conference-info'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument

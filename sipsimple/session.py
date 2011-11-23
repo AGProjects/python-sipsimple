@@ -35,7 +35,7 @@ from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
-from sipsimple.payloads.conference import Conference
+from sipsimple.payloads.conference import ConferenceDocument
 from sipsimple.streams import AudioStream, MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
@@ -547,7 +547,7 @@ class ConferenceHandler(object):
                     if notification.name == 'SIPSubscriptionGotNotify':
                         if notification.data.event == 'conference' and notification.data.body:
                             try:
-                                conference_info = Conference.parse(notification.data.body)
+                                conference_info = ConferenceDocument.parse(notification.data.body)
                             except ValidationError:
                                 pass
                             else:

@@ -14,7 +14,9 @@ from sipsimple.util import Timestamp
 namespace = 'urn:oma:xml:xdm:xcap-directory'
 
 
-class XCAPDirectoryDocument(XMLDocument): pass
+class XCAPDirectoryDocument(XMLDocument):
+    content_type = "application/vnd.oma.xcap-directory+xml"
+
 XCAPDirectoryDocument.register_namespace(namespace, prefix=None, schema='xcap-directory.xsd')
 
 
@@ -67,8 +69,6 @@ class Folder(XMLListElement):
 
 
 class XCAPDirectory(XMLListRootElement):
-    content_type = "application/vnd.oma.xcap-directory+xml"
-
     _xml_tag = 'xcap-directory'
     _xml_namespace = namespace
     _xml_document = XCAPDirectoryDocument

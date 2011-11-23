@@ -22,7 +22,9 @@ namespace = 'urn:ietf:params:xml:ns:watcherinfo'
 class NeedFullUpdateError(Exception): pass
 
 
-class WatcherInfoDocument(XMLDocument): pass
+class WatcherInfoDocument(XMLDocument):
+    content_type = 'application/watcherinfo+xml'
+
 WatcherInfoDocument.register_namespace(namespace, prefix=None, schema='watcherinfo.xsd')
 
 
@@ -54,7 +56,7 @@ class WatcherInfoState(str):
 class Watcher(XMLElement):
     """
     Definition for a watcher in a watcherinfo document
-    
+
     Provides the attributes:
      * id
      * status
@@ -171,8 +173,6 @@ class WatcherInfo(XMLListRootElement):
      representing the presentity to which the watchers have subscribed, the
      dictionaries can also be indexed by such strings.
     """
-    
-    content_type = 'application/watcherinfo+xml'
 
     _xml_tag = 'watcherinfo'
     _xml_namespace = namespace

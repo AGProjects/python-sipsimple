@@ -37,7 +37,9 @@ from sipsimple.util import Timestamp
 namespace = 'urn:ietf:params:xml:ns:common-policy'
 
 
-class CommonPolicyDocument(XMLDocument): pass
+class CommonPolicyDocument(XMLDocument):
+    content_type = 'application/auth-policy+xml'
+
 CommonPolicyDocument.register_namespace(namespace, prefix='cp', schema='common-policy.xsd')
 
 
@@ -328,8 +330,6 @@ class Rule(XMLElement):
 
 
 class RuleSet(XMLListRootElement):
-    content_type = 'application/auth-policy+xml'
-
     _xml_tag = 'ruleset'
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument

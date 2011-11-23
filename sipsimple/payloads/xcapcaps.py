@@ -14,7 +14,9 @@ from sipsimple.payloads import XMLDocument, XMLElementChild, XMLListElement, XML
 namespace = 'urn:ietf:params:xml:ns:xcap-caps'
 
 
-class XCAPCapabilitiesDocument(XMLDocument): pass
+class XCAPCapabilitiesDocument(XMLDocument):
+    content_type = 'application/xcap-caps+xml'
+
 XCAPCapabilitiesDocument.register_namespace(namespace, prefix=None, schema='xcap-caps.xsd')
 
 
@@ -120,7 +122,6 @@ class Namespaces(XMLListElement):
 
 
 class XCAPCapabilities(XMLRootElement):
-    content_type = 'application/xcap-caps+xml'
     _xml_tag = 'xcap-caps'
     _xml_namespace = namespace
     _xml_document = XCAPCapabilitiesDocument

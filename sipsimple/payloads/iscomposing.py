@@ -14,7 +14,9 @@ from sipsimple.util import Timestamp
 namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
 
 
-class IsComposingDocument(XMLDocument): pass
+class IsComposingDocument(XMLDocument):
+    content_type = "application/im-iscomposing+xml"
+
 IsComposingDocument.register_namespace(namespace, prefix=None, schema='im-iscomposing.xsd')
 
 
@@ -60,11 +62,9 @@ class Refresh(XMLStringElement):
     _xml_namespace = namespace
     _xml_document = IsComposingDocument
     _xml_value_type = RefreshValue
-    
+
 
 class IsComposingMessage(XMLRootElement):
-    content_type = "application/im-iscomposing+xml"
-
     _xml_tag = 'isComposing'
     _xml_namespace = namespace
     _xml_document = IsComposingDocument
@@ -76,13 +76,13 @@ class IsComposingMessage(XMLRootElement):
 
     state = XMLElementChild('state', type=State, required=True, test_equal=True)
     last_active = XMLElementChild('last_active', type=LastActive, required=False, test_equal=True)
-    contenttype = XMLElementChild('contenttype', type=ContentType, required=False, test_equal=True)
+    content_type = XMLElementChild('content_type', type=ContentType, required=False, test_equal=True)
     refresh = XMLElementChild('refresh', type=Refresh, required=False, test_equal=True)
-    
+
     def __init__(self, state=None, last_active=None, content_type=None, refresh=None):
         XMLRootElement.__init__(self)
         self.state = state
         self.last_active = last_active
-        self.contenttype = content_type
+        self.content_type = content_type
         self.refresh = refresh
 

@@ -24,7 +24,9 @@ from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLListElement, 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
 
 
-class DialogInfoDocument(XMLDocument): pass
+class DialogInfoDocument(XMLDocument):
+    content_type = "application/dialog-info+xml"
+
 DialogInfoDocument.register_namespace(namespace, prefix=None, schema='dialog-info.xsd')
 
 
@@ -226,8 +228,6 @@ class Dialog(XMLElement):
 
 
 class DialogInfo(XMLListRootElement):
-    content_type = "application/dialog-info+xml"
-
     _xml_tag = 'dialog-info'
     _xml_namespace = namespace
     _xml_document = DialogInfoDocument

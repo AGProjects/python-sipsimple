@@ -35,7 +35,9 @@ pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
 dm_namespace = 'urn:ietf:params:xml:ns:pidf:data-model'
 
 
-class PIDFDocument(XMLDocument): pass
+class PIDFDocument(XMLDocument):
+    content_type = 'application/pidf+xml'
+
 PIDFDocument.register_namespace(pidf_namespace, prefix=None, schema='pidf.xsd')
 PIDFDocument.register_namespace(dm_namespace, prefix='dm', schema='data-model.xsd')
 
@@ -409,8 +411,6 @@ class Person(XMLElement):
 
 
 class PIDF(XMLListRootElement):
-    content_type = 'application/pidf+xml'
-    
     _xml_tag = 'presence'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument

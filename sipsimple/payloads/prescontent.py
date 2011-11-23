@@ -13,7 +13,9 @@ from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XM
 namespace = 'urn:oma:xml:prs:pres-content'
 
 
-class PresenceContentDocument(XMLDocument): pass
+class PresenceContentDocument(XMLDocument):
+    content_type = "application/vnd.oma.pres-content+xml"
+
 PresenceContentDocument.register_namespace(namespace, prefix=None, schema='oma-pres-content.xsd')
 
 # Elements
@@ -43,8 +45,6 @@ class Data(XMLStringElement):
 
 
 class PresenceContent(XMLRootElement):
-    content_type = "application/vnd.oma.pres-content+xml"
-
     _xml_tag = 'content'
     _xml_namespace = namespace
     _xml_document = PresenceContentDocument

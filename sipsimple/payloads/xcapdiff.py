@@ -17,7 +17,9 @@ from sipsimple.payloads.util import XCAPURI, Boolean
 namespace = 'urn:ietf:params:xml:ns:xcap-diff'
 
 
-class XCAPDiffDocument(XMLDocument): pass
+class XCAPDiffDocument(XMLDocument):
+    content_type = 'application/xcap-diff+xml'
+
 XCAPDiffDocument.register_namespace(namespace, prefix=None, schema='xcapdiff.xsd')
 
 
@@ -93,8 +95,6 @@ class Attribute(XMLStringElement):
 
 
 class XCAPDiff(XMLListRootElement):
-    content_type = 'application/xcap-diff+xml'
-
     _xml_tag = 'xcap-diff'
     _xml_namespace = namespace
     _xml_document = XCAPDiffDocument

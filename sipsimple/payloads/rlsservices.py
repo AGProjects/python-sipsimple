@@ -23,7 +23,9 @@ from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, Re
 rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
 
 
-class RLSServicesDocument(ResourceListsDocument): pass
+class RLSServicesDocument(ResourceListsDocument):
+    content_type = 'application/rls-services+xml'
+
 RLSServicesDocument.register_namespace(rls_namespace, prefix=None, schema='rlsservices.xsd')
 
 ## Marker mixins
@@ -124,8 +126,6 @@ class Service(XMLElement):
 
 
 class RLSServices(XMLListRootElement):
-    content_type = 'application/rls-services+xml'
-
     _xml_tag = 'rls-services'
     _xml_namespace = rls_namespace
     _xml_document = RLSServicesDocument

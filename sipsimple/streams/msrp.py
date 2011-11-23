@@ -41,7 +41,7 @@ from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account, BonjourAccount
 from sipsimple.core import SDPAttribute, SDPMediaStream
-from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
+from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
 from sipsimple.threading import run_in_twisted_thread
@@ -389,8 +389,8 @@ class ChatStream(MSRPStreamBase):
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report/responsd with negative code if it's invalid
         notification_center = NotificationCenter()
-        if message.content_type.lower() == IsComposingMessage.content_type:
-            data = IsComposingMessage.parse(message.body)
+        if message.content_type.lower() == IsComposingDocument.content_type:
+            data = IsComposingDocument.parse(message.body)
             ndata = TimestampedNotificationData(state=data.state.value,
                                                 refresh=data.refresh.value if data.refresh is not None else None,
                                                 content_type=data.contenttype.value if data.contenttype is not None else None,
@@ -485,18 +485,18 @@ class ChatStream(MSRPStreamBase):
         if state not in ('active', 'idle'):
             raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
-        content = IsComposingMessage(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text')).toxml()
+        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text'))
         if self.cpim_enabled:
             if recipients is None:
                 recipients = [self.remote_identity]
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
-            msg = CPIMMessage(content, IsComposingMessage.content_type, sender=self.local_identity, recipients=recipients, timestamp=datetime.now())
+            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=datetime.now())
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
         else:
             if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, IsComposingMessage.content_type, failure_report='partial', success_report='no', notify_progress=False)
+            self._enqueue_message(message_id, content, IsComposingDocument.content_type, failure_report='partial', success_report='no', notify_progress=False)
         return message_id
 
 

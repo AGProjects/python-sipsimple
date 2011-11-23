@@ -168,7 +168,7 @@ class Document(object):
 
 class DialogRulesDocument(Document):
     name            = 'dialog-rules'
-    payload_type    = dialogrules.DialogRules
+    payload_type    = dialogrules.DialogRulesDocument
     application     = 'org.openxcap.dialog-rules'
     global_tree     = False
     filename        = 'index'
@@ -176,7 +176,7 @@ class DialogRulesDocument(Document):
 
 class PresRulesDocument(Document):
     name            = 'pres-rules'
-    payload_type    = presrules.PresRules
+    payload_type    = presrules.PresRulesDocument
     application     = 'pres-rules'
     global_tree     = False
     filename        = 'index'
@@ -188,7 +188,7 @@ class PresRulesDocument(Document):
 
 class ResourceListsDocument(Document):
     name            = 'resource-lists'
-    payload_type    = resourcelists.ResourceLists
+    payload_type    = resourcelists.ResourceListsDocument
     application     = 'resource-lists'
     global_tree     = False
     filename        = 'index'
@@ -196,7 +196,7 @@ class ResourceListsDocument(Document):
 
 class RLSServicesDocument(Document):
     name            = 'rls-services'
-    payload_type    = rlsservices.RLSServices
+    payload_type    = rlsservices.RLSServicesDocument
     application     = 'rls-services'
     global_tree     = False
     filename        = 'index'
@@ -204,7 +204,7 @@ class RLSServicesDocument(Document):
 
 class XCAPCapsDocument(Document):
     name            = 'xcap-caps'
-    payload_type    = xcapcaps.XCAPCapabilities
+    payload_type    = xcapcaps.XCAPCapabilitiesDocument
     application     = 'xcap-caps'
     global_tree     = True
     filename        = 'index'
@@ -216,7 +216,7 @@ class XCAPCapsDocument(Document):
 
 class StatusIconDocument(Document):
     name            = 'status-icon'
-    payload_type    = prescontent.PresenceContent
+    payload_type    = prescontent.PresenceContentDocument
     application     = 'org.openmobilealliance.pres-content'
     global_tree     = False
     filename        = 'oma_status-icon/index'
@@ -294,7 +294,7 @@ class StatusIconDocument(Document):
 
 class PIDFManipulationDocument(Document):
     name            = 'pidf-manipulation'
-    payload_type    = pidf.PIDF
+    payload_type    = pidf.PIDFDocument
     application     = 'pidf-manipulation'
     global_tree     = False
     filename        = 'index'
@@ -681,7 +681,7 @@ class XCAPSubscriber(object):
             for document in (doc for doc in self.documents if doc.supported):
                 rlist.add(resourcelists.Entry(document.relative_uri))
             body = resourcelists.ResourceLists([rlist]).toxml()
-            content_type = resourcelists.ResourceLists.content_type
+            content_type = resourcelists.ResourceListsDocument.content_type
             timeout = time() + 30
             for route in routes:
                 remaining_time = timeout - time()
@@ -901,7 +901,7 @@ class XCAPManager(object):
 
     @property
     def namespaces(self):
-        return dict((document.application, document.payload_type._xml_namespace) for document in self.documents)
+        return dict((document.application, document.payload_type.root_element._xml_namespace) for document in self.documents)
 
     @property
     def xcap_root(self):
@@ -3152,9 +3152,9 @@ class XCAPManager(object):
         self.command_channel.send(Command('fetch', documents=self.document_names))
 
     def _NH_XCAPSubscriptionGotNotify(self, notification):
-        if notification.data.content_type == xcapdiff.XCAPDiff.content_type:
+        if notification.data.content_type == xcapdiff.XCAPDiffDocument.content_type:
             try:
-                xcap_diff = xcapdiff.XCAPDiff.parse(notification.data.body)
+                xcap_diff = xcapdiff.XCAPDiffDocument.parse(notification.data.body)
             except ParserError:
                 self.command_channel.send(Command('fetch', documents=self.document_names))
             else:

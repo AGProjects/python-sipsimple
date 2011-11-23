@@ -49,7 +49,9 @@ namespace = 'urn:ietf:params:xml:ns:resource-lists'
 # anchor must be an absolute http uri that resolves into <list>
 
 
-class ResourceListsDocument(XMLDocument): pass
+class ResourceListsDocument(XMLDocument):
+    content_type = 'application/resource-lists+xml'
+
 ResourceListsDocument.register_namespace(namespace, prefix='rl', schema='resourcelists.xsd')
 
 
@@ -168,8 +170,6 @@ List._xml_children_order[List.qname] = 1 # cannot self reference in declaration
 
 
 class ResourceLists(XMLListRootElement):
-    content_type = 'application/resource-lists+xml'
-    
     _xml_tag = 'resource-lists'
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument

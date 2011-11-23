@@ -87,6 +87,38 @@ class XMLDocumentType(type):
 class XMLDocument(object):
     __metaclass__ = XMLDocumentType
 
+    encoding = 'UTF-8'
+    content_type = None
+
+    @classmethod
+    def parse(cls, document):
+        try:
+            if isinstance(document, str):
+                xml = etree.XML(document, parser=cls.parser)
+            elif isinstance(document, unicode):
+                xml = etree.XML(document.encode('utf-8'), parser=cls.parser)
+            else:
+                xml = etree.parse(document, parser=cls.parser).getroot()
+        except etree.XMLSyntaxError, e:
+            raise ParserError(str(e))
+        else:
+            return cls.root_element.from_element(xml)
+
+    @classmethod
+    def build(cls, root_element, encoding=None, pretty_print=False, validate=True):
+        if type(root_element) is not cls.root_element:
+            raise TypeError("can only build XML documents from root elements of type %s" % cls.root_element.__name__)
+        element = root_element.to_element()
+        if validate and cls.schema is not None:
+            cls.schema.assertValid(element)
+        if encoding is None:
+            encoding = cls.encoding
+        return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
+
+    @classmethod
+    def create(cls, build_kw={}, **kw):
+        return cls.build(cls.root_element(**kw), **build_kw)
+
     @classmethod
     def register_element(cls, xml_class):
         cls.element_map[xml_class.qname] = xml_class
@@ -593,10 +625,7 @@ class XMLRootElementType(XMLElementType):
 
 class XMLRootElement(XMLElement):
     __metaclass__ = XMLRootElementType
-    
-    encoding = 'UTF-8'
-    content_type = None
-    
+
     def __init__(self):
         XMLElement.__init__(self)
         self.cache = weakref.WeakValueDictionary({self.element: self})
@@ -606,29 +635,13 @@ class XMLRootElement(XMLElement):
         obj = super(XMLRootElement, cls).from_element(element)
         obj.cache = weakref.WeakValueDictionary({obj.element: obj})
         return obj
-    
+
     @classmethod
     def parse(cls, document):
-        parser = cls._xml_document.parser
-        try:
-            if isinstance(document, str):
-                xml = etree.XML(document, parser=parser)
-            elif isinstance(document, unicode):
-                xml = etree.XML(document.encode('utf-8'), parser=parser)
-            else:
-                xml = etree.parse(document, parser=parser).getroot()
-        except etree.XMLSyntaxError, e:
-            raise ParserError(str(e))
-        else:
-            return cls.from_element(xml)
+        return cls._xml_document.parse(document)
 
     def toxml(self, encoding=None, pretty_print=False, validate=True):
-        element = self.to_element()
-        if validate and self._xml_document.schema is not None:
-            self._xml_document.schema.assertValid(element)
-        if encoding is None:
-            encoding = self.encoding
-        return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
+        return self._xml_document.build(self, encoding=encoding, pretty_print=pretty_print, validate=validate)
 
     def xpath(self, xpath, namespaces=None):
         result = []
