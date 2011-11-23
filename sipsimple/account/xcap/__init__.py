@@ -63,12 +63,13 @@ class TerminateSubscription(Exception): pass
 
 
 class Document(object):
-    name            = None
-    payload_type    = None
-    application     = None
-    global_tree     = None
-    filename        = None
-    cached          = True
+    name               = None
+    application        = None
+    payload_type       = None
+    default_namespace  = None
+    global_tree        = None
+    filename           = None
+    cached             = True
 
     def __init__(self, manager):
         self.manager = weakref.proxy(manager)
@@ -167,19 +168,21 @@ class Document(object):
 
 
 class DialogRulesDocument(Document):
-    name            = 'dialog-rules'
-    payload_type    = dialogrules.DialogRulesDocument
-    application     = 'org.openxcap.dialog-rules'
-    global_tree     = False
-    filename        = 'index'
+    name               = 'dialog-rules'
+    application        = 'org.openxcap.dialog-rules'
+    payload_type       = dialogrules.DialogRulesDocument
+    default_namespace  = dialogrules.dlg_namespace
+    global_tree        = False
+    filename           = 'index'
 
 
 class PresRulesDocument(Document):
-    name            = 'pres-rules'
-    payload_type    = presrules.PresRulesDocument
-    application     = 'pres-rules'
-    global_tree     = False
-    filename        = 'index'
+    name               = 'pres-rules'
+    application        = 'pres-rules'
+    payload_type       = presrules.PresRulesDocument
+    default_namespace  = presrules.pr_namespace
+    global_tree        = False
+    filename           = 'index'
 
     def initialize(self, server_caps):
         self.application = 'org.openmobilealliance.pres-rules' if 'org.openmobilealliance.pres-rules' in server_caps.auids else 'pres-rules'
@@ -187,39 +190,43 @@ class PresRulesDocument(Document):
 
 
 class ResourceListsDocument(Document):
-    name            = 'resource-lists'
-    payload_type    = resourcelists.ResourceListsDocument
-    application     = 'resource-lists'
-    global_tree     = False
-    filename        = 'index'
+    name               = 'resource-lists'
+    application        = 'resource-lists'
+    payload_type       = resourcelists.ResourceListsDocument
+    default_namespace  = resourcelists.namespace
+    global_tree        = False
+    filename           = 'index'
 
 
 class RLSServicesDocument(Document):
-    name            = 'rls-services'
-    payload_type    = rlsservices.RLSServicesDocument
-    application     = 'rls-services'
-    global_tree     = False
-    filename        = 'index'
+    name               = 'rls-services'
+    application        = 'rls-services'
+    payload_type       = rlsservices.RLSServicesDocument
+    default_namespace  = rlsservices.rls_namespace
+    global_tree        = False
+    filename           = 'index'
 
 
 class XCAPCapsDocument(Document):
-    name            = 'xcap-caps'
-    payload_type    = xcapcaps.XCAPCapabilitiesDocument
-    application     = 'xcap-caps'
-    global_tree     = True
-    filename        = 'index'
-    cached          = False
+    name               = 'xcap-caps'
+    application        = 'xcap-caps'
+    payload_type       = xcapcaps.XCAPCapabilitiesDocument
+    default_namespace  = xcapcaps.namespace
+    global_tree        = True
+    filename           = 'index'
+    cached             = False
 
     def initialize(self):
         self.supported = True
 
 
 class StatusIconDocument(Document):
-    name            = 'status-icon'
-    payload_type    = prescontent.PresenceContentDocument
-    application     = 'org.openmobilealliance.pres-content'
-    global_tree     = False
-    filename        = 'oma_status-icon/index'
+    name               = 'status-icon'
+    application        = 'org.openmobilealliance.pres-content'
+    payload_type       = prescontent.PresenceContentDocument
+    default_namespace  = prescontent.namespace
+    global_tree        = False
+    filename           = 'oma_status-icon/index'
 
     def __init__(self, manager):
         super(StatusIconDocument, self).__init__(manager)
@@ -293,11 +300,12 @@ class StatusIconDocument(Document):
 
 
 class PIDFManipulationDocument(Document):
-    name            = 'pidf-manipulation'
-    payload_type    = pidf.PIDFDocument
-    application     = 'pidf-manipulation'
-    global_tree     = False
-    filename        = 'index'
+    name               = 'pidf-manipulation'
+    application        = 'pidf-manipulation'
+    payload_type       = pidf.PIDFDocument
+    default_namespace  = pidf.pidf_namespace
+    global_tree        = False
+    filename           = 'index'
 
 
 class Contact(object):
@@ -901,7 +909,7 @@ class XCAPManager(object):
 
     @property
     def namespaces(self):
-        return dict((document.application, document.payload_type.root_element._xml_namespace) for document in self.documents)
+        return dict((document.application, document.default_namespace) for document in self.documents)
 
     @property
     def xcap_root(self):
