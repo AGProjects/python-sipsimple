@@ -50,7 +50,7 @@ class Folder(XMLListElement):
     _xml_item_type = Entry
 
     auid = XMLAttribute('auid', type=str, required=True, test_equal=True)
-    error_code = XMLElementChild('error_code', type=ErrorCode, retuired=False, test_equal=True, onset=lambda self, descriptor, value: self.clear() if value is not None else None)
+    error_code = XMLElementChild('error_code', type=ErrorCode, required=False, test_equal=True, onset=lambda self, descriptor, value: self.clear() if value is not None else None)
 
     def __init__(self, auid, entries=[], error_code=None):
         if error_code is not None and entries:
