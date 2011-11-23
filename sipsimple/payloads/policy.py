@@ -264,7 +264,7 @@ class Validity(XMLListElement):
     def check_validity(self):
         if not self:
             raise ValidationError("cannot have Validity element without any children")
-        XMLListElement.check_validity(self)
+        super(Validity, self).check_validity(self)
 
 
 class Conditions(XMLListElement):
