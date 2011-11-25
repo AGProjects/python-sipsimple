@@ -393,7 +393,7 @@ class ChatStream(MSRPStreamBase):
             data = IsComposingDocument.parse(message.body)
             ndata = TimestampedNotificationData(state=data.state.value,
                                                 refresh=data.refresh.value if data.refresh is not None else None,
-                                                content_type=data.contenttype.value if data.contenttype is not None else None,
+                                                content_type=data.content_type.value if data.content_type is not None else None,
                                                 last_active=data.last_active.value if data.last_active is not None else None,
                                                 sender=message.sender, recipients=message.recipients, private=private)
             notification_center.post_notification('ChatStreamGotComposingIndication', self, ndata)
