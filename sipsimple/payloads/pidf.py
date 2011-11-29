@@ -275,7 +275,10 @@ class Contact(XMLStringElement):
     priority = XMLAttribute('priority', type=float, required=False, test_equal=False)
 
 
-class ServiceTimestamp(Timestamp): pass
+class ServiceTimestamp(Timestamp):
+    _xml_tag = 'timestamp'
+    _xml_namespace = pidf_namespace
+    _xml_document = PIDFDocument
 
 
 class Service(XMLElement):
