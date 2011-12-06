@@ -29,6 +29,7 @@ import sys
 import urllib
 import weakref
 from collections import defaultdict, deque
+from itertools import izip
 
 from application.python.descriptor import classproperty
 from lxml import etree
@@ -742,6 +743,16 @@ class XMLListMixin(object):
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, list(self))
+
+    def __eq__(self, other):
+        if isinstance(other, XMLListMixin):
+            return len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other))
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def _parse_element(self, element):
         self._element_map.clear()
