@@ -859,8 +859,6 @@ class XMLStringElement(XMLElement):
 
 
 class XMLEmptyElement(XMLElement):
-    def __init__(self):
-        XMLElement.__init__(self)
     def __repr__(self):
         return '%s()' % self.__class__.__name__
     def __eq__(self, other):
