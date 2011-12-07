@@ -172,10 +172,6 @@ class Target(XMLListElement):
 
 
 class Participant(XMLElement):
-    _xml_tag = ''   # To be set by a subclass
-    _xml_namespace = namespace
-    _xml_document = DialogInfoDocument
-
     identity = XMLElementChild('identity', type=Identity, required=False, test_equal=True)
     target = XMLElementChild('target', type=Target, required=False, test_equal=True)
 
@@ -187,10 +183,14 @@ class Participant(XMLElement):
 
 class Local(Participant):
     _xml_tag = 'local'
+    _xml_namespace = namespace
+    _xml_document = DialogInfoDocument
 
 
 class Remote(Participant):
     _xml_tag = 'remote'
+    _xml_namespace = namespace
+    _xml_document = DialogInfoDocument
 
 
 class Dialog(XMLElement):
