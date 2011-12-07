@@ -171,32 +171,47 @@ class Sphere(XMLElement):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
 
-class ValidFrom(XMLElement):
+class ValidityElement(XMLElement):
+    def __init__(self, value):
+        XMLElement.__init__(self)
+        self.value = value
+
+    def __eq__(self, other):
+        if isinstance(other, ValidityElement):
+            return self.value == other.value
+        else:
+            return NotImplemented
+
+    def _get_value(self):
+        return self.__dict__['value']
+
+    def _set_value(self, value):
+        if isinstance(value, (datetime.datetime, str)):
+            value = Timestamp(value)
+        if value is not None and not isinstance(value, Timestamp):
+            raise TypeError("Validity element can only be a Timestamp, datetime, string or None")
+        self.__dict__['value'] = value
+
+    value = property(_get_value, _set_value)
+    del _get_value, _set_value
+
+    def _parse_element(self, element):
+        self.value = element.text
+
+    def _build_element(self):
+        self.element.text = str(self.value) if self.value is not None else None
+
+
+class ValidFrom(ValidityElement):
     _xml_tag = 'from'
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument
 
-    def __init__(self, timestamp):
-        if isinstance(timestamp, (datetime.datetime, str)):
-            timestamp = Timestamp(timestamp)
-        if not isinstance(timestamp, Timestamp):
-            raise TypeError("Validity element can only be a Timestamp, datetime or string")
-        XMLElement.__init__(self)
-        self.element.text = str(timestamp)
 
-
-class ValidUntil(XMLElement):
+class ValidUntil(ValidityElement):
     _xml_tag = 'until'
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument
-
-    def __init__(self, timestamp):
-        if isinstance(timestamp, (datetime.datetime, str)):
-            timestamp = Timestamp(timestamp)
-        if not isinstance(timestamp, Timestamp):
-            raise TypeError("Validity element can only be a Timestamp, datetime or string")
-        XMLElement.__init__(self)
-        self.element.text = str(timestamp)
 
 
 class ValidityInterval(object):
@@ -206,12 +221,12 @@ class ValidityInterval(object):
 
     def __eq__(self, other):
         if isinstance(other, ValidityInterval):
-            return self.valid_from.text==other.valid_from.text and self.valid_until.text==other.valid_until.text
+            return self.valid_from == other.valid_from and self.valid_until == other.valid_until
         return NotImplemented
 
     def __ne__(self, other):
         if isinstance(other, ValidityInterval):
-            return self.valid_from.text!=other.valid_from.text or self.valid_until.text!=other.valid_until.text
+            return self.valid_from != other.valid_from or self.valid_until != other.valid_until
         return NotImplemented
 
     @classmethod
