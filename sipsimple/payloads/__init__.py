@@ -643,12 +643,12 @@ class XMLRootElement(XMLElement):
 
     def __init__(self):
         XMLElement.__init__(self)
-        self.cache = weakref.WeakValueDictionary({self.element: self})
+        self.__cache__ = weakref.WeakValueDictionary({self.element: self})
 
     @classmethod
     def from_element(cls, element):
         obj = super(XMLRootElement, cls).from_element(element)
-        obj.cache = weakref.WeakValueDictionary({obj.element: obj})
+        obj.__cache__ = weakref.WeakValueDictionary({obj.element: obj})
         return obj
 
     @classmethod
@@ -665,16 +665,16 @@ class XMLRootElement(XMLElement):
         except etree.XPathError:
             raise ValueError("illegal XPath expression")
         for element in (node for node in nodes if isinstance(node, etree._Element)):
-            if element in self.cache:
-                result.append(self.cache[element])
+            if element in self.__cache__:
+                result.append(self.__cache__[element])
                 continue
             if element is self.element:
-                self.cache[element] = self
+                self.__cache__[element] = self
                 result.append(self)
                 continue
             for ancestor in element.iterancestors():
-                if ancestor in self.cache:
-                    container = self.cache[ancestor]
+                if ancestor in self.__cache__:
+                    container = self.__cache__[ancestor]
                     break
             else:
                 container = self
@@ -682,7 +682,7 @@ class XMLRootElement(XMLElement):
             visited = set()
             while notvisited:
                 container = notvisited.popleft()
-                self.cache[container.element] = container
+                self.__cache__[container.element] = container
                 if isinstance(container, XMLListMixin):
                     children = set(child for child in container if isinstance(child, XMLElement) and child not in visited)
                     visited.update(children)
@@ -692,8 +692,8 @@ class XMLRootElement(XMLElement):
                     if value is not None and value not in visited:
                         visited.add(value)
                         notvisited.append(value)
-            if element in self.cache:
-                result.append(self.cache[element])
+            if element in self.__cache__:
+                result.append(self.__cache__[element])
         return result
 
     def get_xpath(self, element):
