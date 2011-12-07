@@ -334,8 +334,8 @@ class EntryAttributes(XMLElement, EntryExtension):
     def setdefault(self, key, default=None):
         return self._attributes.setdefault(key, default)
 
-    def update(self, attributes):
-        self._attributes.update(attributes)
+    def update(self, attributes=(), **kw):
+        self._attributes.update(attributes, **kw)
 
 ResourceListsDocument.register_namespace(EntryAttributes._xml_namespace, prefix='agp-rl')
 Entry.register_extension('attributes', EntryAttributes)
