@@ -115,11 +115,11 @@ class Service(XMLElement):
     list = XMLElementChoiceChild('list', types=(ResourceList, RLSList), required=True, test_equal=True)
     packages = XMLElementChild('packages', type=Packages, required=False, test_equal=True)
 
-    def __init__(self, uri, list=RLSList(), packages=Packages()):
+    def __init__(self, uri, list=None, packages=None):
         XMLElement.__init__(self)
         self.uri = uri
-        self.list = list
-        self.packages = packages
+        self.list = list if list is not None else RLSList()
+        self.packages = packages if packages is not None else Packages()
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.uri, self.list, self.packages)
