@@ -296,13 +296,19 @@ class EntryAttributes(XMLElement, EntryExtension):
         return self._attributes[key]
 
     def __setitem__(self, key, value):
+        if self._attributes.get(key, None) == value:
+            return
         self._attributes[key] = value
+        self.__dirty__ = True
 
     def __delitem__(self, key):
         del self._attributes[key]
+        self.__dirty__ = True
 
     def clear(self):
-        self._attributes.clear()
+        if self._attributes:
+            self._attributes.clear()
+            self.__dirty__ = True
 
     def get(self, key, default=None):
         return self._attributes.get(key, default)
@@ -326,16 +332,26 @@ class EntryAttributes(XMLElement, EntryExtension):
         return self._attributes.keys()
 
     def pop(self, key, *args):
-        return self._attributes.pop(key, *args)
+        value = self._attributes.pop(key, *args)
+        if not args or value is not args[0]:
+            self.__dirty__ = True
+        return value
 
     def popitem(self):
-        return self._attributes.popitem()
+        value = self._attributes.popitem()
+        self.__dirty__ = True
+        return value
 
     def setdefault(self, key, default=None):
-        return self._attributes.setdefault(key, default)
+        value = self._attributes.setdefault(key, default)
+        if value is default:
+            self.__dirty__ = True
+        return value
 
     def update(self, attributes=(), **kw):
         self._attributes.update(attributes, **kw)
+        if attributes or kw:
+            self.__dirty__ = True
 
 ResourceListsDocument.register_namespace(EntryAttributes._xml_namespace, prefix='agp-rl')
 Entry.register_extension('attributes', EntryAttributes)

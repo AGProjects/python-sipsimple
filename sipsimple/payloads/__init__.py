@@ -192,21 +192,28 @@ class XMLAttribute(object):
     def __set__(self, obj, value):
         if value is not None and not isinstance(value, self.type):
             value = self.type(value)
+        obj_id = id(obj)
+        old_value = self.values.get(obj_id, (self.default, None))[0]
+        if value == old_value:
+            return
         if value is not None:
             obj.element.set(self.xmlname, self.builder(value))
         else:
             obj.element.attrib.pop(self.xmlname, None)
-        obj_id = id(obj)
         self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
+        obj.__dirty__ = True
         if self.onset:
             self.onset(obj, self, value)
 
     def __delete__(self, obj):
         obj.element.attrib.pop(self.xmlname, None)
         try:
-            del self.values[id(obj)]
+            value = self.values.pop(id(obj))[0]
         except KeyError:
             pass
+        else:
+            if value != self.default:
+                obj.__dirty__ = True
         if self.ondel:
             self.ondel(obj, self)
 
@@ -252,16 +259,15 @@ class XMLElementChild(object):
         if value is not None and not isinstance(value, self.type):
             value = self.type(value)
         obj_id = id(obj)
-        try:
-            old_value = self.values[obj_id][0]
-        except KeyError:
-            pass
-        else:
-            if old_value is not None:
-                obj.element.remove(old_value.element)
-        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
+        old_value = self.values.get(obj_id, (None, None))[0]
+        if old_value is value:
+            return
+        if old_value is not None:
+            obj.element.remove(old_value.element)
         if value is not None:
             obj._insert_element(value.element)
+        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
+        obj.__dirty__ = True
         if self.onset:
             self.onset(obj, self, value)
 
@@ -273,6 +279,7 @@ class XMLElementChild(object):
         else:
             if old_value is not None:
                 obj.element.remove(old_value.element)
+                obj.__dirty__ = True
         if self.ondel:
             self.ondel(obj, self)
 
@@ -346,16 +353,15 @@ class XMLElementChoiceChild(object):
         if value is not None and type(value) not in self.types:
             raise TypeError("%s is not an acceptable type for %s" % (value.__class__.__name__, obj.__class__.__name__))
         obj_id = id(obj)
-        try:
-            old_value = self.values[obj_id][0]
-        except KeyError:
-            pass
-        else:
-            if old_value is not None:
-                obj.element.remove(old_value.element)
-        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
+        old_value = self.values.get(obj_id, (None, None))[0]
+        if old_value is value:
+            return
+        if old_value is not None:
+            obj.element.remove(old_value.element)
         if value is not None:
             obj._insert_element(value.element)
+        self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
+        obj.__dirty__ = True
         if self.onset:
             self.onset(obj, self, value)
 
@@ -367,6 +373,7 @@ class XMLElementChoiceChild(object):
         else:
             if old_value is not None:
                 obj.element.remove(old_value.element)
+                obj.__dirty__ = True
         if self.ondel:
             self.ondel(obj, self)
 
@@ -459,6 +466,19 @@ class XMLElement(object):
 
     def __init__(self):
         self.element = etree.Element(self.qname, nsmap=self._xml_document.nsmap)
+        self.__dirty__ = True
+
+    def _get_dirty(self):
+        return self.__dict__['__dirty__'] or any(child.__dirty__ for child in (getattr(self, name) for name in self._xml_element_children) if child is not None)
+
+    def _set_dirty(self, dirty):
+        if not dirty:
+            for child in (child for child in (getattr(self, name) for name in self._xml_element_children) if child is not None):
+                child.__dirty__ = dirty
+        self.__dict__['__dirty__'] = dirty
+
+    __dirty__ = property(_get_dirty, _set_dirty)
+    del _get_dirty, _set_dirty
 
     def check_validity(self):
         # check attributes
@@ -520,6 +540,7 @@ class XMLElement(object):
                     setattr(obj, element_child.name, value)
         obj._parse_element(element)
         obj.check_validity()
+        obj.__dirty__ = False
         return obj
 
     # To be defined in subclass
@@ -785,12 +806,14 @@ class XMLListMixin(object):
         if item._xml_id is not None:
             self._xmlid_map[item.__class__][item._xml_id] = item
         self._element_map[item.element] = item
+        self.__dirty__ = True
 
     def remove(self, item):
         self.element.remove(item.element)
         if item._xml_id is not None:
             del self._xmlid_map[item.__class__][item._xml_id]
         del self._element_map[item.element]
+        self.__dirty__ = True
 
     def update(self, sequence):
         for item in sequence:
@@ -837,7 +860,10 @@ class XMLStringElement(XMLElement):
     def _set_value(self, value):
         if value is not None and not isinstance(value, self._xml_value_type):
             value = self._xml_value_type(value)
+        if self.__dict__.get('value', None) == value:
+            return
         self.__dict__['value'] = value
+        self.__dirty__ = True
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value

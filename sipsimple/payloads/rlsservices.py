@@ -83,7 +83,11 @@ class ResourceList(XMLElement):
         return self.__dict__['value']
 
     def _set_value(self, value):
-        self.__dict__['value'] = unicode(value)
+        value = unicode(value)
+        if self.__dict__.get('value', None) == value:
+            return
+        self.__dict__['value'] = value
+        self.__dirty__ = True
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value

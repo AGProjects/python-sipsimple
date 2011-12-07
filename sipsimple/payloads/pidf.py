@@ -85,7 +85,10 @@ class Timestamp(XMLElement):
             value = util.Timestamp.parse(value)
         elif isinstance(value, Timestamp):
             value = value.value
+        if self.__dict__.get('value', None) == value:
+            return
         self.__dict__['value'] = value
+        self.__dirty__ = True
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value
@@ -202,6 +205,7 @@ class NoteList(object):
             raise TypeError("%s cannot add notes of type %s" % (self.xml_element.__class__.__name__, item.__class__.__name__))
         self.xml_element._insert_element(item.element)
         self.xml_element._note_map[item.element] = item
+        self.xml_element.__dirty__ = True
 
     def remove(self, item):
         if isinstance(item, Note):
@@ -218,6 +222,7 @@ class NoteList(object):
             raise KeyError(item)
         self.xml_element.element.remove(item.element)
         del self.xml_element._note_map[item.element]
+        self.xml_element.__dirty__ = True
 
     def update(self, sequence):
         for item in sequence:

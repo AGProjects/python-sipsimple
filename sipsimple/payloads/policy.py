@@ -190,7 +190,10 @@ class ValidityElement(XMLElement):
             value = Timestamp(value)
         if value is not None and not isinstance(value, Timestamp):
             raise TypeError("Validity element can only be a Timestamp, datetime, string or None")
+        if self.__dict__.get('value', None) == value:
+            return
         self.__dict__['value'] = value
+        self.__dirty__ = True
 
     value = property(_get_value, _set_value)
     del _get_value, _set_value
@@ -270,11 +273,13 @@ class Validity(XMLListElement):
         self._insert_element(item.valid_from.element)
         self._insert_element(item.valid_until.element)
         self._element_map[item.valid_from.element] = item
+        self.__dirty__ = True
 
     def remove(self, item):
         self.element.remove(item.valid_from.element)
         self.element.remove(item.valid_until.element)
         del self._element_map[item.valid_from.element]
+        self.__dirty__ = True
 
     def check_validity(self):
         if not self:
