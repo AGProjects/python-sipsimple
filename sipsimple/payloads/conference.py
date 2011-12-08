@@ -44,6 +44,7 @@ __all__ = ['namespace',
         'AvailableMediaEntry',
         'Users',
         'User',
+        'UserExtension',
         'AssociatedAors',
         'Roles',
         'Role',
@@ -80,6 +81,8 @@ ConferenceDocument.register_namespace(namespace, prefix=None, schema='conference
 
 
 # Marker mixins
+class UserExtension(object): pass
+
 class ConferenceDescriptionExtension(object): pass
 
 
@@ -640,6 +643,7 @@ class User(XMLListElement):
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
     _xml_item_type = Endpoint
+    _xml_extension_type = UserExtension
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -832,5 +836,13 @@ class Resources(XMLElement, ConferenceDescriptionExtension):
         self.files = files
 
 ConferenceDescription.register_extension('resources', Resources)
+
+
+class ScreenImageURL(XMLStringElement, UserExtension):
+    _xml_tag = 'screen_image_url'
+    _xml_namespace = agp_conf_namespace
+    _xml_document = ConferenceDocument
+
+User.register_extension('screen_image_url', ScreenImageURL)
 
 
