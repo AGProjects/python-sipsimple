@@ -317,6 +317,7 @@ class ChatStream(MSRPStreamBase):
         MSRPStreamBase.__init__(self, account, direction)
         self.message_queue = queue()
         self.sent_messages = set()
+        self.incoming_queue = {}
 
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
@@ -371,6 +372,12 @@ class ChatStream(MSRPStreamBase):
             return
         if not chunk.data:
             return
+        if chunk.segment is not None:
+            self.incoming_queue.setdefault(chunk.message_id, []).append(chunk.data)
+            if chunk.final:
+                chunk.data = ''.join(self.incoming_queue.pop(chunk.message_id))
+            else:
+                return
         if chunk.content_type.lower() == 'message/cpim':
             try:
                 message = CPIMMessage.parse(chunk.data)
