@@ -158,8 +158,11 @@ class CPIMMessage(ChatMessage):
 
         message = Message()
         message.set_type(self.content_type)
-        message.set_param('charset', 'utf-8')
-        message.set_payload(self.body.encode('utf-8'))
+        if isinstance(self.body, unicode):
+            message.set_param('charset', 'utf-8')
+            message.set_payload(self.body.encode('utf-8'))
+        else:
+            message.set_payload(self.body)
 
         return headers + '\r\n' + message.as_string()
 
@@ -221,8 +224,10 @@ class CPIMMessage(ChatMessage):
         message.content_type = mime_message.get_content_type()
         if message.content_type.startswith('multipart/') or message.content_type == 'message/rfc822':
             message.body = mime_message.get_payload()
-        else:
+        elif message.content_type.startswith('text/'):
             message.body = mime_message.get_payload().decode(mime_message.get_content_charset() or 'utf-8')
+        else:
+            message.body = mime_message.get_payload()
         if message.content_type is None:
             raise CPIMParserError("CPIM message missing Content-Type MIME header")
 
