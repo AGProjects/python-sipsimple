@@ -532,7 +532,7 @@ cdef class IncomingReferral:
                 self._set_state("terminated")
                 _add_event("SIPIncomingReferralDidEnd", dict(obj=self))
             else:
-                self._content = PJSTR("SIP/2.0 100 Trying")
+                self._set_content(100, "Trying")
                 self._send_notify()
         finally:
             with nogil:
@@ -614,7 +614,7 @@ cdef class IncomingReferral:
                 status = sip_status_messages[code]
             except IndexError:
                 status = "Unknown"
-        content = "SIP/2.0 %d %s" % (code, status)
+        content = "SIP/2.0 %d %s\r\n" % (code, status)
         self._content = PJSTR(content)
 
     cdef int _set_state(self, str state) except -1:
