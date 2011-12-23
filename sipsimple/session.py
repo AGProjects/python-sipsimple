@@ -699,7 +699,7 @@ class TransferHandler(object):
                     elif notification.name == 'SIPSessionTransferDidFail':
                         self.state = 'failed'
                         try:
-                            self.session._invitation.notify_transfer_progress(notification.data.code)
+                            self.session._invitation.notify_transfer_progress(notification.data.code, notification.data.reason)
                         except SIPCoreError:
                             return
                         while True:
