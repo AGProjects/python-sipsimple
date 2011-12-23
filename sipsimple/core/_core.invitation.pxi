@@ -1141,7 +1141,7 @@ cdef class Invitation:
             try:
                 status = sip_status_messages[code]
             except IndexError:
-                status = ""
+                status = "Unknown"
         content = "SIP/2.0 %d %s\r\n" % (code, status)
         self._sipfrag_payload = PJSTR(content)
 
