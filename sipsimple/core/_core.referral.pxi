@@ -975,7 +975,7 @@ _incoming_refer_subs_cb.on_rx_refresh = _IncomingReferral_cb_rx_refresh
 _incoming_refer_subs_cb.on_server_timeout = _IncomingReferral_cb_server_timeout
 _incoming_refer_subs_cb.on_tsx_state = _IncomingReferral_cb_tsx
 
-sipfrag_re = re.compile(r'^SIP/2\.0\s+(?P<code>\d{3})\s+(?P<reason>.+)')
+sipfrag_re = re.compile(r'^SIP/2\.0\s+(?P<code>\d{3})\s+(?P<reason>[ a-zA-Z0-9_-]+)')
 cdef PJSTR _refer_method = PJSTR("REFER")
 cdef PJSTR _refer_event = PJSTR("refer")
 cdef PJSTR _refer_to_hdr_name = PJSTR("Refer-To")
