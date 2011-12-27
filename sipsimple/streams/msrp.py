@@ -1082,7 +1082,6 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        self.msrp_transport = transport
         NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=chunk, stream=self.stream))
 
     def sent_new_chunk(self, data, transport, chunk):
