@@ -1,0 +1,12 @@
+--- pjmedia/src/pjmedia/stream.c	2012-01-02 12:50:15.000000000 +0100
++++ pjmedia/src/pjmedia/stream.c	2012-01-02 12:51:08.000000000 +0100
+@@ -1232,7 +1232,8 @@
+ 		 * packets with valid RTP sequence and no wrapped timestamp.
+ 		 */
+ 		if (seq_st.diff == 1 && stream->rtp_rx_last_ts && 
+-		    ts.u64 > stream->rtp_rx_last_ts)
++		    ts.u64 > stream->rtp_rx_last_ts && 
++		    stream->rtp_rx_last_cnt > 0)
+ 		{
+ 		    unsigned peer_frm_ts_diff;
+ 
