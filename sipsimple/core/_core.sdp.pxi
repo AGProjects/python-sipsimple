@@ -61,7 +61,7 @@ def SDPSession_new(cls, BaseSDPSession sdp_session):
 
 cdef class SDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4",
-                 str name not None=" ", str info=None, SDPConnection connection=None, int start_time=0, int stop_time=0, list attributes=None, list media=None):
+                 str name not None=" ", str info=None, SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list media=None):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
         
@@ -172,7 +172,7 @@ cdef class SDPSession(BaseSDPSession):
         def __get__(self):
             return self._sdp_session.time.start
 
-        def __set__(self, int start_time):
+        def __set__(self, unsigned long start_time):
             self._sdp_session.time.start = start_time
 
     property stop_time:
@@ -180,7 +180,7 @@ cdef class SDPSession(BaseSDPSession):
         def __get__(self):
             return self._sdp_session.time.stop
 
-        def __set__(self, int stop_time):
+        def __set__(self, unsigned long stop_time):
             self._sdp_session.time.stop = stop_time
 
     property attributes:
@@ -253,7 +253,7 @@ def FrozenSDPSession_new(cls, BaseSDPSession sdp_session):
 
 cdef class FrozenSDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
-                str info=None, FrozenSDPConnection connection=None, int start_time=0, int stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
+                str info=None, FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
         
