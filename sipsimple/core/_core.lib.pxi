@@ -169,6 +169,9 @@ cdef class PJSIPEndpoint:
         cdef int status
         cdef pj_dns_resolver *resolver
 
+        if num_servers == 0:
+            return 0
+
         resolver = pjsip_endpt_get_resolver(self._obj)
         if status != 0:
             raise PJSIPError("Could not get DNS resolver on endpoint", status)
