@@ -67,10 +67,10 @@ cdef class PJSIPEndpoint:
         status = pjsip_inv_usage_init(self._obj, &_inv_cb)
         if status != 0:
             raise PJSIPError("Could not initialize invitation module", status)
-        pjsip_endpt_create_resolver(self._obj, &resolver)
+        status = pjsip_endpt_create_resolver(self._obj, &resolver)
         if status != 0:
             raise PJSIPError("Could not create fake DNS resolver for endpoint", status)
-        pjsip_endpt_set_resolver(self._obj, resolver)
+        status = pjsip_endpt_set_resolver(self._obj, resolver)
         if status != 0:
             raise PJSIPError("Could not set fake DNS resolver on endpoint", status)
         self._local_ip_used = ip_address
@@ -160,6 +160,39 @@ cdef class PJSIPEndpoint:
     cdef int _stop_tls_transport(self) except -1:
         self._tls_transport.destroy(self._tls_transport)
         self._tls_transport = NULL
+        return 0
+
+    cdef int _set_dns_nameservers(self, list servers) except -1:
+        cdef int num_servers = len(servers)
+        cdef pj_str_t *pj_servers
+        cdef int *pj_ports
+        cdef int status
+        cdef pj_dns_resolver *resolver
+
+        resolver = pjsip_endpt_get_resolver(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not get DNS resolver on endpoint", status)
+
+        if resolver == NULL:
+            return 0
+
+        pj_servers = <pj_str_t *> malloc(sizeof(pj_str_t)*num_servers)
+        if pj_servers == NULL:
+            raise MemoryError()
+        pj_ports = <int *> malloc(sizeof(int)*num_servers)
+        if pj_ports == NULL:
+            free(pj_servers)
+            raise MemoryError()
+
+        for i, (ns, port) in enumerate(servers):
+            _str_to_pj_str(ns, &pj_servers[i])
+            pj_ports[i] = int(port)
+        status = pj_dns_resolver_set_ns(resolver, num_servers, pj_servers, pj_ports)
+        free(pj_servers)
+        free(pj_ports)
+        if status != 0:
+            raise PJSIPError("Could not set nameservers on DNS resolver", status)
+
         return 0
 
     def __dealloc__(self):

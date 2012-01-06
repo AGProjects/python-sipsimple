@@ -196,6 +196,9 @@ class SIPApplication(object):
             notification_center = NotificationCenter()
             notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
+        # initialize PJSIP internal resolver
+        engine.set_nameservers([(item, 53) for item in dns_manager.nameservers])
+
         # initialize audio objects
         alert_device = settings.audio.alert_device
         if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
@@ -531,6 +534,8 @@ class SIPApplication(object):
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
             self._nat_detect_channel.send(Command('detect_nat'))
+            engine = Engine()
+            engine.set_nameservers(notification.data.nameservers)
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.running:

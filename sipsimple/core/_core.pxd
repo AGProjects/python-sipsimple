@@ -132,6 +132,7 @@ cdef extern from "pjlib.h":
 
     # dns
     struct pj_dns_resolver
+    int pj_dns_resolver_set_ns(pj_dns_resolver *resolver, unsigned count, pj_str_t *servers, int *ports) nogil
 
     # time
     struct pj_time_val:
@@ -769,6 +770,7 @@ cdef extern from "pjsip.h":
     pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt) nogil
     int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv) nogil
     int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv) nogil
+    pj_dns_resolver* pjsip_endpt_get_resolver(pjsip_endpoint *endpt) nogil
 
     # transports
     enum pjsip_ssl_method:
@@ -1074,6 +1076,7 @@ cdef class PJSIPEndpoint(object):
     cdef int _stop_tcp_transport(self) except -1
     cdef int _start_tls_transport(self, port) except -1
     cdef int _stop_tls_transport(self) except -1
+    cdef int _set_dns_nameservers(self, list servers) except -1
 
 cdef class PJMEDIAEndpoint(object):
     # attributes

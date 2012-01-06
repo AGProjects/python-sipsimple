@@ -602,6 +602,10 @@ cdef class PJSIPUA:
         # no need for self._check_self(), _get_ua() is called in the function
         return SIPURI.parse(uri_string)
 
+    def set_nameservers(self, list nameservers):
+        self._check_self()
+        return self._pjsip_endpoint._set_dns_nameservers(nameservers)
+
     def __dealloc__(self):
         self.dealloc()
 

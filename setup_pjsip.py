@@ -44,7 +44,9 @@ class PJSIP_build_ext(build_ext):
                    "#define PJ_LOG_MAX_LEVEL 6",
                    "#define PJ_IOQUEUE_MAX_HANDLES 1024",
                    "#define PJMEDIA_HAS_SPEEX_AEC %d" % (0 if sys.platform=="darwin" else 1),
-                   "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if sys.platform=="darwin" else 0)]
+                   "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if sys.platform=="darwin" else 0),
+                   "#define PJ_DNS_RESOLVER_MAX_TTL 0",
+                   "#define PJ_DNS_RESOLVER_INVALID_TTL 0"]
 
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
