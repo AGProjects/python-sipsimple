@@ -165,7 +165,6 @@ cdef class PJSIPEndpoint:
     cdef int _set_dns_nameservers(self, list servers) except -1:
         cdef int num_servers = len(servers)
         cdef pj_str_t *pj_servers
-        cdef int *pj_ports
         cdef int status
         cdef pj_dns_resolver *resolver
 
@@ -182,17 +181,11 @@ cdef class PJSIPEndpoint:
         pj_servers = <pj_str_t *> malloc(sizeof(pj_str_t)*num_servers)
         if pj_servers == NULL:
             raise MemoryError()
-        pj_ports = <int *> malloc(sizeof(int)*num_servers)
-        if pj_ports == NULL:
-            free(pj_servers)
-            raise MemoryError()
 
-        for i, (ns, port) in enumerate(servers):
+        for i, ns in enumerate(servers):
             _str_to_pj_str(ns, &pj_servers[i])
-            pj_ports[i] = int(port)
-        status = pj_dns_resolver_set_ns(resolver, num_servers, pj_servers, pj_ports)
+        status = pj_dns_resolver_set_ns(resolver, num_servers, pj_servers, NULL)
         free(pj_servers)
-        free(pj_ports)
         if status != 0:
             raise PJSIPError("Could not set nameservers on DNS resolver", status)
 

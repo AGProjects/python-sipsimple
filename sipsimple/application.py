@@ -197,7 +197,7 @@ class SIPApplication(object):
             notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
         # initialize PJSIP internal resolver
-        engine.set_nameservers([(item, 53) for item in dns_manager.nameservers])
+        engine.set_nameservers(dns_manager.nameservers)
 
         # initialize audio objects
         alert_device = settings.audio.alert_device
