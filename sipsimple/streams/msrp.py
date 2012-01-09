@@ -128,7 +128,7 @@ class MSRPStreamBase(object):
             self.session = session
             self.transport = self.account.msrp.transport
             outgoing = direction=='outgoing'
-            logger = NotificationProxyLogger(self)
+            logger = NotificationProxyLogger()
             if self.account is BonjourAccount():
                 if outgoing:
                     self.msrp_connector = DirectConnector(logger=logger)
@@ -1051,10 +1051,9 @@ class DesktopSharingStream(MSRPStreamBase):
 
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
 class NotificationProxyLogger(object):
-    def __init__(self, stream):
+    def __init__(self):
         from application import log
         self.level = log.level
-        self.stream = stream
         self.stripped_data_transactions = set()
         self.text_transactions = set()
         self.transaction_data = {}
@@ -1082,7 +1081,7 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=chunk, stream=self.stream))
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=chunk))
 
     def sent_new_chunk(self, data, transport, chunk):
         content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
@@ -1101,7 +1100,7 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='outgoing', data=chunk, stream=self.stream))
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='outgoing', data=chunk))
 
     def debug(self, message, **context):
         pass
