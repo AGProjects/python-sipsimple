@@ -1394,6 +1394,13 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
                     if (inv.state != PJSIP_INV_STATE_CONFIRMED or
                         e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG):
                         rdata = e.body.tsx_state.src.rdata
+                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_TRANSPORT_ERROR and e.body.tsx_state.tsx.role == PJSIP_ROLE_UAC:
+                    # A transport error occurred, fake a local reply
+                    rdata_dict = dict()
+                    rdata_dict["code"] = 408
+                    rdata_dict["reason"] = "Transport Error"
+                    rdata_dict["headers"] = dict()
+                    rdata_dict["body"] = None
             if rdata != NULL:
                 if invitation.peer_address is None:
                     invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
