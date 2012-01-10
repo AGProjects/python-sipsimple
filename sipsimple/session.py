@@ -1765,6 +1765,8 @@ class Session(object):
                     if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                        if not (200 <= notification.data.code < 300):
+                            break
                     elif notification.data.state == 'disconnected':
                         raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
