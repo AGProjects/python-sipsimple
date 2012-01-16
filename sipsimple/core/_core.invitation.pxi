@@ -292,6 +292,25 @@ cdef class Invitation:
             timer.schedule(0, <timer_callback>self._start_incoming_transfer, self)
         return 0
 
+    cdef int process_incoming_options(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        cdef pjsip_tx_data *tdata
+        cdef pjsip_transaction *initial_tsx
+
+        try:
+            initial_tsx = pjsip_rdata_get_tsx(rdata)
+            with nogil:
+                status = pjsip_dlg_create_response(self._dialog, rdata, 200, NULL, &tdata)
+            if status != 0:
+                with nogil:
+                    pjsip_tsx_terminate(initial_tsx, 500)
+                raise PJSIPError("Could not create response for incoming OPTIONS", status)
+            with nogil:
+                status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+            if status != 0:
+                raise PJSIPError("Could not send response", status)
+        except PJSIPError:
+            pass
+
     def send_invite(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, RouteHeader route_header not None, ContactHeader contact_header not None,
                     SDPSession sdp not None, Credentials credentials=None, list extra_headers not None=list(), timeout=None):
         cdef int status
@@ -1537,6 +1556,9 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                   rdata != NULL and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and
                   _pj_str_to_str(tsx.method.name) == "REFER"):
                 invitation.process_incoming_transfer(ua, rdata)
+            elif (tsx.role == PJSIP_ROLE_UAS and tsx.state == PJSIP_TSX_STATE_TRYING and
+                  rdata != NULL and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and tsx.method.id == PJSIP_OPTIONS_METHOD):
+                invitation.process_incoming_options(ua, rdata)
     except:
         ua._handle_exception(1)
 
