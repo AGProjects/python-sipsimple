@@ -172,11 +172,8 @@ cdef class PJSIPEndpoint:
             return 0
 
         resolver = pjsip_endpt_get_resolver(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not get DNS resolver on endpoint", status)
-
         if resolver == NULL:
-            return 0
+            raise SIPCoreError("Could not get DNS resolver on endpoint")
 
         pj_servers = <pj_str_t *> malloc(sizeof(pj_str_t)*num_servers)
         if pj_servers == NULL:
