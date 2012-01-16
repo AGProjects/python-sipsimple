@@ -389,7 +389,10 @@ class ChatStream(MSRPStreamBase):
                     message.timestamp = datetime.now(tzlocal())
                 if message.sender is None:
                     message.sender = self.remote_identity
-                private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0].uri != self.remote_identity.uri
+
+                recipient_uri = '%s@%s' % (message.recipients[0].uri.user, message.recipients[0].uri.host)
+                remote_uri = '%s@%s' % (self.remote_identity.uri.user, self.remote_identity.uri.host)
+                private = self.session.remote_focus and len(message.recipients) == 1 and recipient_uri != remote_uri
         else:
             message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
             private = False
