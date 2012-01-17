@@ -12,7 +12,7 @@ from email.message import Message
 from email.parser import Parser
 from types import NoneType
 
-from sipsimple.core import SIPURI
+from sipsimple.core import SIPURI, BaseSIPURI
 from sipsimple.util import MultilingualText, Timestamp
 
 
@@ -22,7 +22,23 @@ class ChatIdentity(object):
         self.display_name = display_name
 
     def __eq__(self, other):
-        return isinstance(other, ChatIdentity) and self.uri == other.uri and self.display_name == other.display_name
+        if isinstance(other, ChatIdentity):
+            return self.uri.user == other.uri.user and self.uri.host == other.uri.host
+        elif isinstance(other, BaseSIPURI):
+            return self.uri.user == other.user and self.uri.host == other.host
+        elif isinstance(other, basestring):
+            try:
+                other_uri = SIPURI.parse(other)
+            except Exception:
+                return False
+            else:
+                return self.uri.user == other_uri.user and self.uri.host == other_uri.host
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __unicode__(self):
         if self.display_name:
