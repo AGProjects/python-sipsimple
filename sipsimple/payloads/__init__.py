@@ -413,6 +413,31 @@ class XMLStringChoiceChild(XMLElementChoiceChild):
 
 ## XMLElement base classes
 
+class XMLElementBase(object):
+    """
+    This class is used as a common ancestor for XML elements and provides
+    the means for super() to find at least dummy implementations for the
+    methods that are supposed to be implemented by subclasses, even when
+    they are not implemented by any other ancestor class. This is necessary
+    in order to simplify access to these methods when multiple inheritance
+    is involved and none or only some of the classes implement them.
+    The methods declared here should to be implemented in subclasses as
+    necessary.
+    """
+
+    def __get_dirty__(self):
+        return False
+
+    def __set_dirty__(self, dirty):
+        return
+
+    def _build_element(self):
+        return
+
+    def _parse_element(self, element):
+        return
+
+
 class XMLElementType(type):
     def __init__(cls, name, bases, dct):
         super(XMLElementType, cls).__init__(name, bases, dct)
@@ -447,7 +472,7 @@ class XMLElementType(type):
         if cls._xml_document is not None:
             cls._xml_document.register_element(cls)
 
-class XMLElement(object):
+class XMLElement(XMLElementBase):
     __metaclass__ = XMLElementType
     
     _xml_tag = None # To be defined in subclass
@@ -469,19 +494,12 @@ class XMLElement(object):
         self.__dirty__ = True
 
     def __get_dirty__(self):
-        try:
-            get_dirty = super(XMLElement, self).__get_dirty__
-        except AttributeError:
-            get_dirty = lambda: False
-        return self.__dict__['__dirty__'] or any(child.__dirty__ for child in (getattr(self, name) for name in self._xml_element_children) if child is not None) or get_dirty()
+        return (self.__dict__['__dirty__']
+                or any(child.__dirty__ for child in (getattr(self, name) for name in self._xml_element_children) if child is not None)
+                or super(XMLElement, self).__get_dirty__())
 
     def __set_dirty__(self, dirty):
-        try:
-            set_dirty = super(XMLElement, self).__set_dirty__
-        except AttributeError:
-            pass
-        else:
-            set_dirty(dirty)
+        super(XMLElement, self).__set_dirty__(dirty)
         if not dirty:
             for child in (child for child in (getattr(self, name) for name in self._xml_element_children) if child is not None):
                 child.__dirty__ = dirty
@@ -515,15 +533,6 @@ class XMLElement(object):
                 child.to_element()
         self._build_element()
         return self.element
-    
-    # To be defined in subclass
-    def _build_element(self):
-        try:
-            build_element = super(XMLElement, self)._build_element
-        except AttributeError:
-            pass
-        else:
-            build_element()
 
     @classmethod
     def from_element(cls, element):
@@ -552,15 +561,6 @@ class XMLElement(object):
         obj.__dirty__ = False
         return obj
 
-    # To be defined in subclass
-    def _parse_element(self, element):
-        try:
-            parse_element = super(XMLElement, self)._parse_element
-        except AttributeError:
-            pass
-        else:
-            parse_element(element)
-    
     @classmethod
     def _register_xml_attribute(cls, attribute, element):
         cls._xml_element_children[attribute] = element
@@ -744,7 +744,7 @@ class XMLListMixinType(type):
         super(XMLListMixinType, cls).__setattr__(name, value)
 
 
-class XMLListMixin(object):
+class XMLListMixin(XMLElementBase):
     """A mixin representing a list of other XML elements"""
 
     __metaclass__ = XMLListMixinType
@@ -785,14 +785,16 @@ class XMLListMixin(object):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __get_dirty__(self):
-        return any(item.__dirty__ for item in self._element_map.itervalues())
+        return any(item.__dirty__ for item in self._element_map.itervalues()) or super(XMLListMixin, self).__get_dirty__()
 
     def __set_dirty__(self, dirty):
+        super(XMLListMixin, self).__set_dirty__(dirty)
         if not dirty:
             for item in self._element_map.itervalues():
                 item.__dirty__ = dirty
 
     def _parse_element(self, element):
+        super(XMLListMixin, self)._parse_element(element)
         self._element_map.clear()
         self._xmlid_map.clear()
         for child in element[:]:
@@ -811,6 +813,7 @@ class XMLListMixin(object):
                         self._element_map[value.element] = value
 
     def _build_element(self):
+        super(XMLListMixin, self)._build_element()
         for child in self._element_map.itervalues():
             child.to_element()
 
@@ -886,6 +889,7 @@ class XMLStringElement(XMLElement):
     del _get_value, _set_value
 
     def _parse_element(self, element):
+        super(XMLStringElement, self)._parse_element(element)
         self.value = element.text
         if self._xml_lang:
             self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
@@ -893,6 +897,7 @@ class XMLStringElement(XMLElement):
             self.lang = None
 
     def _build_element(self):
+        super(XMLStringElement, self)._build_element()
         if self.value is not None:
             self.element.text = unicode(self.value)
         else:
