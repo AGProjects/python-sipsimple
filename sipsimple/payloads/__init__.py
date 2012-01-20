@@ -468,17 +468,26 @@ class XMLElement(object):
         self.element = etree.Element(self.qname, nsmap=self._xml_document.nsmap)
         self.__dirty__ = True
 
-    def _get_dirty(self):
-        return self.__dict__['__dirty__'] or any(child.__dirty__ for child in (getattr(self, name) for name in self._xml_element_children) if child is not None)
+    def __get_dirty__(self):
+        try:
+            get_dirty = super(XMLElement, self).__get_dirty__
+        except AttributeError:
+            get_dirty = lambda: False
+        return self.__dict__['__dirty__'] or any(child.__dirty__ for child in (getattr(self, name) for name in self._xml_element_children) if child is not None) or get_dirty()
 
-    def _set_dirty(self, dirty):
+    def __set_dirty__(self, dirty):
+        try:
+            set_dirty = super(XMLElement, self).__set_dirty__
+        except AttributeError:
+            pass
+        else:
+            set_dirty(dirty)
         if not dirty:
             for child in (child for child in (getattr(self, name) for name in self._xml_element_children) if child is not None):
                 child.__dirty__ = dirty
         self.__dict__['__dirty__'] = dirty
 
-    __dirty__ = property(_get_dirty, _set_dirty)
-    del _get_dirty, _set_dirty
+    __dirty__ = property(__get_dirty__, __set_dirty__)
 
     def check_validity(self):
         # check attributes
@@ -774,6 +783,14 @@ class XMLListMixin(object):
     def __ne__(self, other):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
+
+    def __get_dirty__(self):
+        return any(item.__dirty__ for item in self._element_map.itervalues())
+
+    def __set_dirty__(self, dirty):
+        if not dirty:
+            for item in self._element_map.itervalues():
+                item.__dirty__ = dirty
 
     def _parse_element(self, element):
         self._element_map.clear()
