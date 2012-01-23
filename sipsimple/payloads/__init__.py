@@ -31,6 +31,7 @@ import weakref
 from collections import defaultdict, deque
 from itertools import izip
 
+from application.python import Null
 from application.python.descriptor import classproperty
 from lxml import etree
 
@@ -880,7 +881,7 @@ class XMLStringElement(XMLElement):
     def _set_value(self, value):
         if value is not None and not isinstance(value, self._xml_value_type):
             value = self._xml_value_type(value)
-        if self.__dict__.get('value', None) == value:
+        if self.__dict__.get('value', Null) == value:
             return
         self.__dict__['value'] = value
         self.__dirty__ = True
