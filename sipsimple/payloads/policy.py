@@ -233,10 +233,10 @@ class ValidityInterval(object):
         return NotImplemented
 
     @classmethod
-    def from_elements(cls, from_element, until_element):
+    def from_elements(cls, from_element, until_element, xml_document=None):
         instance = object.__new__(cls)
-        instance.valid_from = ValidFrom.from_element(from_element)
-        instance.valid_until = ValidUntil.from_element(until_element)
+        instance.valid_from = ValidFrom.from_element(from_element, xml_document)
+        instance.valid_until = ValidUntil.from_element(until_element, xml_document)
         return instance
 
 
@@ -256,7 +256,7 @@ class Validity(XMLListElement):
             second_child = iterator.next()
             if first_child.tag == '{%s}from' % self._xml_namespace and second_child.tag == '{%s}until' % self._xml_namespace:
                 try:
-                    item = ValidityInterval.from_elements(first_child, second_child)
+                    item = ValidityInterval.from_elements(first_child, second_child, xml_document=self._xml_document)
                 except:
                     pass
                 else:

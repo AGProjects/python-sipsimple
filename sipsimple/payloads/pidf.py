@@ -186,7 +186,7 @@ class NoteList(object):
         for child in element:
             if child.tag == self.note_type.qname:
                 try:
-                    note = self.note_type.from_element(child)
+                    note = self.note_type.from_element(child, xml_document=self.xml_element._xml_document)
                 except ValidationError:
                     pass
                 else:

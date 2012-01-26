@@ -104,7 +104,7 @@ class XMLDocument(object):
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
-            return cls.root_element.from_element(xml)
+            return cls.root_element.from_element(xml, xml_document=cls)
 
     @classmethod
     def build(cls, root_element, encoding=None, pretty_print=False, validate=True):
@@ -536,8 +536,9 @@ class XMLElement(XMLElementBase):
         return self.element
 
     @classmethod
-    def from_element(cls, element):
+    def from_element(cls, element, xml_document=None):
         obj = cls.__new__(cls)
+        obj._xml_document = xml_document if xml_document is not None else cls._xml_document
         obj.element = element
         # set known attributes
         for name, attribute in cls._xml_attributes.iteritems():
@@ -552,7 +553,7 @@ class XMLElement(XMLElementBase):
             element_child, type = cls._xml_children_qname_map.get(child.tag, (None, None))
             if element_child is not None:
                 try:
-                    value = type.from_element(child)
+                    value = type.from_element(child, xml_document=obj._xml_document)
                 except ValidationError:
                     pass # we should accept partially valid documents
                 else:
@@ -656,8 +657,8 @@ class XMLRootElement(XMLElement):
         self.__cache__ = weakref.WeakValueDictionary({self.element: self})
 
     @classmethod
-    def from_element(cls, element):
-        obj = super(XMLRootElement, cls).from_element(element)
+    def from_element(cls, element, xml_document=None):
+        obj = super(XMLRootElement, cls).from_element(element, xml_document)
         obj.__cache__ = weakref.WeakValueDictionary({obj.element: obj})
         return obj
 
@@ -802,7 +803,7 @@ class XMLListMixin(XMLElementBase):
             child_class = self._xml_document.get_element(child.tag, type(None))
             if child_class in self._xml_item_element_types or issubclass(child_class, self._xml_item_extension_types):
                 try:
-                    value = child_class.from_element(child)
+                    value = child_class.from_element(child, xml_document=self._xml_document)
                 except ValidationError:
                     pass
                 else:
