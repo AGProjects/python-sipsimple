@@ -118,8 +118,8 @@ The software is available under either GPL or Lesser General Public License
 (LGPL).
 
 
-Port audio
-----------
+Portaudio
+---------
 
 PortAudio is a free, cross platform, open-source, audio I/O library. It lets
 you write simple audio programs in 'C' that will compile and run on many
@@ -194,13 +194,12 @@ operations appear blocking at the source code level. It is available under
 MIT license.
 
 
-Greelet
--------
+Greenlet
+--------
 
 Lightweight in-process concurrent programming. The "greenlet" package is a
 spin-off of Stackless, a version of CPython that supports micro-threads
 called "tasklets". Tasklets run pseudo-concurrently (typically in a single
 or a few OS-level threads) and are synchronized with data exchanges on
 "channels". It is provided under MIT license.
-
 
