@@ -101,8 +101,7 @@ class List(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __hash__(self):
-        return hash(tuple(self.values))
+    __hash__ = None
 
     def __iter__(self):
         return iter(self.values)
@@ -255,8 +254,7 @@ class PortRange(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash((self.start, self.end))
+    __hash__ = None
 
     def __repr__(self):
         return '%s(start=%r, end=%r)' % (self.__class__.__name__, self.start, self.end)
@@ -327,8 +325,7 @@ class EndpointAddress(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash((self.host, self.port))
+    __hash__ = None
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.host, self.port)
@@ -398,8 +395,7 @@ class MSRPRelayAddress(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash((self.host, self.port, self.transport))
+    __hash__ = None
 
     def __repr__(self):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
@@ -446,8 +442,7 @@ class SIPProxyAddress(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash((self.host, self.port, self.transport))
+    __hash__ = None
 
     def __repr__(self):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
@@ -467,6 +462,7 @@ class SIPProxyAddress(object):
 
 class STUNServerAddress(object):
     _description_re = re.compile(r"^(?P<host>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*))(:(?P<port>\d+))?$")
+
     default_port = 3478
 
     def __init__(self, host, port=default_port):
@@ -492,8 +488,7 @@ class STUNServerAddress(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
 
-    def __hash__(self):
-        return hash((self.host, self.port))
+    __hash__ = None
 
     def __repr__(self):
         return '%s(%r, port=%r)' % (self.__class__.__name__, self.host, self.port)
