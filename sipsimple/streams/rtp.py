@@ -468,10 +468,10 @@ class AudioStream(object):
     def _try_next_rtp_transport(self, failure_reason=None):
         # TODO: log failure_reason if it is not None? Or send a notification?
         if self._stun_servers:
-            stun_ip, stun_port = self._stun_servers.pop()
+            stun_address, stun_port = self._stun_servers.pop()
             observer_added = False
             try:
-                rtp_transport = RTPTransport(ice_stun_address=stun_ip, ice_stun_port=stun_port, **self._rtp_args)
+                rtp_transport = RTPTransport(ice_stun_address=stun_address, ice_stun_port=stun_port, **self._rtp_args)
                 self.notification_center.add_observer(self, sender=rtp_transport)
                 observer_added = True
                 rtp_transport.set_INIT()

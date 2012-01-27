@@ -461,8 +461,49 @@ class SIPProxyAddress(object):
         return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
 
-class STUNServerAddress(EndpointIPAddress):
+class STUNServerAddress(object):
+    _description_re = re.compile(r"^(?P<host>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*))(:(?P<port>\d+))?$")
     default_port = 3478
+
+    def __init__(self, host, port=default_port):
+        self.host = Hostname(host)
+        self.port = Port(port)
+
+    def __getstate__(self):
+        return unicode(self)
+
+    def __setstate__(self, state):
+        match = self._description_re.match(state)
+        if match is None:
+            raise ValueError("illegal STUN server address: %s" % state)
+        self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+
+    def __eq__(self, other):
+        try:
+            return (self.host, self.port) == (other.host, other.port)
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.host, self.port))
+
+    def __repr__(self):
+        return '%s(%r, port=%r)' % (self.__class__.__name__, self.host, self.port)
+
+    def __unicode__(self):
+        return u'%s:%d' % (self.host, self.port)
+
+    @classmethod
+    def from_description(cls, description):
+        if not description:
+            return None
+        match = cls._description_re.match(description)
+        if match is None:
+            raise ValueError("illegal STUN server address: %s" % description)
+        return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
 
 class STUNServerAddressList(List):

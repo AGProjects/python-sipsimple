@@ -38,8 +38,6 @@ cdef class RTPTransport:
             raise SIPCoreError("RTPTransport.__init__() was already called")
         if local_rtp_address is not None and not _is_valid_ip(self._af, local_rtp_address):
             raise ValueError("Not a valid IPv4 address: %s" % local_rtp_address)
-        if ice_stun_address is not None and not _is_valid_ip(self._af, ice_stun_address):
-            raise ValueError("Not a valid IPv4 address: %s" % ice_stun_address)
         self._local_rtp_addr = local_rtp_address
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
