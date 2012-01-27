@@ -3,6 +3,7 @@
 
 # python imports
 
+import re
 import random
 import sys
 import time
@@ -604,7 +605,7 @@ cdef class PJSIPUA:
 
     def set_nameservers(self, list nameservers):
         self._check_self()
-        return self._pjsip_endpoint._set_dns_nameservers(nameservers)
+        return self._pjsip_endpoint._set_dns_nameservers([n for n in nameservers if _re_ipv4.match(n)])
 
     def __dealloc__(self):
         self.dealloc()
@@ -1026,3 +1027,4 @@ cdef void *_ua = NULL
 cdef PJSTR _user_agent_hdr_name = PJSTR("User-Agent")
 cdef PJSTR _server_hdr_name = PJSTR("Server")
 cdef PJSTR _event_hdr_name = PJSTR("Event")
+cdef object _re_ipv4 = re.compile(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$")
