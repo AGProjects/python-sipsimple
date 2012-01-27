@@ -246,13 +246,14 @@ class PortRange(object):
         self.__init__(*state.split('-'))
 
     def __eq__(self, other):
-        try:
-            return (self.start, self.end) == (other.start, other.end)
-        except AttributeError:
-            return False
+        if isinstance(other, PortRange):
+            return self.start == other.start and self.end == other.end
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash((self.start, self.end))
@@ -317,13 +318,14 @@ class EndpointAddress(object):
         self.__init__(**match.groupdict())
 
     def __eq__(self, other):
-        try:
-            return (self.host, self.port) == (other.host, other.port)
-        except AttributeError:
-            return False
+        if isinstance(other, EndpointAddress):
+            return self.host == other.host and self.port == other.port
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash((self.host, self.port))
@@ -387,13 +389,14 @@ class MSRPRelayAddress(object):
         self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
     def __eq__(self, other):
-        try:
-            return (self.host, self.port, self.transport) == (other.host, other.port, other.transport)
-        except AttributeError:
-            return False
+        if isinstance(other, MSRPRelayAddress):
+            return self.host == other.host and self.port == other.port and self.transport == other.transport
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash((self.host, self.port, self.transport))
@@ -434,13 +437,14 @@ class SIPProxyAddress(object):
         self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
     def __eq__(self, other):
-        try:
-            return (self.host, self.port, self.transport) == (other.host, other.port, other.transport)
-        except AttributeError:
-            return False
+        if isinstance(other, SIPProxyAddress):
+            return self.host == other.host and self.port == other.port and self.transport == other.transport
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash((self.host, self.port, self.transport))
@@ -479,13 +483,14 @@ class STUNServerAddress(object):
         self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
     def __eq__(self, other):
-        try:
-            return (self.host, self.port) == (other.host, other.port)
-        except AttributeError:
-            return False
+        if isinstance(other, STUNServerAddress):
+            return self.host == other.host and self.port == other.port
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash((self.host, self.port))
