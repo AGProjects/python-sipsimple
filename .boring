@@ -10,6 +10,8 @@
 \.(pyc|pyo|o|so|orig|bak|BAK|prof|wpu|cvsignore)$
 (^|/)build($|/)
 (^|/)dist($|/)
-(^|/)test/(test-config|xcap-cache)($|/)
+(^|/)pjsip($|/)
+(^|/)sipsimple/core/_core.c$
+(^|/)test($|/)
 (^|/)\.komodotools($|/)
 ^MANIFEST$
