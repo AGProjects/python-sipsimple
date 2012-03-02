@@ -608,9 +608,11 @@ class XMLElement(XMLElementBase):
         else:
             position = len(self.element)
         self.element.insert(position, element)
-    
+
     def __eq__(self, other):
         if isinstance(other, XMLElement):
+            if self is other:
+                return True
             for name, attribute in self._xml_attributes.iteritems():
                 if attribute.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
@@ -778,7 +780,7 @@ class XMLListMixin(XMLElementBase):
 
     def __eq__(self, other):
         if isinstance(other, XMLListMixin):
-            return len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other))
+            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other)))
         else:
             return NotImplemented
 
@@ -861,7 +863,7 @@ class XMLStringElement(XMLElement):
 
     def __eq__(self, other):
         if isinstance(other, XMLStringElement):
-            return self.lang == other.lang and self.value == other.value
+            return self is other or (self.lang == other.lang and self.value == other.value)
         elif isinstance(other, basestring) and (self._xml_lang is False or self.lang is None):
             return self.value == other
         else:

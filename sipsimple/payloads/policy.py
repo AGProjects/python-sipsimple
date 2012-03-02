@@ -178,7 +178,7 @@ class ValidityElement(XMLElement):
 
     def __eq__(self, other):
         if isinstance(other, ValidityElement):
-            return self.value == other.value
+            return self is other or self.value == other.value
         else:
             return NotImplemented
 
@@ -224,12 +224,12 @@ class ValidityInterval(object):
 
     def __eq__(self, other):
         if isinstance(other, ValidityInterval):
-            return self.valid_from == other.valid_from and self.valid_until == other.valid_until
+            return self is other or (self.valid_from == other.valid_from and self.valid_until == other.valid_until)
         return NotImplemented
 
     def __ne__(self, other):
         if isinstance(other, ValidityInterval):
-            return self.valid_from != other.valid_from or self.valid_until != other.valid_until
+            return self is not other and (self.valid_from != other.valid_from or self.valid_until != other.valid_until)
         return NotImplemented
 
     @classmethod
