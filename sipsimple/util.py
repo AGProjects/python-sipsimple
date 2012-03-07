@@ -16,7 +16,7 @@ from datetime import datetime
 
 from application.notification import NotificationData
 from application.python.types import Singleton
-from dateutil.tz import tzlocal
+from dateutil.tz import tzoffset
 
 
 # Utility classes
@@ -138,6 +138,7 @@ class Timestamp(datetime):
             secoffset = int(dct['tzminute'])*60 + int(dct['tzhour'])*3600
             if dct['tzsign'] == '-':
                 secoffset *= -1
+        tzinfo = tzoffset(None, secoffset)
         if dct['secfrac'] is not None:
             secfrac = dct['secfrac'][:6]
             secfrac += '0'*(6-len(secfrac))
@@ -146,7 +147,7 @@ class Timestamp(datetime):
             secfrac = 0
         dt = datetime(int(dct['year']), month=int(dct['month']), day=int(dct['day']),
                       hour=int(dct['hour']), minute=int(dct['minute']), second=int(dct['second']),
-                      microsecond=secfrac, tzinfo=tzlocal())
+                      microsecond=secfrac, tzinfo=tzinfo)
         return cls(dt)
 
     @classmethod
