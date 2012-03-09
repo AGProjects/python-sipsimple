@@ -221,7 +221,7 @@ class MSRPStreamBase(object):
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
             if self.use_msrp_session:
-                self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming)
+                self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming, automatic_reports=False)
             self.msrp_connector = None
         except api.GreenletExit:
             raise
@@ -369,20 +369,23 @@ class ChatStream(MSRPStreamBase):
 
     def _handle_SEND(self, chunk):
         if self.direction=='sendonly':
+            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
             return
         if not chunk.data:
+            self.msrp_session.send_report(chunk, 200, 'OK')
             return
         if chunk.segment is not None:
             self.incoming_queue.setdefault(chunk.message_id, []).append(chunk.data)
             if chunk.final:
                 chunk.data = ''.join(self.incoming_queue.pop(chunk.message_id))
             else:
+                self.msrp_session.send_report(chunk, 200, 'OK')
                 return
         if chunk.content_type.lower() == 'message/cpim':
             try:
                 message = CPIMMessage.parse(chunk.data)
             except CPIMParserError:
-                # FIXME: should respond with negative code, but MSRPlib responds with a positive one for us
+                self.msrp_session.send_report(chunk, 400, 'CPIM Parser Error')
                 return
             else:
                 if message.timestamp is None:
@@ -393,8 +396,8 @@ class ChatStream(MSRPStreamBase):
         else:
             message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
             private = False
-        # Note: success reports are issued by msrplib
-        # TODO: check wrapped content-type and issue a report/responsd with negative code if it's invalid
+        # TODO: check wrapped content-type and issue a report if it's invalid
+        self.msrp_session.send_report(chunk, 200, 'OK')
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
             data = IsComposingDocument.parse(message.body)
@@ -665,16 +668,18 @@ class FileTransferStream(MSRPStreamBase):
     def _handle_SEND(self, chunk):
         notification_center = NotificationCenter()
         if self.direction=='sendonly':
-            return # should we just ignore this? -Dan
+            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
+            return
         if not chunk.data:
+            self.msrp_session.send_report(chunk, 200, 'OK')
             return
         if chunk.content_type.lower() == 'message/cpim':
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
+            self.msrp_session.send_report(chunk, 415, 'Invalid Content-Type')
             e = MSRPStreamError("CPIM wrapper is not supported")
             notification_center.post_notification('MediaStreamDidFail', self, TimestampedNotificationData(failure=Failure(e), reason=str(e)))
             return
-        # Note: success reports are issued by msrplib
-        # TODO: check wrapped content-type and issue a report if it's invalid
+        self.msrp_session.send_report(chunk, 200, 'OK')
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
         # only works as long as chunks are delivered in order. -Luci
         ndata = TimestampedNotificationData(content=chunk.data, content_type=chunk.content_type, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
