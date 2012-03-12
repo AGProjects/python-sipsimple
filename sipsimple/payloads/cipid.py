@@ -8,7 +8,7 @@ This module provides an extension to PIDF to provide additional contact
 information about a presentity.
 """
 
-from sipsimple.payloads import XMLStringElement
+from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, Service, Person
 
 __all__ = ['cipid_namespace', 'Card', 'DisplayName', 'Homepage', 'Icon', 'Map', 'Sound']
@@ -25,11 +25,10 @@ class Card(XMLStringElement, PersonExtension, ServiceExtension):
 Person.register_extension('card', type=Card)
 Service.register_extension('card', type=Card)
 
-class DisplayName(XMLStringElement, PersonExtension, ServiceExtension):
+class DisplayName(XMLLocalizedStringElement, PersonExtension, ServiceExtension):
     _xml_tag = 'display-name'
     _xml_namespace = cipid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
 Person.register_extension('display_name', type=DisplayName)
 Service.register_extension('display_name', type=DisplayName)

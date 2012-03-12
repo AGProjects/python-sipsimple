@@ -15,6 +15,7 @@ __all__ = ['ParserError',
            'XMLElement',
            'XMLRootElement',
            'XMLStringElement',
+           'XMLLocalizedStringElement',
            'XMLEmptyElement',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
@@ -851,26 +852,22 @@ class XMLListMixin(XMLElementBase):
 ## Element types
 
 class XMLStringElement(XMLElement):
-    _xml_lang = False # To be defined in subclass
     _xml_value_type = unicode # To be defined in subclass
 
-    lang = XMLAttribute('lang', xmlname='{http://www.w3.org/XML/1998/namespace}lang', type=str, required=False, test_equal=True)
-
-    def __init__(self, value, lang=None):
+    def __init__(self, value):
         XMLElement.__init__(self)
         self.value = value
-        self.lang = lang
 
     def __eq__(self, other):
         if isinstance(other, XMLStringElement):
-            return self is other or (self.lang == other.lang and self.value == other.value)
-        elif isinstance(other, basestring) and (self._xml_lang is False or self.lang is None):
+            return self is other or self.value == other.value
+        elif isinstance(other, basestring):
             return self.value == other
         else:
             return NotImplemented
 
     def __repr__(self):
-        return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
+        return '%s(%r)' % (self.__class__.__name__, self.value)
 
     def __str__(self):
         return str(self.value)
@@ -895,10 +892,6 @@ class XMLStringElement(XMLElement):
     def _parse_element(self, element):
         super(XMLStringElement, self)._parse_element(element)
         self.value = element.text
-        if self._xml_lang:
-            self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
-        else:
-            self.lang = None
 
     def _build_element(self):
         super(XMLStringElement, self)._build_element()
@@ -906,8 +899,29 @@ class XMLStringElement(XMLElement):
             self.element.text = unicode(self.value)
         else:
             self.element.text = None
-        if not self._xml_lang and self.lang is not None:
-            del self.element.attrib[self.__class__.lang.xmlname]
+
+
+class XMLLocalizedStringElement(XMLStringElement):
+    lang = XMLAttribute('lang', xmlname='{http://www.w3.org/XML/1998/namespace}lang', type=str, required=False, test_equal=True)
+
+    def __init__(self, value, lang=None):
+        XMLStringElement.__init__(self, value)
+        self.lang = lang
+
+    def __eq__(self, other):
+        if isinstance(other, XMLLocalizedStringElement):
+            return self is other or (self.lang == other.lang and self.value == other.value)
+        elif self.lang is None:
+            return XMLStringElement.__eq__(self, other)
+        else:
+            return NotImplemented
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
+
+    def _parse_element(self, element):
+        super(XMLLocalizedStringElement, self)._parse_element(element)
+        self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
 
 
 class XMLEmptyElement(XMLElement):

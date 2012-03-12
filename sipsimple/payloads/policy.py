@@ -30,7 +30,7 @@ __all__ = ['namespace',
 
 import datetime
 
-from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLStringElement
+from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLLocalizedStringElement
 from sipsimple.util import Timestamp
 
 
@@ -381,11 +381,10 @@ class FalseCondition(XMLElement, ConditionElement):
     _xml_document = CommonPolicyDocument
 
 
-class RuleDisplayName(XMLStringElement, RuleExtension):
+class RuleDisplayName(XMLLocalizedStringElement, RuleExtension):
     _xml_tag = 'display-name'
     _xml_namespace = agp_cp_namespace
     _xml_document = CommonPolicyDocument
-    _xml_lang = True
 
 Rule.register_extension('display_name', RuleDisplayName)
 

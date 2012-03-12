@@ -20,7 +20,8 @@ from collections import deque
 from lxml import etree
 from xml.sax.saxutils import quoteattr
 
-from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLLocalizedStringElement, XMLElementID, XMLElementChild, ThisClass
+from sipsimple.payloads import uri_attribute_builder, uri_attribute_parser
 
 
 namespace = 'urn:ietf:params:xml:ns:resource-lists'
@@ -63,11 +64,10 @@ class EntryExtension(object): pass
 
 ## Elements
 
-class DisplayName(XMLStringElement):
+class DisplayName(XMLLocalizedStringElement):
     _xml_tag = 'display-name'
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument
-    _xml_lang = True
 
 
 class Entry(XMLElement):

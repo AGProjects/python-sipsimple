@@ -59,7 +59,7 @@ __all__ = ['caps_namespace',
            'MobilityExtension']
 
 
-from sipsimple.payloads import XMLStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLStringListElement, XMLAttribute, XMLEmptyElementRegistryType
+from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLStringListElement, XMLAttribute, XMLEmptyElementRegistryType
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, Service, DeviceExtension, Device
 
 
@@ -644,11 +644,10 @@ class Languages(XMLElement):
         self.not_supported = not_supported
 
 
-class Description(XMLStringElement):
+class Description(XMLLocalizedStringElement):
     _xml_tag = 'description'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
 
 class IsFocus(XMLStringElement):

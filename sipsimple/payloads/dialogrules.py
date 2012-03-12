@@ -35,7 +35,6 @@ class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = dlg_namespace
     _xml_document = DialogRulesDocument
-    _xml_lang = False
     _xml_value_type = SubHandlingValue
 
 

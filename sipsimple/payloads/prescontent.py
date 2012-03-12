@@ -7,7 +7,7 @@
 __all__ = ['namespace', 'PresenceContentDocument', 'MIMEType', 'Encoding', 'Description', 'Data', 'PresenceContent']
 
 
-from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XMLElementChild
+from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XMLLocalizedStringElement, XMLElementChild
 
 
 namespace = 'urn:oma:xml:prs:pres-content'
@@ -31,11 +31,10 @@ class Encoding(XMLStringElement):
     _xml_document = PresenceContentDocument
 
 
-class Description(XMLStringElement):
+class Description(XMLLocalizedStringElement):
     _xml_tag = 'description'
     _xml_namespace = namespace
     _xml_document = PresenceContentDocument
-    _xml_lang = True
 
 
 class Data(XMLStringElement):

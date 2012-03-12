@@ -28,7 +28,7 @@ import datetime
 import weakref
 
 from sipsimple import util
-from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLStringElement, XMLLocalizedStringElement, XMLAttribute, XMLElementID, XMLElementChild
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -122,21 +122,19 @@ class Note(unicode):
         return NotImplemented if equal is NotImplemented else not equal
 
 
-class PIDFNote(XMLStringElement):
+class PIDFNote(XMLLocalizedStringElement):
     _xml_tag = 'note'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
     def __unicode__(self):
         return Note(self.value, self.lang)
 
 
-class DMNote(XMLStringElement):
+class DMNote(XMLLocalizedStringElement):
     _xml_tag = 'note'
     _xml_namespace = dm_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
     def __unicode__(self):
         return Note(self.value, self.lang)
@@ -237,7 +235,6 @@ class DeviceID(XMLStringElement):
     _xml_tag = 'deviceID'
     _xml_namespace = dm_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
 
 
 ## Service elements
@@ -246,7 +243,6 @@ class Basic(XMLStringElement):
     _xml_tag = 'basic'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
     _xml_value_type = BasicStatusValue
 
 
@@ -275,7 +271,6 @@ class Contact(XMLStringElement):
     _xml_tag = 'contact'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
 
     priority = XMLAttribute('priority', type=float, required=False, test_equal=False)
 

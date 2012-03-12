@@ -41,7 +41,7 @@ __all__ = ['rpid_namespace',
 from lxml import etree
 
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
-from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
+from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLLocalizedStringElement, XMLStringListElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteMap, NoteList, Service, Person, Device
 from sipsimple.payloads.util import UnsignedLong
 from sipsimple.util import Timestamp
@@ -94,11 +94,10 @@ class UserInputValue(str):
 
 ## Elements
 
-class RPIDNote(XMLStringElement):
+class RPIDNote(XMLLocalizedStringElement):
     _xml_tag = 'note'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
     def __unicode__(self):
         return Note(self.value, self.lang)
@@ -113,11 +112,10 @@ class RPIDNote(XMLStringElement):
             raise ValueError("expected str/unicode instance, got %s instead" % value.__class__.__name__)
 
 
-class RPIDOther(XMLStringElement):
+class RPIDOther(XMLLocalizedStringElement):
     _xml_tag = 'other'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = True
 
     def __unicode__(self):
         return Other(self.value, self.lang)
@@ -602,7 +600,6 @@ class StatusIcon(XMLStringElement, ServiceExtension, PersonExtension):
     _xml_tag = 'status-icon'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
@@ -622,7 +619,6 @@ class TimeOffset(XMLStringElement, PersonExtension):
     _xml_tag = 'time-offset'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
@@ -648,7 +644,6 @@ class UserInput(XMLStringElement, ServiceExtension, PersonExtension, DeviceExten
     _xml_tag = 'user-input'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
     _xml_value_type = UserInputValue
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
@@ -670,7 +665,6 @@ class Class(XMLStringElement, ServiceExtension, PersonExtension, DeviceExtension
     _xml_tag = 'class'
     _xml_namespace = rpid_namespace
     _xml_document = PIDFDocument
-    _xml_lang = False
 
 Service.register_extension('rpid_class', type=Class)
 Person.register_extension('rpid_class', type=Class)

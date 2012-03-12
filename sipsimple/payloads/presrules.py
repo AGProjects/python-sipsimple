@@ -345,7 +345,6 @@ class ProvideUserInput(XMLStringElement, TransformationElement):
     _xml_tag = 'provide-user-input'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
-    _xml_lang = False
     _xml_value_type = ProvideUserInputValue
 
 
