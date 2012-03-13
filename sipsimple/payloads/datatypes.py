@@ -2,7 +2,7 @@
 #
 
 
-"""Utility classes and functions for XML applications"""
+"""Data types used for simple XML elements and for XML attributes"""
 
 
 import re

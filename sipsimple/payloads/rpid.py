@@ -43,7 +43,7 @@ from lxml import etree
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLLocalizedStringElement, XMLStringListElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteMap, NoteList, Service, Person, Device
-from sipsimple.payloads.util import UnsignedLong
+from sipsimple.payloads.datatypes import UnsignedLong
 from sipsimple.util import Timestamp
 
 

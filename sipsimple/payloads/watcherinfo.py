@@ -13,7 +13,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
-from sipsimple.payloads.util import UnsignedLong, SIPURI
+from sipsimple.payloads.datatypes import UnsignedLong, SIPURI
 
 
 namespace = 'urn:ietf:params:xml:ns:watcherinfo'

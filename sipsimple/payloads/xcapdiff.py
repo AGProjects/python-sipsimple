@@ -11,7 +11,7 @@ __all__ = ['namespace', 'XCAPDiffDocument', 'BodyNotChanged', 'Document', 'Eleme
 
 
 from sipsimple.payloads import XMLDocument, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementID, XMLElementChild
-from sipsimple.payloads.util import XCAPURI, Boolean
+from sipsimple.payloads.datatypes import Boolean, XCAPURI
 
 
 namespace = 'urn:ietf:params:xml:ns:xcap-diff'
