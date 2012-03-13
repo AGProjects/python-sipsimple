@@ -31,6 +31,7 @@ __all__ = ['ParserError',
            'XMLNegativeIntegerElement',
            'XMLNonNegativeIntegerElement',
            'XMLNonPositiveIntegerElement',
+           'XMLDecimalElement',
            'XMLEmptyElement',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
@@ -45,6 +46,7 @@ import sys
 import urllib
 import weakref
 from collections import defaultdict, deque
+from decimal import Decimal
 from itertools import izip
 
 from application.python import Null
@@ -1018,6 +1020,10 @@ class XMLNonNegativeIntegerElement(XMLSimpleElement):
 
 class XMLNonPositiveIntegerElement(XMLSimpleElement):
     _xml_value_type = NonPositiveInteger
+
+
+class XMLDecimalElement(XMLSimpleElement):
+    _xml_value_type = Decimal
 
 
 class XMLEmptyElement(XMLElement):
