@@ -5,7 +5,8 @@
 """Data types used for simple XML elements and for XML attributes"""
 
 
-__all__ = ['Boolean', 'UnsignedLong', 'SIPURI', 'XCAPURI']
+__all__ = ['Boolean', 'Byte', 'UnsignedByte', 'Short', 'UnsignedShort', 'Int', 'UnsignedInt', 'Long', 'UnsignedLong',
+           'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'SIPURI', 'XCAPURI']
 
 
 import re
@@ -28,12 +29,100 @@ class Boolean(int):
         return 'true' if self else 'false'
 
 
+class Byte(int):
+    def __new__(cls, value):
+        instance = int.__new__(cls, value)
+        if not (-128 <= instance <= 127):
+            raise ValueError("integer number must be a signed 8bit value")
+        return instance
+
+
+class UnsignedByte(int):
+    def __new__(cls, value):
+        instance = int.__new__(cls, value)
+        if not (0 <= instance <= 255):
+            raise ValueError("integer number must be an unsigned 8bit value")
+        return instance
+
+
+class Short(int):
+    def __new__(cls, value):
+        instance = int.__new__(cls, value)
+        if not (-32768 <= instance <= 32767):
+            raise ValueError("integer number must be a signed 16bit value")
+        return instance
+
+
+class UnsignedShort(int):
+    def __new__(cls, value):
+        instance = int.__new__(cls, value)
+        if not (0 <= instance <= 65535):
+            raise ValueError("integer number must be an unsigned 16bit value")
+        return instance
+
+
+class Int(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if not (-2147483648 <= instance <= 2147483647):
+            raise ValueError("integer number must be a signed 32bit value")
+        return instance
+
+
+class UnsignedInt(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if not (0 <= instance <= 4294967295):
+            raise ValueError("integer number must be an unsigned 32bit value")
+        return instance
+
+
+class Long(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if not (-9223372036854775808 <= instance <= 9223372036854775807):
+            raise ValueError("integer number must be a signed 64bit value")
+        return instance
+
+
 class UnsignedLong(long):
     def __new__(cls, value):
-        obj = long.__new__(cls, value)
-        if obj < 0:
-            raise TypeError("%s is not an unsigned long" % str(value))
-        return obj
+        instance = long.__new__(cls, value)
+        if not (0 <= instance <= 18446744073709551615):
+            raise ValueError("integer number must be an unsigned 64bit value")
+        return instance
+
+
+class PositiveInteger(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if instance <= 0:
+            raise ValueError("integer number must be a positive value")
+        return instance
+
+
+class NegativeInteger(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if instance >= 0:
+            raise ValueError("integer number must be a negative value")
+        return instance
+
+
+class NonNegativeInteger(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if instance < 0:
+            raise ValueError("integer number must be a non-negative value")
+        return instance
+
+
+class NonPositiveInteger(long):
+    def __new__(cls, value):
+        instance = long.__new__(cls, value)
+        if instance > 0:
+            raise ValueError("integer number must be a non-positive value")
+        return instance
 
 
 class SIPURI(str):
