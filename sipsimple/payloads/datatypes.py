@@ -38,16 +38,18 @@ class UnsignedLong(long):
 
 class SIPURI(str):
     path_regex = re.compile(r'^((?P<username>[^:@]+)(:(?P<password>[^@]+))?@)?(?P<domain>.*)$')
+
     def __new__(cls, value):
         obj = str.__new__(cls, value)
         uri = urlparse.urlparse(obj)
 
         if uri.scheme not in ('sip', 'sips'):
             raise ValueError("illegal scheme for SIP URI: %s" % uri.scheme)
+
         obj.scheme = uri.scheme
         obj.__dict__.update(cls.path_regex.match(uri.path).groupdict())
-
         obj.params = {}
+
         if uri.params:
             params = (param.split('=', 1) for param in uri.params.split(';'))
             for param in params:
@@ -83,6 +85,7 @@ class XCAPURI(str):
 
         if uri.scheme not in ('http', 'https', ''):
             raise ValueError("illegal scheme for XCAP URI: %s" % uri.scheme)
+
         obj.scheme = uri.scheme
         obj.username = uri.username
         obj.password = uri.password
