@@ -18,6 +18,19 @@ __all__ = ['ParserError',
            'XMLStringElement',
            'XMLLocalizedStringElement',
            'XMLBooleanElement',
+           'XMLByteElement',
+           'XMLUnsignedByteElement',
+           'XMLShortElement',
+           'XMLUnsignedShortElement',
+           'XMLIntElement',
+           'XMLUnsignedIntElement',
+           'XMLLongElement',
+           'XMLUnsignedLongElement',
+           'XMLIntegerElement',
+           'XMLPositiveIntegerElement',
+           'XMLNegativeIntegerElement',
+           'XMLNonNegativeIntegerElement',
+           'XMLNonPositiveIntegerElement',
            'XMLEmptyElement',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
@@ -38,7 +51,7 @@ from application.python import Null
 from application.python.descriptor import classproperty
 from lxml import etree
 
-from sipsimple.payloads.datatypes import Boolean
+from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong, PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger
 
 
 ## Exceptions
@@ -953,6 +966,58 @@ class XMLBooleanElement(XMLSimpleElement):
 
     def __nonzero__(self):
         return bool(self.value)
+
+
+class XMLByteElement(XMLSimpleElement):
+    _xml_value_type = Byte
+
+
+class XMLUnsignedByteElement(XMLSimpleElement):
+    _xml_value_type = UnsignedByte
+
+
+class XMLShortElement(XMLSimpleElement):
+    _xml_value_type = Short
+
+
+class XMLUnsignedShortElement(XMLSimpleElement):
+    _xml_value_type = UnsignedShort
+
+
+class XMLIntElement(XMLSimpleElement):
+    _xml_value_type = Int
+
+
+class XMLUnsignedIntElement(XMLSimpleElement):
+    _xml_value_type = UnsignedInt
+
+
+class XMLLongElement(XMLSimpleElement):
+    _xml_value_type = Long
+
+
+class XMLUnsignedLongElement(XMLSimpleElement):
+    _xml_value_type = UnsignedLong
+
+
+class XMLIntegerElement(XMLSimpleElement):
+    _xml_value_type = int
+
+
+class XMLPositiveIntegerElement(XMLSimpleElement):
+    _xml_value_type = PositiveInteger
+
+
+class XMLNegativeIntegerElement(XMLSimpleElement):
+    _xml_value_type = NegativeInteger
+
+
+class XMLNonNegativeIntegerElement(XMLSimpleElement):
+    _xml_value_type = NonNegativeInteger
+
+
+class XMLNonPositiveIntegerElement(XMLSimpleElement):
+    _xml_value_type = NonPositiveInteger
 
 
 class XMLEmptyElement(XMLElement):
