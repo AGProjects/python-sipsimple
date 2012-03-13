@@ -12,14 +12,20 @@ import re
 import urlparse
 
 
-class Boolean(str):
+class Boolean(int):
     def __new__(cls, value):
-        value = str.__new__(cls, value)
-        if value.lower() not in ('true', 'false', '0', '1'):
-            raise ValueError("illegal value for Boolean: %s" % value)
-        return value
-    def __nonzero__(self):
-        return self.lower() in ('true', '1')
+        if value in ('True', 'true', 1, True):
+            return int.__new__(cls, 1)
+        elif value in ('False', 'false', 0, False):
+            return int.__new__(cls, 0)
+        else:
+            return int.__new__(cls, bool(value))
+
+    def __repr__(self):
+        return 'True' if self else 'False'
+
+    def __str__(self):
+        return 'true' if self else 'false'
 
 
 class UnsignedLong(long):
