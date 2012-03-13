@@ -888,6 +888,9 @@ class XMLSimpleElement(XMLElement):
         else:
             return NotImplemented
 
+    def __nonzero__(self):
+        return bool(self.value)
+
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
@@ -963,9 +966,6 @@ class XMLLocalizedStringElement(XMLStringElement):
 
 class XMLBooleanElement(XMLSimpleElement):
     _xml_value_type = Boolean
-
-    def __nonzero__(self):
-        return bool(self.value)
 
 
 class XMLByteElement(XMLSimpleElement):
