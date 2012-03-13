@@ -17,6 +17,7 @@ __all__ = ['ParserError',
            'XMLSimpleElement',
            'XMLStringElement',
            'XMLLocalizedStringElement',
+           'XMLBooleanElement',
            'XMLEmptyElement',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
@@ -36,6 +37,8 @@ from itertools import izip
 from application.python import Null
 from application.python.descriptor import classproperty
 from lxml import etree
+
+from sipsimple.payloads.datatypes import Boolean
 
 
 ## Exceptions
@@ -943,6 +946,13 @@ class XMLLocalizedStringElement(XMLStringElement):
     def _parse_element(self, element):
         super(XMLLocalizedStringElement, self)._parse_element(element)
         self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
+
+
+class XMLBooleanElement(XMLSimpleElement):
+    _xml_value_type = Boolean
+
+    def __nonzero__(self):
+        return bool(self.value)
 
 
 class XMLEmptyElement(XMLElement):
