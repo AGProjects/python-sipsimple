@@ -14,6 +14,7 @@ __all__ = ['ParserError',
            'XMLStringChoiceChild',
            'XMLElement',
            'XMLRootElement',
+           'XMLSimpleElement',
            'XMLStringElement',
            'XMLLocalizedStringElement',
            'XMLEmptyElement',
@@ -851,17 +852,22 @@ class XMLListMixin(XMLElementBase):
 
 ## Element types
 
-class XMLStringElement(XMLElement):
-    _xml_value_type = unicode # To be defined in subclass
+class XMLSimpleElement(XMLElement):
+    _xml_value_type = None # To be defined in subclass
+
+    def __new__(cls, *args, **kw):
+        if cls._xml_value_type is None:
+            raise TypeError("The %s class cannot be instantiated because it doesn't define the _xml_value_type attribute" % cls.__name__)
+        return super(XMLSimpleElement, cls).__new__(cls)
 
     def __init__(self, value):
         XMLElement.__init__(self)
         self.value = value
 
     def __eq__(self, other):
-        if isinstance(other, XMLStringElement):
+        if isinstance(other, XMLSimpleElement):
             return self is other or self.value == other.value
-        elif isinstance(other, basestring):
+        elif isinstance(other, self._xml_value_type):
             return self.value == other
         else:
             return NotImplemented
@@ -890,15 +896,30 @@ class XMLStringElement(XMLElement):
     del _get_value, _set_value
 
     def _parse_element(self, element):
-        super(XMLStringElement, self)._parse_element(element)
-        self.value = element.text
+        super(XMLSimpleElement, self)._parse_element(element)
+        if element.text is None:
+            self.value = None
+        else:
+            self.value = self._xml_value_type(element.text)
 
     def _build_element(self):
-        super(XMLStringElement, self)._build_element()
-        if self.value is not None:
-            self.element.text = unicode(self.value)
-        else:
+        super(XMLSimpleElement, self)._build_element()
+        if self.value is None:
             self.element.text = None
+        else:
+            self.element.text = unicode(self.value)
+
+
+class XMLStringElement(XMLSimpleElement):
+    _xml_value_type = unicode # Can be overwritten in subclasses
+
+    def __eq__(self, other):
+        if isinstance(other, XMLStringElement):
+            return self is other or self.value == other.value
+        elif isinstance(other, basestring):
+            return self.value == other
+        else:
+            return NotImplemented
 
 
 class XMLLocalizedStringElement(XMLStringElement):
