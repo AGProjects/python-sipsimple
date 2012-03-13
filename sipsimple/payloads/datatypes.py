@@ -5,8 +5,21 @@
 """Data types used for simple XML elements and for XML attributes"""
 
 
+__all__ = ['Boolean', 'UnsignedLong', 'SIPURI', 'XCAPURI']
+
+
 import re
 import urlparse
+
+
+class Boolean(str):
+    def __new__(cls, value):
+        value = str.__new__(cls, value)
+        if value.lower() not in ('true', 'false', '0', '1'):
+            raise ValueError("illegal value for Boolean: %s" % value)
+        return value
+    def __nonzero__(self):
+        return self.lower() in ('true', '1')
 
 
 class UnsignedLong(long):
@@ -27,7 +40,7 @@ class SIPURI(str):
             raise ValueError("illegal scheme for SIP URI: %s" % uri.scheme)
         obj.scheme = uri.scheme
         obj.__dict__.update(cls.path_regex.match(uri.path).groupdict())
-        
+
         obj.params = {}
         if uri.params:
             params = (param.split('=', 1) for param in uri.params.split(';'))
@@ -39,7 +52,7 @@ class SIPURI(str):
                 elif '=' in param[1]:
                     raise ValueError("illegal SIP URI parameter value: %s" % param[1])
                 obj.params[param[0]] = param[1]
-       
+
         if uri.query:
             try:
                 obj.headers = dict(header.split('=') for header in uri.query.split('&'))
@@ -57,7 +70,7 @@ class SIPURI(str):
 
 class XCAPURI(str):
     path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)?(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
-    
+
     def __new__(cls, value):
         obj = str.__new__(cls, value)
         uri = urlparse.urlparse(obj)
@@ -87,15 +100,5 @@ class XCAPURI(str):
         return obj
 
     relative = property(lambda self: self.scheme == '')
-
-
-class Boolean(str):
-    def __new__(cls, value):
-        value = str.__new__(cls, value)
-        if value.lower() not in ('true', 'false', '0', '1'):
-            raise ValueError("illegal value for Boolean: %s" % value)
-        return value
-    def __nonzero__(self):
-        return self.lower() in ('true', '1')
 
 
