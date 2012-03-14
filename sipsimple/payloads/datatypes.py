@@ -15,18 +15,24 @@ import urlparse
 
 class Boolean(int):
     def __new__(cls, value):
-        if value in ('True', 'true', 1, True):
-            return int.__new__(cls, 1)
-        elif value in ('False', 'false', 0, False):
-            return int.__new__(cls, 0)
-        else:
-            return int.__new__(cls, bool(value))
+        return int.__new__(cls, bool(value))
 
     def __repr__(self):
         return 'True' if self else 'False'
 
-    def __str__(self):
-        return 'true' if self else 'false'
+    __str__ = __repr__
+
+    @classmethod
+    def __xmlparse__(cls, value):
+        if value in ('True', 'true'):
+            return int.__new__(cls, 1)
+        elif value in ('False', 'false'):
+            return int.__new__(cls, 0)
+        else:
+            raise ValueError("Invalid boolean string representation: %s" % value)
+
+    def __xmlbuild__(self):
+        return u'true' if self else u'false'
 
 
 class Byte(int):
