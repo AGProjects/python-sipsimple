@@ -922,6 +922,8 @@ class XMLSimpleElement(XMLElement):
         super(XMLSimpleElement, self)._parse_element(element)
         if element.text is None:
             self.value = None
+        elif hasattr(self._xml_value_type, '__xmlparse__'):
+            self.value = self._xml_value_type.__xmlparse__(element.text)
         else:
             self.value = self._xml_value_type(element.text)
 
@@ -929,6 +931,8 @@ class XMLSimpleElement(XMLElement):
         super(XMLSimpleElement, self)._build_element()
         if self.value is None:
             self.element.text = None
+        elif hasattr(self.value, '__xmlbuild__'):
+            self.element.text = self.value.__xmlbuild__()
         else:
             self.element.text = unicode(self.value)
 
