@@ -10,7 +10,6 @@ __all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WaveP
 import os
 import weakref
 from functools import partial
-from itertools import combinations
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter, ObserverWeakrefProxy
@@ -21,7 +20,7 @@ from zope.interface import Attribute, Interface, implements
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_waitable_green_thread
-from sipsimple.util import TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData, combinations
 
 
 class WavePlayerError(Exception): pass
