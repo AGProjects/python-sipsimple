@@ -6,10 +6,11 @@
 
 
 __all__ = ['Boolean', 'Byte', 'UnsignedByte', 'Short', 'UnsignedShort', 'Int', 'UnsignedInt', 'Long', 'UnsignedLong',
-           'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'SIPURI', 'XCAPURI']
+           'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'AnyURI', 'SIPURI', 'XCAPURI']
 
 
 import re
+import urllib
 import urlparse
 
 
@@ -129,6 +130,15 @@ class NonPositiveInteger(long):
         if instance > 0:
             raise ValueError("integer number must be a non-positive value")
         return instance
+
+
+class AnyURI(unicode):
+    @classmethod
+    def __xmlparse__(cls, value):
+        return cls.__new__(cls, urllib.unquote(value).decode('utf-8'))
+
+    def __xmlbuild__(self):
+        return urllib.quote(self.encode('utf-8'))
 
 
 class SIPURI(str):

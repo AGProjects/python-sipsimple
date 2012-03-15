@@ -33,6 +33,7 @@ __all__ = ['ParserError',
            'XMLNonPositiveIntegerElement',
            'XMLDecimalElement',
            'XMLDateTimeElement',
+           'XMLAnyURIElement',
            'XMLEmptyElement',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
@@ -54,7 +55,8 @@ from application.python import Null
 from application.python.descriptor import classproperty
 from lxml import etree
 
-from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong, PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger
+from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong
+from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, AnyURI
 from sipsimple.util import Timestamp
 
 
@@ -1034,6 +1036,10 @@ class XMLDecimalElement(XMLSimpleElement):
 
 class XMLDateTimeElement(XMLSimpleElement):
     _xml_value_type = Timestamp
+
+
+class XMLAnyURIElement(XMLSimpleElement):
+    _xml_value_type = AnyURI
 
 
 class XMLEmptyElement(XMLElement):
