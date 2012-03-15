@@ -54,8 +54,7 @@ from application.python.descriptor import classproperty
 from lxml import etree
 
 from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong
-from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, AnyURI
-from sipsimple.util import Timestamp
+from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, DateTime, AnyURI
 
 
 ## Exceptions
@@ -1033,7 +1032,7 @@ class XMLDecimalElement(XMLSimpleElement):
 
 
 class XMLDateTimeElement(XMLSimpleElement):
-    _xml_value_type = Timestamp
+    _xml_value_type = DateTime
 
 
 class XMLAnyURIElement(XMLSimpleElement):

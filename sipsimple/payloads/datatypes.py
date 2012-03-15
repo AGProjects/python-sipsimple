@@ -5,13 +5,15 @@
 """Data types used for simple XML elements and for XML attributes"""
 
 
-__all__ = ['Boolean', 'Byte', 'UnsignedByte', 'Short', 'UnsignedShort', 'Int', 'UnsignedInt', 'Long', 'UnsignedLong',
+__all__ = ['Boolean', 'DateTime', 'Byte', 'UnsignedByte', 'Short', 'UnsignedShort', 'Int', 'UnsignedInt', 'Long', 'UnsignedLong',
            'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'AnyURI', 'SIPURI', 'XCAPURI']
 
 
 import re
 import urllib
 import urlparse
+
+from sipsimple.util import Timestamp
 
 
 class Boolean(int):
@@ -34,6 +36,15 @@ class Boolean(int):
 
     def __xmlbuild__(self):
         return u'true' if self else u'false'
+
+
+class DateTime(Timestamp):
+    @classmethod
+    def __xmlparse__(cls, value):
+        return cls.parse(value)
+
+    def __xmlbuild__(self):
+        return self.format(self)
 
 
 class Byte(int):
