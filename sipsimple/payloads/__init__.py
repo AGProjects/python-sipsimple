@@ -38,9 +38,7 @@ __all__ = ['ParserError',
            'XMLEmptyElementRegistryType',
            'XMLListElement',
            'XMLListRootElement',
-           'XMLStringListElement',
-           'uri_attribute_builder',
-           'uri_attribute_parser']
+           'XMLStringListElement']
 
 
 import os
@@ -1138,14 +1136,5 @@ class XMLStringListElement(XMLListElement):
                 except StopIteration:
                     raise KeyError(item)
         super(XMLStringListElement, self).remove(item)
-
-
-## Useful attribute builders/parser
-
-def uri_attribute_builder(value):
-    return urllib.quote(value.encode('utf-8'))
-
-def uri_attribute_parser(value):
-    return urllib.unquote(value).decode('utf-8')
 
 
