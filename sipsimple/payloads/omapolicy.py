@@ -12,7 +12,8 @@ support condition extensions defined by OMA.
 __all__ = ['OtherIdentity', 'ExternalList', 'AnonymousRequest']
 
 
-from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLElementID, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLElementID
+from sipsimple.payloads.datatypes import AnyURI
 from sipsimple.payloads.policy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesDocument
 
@@ -32,7 +33,7 @@ class Entry(XMLElement):
     _xml_namespace = oma_cp_namespace
     _xml_document = PresRulesDocument
 
-    uri = XMLElementID('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
+    uri = XMLElementID('uri', xmlname='anc', type=AnyURI, required=True, test_equal=True)
 
     def __init__(self, uri):
         XMLElement.__init__(self)

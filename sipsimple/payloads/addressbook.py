@@ -10,7 +10,7 @@ __all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'Ele
 from lxml import etree
 
 from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLAttribute, XMLElementChild
-from sipsimple.payloads import uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads.datatypes import AnyURI
 from sipsimple.payloads.resourcelists import ResourceListsDocument, ListElement
 
 
@@ -59,7 +59,7 @@ class ContactURI(XMLElement):
     _xml_document = ResourceListsDocument
 
     id = XMLElementID('id', type=str, required=True, test_equal=True)
-    uri = XMLAttribute('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    uri = XMLAttribute('uri', type=AnyURI, required=True, test_equal=True)
     type = XMLAttribute('type', type=unicode, required=False, test_equal=True)
 
     def __init__(self, id, uri, type=None):

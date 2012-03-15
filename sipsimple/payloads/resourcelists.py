@@ -21,7 +21,7 @@ from lxml import etree
 from xml.sax.saxutils import quoteattr
 
 from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLLocalizedStringElement, XMLElementID, XMLElementChild, ThisClass
-from sipsimple.payloads import uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads.datatypes import AnyURI
 
 
 namespace = 'urn:ietf:params:xml:ns:resource-lists'
@@ -77,7 +77,7 @@ class Entry(XMLElement):
     _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
-    uri = XMLElementID('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    uri = XMLElementID('uri', type=AnyURI, required=True, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
 
     def __init__(self, uri, display_name=None):
@@ -98,7 +98,7 @@ class EntryRef(XMLElement):
     _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
-    ref = XMLElementID('ref', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    ref = XMLElementID('ref', type=AnyURI, required=True, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
 
     def __init__(self, ref, display_name=None):
@@ -119,7 +119,7 @@ class External(XMLElement):
     _xml_document = ResourceListsDocument
     _xml_children_order = {DisplayName.qname: 0}
 
-    anchor = XMLElementID('anchor', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
+    anchor = XMLElementID('anchor', type=AnyURI, required=True, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
 
     def __init__(self, anchor, display_name=None):

@@ -188,13 +188,13 @@ class XMLDocument(object):
 ## Children descriptors
 
 class XMLAttribute(object):
-    def __init__(self, name, xmlname=None, type=unicode, default=None, parser=None, builder=None, required=False, test_equal=True, onset=None, ondel=None):
+    def __init__(self, name, xmlname=None, type=unicode, default=None, required=False, test_equal=True, onset=None, ondel=None):
         self.name = name
         self.xmlname = xmlname or name
         self.type = type
         self.default = default
-        self.parser = parser or (lambda value: value)
-        self.builder = builder or (lambda value: unicode(value))
+        self.__xmlparse__ = getattr(type, '__xmlparse__', lambda value: value)
+        self.__xmlbuild__ = getattr(type, '__xmlbuild__', unicode)
         self.required = required
         self.test_equal = test_equal
         self.onset = onset
@@ -209,7 +209,7 @@ class XMLAttribute(object):
         except KeyError:
             value = self.default
             if value is not None:
-                obj.element.set(self.xmlname, self.builder(value))
+                obj.element.set(self.xmlname, self.build(value))
             obj_id = id(obj)
             self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
             return value
@@ -222,7 +222,7 @@ class XMLAttribute(object):
         if value == old_value:
             return
         if value is not None:
-            obj.element.set(self.xmlname, self.builder(value))
+            obj.element.set(self.xmlname, self.build(value))
         else:
             obj.element.attrib.pop(self.xmlname, None)
         self.values[obj_id] = (value, weakref.ref(obj, lambda weak_ref: self.values.pop(obj_id)))
@@ -243,10 +243,10 @@ class XMLAttribute(object):
             self.ondel(obj, self)
 
     def parse(self, xmlvalue):
-        return self.parser(xmlvalue)
+        return self.__xmlparse__(xmlvalue)
 
     def build(self, value):
-        return self.builder(value)
+        return self.__xmlbuild__(value)
 
 
 class XMLElementID(XMLAttribute):
