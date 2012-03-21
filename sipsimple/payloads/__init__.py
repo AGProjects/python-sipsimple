@@ -907,7 +907,7 @@ class XMLSimpleElement(XMLElement):
         return self.__dict__['value']
 
     def _set_value(self, value):
-        if value is not None and not isinstance(value, self._xml_value_type):
+        if not isinstance(value, self._xml_value_type):
             value = self._xml_value_type(value)
         if self.__dict__.get('value', Null) == value:
             return
@@ -919,18 +919,15 @@ class XMLSimpleElement(XMLElement):
 
     def _parse_element(self, element):
         super(XMLSimpleElement, self)._parse_element(element)
-        if element.text is None:
-            self.value = None
-        elif hasattr(self._xml_value_type, '__xmlparse__'):
-            self.value = self._xml_value_type.__xmlparse__(element.text)
+        value = element.text or u''
+        if hasattr(self._xml_value_type, '__xmlparse__'):
+            self.value = self._xml_value_type.__xmlparse__(value)
         else:
-            self.value = self._xml_value_type(element.text)
+            self.value = self._xml_value_type(value)
 
     def _build_element(self):
         super(XMLSimpleElement, self)._build_element()
-        if self.value is None:
-            self.element.text = None
-        elif hasattr(self.value, '__xmlbuild__'):
+        if hasattr(self.value, '__xmlbuild__'):
             self.element.text = self.value.__xmlbuild__()
         else:
             self.element.text = unicode(self.value)
