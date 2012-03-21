@@ -33,7 +33,6 @@ class MessageSummary(object):
                 if tmp_header:
                     summary.optional_headers.append(tmp_header)
                     tmp_header = []
-                continue
             else:
                 field, sep, rest = line.partition(':')
                 if not field and not rest:
@@ -43,10 +42,8 @@ class MessageSummary(object):
 
                 if field.lower() == "messages-waiting":
                     summary.messages_waiting = Boolean(rest)
-                    continue
                 elif field.lower() == "message-account":
                     summary.message_account = rest
-                    continue
                 elif field.lower() in MessageSummary.message_context_class:
                     m = re.match("((\d+)\/(\d+))(\ \((\d+)\/(\d+)\))?", rest)
                     if m:
@@ -58,7 +55,6 @@ class MessageSummary(object):
                         summary.summaries[field.lower()] = s
                     else:
                         raise ValidationError("invalid message context class")
-                    continue
                 else:
                     tmp_header.append(line.strip())
         if tmp_header:
