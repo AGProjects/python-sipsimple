@@ -6,16 +6,11 @@ Message summary and Message Waiting Indication handling according to RFC3842
 """
 
 import re
+
 from cStringIO import StringIO
+from application.configuration.datatypes import Boolean
 
 from sipsimple.payloads import ValidationError
-
-
-class BooleanValue(object):
-    def __new__(cls, value):
-        if type(value) is str and value.lower() in ('yes', 'no'):
-            return True if value == 'yes' else False
-        raise ValueError("invalid value for boolean value")
 
 
 class MessageSummary(object):
@@ -47,7 +42,7 @@ class MessageSummary(object):
                 rest = rest.strip()
 
                 if field.lower() == "messages-waiting":
-                    summary.messages_waiting = BooleanValue(rest)
+                    summary.messages_waiting = Boolean(rest)
                     continue
                 elif field.lower() == "message-account":
                     summary.message_account = rest
