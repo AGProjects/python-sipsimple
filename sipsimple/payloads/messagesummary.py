@@ -63,7 +63,7 @@ class MessageSummary(object):
             data += "Message-Account: %s\r\n" % self.message_account
         if self.summaries:
             for k, v in self.summaries.iteritems():
-                data += "%s: %s/%s (%s/%s)\r\n" % (k.capitalize(), v['new_messages'], v['old_messages'], v['new_urgent_messages'], v['old_urgent_messages'])
+                data += "%s: %s/%s (%s/%s)\r\n" % (k.title(), v['new_messages'], v['old_messages'], v['new_urgent_messages'], v['old_urgent_messages'])
         if self.optional_headers:
             data += "\r\n"
             for headers in self.optional_headers:
