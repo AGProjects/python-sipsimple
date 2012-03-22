@@ -14,10 +14,9 @@ __all__ = ['rl_namespace',
            'RLSServices']
 
 
-import urllib
-
-from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLElementChild, XMLElementChoiceChild
+from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAnyURIElement, XMLElementID, XMLElementChild, XMLElementChoiceChild
 from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsDocument
+from sipsimple.payloads.datatypes import AnyURI
 
 
 rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
@@ -70,33 +69,10 @@ class Packages(XMLListElement):
         super(Packages, self).remove(item)
 
 
-class ResourceList(XMLElement):
+class ResourceList(XMLAnyURIElement):
     _xml_tag = 'resource-list'
     _xml_namespace = rls_namespace
     _xml_document = RLSServicesDocument
-
-    def __init__(self, value):
-        XMLElement.__init__(self)
-        self.value = value
-
-    def _get_value(self):
-        return self.__dict__['value']
-
-    def _set_value(self, value):
-        value = unicode(value)
-        if self.__dict__.get('value', None) == value:
-            return
-        self.__dict__['value'] = value
-        self.__dirty__ = True
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
-
-    def _parse_element(self, element):
-        self.value = urllib.unquote(element.text).decode('utf-8')
-
-    def _build_element(self):
-        self.element.text = urllib.quote(self.value.encode('utf-8'))
 
 
 # This is identical to the list element in resourcelists, except for the
@@ -115,7 +91,7 @@ class Service(XMLElement):
                            ResourceList.qname: 0,
                            Packages.qname: 1}
 
-    uri = XMLElementID('uri', type=str, required=True, test_equal=True)
+    uri = XMLElementID('uri', type=AnyURI, required=True, test_equal=True)
     list = XMLElementChoiceChild('list', types=(ResourceList, RLSList), required=True, test_equal=True)
     packages = XMLElementChild('packages', type=Packages, required=False, test_equal=True)
 

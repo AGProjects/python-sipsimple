@@ -18,7 +18,7 @@ __all__ = ['namespace',
            'DialogInfo']
 
 
-from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLListElement, XMLStringElement, XMLNonNegativeIntegerElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
@@ -105,11 +105,10 @@ class DialogState(XMLStringElement):
     event = XMLAttribute('event', type=DialogEventValue, required=False, test_equal=True)
 
 
-class Duration(XMLStringElement):
+class Duration(XMLNonNegativeIntegerElement):
     _xml_tag = 'duration'
     _xml_namespace = namespace
     _xml_document = DialogInfoDocument
-    _xml_value_type = int
 
 
 class Replaces(XMLEmptyElement):

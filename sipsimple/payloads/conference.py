@@ -67,8 +67,8 @@ __all__ = ['namespace',
         'Resources']
 
 
-from sipsimple.payloads import ValidationError, XMLDocument, XMLRootElement, XMLStringElement, XMLElementChild, XMLElement, XMLListElement, XMLAttribute
-from sipsimple.util import Timestamp
+from sipsimple.payloads import ValidationError, XMLDocument, XMLRootElement, XMLStringElement, XMLBooleanElement, XMLDateTimeElement, XMLUnsignedIntElement, XMLAnyURIElement
+from sipsimple.payloads import XMLElementChild, XMLElement, XMLListElement, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:conference-info'
@@ -98,23 +98,10 @@ class Version(str):
         return str.__new__(cls, int(value))
 
 
-class BooleanValue(object):
-    def __new__(cls, value):
-        if type(value) is str and value in ('true', 'false'):
-            return str.__new__(str, value)
-        if type(value) is not bool:
-            raise ValueError("illegal value for boolean type")
-        if value:
-            return str.__new__(str, 'true')
-        else:
-            return str.__new__(str, 'false')
-
-
-class When(XMLStringElement):
+class When(XMLDateTimeElement):
     _xml_tag = 'when'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
-    _xml_value_type = Timestamp
 
 
 class Reason(XMLStringElement):
@@ -145,7 +132,7 @@ class ExecutionType(XMLElement):
         self.by = by
 
 
-class Uri(XMLStringElement):
+class URI(XMLAnyURIElement):
     _xml_tag = 'uri'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
@@ -174,7 +161,7 @@ class UrisTypeEntry(XMLElement):
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
 
-    uri = XMLElementChild('uri', type=Uri, required=True, test_equal=True)
+    uri = XMLElementChild('uri', type=URI, required=True, test_equal=True)
     display_text = XMLElementChild('display_text', type=DisplayText, required=False, test_equal=True)
     purpose = XMLElementChild('purpose', type=UrisTypePurpose, required=False, test_equal=True)
     modified = XMLElementChild('modified', type=UrisTypeModified, required=False, test_equal=True)
@@ -258,11 +245,10 @@ class ServiceUris(XMLListElement):
         self.update(entries)
 
 
-class MaximumUserCount(XMLStringElement):
+class MaximumUserCount(XMLUnsignedIntElement):
     _xml_tag = 'maximum-user-count'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
-    _xml_value_type = int
 
 
 class MediaTypeValue(str):
@@ -387,25 +373,22 @@ class HostInfo(XMLElement):
         self.uris = uris
 
 
-class UserCount(XMLStringElement):
+class UserCount(XMLUnsignedIntElement):
     _xml_tag = 'user-count'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
-    _xml_value_type = int
 
 
-class Active(XMLStringElement):
+class Active(XMLBooleanElement):
     _xml_tag = 'active'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
-    _xml_value_type = BooleanValue
 
 
-class Locked(XMLStringElement):
+class Locked(XMLBooleanElement):
     _xml_tag = 'locked'
     _xml_namespace = namespace
     _xml_document = ConferenceDocument
-    _xml_value_type = BooleanValue
 
 
 class ConferenceState(XMLElement):

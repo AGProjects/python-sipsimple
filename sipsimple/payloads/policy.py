@@ -28,10 +28,7 @@ __all__ = ['namespace',
            'RuleDisplayName']
 
 
-import datetime
-
-from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLLocalizedStringElement
-from sipsimple.util import Timestamp
+from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLLocalizedStringElement, XMLDateTimeElement
 
 
 namespace = 'urn:ietf:params:xml:ns:common-policy'
@@ -171,47 +168,13 @@ class Sphere(XMLElement):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
 
-class ValidityElement(XMLElement):
-    def __init__(self, value):
-        XMLElement.__init__(self)
-        self.value = value
-
-    def __eq__(self, other):
-        if isinstance(other, ValidityElement):
-            return self is other or self.value == other.value
-        else:
-            return NotImplemented
-
-    def _get_value(self):
-        return self.__dict__['value']
-
-    def _set_value(self, value):
-        if isinstance(value, (datetime.datetime, str)):
-            value = Timestamp(value)
-        if value is not None and not isinstance(value, Timestamp):
-            raise TypeError("Validity element can only be a Timestamp, datetime, string or None")
-        if self.__dict__.get('value', None) == value:
-            return
-        self.__dict__['value'] = value
-        self.__dirty__ = True
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
-
-    def _parse_element(self, element):
-        self.value = element.text
-
-    def _build_element(self):
-        self.element.text = str(self.value) if self.value is not None else None
-
-
-class ValidFrom(ValidityElement):
+class ValidFrom(XMLDateTimeElement):
     _xml_tag = 'from'
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument
 
 
-class ValidUntil(ValidityElement):
+class ValidUntil(XMLDateTimeElement):
     _xml_tag = 'until'
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument

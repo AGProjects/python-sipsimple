@@ -43,8 +43,7 @@ from lxml import etree
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLLocalizedStringElement, XMLStringListElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteMap, NoteList, Service, Person, Device
-from sipsimple.payloads.datatypes import UnsignedLong
-from sipsimple.util import Timestamp
+from sipsimple.payloads.datatypes import UnsignedLong, DateTime
 
 
 rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
@@ -156,8 +155,8 @@ class Activities(XMLStringListElement, PersonExtension):
     _xml_item_extension_type = ActivityElement
 
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
 
     _note_map = NoteMap()
 
@@ -233,8 +232,8 @@ class Mood(XMLStringListElement, PersonExtension):
     _xml_item_extension_type = MoodElement
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     
     _note_map = NoteMap()
     
@@ -311,8 +310,8 @@ class PlaceIs(XMLElement, PersonExtension):
                            TextPlaceInformation.qname: 3}
 
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     audio = XMLElementChild('audio', type=AudioPlaceInformation, required=False, test_equal=True)
     video = XMLElementChild('video', type=VideoPlaceInformation, required=False, test_equal=True)
     text = XMLElementChild('text', type=TextPlaceInformation, required=False, test_equal=True)
@@ -352,8 +351,8 @@ class PlaceType(XMLElement, PersonExtension):
     _xml_children_order = {RPIDNote.qname: 0}
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     value = XMLStringChoiceChild('value', other_type=RPIDOther, extension_type=PlaceTypeElement)
 
     _note_map = NoteMap()
@@ -442,8 +441,8 @@ class Privacy(XMLElement, PersonExtension):
                            VideoPrivacy.qname: 3}
 
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
 
     audio = XMLElementChild('audio', type=AudioPrivacy, required=False, test_equal=True)
     text = XMLElementChild('text', type=TextPrivacy, required=False, test_equal=True)
@@ -579,8 +578,8 @@ class Sphere(XMLElement, PersonExtension):
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     value = XMLStringChoiceChild('value', registry=SphereRegistry, extension_type=SphereElement)
 
     def __init__(self, value=None, id=None, since=None, until=None):
@@ -602,8 +601,8 @@ class StatusIcon(XMLStringElement, ServiceExtension, PersonExtension):
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     
     def __init__(self, value=None, id=None, since=None, until=None):
         XMLStringElement.__init__(self, value)
@@ -621,13 +620,13 @@ class TimeOffset(XMLStringElement, PersonExtension):
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
+    until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     description = XMLAttribute('description', type=str, required=False, test_equal=True)
     
     def __init__(self, value=None, id=None, since=None, until=None, description=None):
         if value is None:
-            value = Timestamp.utc_offset()
+            value = DateTime.utc_offset()
         XMLStringElement.__init__(self, str(value))
         self.id = id
         self.since = since
@@ -647,7 +646,7 @@ class UserInput(XMLStringElement, ServiceExtension, PersonExtension, DeviceExten
     _xml_value_type = UserInputValue
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
-    last_input = XMLAttribute('last_input', xmlname='last-input', type=Timestamp, required=False, test_equal=True)
+    last_input = XMLAttribute('last_input', xmlname='last-input', type=DateTime, required=False, test_equal=True)
     idle_threshold = XMLAttribute('idle_threshold', xmlname='idle-threshold', type=UnsignedLong, required=False, test_equal=True)
     
     def __init__(self, value='active', id=None, last_input=None, idle_threshold=None):

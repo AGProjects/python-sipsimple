@@ -7,8 +7,7 @@
 __all__ = ['namespace', 'IsComposingDocument', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
 
 
-from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XMLElementChild
-from sipsimple.util import Timestamp
+from sipsimple.payloads import XMLDocument, XMLRootElement, XMLStringElement, XMLPositiveIntegerElement, XMLDateTimeElement, XMLElementChild
 
 
 namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
@@ -28,14 +27,6 @@ class StateValue(str):
         return str.__new__(cls, value)
 
 
-class RefreshValue(int):
-    def __new__(cls, value):
-        value = int.__new__(cls, value)
-        if value <= 0:
-            raise ValueError("illegal value form refresh element")
-        return value
-
-
 # Elements
 class State(XMLStringElement):
     _xml_tag = 'state'
@@ -44,11 +35,10 @@ class State(XMLStringElement):
     _xml_value_type = StateValue
 
 
-class LastActive(XMLStringElement):
+class LastActive(XMLDateTimeElement):
     _xml_tag = 'lastactive'
     _xml_namespace = namespace
     _xml_document = IsComposingDocument
-    _xml_value_type = Timestamp
 
 
 class ContentType(XMLStringElement):
@@ -57,11 +47,10 @@ class ContentType(XMLStringElement):
     _xml_document = IsComposingDocument
 
 
-class Refresh(XMLStringElement):
+class Refresh(XMLPositiveIntegerElement):
     _xml_tag = 'refresh'
     _xml_namespace = namespace
     _xml_document = IsComposingDocument
-    _xml_value_type = RefreshValue
 
 
 class IsComposingMessage(XMLRootElement):

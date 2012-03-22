@@ -24,11 +24,9 @@ __all__ = ['pidf_namespace',
            'PIDF']
 
 
-import datetime
 import weakref
 
-from sipsimple import util
-from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLStringElement, XMLLocalizedStringElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAttribute, XMLElementID, XMLElementChild
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -59,46 +57,6 @@ class BasicStatusValue(str):
 
 
 ## General elements
-
-class Timestamp(XMLElement):
-    _xml_tag = 'timestamp'
-    _xml_namespace = pidf_namespace
-    _xml_document = PIDFDocument
-
-    def __init__(self, value=None):
-        XMLElement.__init__(self)
-        self.value = value
-
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.value)
-
-    def __str__(self):
-        return str(self.value)
-
-    def _get_value(self):
-        return self.__dict__['value']
-
-    def _set_value(self, value):
-        if value is None:
-            value = datetime.datetime.now()
-        elif isinstance(value, basestring):
-            value = util.Timestamp.parse(value)
-        elif isinstance(value, Timestamp):
-            value = value.value
-        if self.__dict__.get('value', None) == value:
-            return
-        self.__dict__['value'] = value
-        self.__dirty__ = True
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
-
-    def _parse_element(self, element):
-        self.value = element.text
-
-    def _build_element(self):
-        self.element.text = util.Timestamp.format(self.value)
-
 
 class Note(unicode):
     def __new__(cls, value, lang=None):
@@ -275,7 +233,7 @@ class Contact(XMLStringElement):
     priority = XMLAttribute('priority', type=float, required=False, test_equal=False)
 
 
-class ServiceTimestamp(Timestamp):
+class ServiceTimestamp(XMLDateTimeElement):
     _xml_tag = 'timestamp'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
@@ -326,7 +284,7 @@ class Service(XMLElement):
         self.notes._build_element()
 
 
-class DeviceTimestamp(Timestamp):
+class DeviceTimestamp(XMLDateTimeElement):
     _xml_tag = 'timestamp'
     _xml_namespace = dm_namespace
     _xml_document = PIDFDocument
@@ -371,7 +329,7 @@ class Device(XMLElement):
         self.notes._build_element()
 
 
-class PersonTimestamp(Timestamp):
+class PersonTimestamp(XMLDateTimeElement):
     _xml_tag = 'timestamp'
     _xml_namespace = dm_namespace
     _xml_document = PIDFDocument

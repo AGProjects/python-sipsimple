@@ -12,7 +12,7 @@ __all__ = ['namespace',
            'WatcherInfo']
 
 
-from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import XMLDocument, XMLAnyURIElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
 from sipsimple.payloads.datatypes import UnsignedLong, SIPURI
 
 
@@ -53,7 +53,7 @@ class WatcherInfoState(str):
 
 ## XMLElements
 
-class Watcher(XMLElement):
+class Watcher(XMLAnyURIElement):
     """
     Definition for a watcher in a watcherinfo document
 
@@ -68,9 +68,11 @@ class Watcher(XMLElement):
 
     Can be transformed to a string with the format DISPLAY_NAME <SIP_URI>.
     """
+
     _xml_tag = 'watcher'
     _xml_namespace = namespace
     _xml_document = WatcherInfoDocument
+    _xml_value_type = SIPURI
 
     id           = XMLElementID('id', type=str, required=True, test_equal=True)
     status       = XMLAttribute('status', type=WatcherStatus, required=True, test_equal=True)
@@ -79,8 +81,10 @@ class Watcher(XMLElement):
     expiration   = XMLAttribute('expiration', type=UnsignedLong, required=False, test_equal=False)
     duration     = XMLAttribute('duration', xmlname='duration-subscribed', type=UnsignedLong, required=False, test_equal=False)
 
+    sipuri = XMLAnyURIElement.value
+
     def __init__(self, sipuri, id, status, event, display_name=None, expiration=None, duration=None):
-        XMLElement.__init__(self)
+        XMLAnyURIElement.__init__(self)
         self.sipuri = sipuri
         self.id = id
         self.status = status
@@ -93,27 +97,7 @@ class Watcher(XMLElement):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.sipuri, self.id, self.status, self.event, self.display_name, self.expiration, self.duration)
 
     def __str__(self):
-        return self.display_name and '"%s" <%s>' % (self.display_name, self.sipuri) or self.sipuri
-
-    def _get_sipuri(self):
-        return self.__dict__['sipuri']
-
-    def _set_sipuri(self, value):
-        if not isinstance(value, SIPURI):
-            value = SIPURI(value)
-        self.__dict__['sipuri'] = value
-
-    sipuri = property(_get_sipuri, _set_sipuri)
-    del _get_sipuri, _set_sipuri
-
-    def _parse_element(self, element):
-        try:
-            self.sipuri = element.text
-        except ValueError, e:
-            raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
-
-    def _build_element(self):
-        self.element.text = self.sipuri
+        return '"%s" <%s>' % (self.display_name, self.sipuri) if self.display_name else self.sipuri
 
 
 class WatcherList(XMLListElement):

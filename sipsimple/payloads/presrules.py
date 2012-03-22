@@ -17,7 +17,6 @@ __all__ = ['cp_namespace',
            'ServiceURI',
            'ServiceURIScheme',
            'ProvideServices',
-           'BooleanProvideElement',
            'ProvideActivities',
            'ProvideClass',
            'ProvideDeviceID',
@@ -35,7 +34,7 @@ __all__ = ['cp_namespace',
            'PresRules']
 
 
-from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute
+from sipsimple.payloads import XMLListElement, XMLStringElement, XMLBooleanElement, XMLEmptyElement, XMLAttribute
 from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyDocument, ActionElement, TransformationElement, RuleSet
 from sipsimple.util import All
 
@@ -254,88 +253,67 @@ class ProvideServices(XMLListElement, TransformationElement):
 
 ## Transformation elements
 
-class BooleanProvideElement(XMLElement):
-    def __init__(self, value=True):
-        XMLElement.__init__(self)
-        self.value = value
-
-    def __nonzero__(self):
-        return self.value
-
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.value)
-
-    def _parse_element(self, element):
-        if element.text.lower() == 'true':
-            self.value = True
-        else:
-            self.value = False
-
-    def _build_element(self):
-        self.element.text = str(self.value).lower()
-
-
-class ProvideActivities(BooleanProvideElement, TransformationElement):
+class ProvideActivities(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-activities'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideClass(BooleanProvideElement, TransformationElement):
+class ProvideClass(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-class'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideDeviceID(BooleanProvideElement, TransformationElement):
+class ProvideDeviceID(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-deviceID'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideMood(BooleanProvideElement, TransformationElement):
+class ProvideMood(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-mood'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePlaceIs(BooleanProvideElement, TransformationElement):
+class ProvidePlaceIs(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-place-is'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePlaceType(BooleanProvideElement, TransformationElement):
+class ProvidePlaceType(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-place-type'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePrivacy(BooleanProvideElement, TransformationElement):
+class ProvidePrivacy(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-privacy'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideRelationship(BooleanProvideElement, TransformationElement):
+class ProvideRelationship(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-relationship'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideStatusIcon(BooleanProvideElement, TransformationElement):
+class ProvideStatusIcon(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-status-icon'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideSphere(BooleanProvideElement, TransformationElement):
+class ProvideSphere(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-sphere'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideTimeOffset(BooleanProvideElement, TransformationElement):
+class ProvideTimeOffset(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-time-offset'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
@@ -348,7 +326,7 @@ class ProvideUserInput(XMLStringElement, TransformationElement):
     _xml_value_type = ProvideUserInputValue
 
 
-class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
+class ProvideUnknownAttribute(XMLBooleanElement, TransformationElement):
     _xml_tag = 'provide-unknown-attribute'
     _xml_namespace = pr_namespace
     _xml_document = PresRulesDocument
@@ -357,7 +335,7 @@ class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
     ns = XMLAttribute('ns', type=str, required=True, test_equal=True)
 
     def __init__(self, ns, name, value):
-        BooleanProvideElement.__init__(self, value)
+        XMLBooleanElement.__init__(self, value)
         self.ns = ns
         self.name = name
 

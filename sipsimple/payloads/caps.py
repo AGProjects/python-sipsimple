@@ -59,7 +59,8 @@ __all__ = ['caps_namespace',
            'MobilityExtension']
 
 
-from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLStringListElement, XMLAttribute, XMLEmptyElementRegistryType
+from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLBooleanElement, XMLElement, XMLEmptyElement
+from sipsimple.payloads import XMLElementChild, XMLListElement, XMLStringListElement, XMLAttribute, XMLEmptyElementRegistryType
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, Service, DeviceExtension, Device
 
 
@@ -78,18 +79,6 @@ class DeviceCapabilitiesExtension(object): pass
 class ServiceCapabilitiesExtension(object): pass
 
 
-class BooleanValue(object):
-    def __new__(cls, value):
-        if type(value) is str and value in ('true', 'false'):
-            return str.__new__(str, value)
-        if type(value) is not bool:
-            raise ValueError("illegal value for boolean type")
-        if value:
-            return str.__new__(str, 'true')
-        else:
-            return str.__new__(str, 'false')
-
-
 class ContentTypeValue(str):
     def __new__(cls, value):
         if len(value.split('/')) != 2:
@@ -97,53 +86,52 @@ class ContentTypeValue(str):
         return str.__new__(cls, value)
 
 
-class Audio(XMLStringElement):
+class Audio(XMLBooleanElement):
     _xml_tag = 'audio'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Application(XMLStringElement):
+class Application(XMLBooleanElement):
     _xml_tag = 'application'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Data(XMLStringElement):
+class Data(XMLBooleanElement):
     _xml_tag = 'data'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Control(XMLStringElement):
+class Control(XMLBooleanElement):
     _xml_tag = 'control'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Video(XMLStringElement):
+class Video(XMLBooleanElement):
     _xml_tag = 'video'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Text(XMLStringElement):
+class Text(XMLBooleanElement):
     _xml_tag = 'text'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
-class Message(XMLStringElement):
+class Message(XMLBooleanElement):
     _xml_tag = 'message'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
+
+
+class Automata(XMLBooleanElement):
+    _xml_tag = 'automata'
+    _xml_namespace = caps_namespace
+    _xml_document = PIDFDocument
 
 
 class Type(XMLStringElement):
@@ -151,13 +139,6 @@ class Type(XMLStringElement):
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
     _xml_value_type = ContentTypeValue
-
-
-class Automata(XMLStringElement):
-    _xml_tag = 'automata'
-    _xml_namespace = caps_namespace
-    _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
 class ClassRegistry(object):
@@ -650,11 +631,10 @@ class Description(XMLLocalizedStringElement):
     _xml_document = PIDFDocument
 
 
-class IsFocus(XMLStringElement):
+class IsFocus(XMLBooleanElement):
     _xml_tag = 'isfocus'
     _xml_namespace = caps_namespace
     _xml_document = PIDFDocument
-    _xml_value_type = BooleanValue
 
 
 class ServiceCapabilities(XMLListElement, ServiceExtension):
