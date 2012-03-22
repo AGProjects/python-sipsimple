@@ -1032,7 +1032,7 @@ class XMLDateTimeElement(XMLSimpleElement):
     _xml_value_type = DateTime
 
 
-class XMLAnyURIElement(XMLSimpleElement):
+class XMLAnyURIElement(XMLStringElement):
     _xml_value_type = AnyURI
 
 
