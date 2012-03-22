@@ -17,11 +17,11 @@ class MessageSummary(object):
 
     message_context_class = ["voice-message", "fax-message", "pager-message", "multimedia-message", "text-message", "none"]
 
-    def __init__(self, messages_waiting=False, message_account=None, summaries={}, optional_headers=[]):
+    def __init__(self, messages_waiting=False, message_account=None, summaries=None, optional_headers=None):
         self.messages_waiting = messages_waiting
         self.message_account = message_account
-        self.summaries = summaries
-        self.optional_headers = optional_headers
+        self.summaries = summaries if summaries is not None else {}
+        self.optional_headers = optional_headers if optional_headers is not None else []
 
     @staticmethod
     def parse(content):
