@@ -27,12 +27,12 @@ class MessageSummary(object):
     def parse(content):
         message = StringIO(content)
         summary = MessageSummary()
-        tmp_header = []
+        tmp_headers = []
         for line in message:
             if line == '\r\n':
-                if tmp_header:
-                    summary.optional_headers.append(tmp_header)
-                    tmp_header = []
+                if tmp_headers:
+                    summary.optional_headers.append(tmp_headers)
+                    tmp_headers = []
             else:
                 field, sep, rest = line.partition(':')
                 if not field and not rest:
@@ -56,10 +56,10 @@ class MessageSummary(object):
                     else:
                         raise ValidationError("invalid message context class")
                 else:
-                    tmp_header.append(line.strip())
-        if tmp_header:
-            summary.optional_headers.append(tmp_header)
-            tmp_header = []
+                    tmp_headers.append(line.strip())
+        if tmp_headers:
+            summary.optional_headers.append(tmp_headers)
+            tmp_headers = []
         return summary
 
     def to_string(self):
