@@ -45,14 +45,9 @@ class MessageSummary(object):
                 elif field.lower() == "message-account":
                     summary.message_account = rest
                 elif field.lower() in MessageSummary.message_context_class:
-                    m = re.match("((\d+)\/(\d+))(\ \((\d+)\/(\d+)\))?", rest)
+                    m = re.match("((\d+)/(\d+))( \((\d+)/(\d+)\))?", rest)
                     if m:
-                        s = {}
-                        s['new_messages'] = m.groups()[1]
-                        s['old_messages'] = m.groups()[2]
-                        s['new_urgent_messages'] = m.groups()[4] or 0
-                        s['old_urgent_messages'] = m.groups()[5] or 0
-                        summary.summaries[field.lower()] = s
+                        summary.summaries[field.lower()] = dict(new_messages=m.groups()[1], old_messages=m.groups()[2], new_urgent_messages=m.groups()[4] or 0, old_urgent_messages=m.groups()[5] or 0)
                     else:
                         raise ValidationError("invalid message context class")
                 else:
@@ -63,8 +58,7 @@ class MessageSummary(object):
         return summary
 
     def to_string(self):
-        data = ""
-        data += "Messages-Waiting: %s\r\n" % 'yes' if self.messages_waiting else 'no'
+        data = "Messages-Waiting: %s\r\n" % 'yes' if self.messages_waiting else 'no'
         if self.message_account:
             data += "Message-Account: %s\r\n" % self.message_account
         if self.summaries:
