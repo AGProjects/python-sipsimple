@@ -152,19 +152,19 @@ class AnyURI(unicode):
         return urllib.quote(self.encode('utf-8'))
 
 
-class SIPURI(str):
-    path_regex = re.compile(r'^((?P<username>[^:@]+)(:(?P<password>[^@]+))?@)?(?P<domain>.*)$')
+class SIPURI(AnyURI):
+    _path_regex = re.compile(r'^((?P<username>[^:@]+)(:(?P<password>[^@]+))?@)?(?P<domain>.*)$')
 
     def __new__(cls, value):
-        obj = str.__new__(cls, value)
-        uri = urlparse.urlparse(obj)
+        instance = AnyURI.__new__(cls, value)
+        uri = urlparse.urlparse(instance)
 
         if uri.scheme not in ('sip', 'sips'):
             raise ValueError("illegal scheme for SIP URI: %s" % uri.scheme)
 
-        obj.scheme = uri.scheme
-        obj.__dict__.update(cls.path_regex.match(uri.path).groupdict())
-        obj.params = {}
+        instance.scheme = uri.scheme
+        instance.__dict__.update(cls._path_regex.match(uri.path).groupdict())
+        instance.params = {}
 
         if uri.params:
             params = (param.split('=', 1) for param in uri.params.split(';'))
@@ -175,54 +175,54 @@ class SIPURI(str):
                     param.append(None)
                 elif '=' in param[1]:
                     raise ValueError("illegal SIP URI parameter value: %s" % param[1])
-                obj.params[param[0]] = param[1]
+                instance.params[param[0]] = param[1]
 
         if uri.query:
             try:
-                obj.headers = dict(header.split('=') for header in uri.query.split('&'))
+                instance.headers = dict(header.split('=') for header in uri.query.split('&'))
             except ValueError:
                 raise ValueError("illegal SIP URI headers: %s" % uri.query)
             else:
-                for name, value in obj.headers.iteritems():
+                for name, value in instance.headers.iteritems():
                     if not name or not value:
                         raise ValueError("illegal URI header: %s=%s" % (name, value))
         else:
-            obj.headers = {}
+            instance.headers = {}
 
-        return obj
+        return instance
 
 
-class XCAPURI(str):
-    path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)?(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
+class XCAPURI(AnyURI):
+    _path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)?(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
 
     def __new__(cls, value):
-        obj = str.__new__(cls, value)
-        uri = urlparse.urlparse(obj)
+        instance = AnyURI.__new__(cls, value)
+        uri = urlparse.urlparse(instance)
 
         if uri.scheme not in ('http', 'https', ''):
             raise ValueError("illegal scheme for XCAP URI: %s" % uri.scheme)
 
-        obj.scheme = uri.scheme
-        obj.username = uri.username
-        obj.password = uri.password
-        obj.hostname = uri.hostname
-        obj.port = uri.port
-        obj.__dict__.update(cls.path_regex.match(uri.path).groupdict())
-        obj.globaltree = obj.globaltree is not None
+        instance.scheme = uri.scheme
+        instance.username = uri.username
+        instance.password = uri.password
+        instance.hostname = uri.hostname
+        instance.port = uri.port
+        instance.__dict__.update(cls._path_regex.match(uri.path).groupdict())
+        instance.globaltree = instance.globaltree is not None
 
         if uri.query:
             try:
-                obj.query = dict(header.split('=') for header in uri.query.split('&'))
+                instance.query = dict(header.split('=') for header in uri.query.split('&'))
             except ValueError:
                 raise ValueError("illegal XCAP URI query string: %s" % uri.query)
             else:
-                for name, value in obj.query.iteritems():
+                for name, value in instance.query.iteritems():
                     if not name or not value:
                         raise ValueError("illegal XCAP URI query parameter: %s=%s" % (name, value))
         else:
-            obj.query = {}
+            instance.query = {}
 
-        return obj
+        return instance
 
     relative = property(lambda self: self.scheme == '')
 
