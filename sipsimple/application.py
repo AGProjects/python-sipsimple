@@ -12,6 +12,7 @@ from __future__ import absolute_import, with_statement
 __all__ = ["SIPApplication"]
 
 from threading import RLock, Thread
+from uuid import uuid4
 
 from application.notification import IObserver, NotificationCenter
 from application.python import Null
@@ -236,6 +237,11 @@ class SIPApplication(object):
         settings.audio.output_device = voice_mixer.output_device
         settings.audio.alert_device = alert_mixer.output_device
         settings.save()
+
+        # initialize instance id
+        if not settings.instance_id:
+            settings.instance_id = str(uuid4().get_urn())
+            settings.save()
 
         # initialize middleware components
         dns_manager.start()

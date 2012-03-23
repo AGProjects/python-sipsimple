@@ -8,7 +8,7 @@ multiple SIP accounts and their properties.
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ['Account', 'BonjourAccount', 'AccountManager']
+__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'NoGRUU', 'PublicGRUU', 'TemporaryGRUU', 'PublicGRUUIfAvailable', 'TemporaryGRUUIfAvailable']
 
 import random
 import re
@@ -48,30 +48,66 @@ from sipsimple.threading.green import Command, InterruptCommand, call_in_green_t
 from sipsimple.util import Route, TimestampedNotificationData, user_info
 
 
+class ContactURIType(type):
+    __types__ = set()
+
+    def __init__(cls, name, bases, dct):
+        super(ContactURIType, cls).__init__(name, bases, dct)
+        cls.__types__.add(cls)
+
+    def __repr__(cls):
+        return cls.__name__
+
+NoGRUU = ContactURIType('NoGRUU', (), {})
+PublicGRUU = ContactURIType('PublicGRUU', (), {})
+TemporaryGRUU = ContactURIType('TemporaryGRUU', (), {})
+PublicGRUUIfAvailable = ContactURIType('PublicGRUUIfAvailable', (), {})
+TemporaryGRUUIfAvailable = ContactURIType('TemporaryGRUUIfAvailable', (), {})
+
 class ContactURIFactory(object):
     def __init__(self, username=None):
         self.username = username or ''.join(random.sample(string.lowercase, 8))
+        self.public_gruu = None
+        self.temporary_gruu = None
 
     def __repr__(self):
         return '%s(username=%r)' % (self.__class__.__name__, self.username)
 
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            transport = key
-            ip = host.default_ip
-        elif isinstance(key, Route):
-            route = key
-            transport = route.transport
-            ip = host.outgoing_ip_for(route.address)
+        if isinstance(key, tuple):
+            contact_type, key = key
+            if contact_type not in ContactURIType.__types__:
+                raise KeyError("unsupported contact type: %r" % contact_type)
         else:
+            contact_type = NoGRUU
+        if not isinstance(key, (basestring, Route)):
             raise KeyError("key must be a transport name or Route instance")
-        if ip is None:
-            raise KeyError("could not get outgoing IP address")
-        port = getattr(Engine(), '%s_port' % transport, None)
-        if port is None:
-            raise KeyError("unsupported transport: %s" % transport)
+
+        transport = key if isinstance(key, basestring) else key.transport
         parameters = {} if transport=='udp' else {'transport': transport}
-        return SIPURI(user=self.username, host=ip, port=port, parameters=parameters)
+
+        if contact_type is PublicGRUU:
+            if self.public_gruu is None:
+                raise KeyError("could not get Public GRUU")
+            uri = SIPURI.new(self.public_gruu)
+        elif contact_type is TemporaryGRUU:
+            if self.temporary_gruu is None:
+                raise KeyError("could not get Temporary GRUU")
+            uri = SIPURI.new(self.temporary_gruu)
+        elif contact_type is PublicGRUUIfAvailable and self.public_gruu is not None:
+            uri = SIPURI.new(self.public_gruu)
+        elif contact_type is TemporaryGRUUIfAvailable and self.temporary_gruu is not None:
+            uri = SIPURI.new(self.temporary_gruu)
+        else:
+            ip = host.default_ip if isinstance(key, basestring) else host.outgoing_ip_for(key.address)
+            if ip is None:
+                raise KeyError("could not get outgoing IP address")
+            port = getattr(Engine(), '%s_port' % transport, None)
+            if port is None:
+                raise KeyError("unsupported transport: %s" % transport)
+            uri = SIPURI(user=self.username, host=ip, port=port)
+        uri.parameters.update(parameters)
+        return uri
 
 
 class SIPRegistrationDidFail(Exception):
@@ -206,10 +242,11 @@ class AccountRegistrar(object):
                 remaining_time = register_timeout-time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = self.account.contact[route]
+                        contact_uri = self.account.contact[NoGRUU, route]
                     except KeyError:
                         continue
                     contact_header = ContactHeader(contact_uri)
+                    contact_header.parameters['+sip.instance'] = '"<%s>"' % settings.instance_id
                     route_header = RouteHeader(route.get_uri())
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
                     try:
@@ -237,6 +274,23 @@ class AccountRegistrar(object):
                                                                                                registration=self._registration,
                                                                                                registrar=route))
                         self.registered = True
+                        # Save GRUU
+                        try:
+                            header = (header for header in notification.data.contact_header_list if header.parameters.get('+sip.instance', '').strip('"') == settings.instance_id).next()
+                        except StopIteration:
+                            self.account.contact.public_gruu = None
+                            self.account.contact.temporary_gruu = None
+                        else:
+                            public_gruu = header.parameters.get('pub-gruu', None)
+                            temporary_gruu = header.parameters.get('temp-gruu', None)
+                            try:
+                                self.account.contact.public_gruu = SIPURI.parse(public_gruu.strip('"'))
+                            except (AttributeError, SIPCoreError):
+                                self.account.contact.public_gruu = None
+                            try:
+                                self.account.contact.temporary_gruu = SIPURI.parse(temporary_gruu.strip('"'))
+                            except (AttributeError, SIPCoreError):
+                                self.account.contact.temporary_gruu = None
                         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self.account,
                                                               data=TimestampedNotificationData(contact_header=notification.data.contact_header,
                                                                                                contact_header_list=notification.data.contact_header_list,
@@ -258,6 +312,8 @@ class AccountRegistrar(object):
             # Since we weren't able to register, recreate a registration next time
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None
+            self.account.contact.public_gruu = None
+            self.account.contact.temporary_gruu = None
 
     def _CH_unregister(self, command):
         notification_center = NotificationCenter()
@@ -288,6 +344,8 @@ class AccountRegistrar(object):
                                                           data=TimestampedNotificationData(registration=self._registration))
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None
+            self.account.contact.public_gruu = None
+            self.account.contact.temporary_gruu = None
         command.signal()
 
     def _CH_reload_settings(self, command):
@@ -439,7 +497,7 @@ class AccountMWISubscriber(object):
                 remaining_time = timeout - time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = self.account.contact[route]
+                        contact_uri = self.account.contact[PublicGRUUIfAvailable, route]
                     except KeyError:
                         continue
                     if self.account.message_summary.voicemail_uri is not None:
@@ -794,7 +852,7 @@ class BonjourServices(object):
                     notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=TimestampedNotificationData(neighbour=service_description))
                 elif supported_transport:
                     try:
-                        contact_uri = self.account.contact[transport]
+                        contact_uri = self.account.contact[NoGRUU, transport]
                     except KeyError:
                         return
                     if uri != contact_uri:
@@ -860,7 +918,7 @@ class BonjourServices(object):
         for transport in missing_transports:
             notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData(transport=transport))
             try:
-                contact = self.account.contact[transport]
+                contact = self.account.contact[NoGRUU, transport]
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
                 file = bonjour.DNSServiceRegister(name=str(contact),
                                                   regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
@@ -897,7 +955,7 @@ class BonjourServices(object):
         update_failure = False
         for file in (f for f in self._files if isinstance(f, BonjourRegistrationFile)):
             try:
-                contact = self.account.contact[file.transport]
+                contact = self.account.contact[NoGRUU, file.transport]
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
                 bonjour.DNSServiceUpdateRecord(file.file, None, flags=0, rdata=bonjour.TXTRecord(items=txtdata), ttl=0)
             except (bonjour.BonjourError, KeyError), e:

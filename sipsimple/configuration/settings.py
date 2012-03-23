@@ -72,6 +72,7 @@ class SIPSimpleSettings(SettingsObject):
 
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
+    instance_id = Setting(type=str, default='')
 
     audio = AudioSettings
     chat = ChatSettings

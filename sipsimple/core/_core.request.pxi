@@ -82,6 +82,7 @@ cdef class Request:
         cdef pj_str_t *call_id_pj = NULL
         cdef object content_type_spl
         cdef pjsip_hdr *hdr
+        cdef pjsip_contact_hdr *contact_hdr
         cdef pjsip_cid_hdr *cid_hdr
         cdef pjsip_cseq_hdr *cseq_hdr
         cdef int status
@@ -116,6 +117,10 @@ cdef class Request:
         self.route_header.uri.parameters.dict["hide"] = None # always hide Route header
         if contact_header is not None:
             self.contact_header = FrozenContactHeader.new(contact_header)
+            contact_parameters = contact_header.parameters.copy()
+            contact_parameters.pop("q", None)
+            contact_parameters.pop("expires", None)
+            contact_header.parameters = {}
             contact_header_str = PJSTR(contact_header.body)
             contact_header_pj = &contact_header_str.pj_str
         if call_id is not None:
@@ -146,6 +151,9 @@ cdef class Request:
         while hdr != &self._tdata.msg.hdr:
             if _pj_str_to_str(hdr.name) in header_names:
                 raise ValueError("Cannot override %s header value in extra_headers" % _pj_str_to_str(hdr.name))
+            if hdr.type == PJSIP_H_CONTACT:
+                contact_hdr = <pjsip_contact_hdr *> hdr
+                _dict_to_pjsip_param(contact_parameters, &contact_hdr.other_param, self._tdata.pool)
             if hdr.type == PJSIP_H_CALL_ID:
                 cid_hdr = <pjsip_cid_hdr *> hdr
                 self._call_id = PJSTR(_pj_str_to_str(cid_hdr.id))

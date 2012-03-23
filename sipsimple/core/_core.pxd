@@ -596,6 +596,7 @@ cdef extern from "pjsip.h":
     enum pjsip_hdr_e:
         PJSIP_H_VIA
         PJSIP_H_CALL_ID
+        PJSIP_H_CONTACT
         PJSIP_H_CSEQ
         PJSIP_H_EXPIRES
         PJSIP_H_FROM

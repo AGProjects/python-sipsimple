@@ -31,7 +31,7 @@ from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription,
 from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
-from sipsimple.account import AccountManager, BonjourAccount
+from sipsimple.account import AccountManager, BonjourAccount, PublicGRUU, PublicGRUUIfAvailable
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
@@ -209,7 +209,7 @@ class ReferralHandler(object):
                 remaining_time = timeout - time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = account.contact[route]
+                        contact_uri = account.contact[PublicGRUUIfAvailable, route]
                     except KeyError:
                         continue
                     refer_to_header = ReferToHeader(str(self.participant_uri))
@@ -312,7 +312,7 @@ class ReferralHandler(object):
 
     def _refresh(self):
         try:
-            contact_header = ContactHeader(self.session.account.contact[self.route])
+            contact_header = ContactHeader(self.session.account.contact[PublicGRUUIfAvailable, self.route])
         except KeyError:
             pass
         else:
@@ -487,7 +487,7 @@ class ConferenceHandler(object):
                 remaining_time = timeout - time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = account.contact[route]
+                        contact_uri = account.contact[PublicGRUUIfAvailable, route]
                     except KeyError:
                         continue
                     subscription = Subscription(target_uri, FromHeader(account.uri, account.display_name),
@@ -1049,15 +1049,17 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
             try:
-                contact_uri = self.account.contact[self.route]
-            except KeyError, e:
+                contact_uri = self.account.contact[PublicGRUUIfAvailable, self.route]
+                local_ip = host.outgoing_ip_for(self.route.address)
+                if local_ip is None:
+                    raise ValueError("could not get outgoing IP address")
+            except (KeyError, ValueError), e:
                 for stream in self.proposed_streams:
                     notification_center.remove_observer(self, sender=stream)
                     stream.deactivate()
                     stream.end()
                 self._fail(originator='local', code=480, reason=sip_status_messages[480], error=str(e))
                 return
-            local_ip = contact_uri.host
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
@@ -1297,12 +1299,16 @@ class Session(object):
                     stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
             if stun_addresses:
                 local_sdp.connection.address = stun_addresses[0]
-            if is_focus:
-                contact_header = ContactHeader.new(self._invitation.local_contact_header)
-                contact_header.parameters['isfocus'] = None
-                self._invitation.send_response(200, contact_header=contact_header, sdp=local_sdp)
+            contact_header = ContactHeader.new(self._invitation.local_contact_header)
+            try:
+                local_contact_uri = self.account.contact[PublicGRUU, self._invitation.transport]
+            except KeyError:
+                pass
             else:
-                self._invitation.send_response(200, sdp=local_sdp)
+                contact_header.uri = local_contact_uri
+            if is_focus:
+                contact_header.parameters['isfocus'] = None
+            self._invitation.send_response(200, contact_header=contact_header, sdp=local_sdp)
             notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
             # Local and remote SDPs will be set after the 200 OK is sent
             while True:

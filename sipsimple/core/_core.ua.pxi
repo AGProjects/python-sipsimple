@@ -84,6 +84,7 @@ cdef class PJSIPUA:
         cdef PJSTR message_method = PJSTR("MESSAGE")
         cdef PJSTR refer_method = PJSTR("REFER")
         cdef PJSTR str_norefersub = PJSTR("norefersub")
+        cdef PJSTR str_gruu = PJSTR("gruu")
         self._event_handler = event_handler
         if kwargs["log_level"] < 0 or kwargs["log_level"] > PJ_LOG_MAX_LEVEL:
             raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
@@ -124,6 +125,10 @@ cdef class PJSIPUA:
                                             PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub.pj_str)
         if status != 0:
             raise PJSIPError("Could not add 'norefsub' to Supported header", status)
+        status = pjsip_endpt_add_capability(self._pjsip_endpoint._obj, NULL,
+                                            PJSIP_H_SUPPORTED, NULL, 1, &str_gruu.pj_str)
+        if status != 0:
+            raise PJSIPError("Could not add 'gruu' to Supported header", status)
         self._trace_sip = int(bool(kwargs["trace_sip"]))
         self._ignore_missing_ack = int(bool(kwargs["ignore_missing_ack"]))
         self._trace_module_name = PJSTR("mod-core-sip-trace")
