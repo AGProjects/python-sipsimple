@@ -9,7 +9,7 @@ __all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'Ele
 
 from lxml import etree
 
-from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLElementID, XMLAttribute, XMLElementChild
+from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLBooleanElement, XMLElementID, XMLAttribute, XMLElementChild
 from sipsimple.payloads.datatypes import AnyURI
 from sipsimple.payloads.resourcelists import ResourceListsDocument, ListElement
 
@@ -86,6 +86,60 @@ class ContactURIList(XMLListElement):
         self.update(uris)
 
 
+class PolicyValue(str):
+    def __new__(cls, value):
+        if value not in ('allow', 'block', 'ignore', 'confirm'):
+            raise ValueError("Invalid policy value: %s" % value)
+        return super(PolicyValue, cls).__new__(cls, value)
+
+
+class Policy(XMLStringElement):
+    _xml_tag = 'policy'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+    _xml_value_type = PolicyValue
+
+
+class Subscribe(XMLBooleanElement):
+    _xml_tag = 'subscribe'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+
+
+class DialogHandling(XMLElement):
+    _xml_tag = 'dialog'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+
+    policy    = XMLElementChild('policy',    type=Policy, required=True, test_equal=True)
+    subscribe = XMLElementChild('subscribe', type=Subscribe, required=True, test_equal=True)
+
+    def __init__(self, policy, subscribe):
+        XMLElement.__init__(self)
+        self.policy = policy
+        self.subscribe = subscribe
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.policy, self.subscribe)
+
+
+class PresenceHandling(XMLElement):
+    _xml_tag = 'presence'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+
+    policy    = XMLElementChild('policy',    type=Policy, required=True, test_equal=True)
+    subscribe = XMLElementChild('subscribe', type=Subscribe, required=True, test_equal=True)
+
+    def __init__(self, policy, subscribe):
+        XMLElement.__init__(self)
+        self.policy = policy
+        self.subscribe = subscribe
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.policy, self.subscribe)
+
+
 class Contact(XMLElement, ListElement):
     _xml_tag = 'contact'
     _xml_namespace = namespace
@@ -97,16 +151,20 @@ class Contact(XMLElement, ListElement):
 
     name = XMLElementChild('name', type=Name, required=True, test_equal=True)
     uris = XMLElementChild('uris', type=ContactURIList, required=True, test_equal=True)
+    dialog = XMLElementChild('dialog', type=DialogHandling, required=True, test_equal=True)
+    presence = XMLElementChild('presence', type=PresenceHandling, required=True, test_equal=True)
 
-    def __init__(self, id, group_id, name, uris=[]):
+    def __init__(self, id, group_id, name, uris=[], presence_handling=None, dialog_handling=None):
         XMLElement.__init__(self)
         self.id = id
         self.group_id = group_id
         self.name = name
         self.uris = ContactURIList(uris)
+        self.dialog = dialog_handling or DialogHandling('confirm', False)
+        self.presence = presence_handling or PresenceHandling('confirm', False)
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.group_id, self.name, list(self.uris))
+        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.group_id, self.name, list(self.uris), self.presence, self.dialog)
 
 
 #

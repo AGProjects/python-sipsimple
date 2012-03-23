@@ -16,6 +16,8 @@
     <xs:sequence>
      <xs:element name="name" type="xs:string"/>
      <xs:element name="uris" type="ContactURIList"/>
+     <xs:element name="dialog" type="DialogHandling"/>
+     <xs:element name="presence" type="PresenceHandling"/>
      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="id"       type="xs:ID" use="required"/>
@@ -37,5 +39,28 @@
     <xs:attribute name="uri"  type="xs:anyURI" use="required"/>
     <xs:attribute name="type" type="xs:string"/>
    </xs:complexType>
+
+   <xs:complexType name="DialogHandling">
+    <xs:sequence>
+     <xs:element name="policy" type="Policy"/>
+     <xs:element name="subscribe" type="xs:boolean"/>
+    </xs:sequence>
+   </xs:complexType>
+
+   <xs:complexType name="PresenceHandling">
+    <xs:sequence>
+     <xs:element name="policy" type="Policy"/>
+     <xs:element name="subscribe" type="xs:boolean"/>
+    </xs:sequence>
+   </xs:complexType>
+
+   <xs:simpleType name="Policy">
+    <xs:restriction base="xs:string">
+     <xs:enumeration value="allow"/>
+     <xs:enumeration value="block"/>
+     <xs:enumeration value="ignore"/>
+     <xs:enumeration value="confirm"/>
+    </xs:restriction>
+   </xs:simpleType>
 
 </xs:schema>
