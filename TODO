@@ -8,6 +8,10 @@
 
 + Outbound Presence http://sipsimpleclient.com/ticket/118
 
++ combine account.uri and account.contact into account.uri.aor and
+  account.uri.contact. This will also remove the confusion between
+  account.contact and account.contact_manager
+
 + change settings so they store changes in a thread local container
   which is made public (accessible for all threads) when save is called.
   This will make changes be atomic inside a thread (everything from 
