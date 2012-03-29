@@ -26,7 +26,9 @@ __all__ = ['pidf_namespace',
 
 import weakref
 
-from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
+from sipsimple.payloads.datatypes import AnyURI
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -225,7 +227,7 @@ class Status(XMLElement):
         return '%s(%r)' % (self.__class__.__name__, self.basic)
 
 
-class Contact(XMLStringElement):
+class Contact(XMLAnyURIElement):
     _xml_tag = 'contact'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
@@ -381,7 +383,7 @@ class PIDF(XMLListRootElement):
                            Device.qname: 3}
     _xml_item_type = (Service, PIDFNote, Person, Device)
 
-    entity = XMLAttribute('entity', type=str, required=True, test_equal=True)
+    entity = XMLAttribute('entity', type=AnyURI, required=True, test_equal=True)
 
     services = property(lambda self: (item for item in self if type(item) is Service))
     notes    = property(lambda self: (item for item in self if type(item) is Note))
