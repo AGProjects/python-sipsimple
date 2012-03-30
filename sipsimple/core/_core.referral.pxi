@@ -466,7 +466,18 @@ cdef class IncomingReferral:
         try:
             self.remote_contact_header = event_dict['headers']['Contact'][0]
         except LookupError:
-            pass
+            # Contact header is required
+            with nogil:
+                status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 400, NULL, &self._initial_response)
+            if status != 0:
+                raise PJSIPError("Could not create response", status)
+            with nogil:
+                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, self._initial_response, NULL, NULL)
+            if status != 0:
+                with nogil:
+                    pjsip_tx_data_dec_ref(self._initial_response)
+                raise PJSIPError("Could not send response", status)
+            return 0
         event_dict["refer_to"] = event_dict["headers"].get("Refer-To")
         transport = rdata.tp_info.transport.type_name.lower()
         request_uri = event_dict["request_uri"]
@@ -480,7 +491,17 @@ cdef class IncomingReferral:
         with nogil:
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_header_str.pj_str, &self._dlg)
         if status != 0:
-            raise PJSIPError("Could not create dialog for incoming REFER", status)
+            with nogil:
+                status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 400, NULL, &self._initial_response)
+            if status != 0:
+                raise PJSIPError("Could not create response", status)
+            with nogil:
+                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, self._initial_response, NULL, NULL)
+            if status != 0:
+                with nogil:
+                    pjsip_tx_data_dec_ref(self._initial_response)
+                raise PJSIPError("Could not send response", status)
+            return 0
         # Increment dialog session count so that it's never destroyed by PJSIP
         with nogil:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
