@@ -511,9 +511,8 @@ cdef class IncomingSubscription:
         with nogil:
             pjsip_dlg_inc_lock(self._dlg)
         try:
-            if self.state != "incoming":
-                raise SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE in the "incoming" state, '+
-                                        'object is currently in the "%s" state' % self.state)
+            if self.state not in ("incoming", "pending"):
+                raise SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE in the "incoming" or "pending" state, object is currently in the "%s" state' % self.state)
             if (content_type is None and content is not None) or (content_type is not None and content is None):
                 raise ValueError('Either both or neither of the "content_type" and "content" arguments should be specified')
             if content_type is not None:
