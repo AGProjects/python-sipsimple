@@ -90,6 +90,7 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-3717-reset_rtcp_stats.patch",
                    "patches/pjsip-disable_mutex_unlock_assert.patch",
                    "patches/pjsip-3414-g722_zero_division.patch",
+                   "patches/pjsip-libsrtp-fix_crash_on_rtcp_decode.patch",
                    "patches/pjsip-3115-aec_latency_fixes.patch",
                    "patches/pjsip-echo_reset.patch",
                    "patches/pjsip-webrtc_aec.patch"]

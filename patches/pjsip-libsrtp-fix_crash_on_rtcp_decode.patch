@@ -1,0 +1,11 @@
+--- third_party/srtp/crypto/replay/rdb.c	2008-01-23 21:17:42.000000000 +0100
++++ third_party/srtp/crypto/replay/rdb.c	2012-04-02 13:03:54.000000000 +0200
+@@ -115,7 +115,7 @@
+ 
+     /* shift the window forward by delta bits*/
+     v128_left_shift(&rdb->bitmask, delta);
+-    v128_set_bit(&rdb->bitmask, rdb_bits_in_bitmask-delta);
++    v128_set_bit(&rdb->bitmask, rdb_bits_in_bitmask-1);
+     rdb->window_start += delta;
+ 
+   }    
