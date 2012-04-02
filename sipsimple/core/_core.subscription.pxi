@@ -552,7 +552,7 @@ cdef class IncomingSubscription:
             with nogil:
                 pjsip_dlg_dec_lock(self._dlg)
 
-    def end(self, reason="noresource"):
+    def end(self, reason=None):
         cdef PJSIPUA ua = self._get_ua(0)
 
         with nogil:
