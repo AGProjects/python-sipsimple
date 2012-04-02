@@ -36,7 +36,7 @@ from zope.interface import implements
 from sipsimple.account import bonjour
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.contact import AccountContactManager
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -514,7 +514,7 @@ class AccountMWISubscriber(object):
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
-                    except (PJSIPError, SIPCoreError):
+                    except SIPCoreError:
                         notification_center.remove_observer(self, sender=subscription)
                         raise SubscriptionError(error='Internal error', timeout=5)
                     self._subscription = subscription
