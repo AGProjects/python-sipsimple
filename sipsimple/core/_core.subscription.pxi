@@ -279,6 +279,9 @@ cdef class Subscription:
                 if self._term_reason is not None:
                     _add_event("SIPSubscriptionDidFail", dict(obj=self, code=self._term_code, reason=self._term_reason, min_expires=min_expires))
                 else:
+                    subscription_state = headers.get('Subscription-State')
+                    if subscription_state is not None and subscription_state.state == 'terminated':
+                        reason = subscription_state.reason
                     _add_event("SIPSubscriptionDidFail", dict(obj=self, code=code, reason=reason, min_expires=min_expires))
         if prev_state != state:
             _add_event("SIPSubscriptionChangedState", dict(obj=self, prev_state=prev_state, state=state))
@@ -775,9 +778,10 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
                     code = event.body.tsx_state.tsx.status_code
                     reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
                 else:
-                    reason = "Subscription has expired"
+                    code = 0
+                    reason = None
 
-            if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE":
+            if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) in ("SUBSCRIBE", "NOTIFY"):
                 rdata = event.body.tsx_state.src.rdata
 
         headers_dict = dict()
