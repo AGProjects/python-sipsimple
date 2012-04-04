@@ -10,6 +10,7 @@ __all__ = ['pidf_namespace',
            'ServiceExtension',
            'DeviceExtension',
            'PersonExtension',
+           'StatusExtension',
            'Note',
            'DeviceID',
            'Status',
@@ -21,7 +22,9 @@ __all__ = ['pidf_namespace',
            'Device',
            'PersonTimestamp',
            'Person',
-           'PIDF']
+           'PIDF',
+           # Extensions
+           'ExtendedStatus']
 
 
 import weakref
@@ -47,6 +50,7 @@ PIDFDocument.register_namespace(dm_namespace, prefix='dm', schema='data-model.xs
 class ServiceExtension(object): pass
 class DeviceExtension(object): pass
 class PersonExtension(object): pass
+class StatusExtension(object): pass
 
 
 ## Attribute value types
@@ -210,6 +214,7 @@ class Status(XMLElement):
     _xml_tag = 'status'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
+    _xml_extension_type = StatusExtension
     _xml_children_order = {Basic.qname: 0}
 
     basic = XMLElementChild('basic', type=Basic, required=False, test_equal=True)
@@ -418,4 +423,27 @@ class PIDF(XMLListRootElement):
             except StopIteration:
                 raise KeyError(item)
         super(PIDF, self).remove(item)
+
+
+#
+# Extensions
+#
+
+agp_pidf_namespace = 'urn:ag-projects:xml:ns:pidf'
+PIDFDocument.register_namespace(agp_pidf_namespace, prefix='agp-pidf')
+
+class ExtendedStatusValue(str):
+    def __new__(cls, value):
+        if value not in ('available', 'offline', 'away', 'extended-away', 'busy'):
+            raise ValueError("illegal value for extended status")
+        return str.__new__(cls, value)
+
+
+class ExtendedStatus(XMLStringElement, StatusExtension):
+    _xml_tag = 'extended'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+    _xml_value_type = ExtendedStatusValue
+
+Status.register_extension('extended', type=ExtendedStatus)
 
