@@ -3,7 +3,7 @@
 
 """High-level management of XCAP documents based on OMA specifications"""
 
-__all__ = ['Contact', 'Service', 'CatchAllCondition', 'DomainCondition', 'DomainExcepton', 'UserException', 'Policy', 'Class', 'OccurenceID', 'DeviceID',
+__all__ = ['Contact', 'Service', 'CatchAllCondition', 'DomainCondition', 'DomainException', 'UserException', 'Policy', 'Class', 'OccurenceID', 'DeviceID',
            'ServiceURI', 'ServiceURIScheme', 'PresencePolicy', 'DialoginfoPolicy', 'FallbackPolicies', 'Icon', 'OfflineStatus', 'XCAPManager', 'XCAPTransaction']
 
 
