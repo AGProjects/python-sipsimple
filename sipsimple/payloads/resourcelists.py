@@ -189,10 +189,10 @@ class ResourceLists(XMLListRootElement):
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
             raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
-        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_document.nsmap.iteritems())
-        namespaces[self._xml_namespace] = ''
-        prefix = namespaces[self._xml_namespace]
-        root_xpath = '/%s:%s' % (prefix, self._xml_tag) if prefix else '/'+self._xml_tag
+        nsmap = dict((namespace, prefix) for prefix, namespace in self._xml_document.nsmap.iteritems())
+        nsmap[self._xml_namespace] = None
+        xpath_nsmap = {}
+        root_xpath = '/' + self._xml_tag
         if element is self:
             return root_xpath
         notexpanded = deque([self])
@@ -215,8 +215,12 @@ class ResourceLists(XMLListRootElement):
             return None
         components = []
         while obj is not self:
-            prefix = namespaces[obj._xml_namespace]
-            name = '%s:%s' % (prefix, obj._xml_tag) if prefix else obj._xml_tag
+            prefix = nsmap[obj._xml_namespace]
+            if prefix:
+                name = '%s:%s' % (prefix, obj._xml_tag)
+                xpath_nsmap[obj._xml_namespace] = prefix
+            else:
+                name = obj._xml_tag
             if isinstance(obj, List):
                 if obj.name is not None:
                     components.append('/%s[@%s=%s]' % (name, List.name.xmlname, quoteattr(obj.name)))
@@ -231,8 +235,7 @@ class ResourceLists(XMLListRootElement):
                 components.append('/%s[@%s=%s]' % (name, External.anchor.xmlname, quoteattr(obj.anchor)))
             obj = parents[obj]
         components.reverse()
-        xpointer = ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in namespaces.iteritems() if prefix)
-        return root_xpath + ''.join(components) + ('?'+xpointer if xpointer else '')
+        return root_xpath + ''.join(components) + ('?' + ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in xpath_nsmap.iteritems()) if xpath_nsmap else '')
 
     def find_parent(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External)):
