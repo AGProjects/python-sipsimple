@@ -438,7 +438,6 @@ class ExtendedStatusValue(str):
             raise ValueError("illegal value for extended status")
         return str.__new__(cls, value)
 
-
 class ExtendedStatus(XMLStringElement, StatusExtension):
     _xml_tag = 'extended'
     _xml_namespace = agp_pidf_namespace
@@ -446,4 +445,23 @@ class ExtendedStatus(XMLStringElement, StatusExtension):
     _xml_value_type = ExtendedStatusValue
 
 Status.register_extension('extended', type=ExtendedStatus)
+
+
+class DeviceInfo(XMLElement, ServiceExtension):
+    _xml_tag = 'device-info'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+
+    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    description = XMLAttribute('description', type=str, required=False, test_equal=True)
+
+    def __init__(self, id, description=None):
+        XMLElement.__init__(self)
+        self.id = id
+        self.description = description
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, self.id, self.description)
+
+Service.register_extension('device_info', type=DeviceInfo)
 
