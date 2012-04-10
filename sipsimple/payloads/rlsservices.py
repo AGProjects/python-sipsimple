@@ -9,20 +9,21 @@ __all__ = ['rl_namespace',
            'RLSServicesDocument',
            'Packages',
            'ResourceList',
-           'RLSList',
+           'List',
            'Service',
            'RLSServices']
 
 
 from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAnyURIElement, XMLElementID, XMLElementChild, XMLElementChoiceChild
-from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsDocument
+from sipsimple.payloads import resourcelists
 from sipsimple.payloads.datatypes import AnyURI
 
 
 rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
+rl_namespace = resourcelists.namespace
 
 
-class RLSServicesDocument(ResourceListsDocument):
+class RLSServicesDocument(resourcelists.ResourceListsDocument):
     content_type = 'application/rls-services+xml'
 
 RLSServicesDocument.register_namespace(rls_namespace, prefix=None, schema='rlsservices.xsd')
@@ -77,7 +78,7 @@ class ResourceList(XMLAnyURIElement):
 
 # This is identical to the list element in resourcelists, except for the
 # namespace. We'll redefine the xml tag just for readability purposes.
-class RLSList(List):
+class List(resourcelists.List):
     _xml_tag = 'list'
     _xml_namespace = rls_namespace
     _xml_document = RLSServicesDocument
@@ -87,18 +88,18 @@ class Service(XMLElement):
     _xml_tag = 'service'
     _xml_namespace = rls_namespace
     _xml_document = RLSServicesDocument
-    _xml_children_order = {RLSList.qname: 0,
+    _xml_children_order = {List.qname: 0,
                            ResourceList.qname: 0,
                            Packages.qname: 1}
 
     uri = XMLElementID('uri', type=AnyURI, required=True, test_equal=True)
-    list = XMLElementChoiceChild('list', types=(ResourceList, RLSList), required=True, test_equal=True)
+    list = XMLElementChoiceChild('list', types=(ResourceList, List), required=True, test_equal=True)
     packages = XMLElementChild('packages', type=Packages, required=False, test_equal=True)
 
     def __init__(self, uri, list=None, packages=None):
         XMLElement.__init__(self)
         self.uri = uri
-        self.list = list if list is not None else RLSList()
+        self.list = list if list is not None else List()
         self.packages = packages if packages is not None else Packages()
 
     def __repr__(self):

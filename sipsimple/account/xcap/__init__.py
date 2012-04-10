@@ -1815,7 +1815,7 @@ class XCAPManager(object):
             rls_services = self.rls_services.content
             for service in rls_services:
                 packages = set(service.packages or [])
-                if isinstance(service.list, rlsservices.RLSList):
+                if isinstance(service.list, rlsservices.List):
                     expanded_list = [service.list]
                 elif isinstance(service.list, rlsservices.ResourceList):
                     try:
@@ -2272,7 +2272,7 @@ class XCAPManager(object):
                 rls_services = self.rls_services.content
                 for service in rls_services:
                     packages = set(service.packages or [])
-                    if isinstance(service.list, rlsservices.RLSList):
+                    if isinstance(service.list, rlsservices.List):
                         expanded_list = [service.list]
                     elif isinstance(service.list, rlsservices.ResourceList):
                         try:
@@ -2437,7 +2437,7 @@ class XCAPManager(object):
             rls_services = self.rls_services.content
             for service in rls_services:
                 packages = set(service.packages or [])
-                if isinstance(service.list, rlsservices.RLSList):
+                if isinstance(service.list, rlsservices.List):
                     expanded_list = [service.list]
                 elif isinstance(service.list, rlsservices.ResourceList):
                     try:
@@ -3137,7 +3137,7 @@ class XCAPManager(object):
                 service = Service(service_element.uri, list(packages))
                 service.entries = set()
                 services.append(service)
-                if isinstance(service_element.list, rlsservices.RLSList):
+                if isinstance(service_element.list, rlsservices.List):
                     expanded_list = [service_element.list]
                 elif isinstance(service_element.list, rlsservices.ResourceList):
                     try:
