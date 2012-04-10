@@ -1406,7 +1406,7 @@ class XCAPManager(object):
                 self.rls_services.content = rlsservices.RLSServices()
             rls_services = self.rls_services.content
             if len(rls_services) == 0 and self.resource_lists.supported and buddy_lists:
-                rlist = resourcelists.List()
+                rlist = rlsservices.List()
                 service = rlsservices.Service('sip:buddies@%s' % self.account.id.domain, list=rlist, packages=rlsservices.Packages(['presence', 'dialog']))
                 for blist in buddy_lists:
                     path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(blist)
