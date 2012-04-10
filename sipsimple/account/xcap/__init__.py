@@ -897,7 +897,7 @@ class XCAPManager(object):
 
     @property
     def documents(self):
-        return [self.dialog_rules, self.pidf_manipulation, self.pres_rules, self.resource_lists, self.rls_services, self.status_icon]
+        return [self.resource_lists, self.rls_services, self.pres_rules, self.dialog_rules, self.pidf_manipulation, self.status_icon]
 
     @property
     def document_names(self):
