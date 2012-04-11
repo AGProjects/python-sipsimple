@@ -24,7 +24,8 @@ __all__ = ['pidf_namespace',
            'Person',
            'PIDF',
            # Extensions
-           'ExtendedStatus']
+           'ExtendedStatus',
+           'DeviceInfo']
 
 
 import weakref
