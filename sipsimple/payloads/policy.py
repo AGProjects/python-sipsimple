@@ -56,7 +56,7 @@ class IdentityOne(XMLElement):
     _xml_namespace = namespace
     _xml_document = CommonPolicyDocument
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=AnyURI, required=True, test_equal=True)
 
     def __init__(self, id):
         XMLElement.__init__(self)
