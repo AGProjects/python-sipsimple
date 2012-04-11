@@ -47,7 +47,7 @@ import urllib
 import weakref
 from collections import defaultdict, deque
 from decimal import Decimal
-from itertools import izip
+from itertools import chain, izip
 
 from application.python import Null
 from application.python.descriptor import classproperty
@@ -132,6 +132,11 @@ class XMLDocument(object):
         if type(root_element) is not cls.root_element:
             raise TypeError("can only build XML documents from root elements of type %s" % cls.root_element.__name__)
         element = root_element.to_element()
+        # Cleanup namespaces and move element NS mappings to the global scope. We need to use a fake parent to accomplish this.
+        fake = etree.Element('fake', nsmap=dict(chain(element.nsmap.iteritems(), cls.nsmap.iteritems())))
+        fake.append(element)
+        fake.remove(element)
+        etree.cleanup_namespaces(element)
         if validate and cls.schema is not None:
             cls.schema.assertValid(element)
         if encoding is None:
