@@ -139,9 +139,7 @@ class XMLDocument(object):
         fake.append(element)
         fake.remove(element)
         etree.cleanup_namespaces(element)
-        if encoding is None:
-            encoding = cls.encoding
-        return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
+        return etree.tostring(element, encoding=encoding or cls.encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
 
     @classmethod
     def create(cls, build_kw={}, **kw):
