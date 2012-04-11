@@ -31,7 +31,7 @@ import weakref
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
-from sipsimple.payloads.datatypes import AnyURI
+from sipsimple.payloads.datatypes import AnyURI, ID
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -257,7 +257,7 @@ class Service(XMLElement):
                            PIDFNote.qname: 3,
                            ServiceTimestamp.qname: 4}
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
 
     status = XMLElementChild('status', type=Status, required=True, test_equal=True)
     contact = XMLElementChild('contact', type=Contact, required=False, test_equal=True)
@@ -307,7 +307,7 @@ class Device(XMLElement):
                            DMNote.qname: 2,
                            DeviceTimestamp.qname: 3}
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     device_id = XMLElementChild('device_id', type=DeviceID, required=False, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=DeviceTimestamp, required=False, test_equal=True)
 
@@ -351,7 +351,7 @@ class Person(XMLElement):
                            DMNote.qname: 1,
                            PersonTimestamp.qname: 2}
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=PersonTimestamp, required=False, test_equal=True)
 
     _note_map = NoteMap()
@@ -452,7 +452,7 @@ class DeviceInfo(XMLElement, ServiceExtension):
     _xml_namespace = agp_pidf_namespace
     _xml_document = PIDFDocument
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     description = XMLAttribute('description', type=str, required=False, test_equal=True)
 
     def __init__(self, id, description=None):

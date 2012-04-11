@@ -10,7 +10,7 @@ __all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'Ele
 from lxml import etree
 
 from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLBooleanElement, XMLElementID, XMLAttribute, XMLElementChild
-from sipsimple.payloads.datatypes import AnyURI
+from sipsimple.payloads.datatypes import AnyURI, ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument, ListElement
 
 
@@ -37,7 +37,7 @@ class Group(XMLElement, ListElement):
     _xml_extension_type = ElementExtension
     _xml_document = ResourceListsDocument
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     name = XMLElementChild('name', type=Name, required=True, test_equal=True)
 
     def __init__(self, id, name):
@@ -58,7 +58,7 @@ class ContactURI(XMLElement):
     _xml_extension_type = ElementExtension
     _xml_document = ResourceListsDocument
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     uri = XMLAttribute('uri', type=AnyURI, required=True, test_equal=True)
     type = XMLAttribute('type', type=unicode, required=False, test_equal=True)
 
@@ -146,7 +146,7 @@ class Contact(XMLElement, ListElement):
     _xml_extension_type = ElementExtension
     _xml_document = ResourceListsDocument
 
-    id = XMLElementID('id', type=str, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
     group_id = XMLAttribute('group_id', type=str, required=True, test_equal=True)
 
     name = XMLElementChild('name', type=Name, required=True, test_equal=True)

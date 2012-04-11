@@ -29,6 +29,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLLocalizedStringElement, XMLDateTimeElement
+from sipsimple.payloads.datatypes import AnyURI, ID
 
 
 namespace = 'urn:ietf:params:xml:ns:common-policy'
@@ -295,7 +296,7 @@ class Rule(XMLElement):
                            Actions.qname: 1,
                            Transformations.qname: 2}
 
-    id = XMLElementID('id', type=unicode, required=True, test_equal=True)
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
 
     conditions = XMLElementChild('conditions', type=Conditions, required=False, test_equal=True)
     actions = XMLElementChild('actions', type=Actions, required=False, test_equal=True)
