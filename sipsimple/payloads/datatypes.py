@@ -6,7 +6,7 @@
 
 
 __all__ = ['Boolean', 'DateTime', 'Byte', 'UnsignedByte', 'Short', 'UnsignedShort', 'Int', 'UnsignedInt', 'Long', 'UnsignedLong',
-           'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'AnyURI', 'SIPURI', 'XCAPURI']
+           'PositiveInteger', 'NegativeInteger', 'NonNegativeInteger', 'NonPositiveInteger', 'ID', 'AnyURI', 'SIPURI', 'XCAPURI']
 
 
 import re
@@ -143,6 +143,15 @@ class NonPositiveInteger(long):
         return instance
 
 
+class ID(str):
+    _id_regex = re.compile(r'^[a-z_][a-z0-9_\.\-]*', re.I)
+
+    def __new__(cls, value):
+        if not cls._id_regex.match(value):
+            raise ValueError("illegal ID value: %s" % value)
+        return str.__new__(cls, value)
+
+
 class AnyURI(unicode):
     @classmethod
     def __xmlparse__(cls, value):
@@ -225,14 +234,5 @@ class XCAPURI(AnyURI):
         return instance
 
     relative = property(lambda self: self.scheme == '')
-
-
-class ID(str):
-    _id_regex = re.compile(r'^[a-z_][a-z0-9_\.\-]*', re.I)
-
-    def __new__(cls, value):
-        if not cls._id_regex.match(value):
-            raise ValueError("illegal ID value: %s" % value)
-        return str.__new__(cls, value)
 
 
