@@ -132,13 +132,13 @@ class XMLDocument(object):
         if type(root_element) is not cls.root_element:
             raise TypeError("can only build XML documents from root elements of type %s" % cls.root_element.__name__)
         element = root_element.to_element()
+        if validate and cls.schema is not None:
+            cls.schema.assertValid(element)
         # Cleanup namespaces and move element NS mappings to the global scope. We need to use a fake parent to accomplish this.
         fake = etree.Element('fake', nsmap=dict(chain(element.nsmap.iteritems(), cls.nsmap.iteritems())))
         fake.append(element)
         fake.remove(element)
         etree.cleanup_namespaces(element)
-        if validate and cls.schema is not None:
-            cls.schema.assertValid(element)
         if encoding is None:
             encoding = cls.encoding
         return etree.tostring(element, encoding=encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
