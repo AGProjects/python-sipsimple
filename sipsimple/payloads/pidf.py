@@ -453,7 +453,7 @@ class DeviceInfo(XMLElement, ServiceExtension):
     _xml_namespace = agp_pidf_namespace
     _xml_document = PIDFDocument
 
-    id = XMLElementID('id', type=ID, required=True, test_equal=True)
+    id = XMLElementID('id', type=str, required=True, test_equal=True)
     description = XMLAttribute('description', type=str, required=False, test_equal=True)
 
     def __init__(self, id, description=None):
