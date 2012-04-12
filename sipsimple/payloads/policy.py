@@ -329,6 +329,9 @@ class RuleSet(XMLListRootElement):
     def __delitem__(self, key):
         self.remove(self._xmlid_map[Rule][key])
 
+    def get(self, key, default=None):
+        return self._xmlid_map[Rule].get(key, default)
+
 
 #
 # Extensions

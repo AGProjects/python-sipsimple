@@ -135,6 +135,9 @@ class WatcherList(XMLListElement):
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.resource, self.package, list(self))
 
+    def get(self, key, default=None):
+        return self._xmlid_map[Watcher].get(key, default)
+
     pending = property(lambda self: (watcher for watcher in self if watcher.status == 'pending'))
     waiting = property(lambda self: (watcher for watcher in self if watcher.status == 'waiting'))
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
@@ -181,6 +184,9 @@ class WatcherInfo(XMLListRootElement):
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.version, self.state, list(self))
+
+    def get(self, key, default=None):
+        return self._xmlid_map[WatcherList].get(key, default)
 
     wlists = property(lambda self: self._element_map.values())
     pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self._element_map.itervalues()))

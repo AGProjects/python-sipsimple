@@ -186,6 +186,9 @@ class ResourceLists(XMLListRootElement):
     def __delitem__(self, key):
         self.remove(self._xmlid_map[List][key])
 
+    def get(self, key, default=None):
+        return self._xmlid_map[List].get(key, default)
+
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
             raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
