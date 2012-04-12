@@ -88,7 +88,7 @@ class ContactURIList(XMLListElement):
 
 class PolicyValue(str):
     def __new__(cls, value):
-        if value not in ('allow', 'block', 'ignore', 'confirm'):
+        if value not in ('allow', 'block'):
             raise ValueError("Invalid policy value: %s" % value)
         return super(PolicyValue, cls).__new__(cls, value)
 
