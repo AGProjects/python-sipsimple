@@ -240,7 +240,7 @@ class SIPApplication(object):
 
         # initialize instance id
         if not settings.instance_id:
-            settings.instance_id = str(uuid4().get_urn())
+            settings.instance_id = uuid4().urn
             settings.save()
 
         # initialize middleware components
