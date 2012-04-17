@@ -111,12 +111,13 @@ class NoteMap(object):
     """Descriptor to be used for _note_map attributes on XML elements with notes"""
 
     def __init__(self):
-        self.object_map = weakref.WeakKeyDictionary()
+        self.object_map = {}
 
     def __get__(self, obj, type):
         if obj is None:
             return self
-        return self.object_map.setdefault(obj, {})
+        obj_id = id(obj)
+        return self.object_map.setdefault(obj_id, ({}, weakref.ref(obj, lambda weak_ref: self.object_map.pop(obj_id))))[0]
 
     def __set__(self, obj, value):
         raise AttributeError("cannot set attribute")
