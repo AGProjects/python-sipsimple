@@ -30,6 +30,8 @@ __all__ = ['pidf_namespace',
 
 import weakref
 
+from itertools import izip
+
 from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
 from sipsimple.payloads.datatypes import AnyURI, ID
@@ -143,6 +145,16 @@ class NoteList(object):
 
     def __nonzero__(self):
         return bool(self.xml_element._note_map)
+
+    def __eq__(self, other):
+        if isinstance(other, NoteList):
+            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other)))
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def _parse_element(self, element):
         self.xml_element._note_map.clear()
