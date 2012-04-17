@@ -172,6 +172,12 @@ class Activities(XMLStringListElement, PersonExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
+    def __eq__(self, other):
+        if isinstance(other, Activities):
+            return super(Activities, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
+
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
 
@@ -248,6 +254,12 @@ class Mood(XMLStringListElement, PersonExtension):
     @property
     def notes(self):
         return NoteList(self, RPIDNote)
+
+    def __eq__(self, other):
+        if isinstance(other, Mood):
+            return super(Mood, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
@@ -332,6 +344,12 @@ class PlaceIs(XMLElement, PersonExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
+    def __eq__(self, other):
+        if isinstance(other, PlaceIs):
+            return super(PlaceIs, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
+
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, list(self.notes))
 
@@ -368,6 +386,12 @@ class PlaceType(XMLElement, PersonExtension):
     @property
     def notes(self):
         return NoteList(self, RPIDNote)
+
+    def __eq__(self, other):
+        if isinstance(other, PlaceType):
+            return super(PlaceType, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.value, list(self.notes))
@@ -465,6 +489,12 @@ class Privacy(XMLElement, PersonExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
+    def __eq__(self, other):
+        if isinstance(other, Privacy):
+            return super(Privacy, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
+
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self.notes), self.audio, self.text, self.video)
 
@@ -512,6 +542,12 @@ class Relationship(XMLElement, ServiceExtension):
     def notes(self):
         return NoteList(self, RPIDNote)
 
+    def __eq__(self, other):
+        if isinstance(other, Relationship):
+            return super(Relationship, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
+
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))
 
@@ -550,6 +586,12 @@ class ServiceClass(XMLElement, ServiceExtension):
     @property
     def notes(self):
         return NoteList(self, RPIDNote)
+
+    def __eq__(self, other):
+        if isinstance(other, ServiceClass):
+            return super(ServiceClass, self).__eq__(other) and self.notes == other.notes
+        else:
+            return NotImplemented
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))

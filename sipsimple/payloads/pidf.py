@@ -292,6 +292,12 @@ class Service(XMLElement):
     def notes(self):
         return NoteList(self, PIDFNote)
 
+    def __eq__(self, other):
+        if isinstance(other, Service):
+            return super(Service, self).__eq__(other) and self.notes == other.notes
+        else:
+            return self.id == other
+
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
 
@@ -337,6 +343,12 @@ class Device(XMLElement):
     def notes(self):
         return NoteList(self, DMNote)
 
+    def __eq__(self, other):
+        if isinstance(other, Device):
+            return super(Device, self).__eq__(other) and self.notes == other.notes
+        else:
+            return self.id == other
+
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.device_id, list(self.notes), self.timestamp)
 
@@ -378,6 +390,12 @@ class Person(XMLElement):
     @property
     def notes(self):
         return NoteList(self, DMNote)
+
+    def __eq__(self, other):
+        if isinstance(other, Person):
+            return super(Person, self).__eq__(other) and self.notes == other.notes
+        else:
+            return self.id == other
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.timestamp)
