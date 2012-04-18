@@ -107,17 +107,34 @@ class DMNote(XMLLocalizedStringElement):
         return Note(self.value, self.lang)
 
 
+class objectid(long):
+    def __new__(cls, obj):
+        instance = long.__new__(cls, id(obj))
+        instance.obj = obj
+        return instance
+
+
+class objectmap(dict):
+    def __getitem__(self, key):
+        return dict.__getitem__(self, objectid(key))[0]
+    def __missing__(self, key):
+        key_id = long(key)
+        self[key_id] = value = {}, weakref.ref(key.obj, lambda weak_ref: self.pop(key_id))
+        return value
+    def __repr__(self):
+        return "objectmap(%s)" % dict.__repr__(self)
+
+
 class NoteMap(object):
     """Descriptor to be used for _note_map attributes on XML elements with notes"""
 
     def __init__(self):
-        self.object_map = {}
+        self.object_map = objectmap()
 
     def __get__(self, obj, type):
         if obj is None:
             return self
-        obj_id = id(obj)
-        return self.object_map.setdefault(obj_id, ({}, weakref.ref(obj, lambda weak_ref: self.object_map.pop(obj_id))))[0]
+        return self.object_map[obj]
 
     def __set__(self, obj, value):
         raise AttributeError("cannot set attribute")
