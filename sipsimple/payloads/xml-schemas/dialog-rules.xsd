@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema targetNamespace="urn:ag-projects:xml:ns:dialog-rules"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:cr="urn:ietf:params:xml:ns:common-policy"
+    xmlns:dr="urn:ag-projects:xml:ns:dialog-rules"
+    elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+   <xs:import namespace="urn:ietf:params:xml:ns:common-policy" schemaLocation="common-policy.xsd"/>
+
+   <xs:element name="sub-handling">
+    <xs:simpleType>
+     <xs:restriction base="xs:token">
+      <xs:enumeration value="block"/>
+      <xs:enumeration value="confirm"/>
+      <xs:enumeration value="polite-block"/>
+      <xs:enumeration value="allow"/>
+     </xs:restriction>
+    </xs:simpleType>
+   </xs:element>
+
+</xs:schema>
