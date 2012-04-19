@@ -16,7 +16,7 @@ from sipsimple.payloads import commonpolicy, omapolicy
 from sipsimple.payloads import XMLStringElement
 
 
-namespace = 'http://openxcap.org/ns/dialog-rules'
+namespace = 'urn:ag-projects:xml:ns:dialog-rules'
 
 
 class DialogRulesDocument(commonpolicy.CommonPolicyDocument): pass
