@@ -25,10 +25,16 @@ DialogRulesDocument.register_namespace(dlg_namespace, prefix='dr')
 
 ## Attribute value types
 class SubHandlingValue(str):
+    __prioritymap__ = {'block': 0, 'confirm': 10, 'polite-block': 20, 'allow': 30}
+
     def __new__(cls, value):
         if value not in ('block', 'confirm', 'polite-block', 'allow'):
             raise ValueError("illegal value for SubHandling element")
         return str.__new__(cls, value)
+
+    @property
+    def priority(self):
+        return self.__prioritymap__[self]
 
 
 ## Action Elements
