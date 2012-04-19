@@ -14,7 +14,7 @@ __all__ = ['namespace', 'OtherIdentity', 'ExternalList', 'AnonymousRequest']
 
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLElementID
 from sipsimple.payloads.datatypes import AnyURI
-from sipsimple.payloads.policy import ConditionElement
+from sipsimple.payloads.commonpolicy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesDocument
 
 

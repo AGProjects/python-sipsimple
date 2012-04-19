@@ -12,14 +12,14 @@ NOTE: Subscription Handling has been taken from RFC 5025.
 __all__ = ['namespace', 'DialogRulesDocument', 'SubHandling', 'DialogRules']
 
 
-from sipsimple.payloads import policy as common_policy, omapolicy
+from sipsimple.payloads import commonpolicy, omapolicy
 from sipsimple.payloads import XMLStringElement
 
 
 namespace = 'http://openxcap.org/ns/dialog-rules'
 
 
-class DialogRulesDocument(common_policy.CommonPolicyDocument): pass
+class DialogRulesDocument(commonpolicy.CommonPolicyDocument): pass
 DialogRulesDocument.register_namespace(namespace, prefix='dr', schema='dialog-rules.xsd')
 DialogRulesDocument.register_namespace(omapolicy.namespace, prefix='ocp', schema='oma-common-policy.xsd')
 DialogRulesDocument.register_element(omapolicy.AnonymousRequest)
@@ -41,13 +41,13 @@ class SubHandlingValue(str):
         return self.__prioritymap__[self]
 
 
-class SubHandling(XMLStringElement, common_policy.ActionElement):
+class SubHandling(XMLStringElement, commonpolicy.ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = namespace
     _xml_document = DialogRulesDocument
     _xml_value_type = SubHandlingValue
 
 
-class DialogRules(common_policy.RuleSet):
+class DialogRules(commonpolicy.RuleSet):
     _xml_document = DialogRulesDocument
 
