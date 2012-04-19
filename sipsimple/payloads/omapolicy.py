@@ -9,7 +9,7 @@ support condition extensions defined by OMA.
 """
 
 
-__all__ = ['OtherIdentity', 'ExternalList', 'AnonymousRequest']
+__all__ = ['namespace', 'OtherIdentity', 'ExternalList', 'AnonymousRequest']
 
 
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLElementID
@@ -18,19 +18,19 @@ from sipsimple.payloads.policy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesDocument
 
 
-oma_cp_namespace = 'urn:oma:xml:xdm:common-policy'
-PresRulesDocument.register_namespace(oma_cp_namespace, prefix='ocp', schema='oma-common-policy.xsd')
+namespace = 'urn:oma:xml:xdm:common-policy'
+PresRulesDocument.register_namespace(namespace, prefix='ocp', schema='oma-common-policy.xsd')
 
 
 class OtherIdentity(XMLEmptyElement, ConditionElement):
     _xml_tag = 'other-identity'
-    _xml_namespace = oma_cp_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
 class Entry(XMLElement):
     _xml_tag = 'entry'
-    _xml_namespace = oma_cp_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
     uri = XMLElementID('uri', xmlname='anc', type=AnyURI, required=True, test_equal=True)
@@ -48,7 +48,7 @@ class Entry(XMLElement):
 
 class ExternalList(XMLListElement, ConditionElement):
     _xml_tag = 'external-list'
-    _xml_namespace = oma_cp_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_item_type = Entry
 
@@ -78,6 +78,6 @@ class ExternalList(XMLListElement, ConditionElement):
 
 class AnonymousRequest(XMLEmptyElement, ConditionElement):
     _xml_tag = 'anonymous-request'
-    _xml_namespace = oma_cp_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 

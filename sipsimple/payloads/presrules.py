@@ -4,8 +4,7 @@
 """Parses and produces Presence Authorization Rules documents according to RFC5025."""
 
 
-__all__ = ['cp_namespace',
-           'pr_namespace',
+__all__ = ['namespace',
            'PresRulesDocument',
            'SubHandling',
            'DeviceID',
@@ -34,15 +33,15 @@ __all__ = ['cp_namespace',
            'PresRules']
 
 
+from sipsimple.payloads import policy as common_policy
 from sipsimple.payloads import XMLListElement, XMLStringElement, XMLBooleanElement, XMLEmptyElement, XMLAttribute
-from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyDocument, ActionElement, TransformationElement, RuleSet
 from sipsimple.util import All
 
 
-pr_namespace = 'urn:ietf:params:xml:ns:pres-rules'
+namespace = 'urn:ietf:params:xml:ns:pres-rules'
 
-class PresRulesDocument(CommonPolicyDocument): pass
-PresRulesDocument.register_namespace(pr_namespace, prefix='pr', schema='pres-rules.xsd')
+class PresRulesDocument(common_policy.CommonPolicyDocument): pass
+PresRulesDocument.register_namespace(namespace, prefix='pr', schema='pres-rules.xsd')
 
 
 ## Marker mixins
@@ -76,9 +75,9 @@ class ProvideUserInputValue(str):
 
 ## Action Elements
 
-class SubHandling(XMLStringElement, ActionElement):
+class SubHandling(XMLStringElement, common_policy.ActionElement):
     _xml_tag = 'sub-handling'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_value_type = SubHandlingValue
 
@@ -87,13 +86,13 @@ class SubHandling(XMLStringElement, ActionElement):
 
 class Class(XMLStringElement):
     _xml_tag = 'class'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
 class OccurenceID(XMLStringElement):
     _xml_tag = 'occurence-id'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
@@ -102,19 +101,19 @@ class OccurenceID(XMLStringElement):
 
 class DeviceID(XMLStringElement):
     _xml_tag = 'deviceID'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
 class AllDevices(XMLEmptyElement):
     _xml_tag = 'all-devices'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideDevices(XMLListElement, TransformationElement):
+class ProvideDevices(XMLListElement, common_policy.TransformationElement):
     _xml_tag = 'provide-devices'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_item_type = (DeviceID, OccurenceID, Class, AllDevices, ProvideDeviceElement)
 
@@ -155,13 +154,13 @@ class ProvideDevices(XMLListElement, TransformationElement):
 
 class AllPersons(XMLEmptyElement):
     _xml_tag = 'all-persons'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePersons(XMLListElement, TransformationElement):
+class ProvidePersons(XMLListElement, common_policy.TransformationElement):
     _xml_tag = 'provide-persons'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_item_type = (OccurenceID, Class, AllPersons, ProvidePersonElement)
 
@@ -202,25 +201,25 @@ class ProvidePersons(XMLListElement, TransformationElement):
 
 class ServiceURI(XMLStringElement):
     _xml_tag = 'service-uri'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
 class ServiceURIScheme(XMLStringElement):
     _xml_tag = 'service-uri-scheme'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
 class AllServices(XMLEmptyElement):
     _xml_tag = 'all-services'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideServices(XMLListElement, TransformationElement):
+class ProvideServices(XMLListElement, common_policy.TransformationElement):
     _xml_tag = 'provide-services'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_item_type = (ServiceURI, ServiceURIScheme, OccurenceID, Class, AllServices, ProvideServiceElement)
 
@@ -259,82 +258,82 @@ class ProvideServices(XMLListElement, TransformationElement):
 
 ## Transformation elements
 
-class ProvideActivities(XMLBooleanElement, TransformationElement):
+class ProvideActivities(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-activities'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideClass(XMLBooleanElement, TransformationElement):
+class ProvideClass(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-class'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideDeviceID(XMLBooleanElement, TransformationElement):
+class ProvideDeviceID(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-deviceID'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideMood(XMLBooleanElement, TransformationElement):
+class ProvideMood(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-mood'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePlaceIs(XMLBooleanElement, TransformationElement):
+class ProvidePlaceIs(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-place-is'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePlaceType(XMLBooleanElement, TransformationElement):
+class ProvidePlaceType(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-place-type'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvidePrivacy(XMLBooleanElement, TransformationElement):
+class ProvidePrivacy(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-privacy'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideRelationship(XMLBooleanElement, TransformationElement):
+class ProvideRelationship(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-relationship'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideStatusIcon(XMLBooleanElement, TransformationElement):
+class ProvideStatusIcon(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-status-icon'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideSphere(XMLBooleanElement, TransformationElement):
+class ProvideSphere(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-sphere'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideTimeOffset(XMLBooleanElement, TransformationElement):
+class ProvideTimeOffset(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-time-offset'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class ProvideUserInput(XMLStringElement, TransformationElement):
+class ProvideUserInput(XMLStringElement, common_policy.TransformationElement):
     _xml_tag = 'provide-user-input'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
     _xml_value_type = ProvideUserInputValue
 
 
-class ProvideUnknownAttribute(XMLBooleanElement, TransformationElement):
+class ProvideUnknownAttribute(XMLBooleanElement, common_policy.TransformationElement):
     _xml_tag = 'provide-unknown-attribute'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
     name = XMLAttribute('name', type=str, required=True, test_equal=True)
@@ -349,13 +348,13 @@ class ProvideUnknownAttribute(XMLBooleanElement, TransformationElement):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.ns, self.name, self.value)
 
 
-class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
+class ProvideAllAttributes(XMLEmptyElement, common_policy.TransformationElement):
     _xml_tag = 'provide-all-attributes'
-    _xml_namespace = pr_namespace
+    _xml_namespace = namespace
     _xml_document = PresRulesDocument
 
 
-class PresRules(RuleSet):
+class PresRules(common_policy.RuleSet):
     _xml_document = PresRulesDocument
 
 

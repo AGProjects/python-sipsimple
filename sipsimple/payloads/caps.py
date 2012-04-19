@@ -23,7 +23,7 @@ capabilities in the PIDF documents.
 """
 
 
-__all__ = ['caps_namespace',
+__all__ = ['namespace',
            'Audio', 
            'Application',
            'Data',
@@ -64,8 +64,8 @@ from sipsimple.payloads import XMLElementChild, XMLListElement, XMLStringListEle
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, Service, DeviceExtension, Device
 
 
-caps_namespace = "urn:ietf:params:xml:ns:pidf:caps"
-PIDFDocument.register_namespace(caps_namespace, prefix='caps', schema='caps.xsd')
+namespace = "urn:ietf:params:xml:ns:pidf:caps"
+PIDFDocument.register_namespace(namespace, prefix='caps', schema='caps.xsd')
 
 
 
@@ -88,55 +88,55 @@ class ContentTypeValue(str):
 
 class Audio(XMLBooleanElement):
     _xml_tag = 'audio'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Application(XMLBooleanElement):
     _xml_tag = 'application'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Data(XMLBooleanElement):
     _xml_tag = 'data'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Control(XMLBooleanElement):
     _xml_tag = 'control'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Video(XMLBooleanElement):
     _xml_tag = 'video'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Text(XMLBooleanElement):
     _xml_tag = 'text'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Message(XMLBooleanElement):
     _xml_tag = 'message'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Automata(XMLBooleanElement):
     _xml_tag = 'automata'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class Type(XMLStringElement):
     _xml_tag = 'type'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = ContentTypeValue
 
@@ -144,7 +144,7 @@ class Type(XMLStringElement):
 class ClassRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('business', 'personal')
@@ -152,7 +152,7 @@ class ClassRegistry(object):
 
 class ClassSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ClassRegistry
 
@@ -163,7 +163,7 @@ class ClassSupported(XMLStringListElement):
 
 class ClassNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ClassRegistry
 
@@ -174,7 +174,7 @@ class ClassNotSupported(XMLStringListElement):
 
 class Class(XMLElement):
     _xml_tag = 'class'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     supported = XMLElementChild('supported', type=ClassSupported, required=False, test_equal=True)
@@ -189,7 +189,7 @@ class Class(XMLElement):
 class DuplexRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('full', 'half', 'receive-only', 'send-only')
@@ -197,7 +197,7 @@ class DuplexRegistry(object):
 
 class DuplexSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = DuplexRegistry
 
@@ -208,7 +208,7 @@ class DuplexSupported(XMLStringListElement):
 
 class DuplexNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = DuplexRegistry
 
@@ -219,7 +219,7 @@ class DuplexNotSupported(XMLStringListElement):
 
 class Duplex(XMLElement):
     _xml_tag = 'duplex'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     supported = XMLElementChild('supported', type=DuplexSupported, required=False, test_equal=True)
@@ -234,7 +234,7 @@ class Duplex(XMLElement):
 class EventRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('conference', 'dialog', 'kpml', 'message-summary', 'poc-settings',
@@ -244,7 +244,7 @@ class EventRegistry(object):
 
 class EventSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = EventRegistry
 
@@ -255,7 +255,7 @@ class EventSupported(XMLStringListElement):
 
 class EventNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = EventRegistry
 
@@ -266,7 +266,7 @@ class EventNotSupported(XMLStringListElement):
 
 class EventPackages(XMLElement):
     _xml_tag = 'event-packages'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = EventPackagesExtension
 
@@ -281,7 +281,7 @@ class EventPackages(XMLElement):
 
 class PriorityLowerthan(XMLEmptyElement):
     _xml_tag = 'lowerthan'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     maxvalue = XMLAttribute('maxvalue', type=int, required=True, test_equal=True)
@@ -293,7 +293,7 @@ class PriorityLowerthan(XMLEmptyElement):
 
 class PriorityHigherthan(XMLEmptyElement):
     _xml_tag = 'higherthan'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     minvalue = XMLAttribute('minvalue', type=int, required=True, test_equal=True)
@@ -305,7 +305,7 @@ class PriorityHigherthan(XMLEmptyElement):
 
 class PriorityEquals(XMLEmptyElement):
     _xml_tag = 'equals'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     value = XMLAttribute('value', type=int, required=True, test_equal=True)
@@ -317,7 +317,7 @@ class PriorityEquals(XMLEmptyElement):
 
 class PriorityRange(XMLEmptyElement):
     _xml_tag = 'range'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     maxvalue = XMLAttribute('maxvalue', type=int, required=True, test_equal=True)
@@ -331,7 +331,7 @@ class PriorityRange(XMLEmptyElement):
 
 class PrioritySupported(XMLListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = (PriorityLowerthan, PriorityHigherthan, PriorityEquals, PriorityRange)
 
@@ -342,7 +342,7 @@ class PrioritySupported(XMLListElement):
 
 class PriorityNotSupported(XMLListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = (PriorityLowerthan, PriorityHigherthan, PriorityEquals, PriorityRange)
 
@@ -353,7 +353,7 @@ class PriorityNotSupported(XMLListElement):
 
 class Priority(XMLElement):
     _xml_tag = 'priority'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = PriorityExtension
 
@@ -369,7 +369,7 @@ class Priority(XMLElement):
 class MethodRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('ACK', 'BYE', 'CANCEL', 'INFO', 'INVITE', 'MESSAGE',
@@ -379,7 +379,7 @@ class MethodRegistry(object):
 
 class MethodSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = MethodRegistry
 
@@ -390,7 +390,7 @@ class MethodSupported(XMLStringListElement):
 
 class MethodNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = MethodRegistry
 
@@ -401,7 +401,7 @@ class MethodNotSupported(XMLStringListElement):
 
 class Methods(XMLElement):
     _xml_tag = 'methods'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = MethodsExtension
 
@@ -417,7 +417,7 @@ class Methods(XMLElement):
 class ExtensionRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('rel100', 'early-session', 'eventlist', 'from-change', 'gruu',
@@ -429,7 +429,7 @@ class ExtensionRegistry(object):
 
 class ExtensionSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ExtensionRegistry
 
@@ -440,7 +440,7 @@ class ExtensionSupported(XMLStringListElement):
 
 class ExtensionNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ExtensionRegistry
 
@@ -451,7 +451,7 @@ class ExtensionNotSupported(XMLStringListElement):
 
 class Extensions(XMLElement):
     _xml_tag = 'extensions'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = ExtensionsExtension
 
@@ -466,13 +466,13 @@ class Extensions(XMLElement):
 
 class Scheme(XMLStringElement):
     _xml_tag = 's'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class SchemeSupported(XMLListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = Scheme
 
@@ -483,7 +483,7 @@ class SchemeSupported(XMLListElement):
 
 class SchemeNotSupported(XMLListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = Scheme
 
@@ -494,7 +494,7 @@ class SchemeNotSupported(XMLListElement):
 
 class Schemes(XMLElement):
     _xml_tag = 'schemes'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     supported = XMLElementChild('supported', type=SchemeSupported, required=False, test_equal=True)
@@ -509,7 +509,7 @@ class Schemes(XMLElement):
 class ActorRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('principal', 'attendant', 'msg-taker', 'information')
@@ -517,7 +517,7 @@ class ActorRegistry(object):
 
 class ActorSupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ActorRegistry
 
@@ -528,7 +528,7 @@ class ActorSupported(XMLStringListElement):
 
 class ActorNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = ActorRegistry
 
@@ -539,7 +539,7 @@ class ActorNotSupported(XMLStringListElement):
 
 class Actor(XMLElement):
     _xml_tag = 'actor'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     supported = XMLElementChild('supported', type=ActorSupported, required=False, test_equal=True)
@@ -553,13 +553,13 @@ class Actor(XMLElement):
 
 class Language(XMLStringElement):
     _xml_tag = 'l'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class LanguageSupported(XMLListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = Language
 
@@ -586,7 +586,7 @@ class LanguageSupported(XMLListElement):
 
 class LanguageNotSupported(XMLListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_type = Language
 
@@ -613,7 +613,7 @@ class LanguageNotSupported(XMLListElement):
 
 class Languages(XMLElement):
     _xml_tag = 'languages'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     supported = XMLElementChild('supported', type=LanguageSupported, required=False, test_equal=True)
@@ -627,19 +627,19 @@ class Languages(XMLElement):
 
 class Description(XMLLocalizedStringElement):
     _xml_tag = 'description'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class IsFocus(XMLBooleanElement):
     _xml_tag = 'isfocus'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 
 class ServiceCapabilities(XMLListElement, ServiceExtension):
     _xml_tag = 'servcaps'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = ServiceCapabilitiesExtension
     _xml_item_type = Description
@@ -693,7 +693,7 @@ Service.register_extension('capabilities', type=ServiceCapabilities)
 class MobilityRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('fixed', 'mobile')
@@ -701,7 +701,7 @@ class MobilityRegistry(object):
 
 class MobilitySupported(XMLStringListElement):
     _xml_tag = 'supported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = MobilityRegistry
 
@@ -712,7 +712,7 @@ class MobilitySupported(XMLStringListElement):
 
 class MobilityNotSupported(XMLStringListElement):
     _xml_tag = 'notsupported'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_item_registry = MobilityRegistry
 
@@ -723,7 +723,7 @@ class MobilityNotSupported(XMLStringListElement):
 
 class Mobility(XMLElement):
     _xml_tag = 'mobility'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = MobilityExtension
 
@@ -738,7 +738,7 @@ class Mobility(XMLElement):
 
 class DeviceCapabilities(XMLListElement, DeviceExtension):
     _xml_tag = 'devcaps'
-    _xml_namespace = caps_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = DeviceCapabilitiesExtension
     _xml_item_type = Description

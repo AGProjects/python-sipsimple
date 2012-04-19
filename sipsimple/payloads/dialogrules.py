@@ -9,20 +9,19 @@ NOTE: Subscription Handling has been taken from RFC 5025.
 """
 
 
-__all__ = ['cp_namespace', 'dlg_namespace', 'DialogRulesDocument', 'SubHandling', 'DialogRules']
+__all__ = ['namespace', 'DialogRulesDocument', 'SubHandling', 'DialogRules']
 
 
-from sipsimple.payloads import omapolicy
+from sipsimple.payloads import policy as common_policy, omapolicy
 from sipsimple.payloads import XMLStringElement
-from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyDocument, ActionElement, RuleSet
 
 
-dlg_namespace = 'http://openxcap.org/ns/dialog-rules'
+namespace = 'http://openxcap.org/ns/dialog-rules'
 
 
-class DialogRulesDocument(CommonPolicyDocument): pass
-DialogRulesDocument.register_namespace(dlg_namespace, prefix='dr', schema='dialog-rules.xsd')
-DialogRulesDocument.register_namespace(omapolicy.oma_cp_namespace, prefix='ocp', schema='oma-common-policy.xsd')
+class DialogRulesDocument(common_policy.CommonPolicyDocument): pass
+DialogRulesDocument.register_namespace(namespace, prefix='dr', schema='dialog-rules.xsd')
+DialogRulesDocument.register_namespace(omapolicy.namespace, prefix='ocp', schema='oma-common-policy.xsd')
 DialogRulesDocument.register_element(omapolicy.AnonymousRequest)
 DialogRulesDocument.register_element(omapolicy.OtherIdentity)
 DialogRulesDocument.register_element(omapolicy.Entry)
@@ -42,13 +41,13 @@ class SubHandlingValue(str):
         return self.__prioritymap__[self]
 
 
-class SubHandling(XMLStringElement, ActionElement):
+class SubHandling(XMLStringElement, common_policy.ActionElement):
     _xml_tag = 'sub-handling'
-    _xml_namespace = dlg_namespace
+    _xml_namespace = namespace
     _xml_document = DialogRulesDocument
     _xml_value_type = SubHandlingValue
 
 
-class DialogRules(RuleSet):
+class DialogRules(common_policy.RuleSet):
     _xml_document = DialogRulesDocument
 

@@ -4,8 +4,7 @@
 """RFC4826 compliant parser/builder for application/rls-services+xml documents."""
 
 
-__all__ = ['rl_namespace',
-           'rls_namespace',
+__all__ = ['namespace',
            'RLSServicesDocument',
            'Packages',
            'ResourceList',
@@ -19,14 +18,13 @@ from sipsimple.payloads import resourcelists
 from sipsimple.payloads.datatypes import AnyURI
 
 
-rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
-rl_namespace = resourcelists.namespace
+namespace = 'urn:ietf:params:xml:ns:rls-services'
 
 
 class RLSServicesDocument(resourcelists.ResourceListsDocument):
     content_type = 'application/rls-services+xml'
 
-RLSServicesDocument.register_namespace(rls_namespace, prefix=None, schema='rlsservices.xsd')
+RLSServicesDocument.register_namespace(namespace, prefix=None, schema='rlsservices.xsd')
 
 ## Marker mixins
 
@@ -37,13 +35,13 @@ class PackagesElement(object): pass
 
 class Package(XMLStringElement):
     _xml_tag = 'package'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
 
 
 class Packages(XMLListElement):
     _xml_tag = 'packages'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
     _xml_children_order = {Package.qname: 0}
     _xml_item_type = (Package, PackagesElement)
@@ -72,7 +70,7 @@ class Packages(XMLListElement):
 
 class ResourceList(XMLAnyURIElement):
     _xml_tag = 'resource-list'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
 
 
@@ -80,13 +78,13 @@ class ResourceList(XMLAnyURIElement):
 # namespace. We'll redefine the xml tag just for readability purposes.
 class List(resourcelists.List):
     _xml_tag = 'list'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
 
 
 class Service(XMLElement):
     _xml_tag = 'service'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
     _xml_children_order = {List.qname: 0,
                            ResourceList.qname: 0,
@@ -108,7 +106,7 @@ class Service(XMLElement):
 
 class RLSServices(XMLListRootElement):
     _xml_tag = 'rls-services'
-    _xml_namespace = rls_namespace
+    _xml_namespace = namespace
     _xml_document = RLSServicesDocument
     _xml_children_order = {Service.qname: 0}
     _xml_item_type = Service

@@ -8,7 +8,7 @@ This module provides an extension to PIDF to support rich presence.
 """
 
 
-__all__ = ['rpid_namespace',
+__all__ = ['namespace',
            'ActivityElement',
            'MoodElement',
            'PlaceTypeElement',
@@ -46,8 +46,8 @@ from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtens
 from sipsimple.payloads.datatypes import UnsignedLong, DateTime
 
 
-rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
-PIDFDocument.register_namespace(rpid_namespace, prefix='rpid', schema='rpid.xsd')
+namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
+PIDFDocument.register_namespace(namespace, prefix='rpid', schema='rpid.xsd')
 
 
 ## Marker mixins
@@ -95,7 +95,7 @@ class UserInputValue(str):
 
 class RPIDNote(XMLLocalizedStringElement):
     _xml_tag = 'note'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     def __unicode__(self):
@@ -113,7 +113,7 @@ class RPIDNote(XMLLocalizedStringElement):
 
 class RPIDOther(XMLLocalizedStringElement):
     _xml_tag = 'other'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     def __unicode__(self):
@@ -135,7 +135,7 @@ class Other(Note): pass
 class ActivityRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('appointment', 'away', 'breakfast', 'busy', 'dinner',
@@ -147,7 +147,7 @@ class ActivityRegistry(object):
 
 class Activities(XMLStringListElement, PersonExtension):
     _xml_tag = 'activities'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote.qname: 0}
     _xml_item_registry = ActivityRegistry
@@ -211,7 +211,7 @@ Person.register_extension('activities', type=Activities)
 class MoodRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('afraid', 'amazed', 'angry', 'annoyed', 'anxious', 'ashamed',
@@ -229,7 +229,7 @@ class MoodRegistry(object):
 
 class Mood(XMLStringListElement, PersonExtension):
     _xml_tag = 'mood'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_extension_type = MoodElement
     _xml_children_order = {RPIDNote.qname: 0}
@@ -293,28 +293,28 @@ Person.register_extension('mood', type=Mood)
 
 class AudioPlaceInformation(XMLStringElement):
     _xml_tag = 'audio'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = AudioPlaceValue
 
 
 class VideoPlaceInformation(XMLStringElement):
     _xml_tag = 'video'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = VideoPlaceValue
 
 
 class TextPlaceInformation(XMLStringElement):
     _xml_tag = 'text'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = TextPlaceValue
 
 
 class PlaceIs(XMLElement, PersonExtension):
     _xml_tag = 'place-is'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote.qname: 0,
                            AudioPlaceInformation.qname: 1,
@@ -364,7 +364,7 @@ Person.register_extension('place_is', type=PlaceIs)
 
 class PlaceType(XMLElement, PersonExtension):
     _xml_tag = 'place-type'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote.qname: 0}
     
@@ -407,7 +407,7 @@ Person.register_extension('place_type', type=PlaceType)
 
 class AudioPrivacy(XMLEmptyElement):
     _xml_tag = 'audio'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     def __init__(self, private=True):
@@ -421,7 +421,7 @@ class AudioPrivacy(XMLEmptyElement):
 
 class TextPrivacy(XMLEmptyElement):
     _xml_tag = 'text'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     def __init__(self, private=True):
@@ -435,7 +435,7 @@ class TextPrivacy(XMLEmptyElement):
 
 class VideoPrivacy(XMLEmptyElement):
     _xml_tag = 'video'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     def __init__(self, private=True):
@@ -457,7 +457,7 @@ class Privacy(XMLElement, PersonExtension):
     __metaclass__ = PrivacyType
 
     _xml_tag = 'privacy'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote.qname: 0,
                            AudioPrivacy.qname: 1,
@@ -517,7 +517,7 @@ Person.register_extension('privacy', type=Privacy)
 class RelationshipRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('assistant', 'associate', 'family', 'friend', 'self', 'supervisor', 'unknown')
@@ -525,7 +525,7 @@ class RelationshipRegistry(object):
 
 class Relationship(XMLElement, ServiceExtension):
     _xml_tag = 'relationship'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote: 0}
 
@@ -563,7 +563,7 @@ Service.register_extension('relationship', type=Relationship)
 class ServiceClassRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('courier', 'electronic', 'freight', 'in-person', 'postal', 'unknown')
@@ -571,7 +571,7 @@ class ServiceClassRegistry(object):
 
 class ServiceClass(XMLElement, ServiceExtension):
     _xml_tag = 'service-class'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     value = XMLStringChoiceChild('value', registry=ServiceClassRegistry, extension_type=ServiceClassElement)
@@ -608,7 +608,7 @@ Service.register_extension('service_class', type=ServiceClass)
 class SphereRegistry(object):
     __metaclass__ = XMLEmptyElementRegistryType
 
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
     names = ('home', 'work', 'unknown')
@@ -616,7 +616,7 @@ class SphereRegistry(object):
 
 class Sphere(XMLElement, PersonExtension):
     _xml_tag = 'sphere'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
@@ -639,7 +639,7 @@ Person.register_extension('sphere', type=Sphere)
 
 class StatusIcon(XMLStringElement, ServiceExtension, PersonExtension):
     _xml_tag = 'status-icon'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
@@ -658,7 +658,7 @@ Service.register_extension('status_icon', type=StatusIcon)
 
 class TimeOffset(XMLStringElement, PersonExtension):
     _xml_tag = 'time-offset'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
@@ -683,7 +683,7 @@ Person.register_extension('time_offset', type=TimeOffset)
 
 class UserInput(XMLStringElement, ServiceExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'user-input'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = UserInputValue
     
@@ -704,7 +704,7 @@ Device.register_extension('user_input', type=UserInput)
 
 class Class(XMLStringElement, ServiceExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'class'
-    _xml_namespace = rpid_namespace
+    _xml_namespace = namespace
     _xml_document = PIDFDocument
 
 Service.register_extension('rpid_class', type=Class)
