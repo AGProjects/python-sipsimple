@@ -122,7 +122,9 @@ class XMLDocument(object):
                 xml = etree.XML(document.encode('utf-8'), parser=cls.parser)
             else:
                 xml = etree.parse(document, parser=cls.parser).getroot()
-        except etree.XMLSyntaxError, e:
+            if cls.schema is not None:
+                cls.schema.assertValid(xml)
+        except (etree.DocumentInvalid, etree.XMLSyntaxError), e:
             raise ParserError(str(e))
         else:
             return cls.root_element.from_element(xml, xml_document=cls)
