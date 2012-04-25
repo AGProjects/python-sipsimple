@@ -267,10 +267,10 @@ class EntryAttributes(XMLElement, EntryExtension):
     _xml_namespace = 'urn:ag-projects:xml:ns:resource-lists'
     _xml_document = ResourceListsDocument
 
-    def __init__(self, attributes={}):
+    def __init__(self, iterable=(), **attributes):
         XMLElement.__init__(self)
         self._attributes = dict()
-        self.update(attributes)
+        self.update(iterable, **attributes)
 
     def _parse_element(self, element):
         self._attributes = dict()
@@ -297,6 +297,9 @@ class EntryAttributes(XMLElement, EntryExtension):
 
     def __iter__(self):
         return iter(self._attributes)
+
+    def __len__(self):
+        return len(self._attributes)
 
     def __getitem__(self, key):
         return self._attributes[key]
@@ -354,9 +357,9 @@ class EntryAttributes(XMLElement, EntryExtension):
             self.__dirty__ = True
         return value
 
-    def update(self, attributes=(), **kw):
-        self._attributes.update(attributes, **kw)
-        if attributes or kw:
+    def update(self, iterable=(), **attributes):
+        self._attributes.update(iterable, **attributes)
+        if iterable or attributes:
             self.__dirty__ = True
 
 ResourceListsDocument.register_namespace(EntryAttributes._xml_namespace, prefix='agp-rl')
