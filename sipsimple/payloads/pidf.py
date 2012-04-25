@@ -32,7 +32,7 @@ import weakref
 
 from itertools import izip
 
-from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLListElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
 from sipsimple.payloads.datatypes import AnyURI, ID
 
@@ -51,6 +51,7 @@ PIDFDocument.register_namespace(dm_namespace, prefix='dm', schema='data-model.xs
 ## Marker mixin
 
 class ServiceExtension(object): pass
+class ServiceItemExtension(object): pass
 class DeviceExtension(object): pass
 class PersonExtension(object): pass
 class StatusExtension(object): pass
@@ -277,11 +278,12 @@ class ServiceTimestamp(XMLDateTimeElement):
     _xml_document = PIDFDocument
 
 
-class Service(XMLElement):
+class Service(XMLListElement):
     _xml_tag = 'tuple'
     _xml_namespace = pidf_namespace
     _xml_document = PIDFDocument
     _xml_extension_type = ServiceExtension
+    _xml_item_type = (DeviceID, ServiceItemExtension)
     _xml_children_order = {Status.qname: 0,
                            None: 1,
                            Contact.qname: 2,
@@ -293,17 +295,15 @@ class Service(XMLElement):
     status = XMLElementChild('status', type=Status, required=True, test_equal=True)
     contact = XMLElementChild('contact', type=Contact, required=False, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=ServiceTimestamp, required=False, test_equal=True)
-    device_id = XMLElementChild('device_id', type=DeviceID, required=False, test_equal=True)
 
     _note_map = NoteMap()
 
-    def __init__(self, id, notes=[], status=None, contact=None, timestamp=None, device_id=None):
-        XMLElement.__init__(self)
+    def __init__(self, id, notes=[], status=None, contact=None, timestamp=None):
+        XMLListElement.__init__(self)
         self.id = id
         self.status = status
         self.contact = contact
         self.timestamp = timestamp
-        self.device_id = device_id
         self.notes.update(notes)
 
     @property
@@ -317,7 +317,7 @@ class Service(XMLElement):
             return self.id == other
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp)
 
     def _parse_element(self, element):
         super(Service, self)._parse_element(element)
