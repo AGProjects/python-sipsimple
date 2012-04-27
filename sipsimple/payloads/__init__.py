@@ -946,6 +946,9 @@ class XMLStringElement(XMLSimpleElement):
         else:
             return NotImplemented
 
+    def __len__(self):
+        return len(self.value)
+
 
 class XMLLocalizedStringElement(XMLStringElement):
     lang = XMLAttribute('lang', xmlname='{http://www.w3.org/XML/1998/namespace}lang', type=str, required=False, test_equal=True)
