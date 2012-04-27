@@ -162,9 +162,6 @@ class NoteList(object):
     def __len__(self):
         return len(self.xml_element._note_map)
 
-    def __nonzero__(self):
-        return bool(self.xml_element._note_map)
-
     def __eq__(self, other):
         if isinstance(other, NoteList):
             return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other)))

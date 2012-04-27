@@ -798,9 +798,6 @@ class XMLListMixin(XMLElementBase):
     def __len__(self):
         return len(self._element_map)
 
-    def __nonzero__(self):
-        return bool(self._element_map)
-
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
