@@ -88,7 +88,7 @@ class ContactURIList(XMLListElement):
 
 class PolicyValue(str):
     def __new__(cls, value):
-        if value not in ('allow', 'block'):
+        if value not in ('allow', 'block', 'default'):
             raise ValueError("Invalid policy value: %s" % value)
         return super(PolicyValue, cls).__new__(cls, value)
 
@@ -160,8 +160,8 @@ class Contact(XMLElement, ListElement):
         self.group_id = group_id
         self.name = name
         self.uris = ContactURIList(uris)
-        self.dialog = dialog_handling or DialogHandling('confirm', False)
-        self.presence = presence_handling or PresenceHandling('confirm', False)
+        self.dialog = dialog_handling or DialogHandling('default', False)
+        self.presence = presence_handling or PresenceHandling('default', False)
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.group_id, self.name, list(self.uris), self.presence, self.dialog)

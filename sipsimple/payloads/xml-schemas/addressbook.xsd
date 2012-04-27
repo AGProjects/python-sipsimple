@@ -58,6 +58,7 @@
     <xs:restriction base="xs:string">
      <xs:enumeration value="allow"/>
      <xs:enumeration value="block"/>
+     <xs:enumeration value="default"/>
     </xs:restriction>
    </xs:simpleType>
 
