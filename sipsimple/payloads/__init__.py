@@ -5,6 +5,9 @@
 __all__ = ['ParserError',
            'BuilderError',
            'ValidationError',
+           'IterateIDs',
+           'IterateItems',
+           'All',
            'parse_qname',
            'XMLDocument',
            'XMLAttribute',
@@ -55,6 +58,7 @@ from lxml import etree
 
 from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong
 from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, DateTime, AnyURI
+from sipsimple.util import All
 
 
 ## Exceptions
@@ -62,6 +66,21 @@ from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNe
 class ParserError(Exception): pass
 class BuilderError(Exception): pass
 class ValidationError(ParserError): pass
+
+
+## Markers
+
+class MarkerType(type):
+    def __call__(cls, *args, **kw):
+        return cls
+    def __repr__(cls):
+        return cls.__name__
+
+class Marker(object):
+    __metaclass__ = MarkerType
+
+class IterateIDs(Marker): pass
+class IterateItems(Marker): pass
 
 
 ## Utilities
@@ -810,6 +829,33 @@ class XMLListMixin(XMLElementBase):
     def __ne__(self, other):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
+
+    def __getitem__(self, key):
+        if not isinstance(key, tuple):
+            raise KeyError(key)
+        try:
+            cls, id = key
+        except ValueError:
+            raise KeyError(key)
+        if id is IterateIDs:
+            return self._xmlid_map[cls].iterkeys()
+        elif id is IterateItems:
+            return self._xmlid_map[cls].itervalues()
+        else:
+            return self._xmlid_map[cls][id]
+
+    def __delitem__(self, key):
+        if not isinstance(key, tuple):
+            raise KeyError(key)
+        try:
+            cls, id = key
+        except ValueError:
+            raise KeyError(key)
+        if id is All:
+            for item in self._xmlid_map[cls].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[cls][id])
 
     def __get_dirty__(self):
         return any(item.__dirty__ for item in self._element_map.itervalues()) or super(XMLListMixin, self).__get_dirty__()
