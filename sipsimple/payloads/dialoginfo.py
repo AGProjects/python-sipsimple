@@ -19,6 +19,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLListElement, XMLStringElement, XMLNonNegativeIntegerElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import IterateIDs, IterateItems, All
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
@@ -246,10 +247,19 @@ class DialogInfo(XMLListRootElement):
         self.update(dialogs)
 
     def __getitem__(self, key):
-        return self._xmlid_map[Dialog][key]
+        if key is IterateIDs:
+            return self._xmlid_map[Dialog].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[Dialog].itervalues()
+        else:
+            return self._xmlid_map[Dialog][key]
 
     def __delitem__(self, key):
-        self.remove(self._xmlid_map[Dialog][key])
+        if key is All:
+            for item in self._xmlid_map[Dialog].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[Dialog][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[Dialog].get(key, default)

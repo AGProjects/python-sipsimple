@@ -21,6 +21,7 @@ from lxml import etree
 from xml.sax.saxutils import quoteattr
 
 from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLLocalizedStringElement, XMLElementID, XMLElementChild, ThisClass
+from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads.datatypes import AnyURI
 
 
@@ -181,10 +182,19 @@ class ResourceLists(XMLListRootElement):
         self.update(lists)
 
     def __getitem__(self, key):
-        return self._xmlid_map[List][key]
+        if key is IterateIDs:
+            return self._xmlid_map[List].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[List].itervalues()
+        else:
+            return self._xmlid_map[List][key]
 
     def __delitem__(self, key):
-        self.remove(self._xmlid_map[List][key])
+        if key is All:
+            for item in self._xmlid_map[List].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[List][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[List].get(key, default)

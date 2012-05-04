@@ -14,6 +14,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAnyURIElement, XMLElementID, XMLElementChild, XMLElementChoiceChild
+from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads import resourcelists
 from sipsimple.payloads.datatypes import AnyURI
 
@@ -116,10 +117,19 @@ class RLSServices(XMLListRootElement):
         self.update(services)
 
     def __getitem__(self, key):
-        return self._xmlid_map[Service][key]
+        if key is IterateIDs:
+            return self._xmlid_map[Service].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[Service].itervalues()
+        else:
+            return self._xmlid_map[Service][key]
 
     def __delitem__(self, key):
-        self.remove(self._xmlid_map[Service][key])
+        if key is All:
+            for item in self._xmlid_map[Service].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[Service][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[Service].get(key, default)

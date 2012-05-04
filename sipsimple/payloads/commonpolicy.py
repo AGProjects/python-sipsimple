@@ -29,6 +29,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementID, XMLElementChild, XMLLocalizedStringElement, XMLDateTimeElement
+from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads.datatypes import AnyURI, ID
 
 
@@ -324,10 +325,19 @@ class RuleSet(XMLListRootElement):
         self.update(rules)
 
     def __getitem__(self, key):
-        return self._xmlid_map[Rule][key]
+        if key is IterateIDs:
+            return self._xmlid_map[Rule].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[Rule].itervalues()
+        else:
+            return self._xmlid_map[Rule][key]
 
     def __delitem__(self, key):
-        self.remove(self._xmlid_map[Rule][key])
+        if key is All:
+            for item in self._xmlid_map[Rule].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[Rule][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[Rule].get(key, default)

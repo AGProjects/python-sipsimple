@@ -13,6 +13,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.payloads import XMLDocument, XMLAnyURIElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
+from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads.datatypes import UnsignedLong, SIPURI
 
 
@@ -126,14 +127,23 @@ class WatcherList(XMLListElement):
         self.package = package
         self.update(watchers)
 
-    def __getitem__(self, key):
-        return self._xmlid_map[Watcher][key]
-
-    def __delitem__(self, key):
-        self.remove(self._xmlid_map[Watcher][key])
-
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.resource, self.package, list(self))
+
+    def __getitem__(self, key):
+        if key is IterateIDs:
+            return self._xmlid_map[Watcher].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[Watcher].itervalues()
+        else:
+            return self._xmlid_map[Watcher][key]
+
+    def __delitem__(self, key):
+        if key is All:
+            for item in self._xmlid_map[Watcher].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[Watcher][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[Watcher].get(key, default)
@@ -176,14 +186,23 @@ class WatcherInfo(XMLListRootElement):
         self.state = state
         self.update(wlists)
 
-    def __getitem__(self, key):
-        return self._xmlid_map[WatcherList][key]
-
-    def __delitem__(self, key):
-        self.remove(self._xmlid_map[WatcherList][key])
-
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.version, self.state, list(self))
+
+    def __getitem__(self, key):
+        if key is IterateIDs:
+            return self._xmlid_map[WatcherList].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[WatcherList].itervalues()
+        else:
+            return self._xmlid_map[WatcherList][key]
+
+    def __delitem__(self, key):
+        if key is All:
+            for item in self._xmlid_map[WatcherList].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[WatcherList][key])
 
     def get(self, key, default=None):
         return self._xmlid_map[WatcherList].get(key, default)
