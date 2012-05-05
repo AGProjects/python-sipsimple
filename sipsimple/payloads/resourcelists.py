@@ -20,6 +20,8 @@ from collections import deque
 from lxml import etree
 from xml.sax.saxutils import quoteattr
 
+from application.python import Null
+
 from sipsimple.payloads import XMLDocument, XMLListRootElement, XMLElement, XMLListElement, XMLLocalizedStringElement, XMLElementID, XMLElementChild, ThisClass
 from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads.datatypes import AnyURI
@@ -315,7 +317,7 @@ class EntryAttributes(XMLElement, EntryExtension):
         return self._attributes[key]
 
     def __setitem__(self, key, value):
-        if self._attributes.get(key, None) == value:
+        if self._attributes.get(key, Null) == value:
             return
         self._attributes[key] = value
         self.__dirty__ = True

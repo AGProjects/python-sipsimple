@@ -7,6 +7,7 @@
 __all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'ElementExtension', 'ElementAttributes']
 
 
+from application.python import Null
 from lxml import etree
 
 from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLBooleanElement, XMLElementID, XMLAttribute, XMLElementChild
@@ -214,7 +215,7 @@ class ElementAttributes(XMLElement, ElementExtension):
         return self._attributes[key]
 
     def __setitem__(self, key, value):
-        if self._attributes.get(key, None) == value:
+        if self._attributes.get(key, Null) == value:
             return
         self._attributes[key] = value
         self.__dirty__ = True
