@@ -11,6 +11,7 @@ from application.python import Null
 from lxml import etree
 
 from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLBooleanElement, XMLElementID, XMLAttribute, XMLElementChild
+from sipsimple.payloads import IterateIDs, IterateItems, All
 from sipsimple.payloads.datatypes import AnyURI, ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument, ListElement
 
@@ -85,6 +86,24 @@ class ContactURIList(XMLListElement):
     def __init__(self, uris=[]):
         XMLListElement.__init__(self)
         self.update(uris)
+
+    def __getitem__(self, key):
+        if key is IterateIDs:
+            return self._xmlid_map[ContactURI].iterkeys()
+        elif key is IterateItems:
+            return self._xmlid_map[ContactURI].itervalues()
+        else:
+            return self._xmlid_map[ContactURI][key]
+
+    def __delitem__(self, key):
+        if key is All:
+            for item in self._xmlid_map[ContactURI].values():
+                self.remove(item)
+        else:
+            self.remove(self._xmlid_map[ContactURI][key])
+
+    def get(self, key, default=None):
+        return self._xmlid_map[ContactURI].get(key, default)
 
 
 class PolicyValue(str):
