@@ -144,7 +144,7 @@ class NonPositiveInteger(long):
 
 
 class ID(str):
-    _id_regex = re.compile(r'^[a-z_][a-z0-9_\.\-]*', re.I)
+    _id_regex = re.compile(r'^[a-z_][a-z0-9_.-]*$', re.I)
 
     def __new__(cls, value):
         if not cls._id_regex.match(value):
