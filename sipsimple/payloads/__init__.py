@@ -5,6 +5,7 @@
 __all__ = ['ParserError',
            'BuilderError',
            'ValidationError',
+           'IterateTypes',
            'IterateIDs',
            'IterateItems',
            'All',
@@ -79,6 +80,7 @@ class MarkerType(type):
 class Marker(object):
     __metaclass__ = MarkerType
 
+class IterateTypes(Marker): pass
 class IterateIDs(Marker): pass
 class IterateItems(Marker): pass
 
@@ -831,6 +833,8 @@ class XMLListMixin(XMLElementBase):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __getitem__(self, key):
+        if key is IterateTypes:
+            return (cls for cls, mapping in self._xmlid_map.iteritems() if mapping)
         if not isinstance(key, tuple):
             raise KeyError(key)
         try:
