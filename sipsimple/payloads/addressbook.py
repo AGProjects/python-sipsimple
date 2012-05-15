@@ -4,7 +4,7 @@
 """Addressbook related payload elements"""
 
 
-__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'ElementExtension', 'ElementAttributes']
+__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'PolicyURI', 'ElementExtension', 'ElementAttributes']
 
 
 from application.python import Null
@@ -187,6 +187,34 @@ class Contact(XMLElement, ListElement):
         return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.group_id, self.name, list(self.uris), self.presence, self.dialog)
 
 
+class PolicyURI(XMLElement):
+    _xml_tag = 'policy-uri'
+    _xml_namespace = namespace
+    _xml_extension_type = ElementExtension
+    _xml_document = ResourceListsDocument
+
+    id = XMLElementID('id', type=ID, required=True, test_equal=True)
+    uri = XMLAttribute('uri', type=AnyURI, required=True, test_equal=True)
+
+    name = XMLElementChild('name', type=Name, required=True, test_equal=True)
+    dialog = XMLElementChild('dialog', type=DialogHandling, required=True, test_equal=True)
+    presence = XMLElementChild('presence', type=PresenceHandling, required=True, test_equal=True)
+
+    def __init__(self, id, uri, name='', presence_handling=None, dialog_handling=None):
+        XMLElement.__init__(self)
+        self.id = id
+        self.uri = uri
+        self.name = name
+        self.dialog = dialog_handling or DialogHandling('default', False)
+        self.presence = presence_handling or PresenceHandling('default', False)
+
+    def __unicode__(self):
+        return unicode(self.uri)
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.uri, self.name, self.presence, self.dialog)
+
+
 #
 # Extensions
 #
@@ -298,5 +326,6 @@ ResourceListsDocument.register_namespace(ElementAttributes._xml_namespace, prefi
 Group.register_extension('attributes', ElementAttributes)
 Contact.register_extension('attributes', ElementAttributes)
 ContactURI.register_extension('attributes', ElementAttributes)
+PolicyURI.register_extension('attributes', ElementAttributes)
 
 
