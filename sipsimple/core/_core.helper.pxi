@@ -314,7 +314,7 @@ del FrozenSIPURI_parse
 # Factory functions
 #
 
-cdef SIPURI SIPURI_create(pjsip_sip_uri *uri):
+cdef dict _pj_sipuri_to_dict(pjsip_sip_uri *uri):
     cdef object scheme
     cdef pj_str_t *scheme_str
     cdef pjsip_param *param
@@ -361,51 +361,16 @@ cdef SIPURI SIPURI_create(pjsip_sip_uri *uri):
         else:
             headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
+    return kwargs
+
+cdef SIPURI SIPURI_create(pjsip_sip_uri *uri):
+    cdef dict kwargs = _pj_sipuri_to_dict(uri)
     return SIPURI(**kwargs)
 
 cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *uri):
-    cdef object scheme
-    cdef pj_str_t *scheme_str
-    cdef pjsip_param *param
-    cdef object parameters = {}
-    cdef object headers = {}
-    cdef object kwargs = {}
-    kwargs["host"] = _pj_str_to_str(uri.host)
-    scheme = _pj_str_to_str(pjsip_uri_get_scheme(<pjsip_uri *>uri)[0])
-    if scheme == "sip":
-        kwargs["secure"] = False
-    elif scheme == "sips":
-        kwargs["secure"] = True
-    else:
-        raise SIPCoreError("Not a sip(s) URI")
-    if uri.user.slen > 0:
-        kwargs["user"] = _pj_str_to_str(uri.user)
-    if uri.passwd.slen > 0:
-        kwargs["password"] = _pj_str_to_str(uri.passwd)
-    if uri.port > 0:
-        kwargs["port"] = uri.port
-    if uri.user_param.slen > 0:
-        parameters["user"] = _pj_str_to_str(uri.user_param)
-    if uri.method_param.slen > 0:
-        parameters["method"] = _pj_str_to_str(uri.method_param)
-    if uri.transport_param.slen > 0:
-        parameters["transport"] = _pj_str_to_str(uri.transport_param)
-    if uri.ttl_param != -1:
-        parameters["ttl"] = uri.ttl_param
-    if uri.lr_param != 0:
-        parameters["lr"] = uri.lr_param
-    if uri.maddr_param.slen > 0:
-        parameters["maddr"] = _pj_str_to_str(uri.maddr_param)
-    param = <pjsip_param *> (<pj_list *> &uri.other_param).next
-    while param != &uri.other_param:
-        parameters[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
-        param = <pjsip_param *> (<pj_list *> param).next
-    param = <pjsip_param *> (<pj_list *> &uri.header_param).next
-    while param != &uri.header_param:
-        headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
-        param = <pjsip_param *> (<pj_list *> param).next
-    kwargs["parameters"] = frozendict(parameters)
-    kwargs["headers"] = frozendict(headers)
+    cdef dict kwargs = _pj_sipuri_to_dict(uri)
+    kwargs["parameters"] = frozendict(kwargs["parameters"])
+    kwargs["headers"] = frozendict(kwargs["headers"])
     return FrozenSIPURI(**kwargs)
 
 
