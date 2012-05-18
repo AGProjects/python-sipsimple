@@ -119,9 +119,10 @@ class SIPRegistrationDidNotEnd(Exception):
         self.data = data
 
 class SIPAccountRegistrationError(Exception):
-    def __init__(self, error, timeout):
+    def __init__(self, error, timeout, **attributes):
         self.error = error
         self.timeout = timeout
+        self.attributes = attributes
 
 class SubscriptionError(Exception):
     def __init__(self, error, timeout, refresh_interval=None):
@@ -212,7 +213,7 @@ class AccountRegistrar(object):
         if self._registration is None:
             self._registration = Registration(FromHeader(self.account.uri, self.account.display_name),
                                               credentials=self.account.credentials,
-                                              duration=self.account.sip.register_interval)
+                                              duration=getattr(command, 'register_interval', self.account.sip.register_interval))
             notification_center.add_observer(self, sender=self._registration)
             notification_center.post_notification('SIPAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
         else:
@@ -264,6 +265,13 @@ class AccountRegistrar(object):
                             # Authentication failed, so retry the registration in some time
                             timeout = random.uniform(60, 120)
                             raise SIPAccountRegistrationError(error='Authentication failed', timeout=timeout)
+                        elif e.data.code == 423:
+                            # Get the value of the Min-Expires header
+                            timeout = random.uniform(60, 120)
+                            if e.data.min_expires is not None and e.data.min_expires > self.account.sip.register_interval:
+                                raise SIPAccountRegistrationError(error='Interval too short', timeout=timeout, min_expires=e.data.min_expires)
+                            else:
+                                raise SIPAccountRegistrationError(error='Interval too short', timeout=timeout)
                         else:
                             # Otherwise just try the next route
                             continue
@@ -308,7 +316,7 @@ class AccountRegistrar(object):
             self.registered = False
             notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
                                                   data=TimestampedNotificationData(error=e.error, timeout=e.timeout))
-            self._refresh_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('register', command.event))
+            self._refresh_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('register', command.event, register_interval=e.attributes.get('min_expires', self.account.sip.register_interval)))
             # Since we weren't able to register, recreate a registration next time
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None

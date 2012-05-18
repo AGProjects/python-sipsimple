@@ -99,10 +99,15 @@ class Registration(object):
                                                       data=TimestampedNotificationData(code=notification.data.code, 
                                                                                        reason=notification.data.reason))
             else:
+                if hasattr(notification.data, 'headers'):
+                    min_expires = notification.data.get('Min-Expires', None)
+                else:
+                    min_expires = None
                 notification_center.post_notification('SIPRegistrationDidFail', sender=self,
                                                       data=TimestampedNotificationData(code=notification.data.code,
                                                                                        reason=notification.data.reason,
-                                                                                       route_header=request.route_header))
+                                                                                       route_header=request.route_header,
+                                                                                       min_expires=min_expires))
 
     def _NH_SIPRequestWillExpire(self, notification):
         with self._lock:
