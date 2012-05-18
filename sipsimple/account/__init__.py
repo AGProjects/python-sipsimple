@@ -316,7 +316,11 @@ class AccountRegistrar(object):
             self.registered = False
             notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
                                                   data=TimestampedNotificationData(error=e.error, timeout=e.timeout))
-            self._refresh_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('register', command.event, register_interval=e.attributes.get('min_expires', self.account.sip.register_interval)))
+            if 'min_expires' in e.attributes:
+                command = Command('register', command.event, register_interval=e.attributes['min_expires'])
+            else:
+                command = Command('register', command.event)
+            self._refresh_timer = reactor.callLater(e.timeout, self._command_channel.send, command)
             # Since we weren't able to register, recreate a registration next time
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None
