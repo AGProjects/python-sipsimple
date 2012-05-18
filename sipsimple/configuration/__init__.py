@@ -229,7 +229,7 @@ class ModifiedValue(object):
 
 class SettingsObjectID(object):
     """
-    Simple descriptor used for SettingsObject subclasses that have dynamic IDs.
+    Descriptor for dynamic configuration object IDs.
     """
 
     def __init__(self, type):
