@@ -125,10 +125,10 @@ class SIPAccountRegistrationError(Exception):
         self.attributes = attributes
 
 class SubscriptionError(Exception):
-    def __init__(self, error, timeout, refresh_interval=None):
+    def __init__(self, error, timeout, **attributes):
         self.error = error
-        self.refresh_interval = refresh_interval
         self.timeout = timeout
+        self.attributes = attributes
 
 class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
@@ -485,7 +485,7 @@ class AccountMWISubscriber(object):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
 
-        refresh_interval =  getattr(command, 'refresh_interval', None) or self.account.sip.subscribe_interval
+        refresh_interval =  getattr(command, 'refresh_interval', self.account.sip.subscribe_interval)
 
         try:
             # Lookup routes
@@ -543,11 +543,11 @@ class AccountMWISubscriber(object):
                             raise SubscriptionError(error='Authentication failed', timeout=random.uniform(60, 120))
                         elif e.data.code == 423:
                             # Get the value of the Min-Expires header
+                            timeout = random.uniform(60, 120)
                             if e.data.min_expires is not None and e.data.min_expires > refresh_interval:
-                                interval = e.data.min_expires
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, min_expires=e.data.min_expires)
                             else:
-                                interval = None
-                            raise SubscriptionError(error='Interval too short', timeout=random.uniform(60, 120), refresh_interval=interval)
+                                raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.data.code in (405, 406, 489):
                             raise SubscriptionError(error='Method or event not supported', timeout=3600)
                         elif e.data.code == 1400:
@@ -610,7 +610,11 @@ class AccountMWISubscriber(object):
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
         except SubscriptionError, e:
-            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+            if 'min_expires' in e.attributes:
+                command = Command('subscribe', command.event, refresh_interval=e.attributes['min_expires'])
+            else:
+                command = Command('subscribe', command.event)
+            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, command)
         finally:
             self.subscribed = False
             self._subscription = None

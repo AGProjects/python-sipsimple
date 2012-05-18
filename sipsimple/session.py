@@ -53,10 +53,10 @@ class MediaStreamDidFailError(Exception):
         self.data = data
 
 class SubscriptionError(Exception):
-    def __init__(self, error, timeout, refresh_interval=None):
+    def __init__(self, error, timeout, **attributes):
         self.error = error
-        self.refresh_interval = refresh_interval
         self.timeout = timeout
+        self.attributes = attributes
 
 class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
@@ -481,6 +481,7 @@ class ConferenceHandler(object):
                 raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
 
             target_uri = SIPURI.new(self.session.remote_identity.uri)
+            refresh_interval =  getattr(command, 'refresh_interval', account.sip.subscribe_interval)
 
             timeout = time() + 30
             for route in routes:
@@ -496,7 +497,7 @@ class ConferenceHandler(object):
                                                 'conference',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=account.credentials,
-                                                refresh=3600)
+                                                refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
@@ -520,8 +521,8 @@ class ConferenceHandler(object):
                         elif e.data.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
-                            if e.data.min_expires is not None and e.data.min_expires > account.sip.subscribe_interval:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.data.min_expires)
+                            if e.data.min_expires is not None and e.data.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, min_expires=e.data.min_expires)
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.data.code in (405, 406, 489, 1400):
@@ -585,7 +586,11 @@ class ConferenceHandler(object):
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
         except SubscriptionError, e:
-            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+            if 'min_expires' in e.attributes:
+                command = Command('subscribe', command.event, refresh_interval=e.attributes['min_expires'])
+            else:
+                command = Command('subscribe', command.event)
+            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, command)
         finally:
             self.subscribed = False
             self._subscription = None
