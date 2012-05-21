@@ -1477,14 +1477,13 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
             invitation = (<object> inv.mod_data[ua._module.id])()
             if invitation is None:
                 return
-            if rdata != NULL:
-                if invitation.peer_address is None:
-                    invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
-                else:
-                    invitation.peer_address.ip = rdata.pkt_info.src_name
-                    invitation.peer_address.port = rdata.pkt_info.src_port
-                rdata_dict = dict()
-                _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+            if invitation.peer_address is None:
+                invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+            else:
+                invitation.peer_address.ip = rdata.pkt_info.src_name
+                invitation.peer_address.port = rdata.pkt_info.src_port
+            rdata_dict = dict()
+            _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
             with nogil:
                 status = pjsip_inv_initial_answer(inv, rdata, 100, NULL, NULL, &answer_tdata)
             if status != 0:
