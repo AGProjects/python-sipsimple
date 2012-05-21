@@ -1918,6 +1918,7 @@ cdef class StateCallbackTimer(Timer):
     cdef object sub_state
     cdef object rdata
     cdef object tdata
+    cdef object originator
 
 cdef class SDPCallbackTimer(Timer):
     cdef int status

@@ -20,11 +20,12 @@ cdef class SDPPayloads:
 
 
 cdef class StateCallbackTimer(Timer):
-    def __init__(self, state, sub_state, rdata, tdata):
+    def __init__(self, state, sub_state, rdata, tdata, originator):
         self.state = state
         self.sub_state = sub_state
         self.rdata = rdata
         self.tdata = tdata
+        self.originator = originator
 
 
 cdef class SDPCallbackTimer(Timer):
@@ -880,6 +881,7 @@ cdef class Invitation:
         cdef object sub_state
         cdef object rdata
         cdef object tdata
+        cdef object originator
         cdef PJSIPUA ua
 
         ua = self._check_ua()
@@ -896,6 +898,7 @@ cdef class Invitation:
             sub_state = timer.sub_state
             rdata = timer.rdata
             tdata = timer.tdata
+            originator = timer.originator
 
             if state == self.state and sub_state == self.sub_state:
                 return 0
@@ -927,7 +930,7 @@ cdef class Invitation:
                 event_dict["prev_sub_state"] = self.sub_state
             if state == "connected":
                 event_dict["sub_state"] = sub_state
-            event_dict["originator"] = "remote" if rdata is not None else "local"
+            event_dict["originator"] = originator
             if rdata is not None:
                 event_dict.update(rdata)
             if tdata is not None:
@@ -1377,6 +1380,7 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
     cdef object state
     cdef object rdata_dict = None
     cdef object tdata_dict = None
+    cdef object originator
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
@@ -1420,6 +1424,7 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
                     rdata_dict["reason"] = "Transport Error"
                     rdata_dict["headers"] = dict()
                     rdata_dict["body"] = None
+                    originator = "local"
             if rdata != NULL:
                 if invitation.peer_address is None:
                     invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
@@ -1428,11 +1433,13 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
                     invitation.peer_address.port = rdata.pkt_info.src_port
                 rdata_dict = dict()
                 _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                originator = "remote"
             if tdata != NULL:
                 tdata_dict = dict()
                 _pjsip_msg_to_dict(tdata.msg, tdata_dict)
+                originator = "local"
             try:
-                timer = StateCallbackTimer(state, sub_state, rdata_dict, tdata_dict)
+                timer = StateCallbackTimer(state, sub_state, rdata_dict, tdata_dict, originator)
                 timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
             except:
                 invitation._fail(ua)
@@ -1465,6 +1472,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
     cdef int status
     cdef pjsip_tx_data *answer_tdata
     cdef object rdata_dict = None
+    cdef object originator
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
@@ -1484,6 +1492,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                 invitation.peer_address.port = rdata.pkt_info.src_port
             rdata_dict = dict()
             _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+            originator = "remote"
             with nogil:
                 status = pjsip_inv_initial_answer(inv, rdata, 100, NULL, NULL, &answer_tdata)
             if status != 0:
@@ -1491,7 +1500,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
             with nogil:
                 pjsip_tx_data_dec_ref(answer_tdata)
             try:
-                timer = StateCallbackTimer("connected", "received_proposal", rdata_dict, None)
+                timer = StateCallbackTimer("connected", "received_proposal", rdata_dict, None, originator)
                 timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
             except:
                 invitation._fail(ua)
@@ -1503,6 +1512,7 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
     cdef pjsip_tx_data *tdata = NULL
     cdef object rdata_dict = None
     cdef object tdata_dict = None
+    cdef object originator
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
@@ -1533,11 +1543,13 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                 if rdata != NULL:
                     rdata_dict = dict()
                     _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                    originator = "remote"
                 if tdata != NULL:
                     tdata_dict = dict()
                     _pjsip_msg_to_dict(tdata.msg, tdata_dict)
+                    originator = "local"
                 try:
-                    timer = StateCallbackTimer("connected", "normal", rdata_dict, tdata_dict)
+                    timer = StateCallbackTimer("connected", "normal", rdata_dict, tdata_dict, originator)
                     timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
                 except:
                     invitation._fail(ua)
@@ -1546,8 +1558,9 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                   rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD):
                 rdata_dict = dict()
                 _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                originator = "remote"
                 try:
-                    timer = StateCallbackTimer("disconnected", None, rdata_dict, None)
+                    timer = StateCallbackTimer("disconnected", None, rdata_dict, None, originator)
                     timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
                 except:
                     invitation._fail(ua)
