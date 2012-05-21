@@ -100,7 +100,7 @@ class Registration(object):
                                                                                        reason=notification.data.reason))
             else:
                 if hasattr(notification.data, 'headers'):
-                    min_expires = notification.data.get('Min-Expires', None)
+                    min_expires = notification.data.headers.get('Min-Expires', None)
                 else:
                     min_expires = None
                 notification_center.post_notification('SIPRegistrationDidFail', sender=self,
