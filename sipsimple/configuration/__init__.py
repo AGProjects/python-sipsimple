@@ -7,7 +7,7 @@ from __future__ import with_statement
 
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
            'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'SettingsObjectID',
-           'SettingsObject', 'SettingsObjectExtension']
+           'SettingsObjectImmutableID', 'SettingsObject', 'SettingsObjectExtension']
 
 from itertools import chain
 from threading import Lock
@@ -287,6 +287,34 @@ class SettingsObjectID(object):
         with self.lock:
             self.values[obj] = self.oldvalues[obj]
             self.dirty[obj] = False
+
+
+class SettingsObjectImmutableID(object):
+    """
+    Descriptor for immutable runtime allocated configuration object IDs.
+    """
+
+    def __init__(self, type):
+        self.type = type
+        self.values = WeakKeyDictionary()
+        self.lock = Lock()
+
+    def __get__(self, obj, objtype):
+        return self if obj is None else self.values[obj]
+
+    def __set__(self, obj, value):
+        with self.lock:
+            if obj in self.values:
+                raise AttributeError('attribute is read-only')
+            if not isinstance(value, self.type):
+                value = self.type(value)
+            try:
+                other_obj = (key for key, val in self.values.iteritems() if val==value).next()
+            except StopIteration:
+                pass
+            else:
+                raise DuplicateIDError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
+            self.values[obj] = value
 
 
 class Setting(object):
@@ -621,7 +649,7 @@ class SettingsObject(SettingsState):
 
     @property
     def __key__(self):
-        if isinstance(self.__class__.__id__, SettingsObjectID):
+        if isinstance(self.__class__.__id__, (SettingsObjectID, SettingsObjectImmutableID)):
             id_key = PersistentKey(self.__id__)
         else:
             id_key = unicode(self.__id__)
@@ -634,6 +662,8 @@ class SettingsObject(SettingsState):
     def __oldkey__(self):
         if isinstance(self.__class__.__id__, SettingsObjectID):
             id_key = PersistentKey(self.__class__.__id__.get_old(self))
+        elif isinstance(self.__class__.__id__, SettingsObjectImmutableID):
+            id_key = PersistentKey(self.__id__)
         else:
             id_key = unicode(self.__id__)
         if self.__group__ is not None:
