@@ -662,8 +662,7 @@ class SettingsObject(SettingsState):
 
         oldkey = self.__oldkey__ # save this here as get_modified will reset it
 
-        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
-        modified_id = id_descriptor.get_modified(self) if id_descriptor else None
+        modified_id = self.__class__.__id__.get_modified(self) if isinstance(self.__class__.__id__, SettingsObjectID) else None
         modified_settings = self.get_modified()
 
         if not modified_id and not modified_settings and self.__state__ != 'new':
