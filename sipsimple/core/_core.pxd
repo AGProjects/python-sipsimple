@@ -367,6 +367,7 @@ cdef extern from "pjmedia.h":
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
     ctypedef pjmedia_sdp_session *pjmedia_sdp_session_ptr_const "const pjmedia_sdp_session *"
     pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs) nogil
+    pjmedia_sdp_session *pjmedia_sdp_session_clone(pj_pool_t *pool, pjmedia_sdp_session_ptr_const sdp) nogil
 
     # sdp negotiation
 
@@ -381,6 +382,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
+    int pjmedia_sdp_neg_modify_local_offer (pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const local) nogil
     int pjmedia_sdp_neg_cancel_offer(pjmedia_sdp_neg *neg) nogil
     int pjmedia_sdp_neg_cancel_remote_offer(pjmedia_sdp_neg *neg) nogil
     pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg) nogil
@@ -987,7 +989,7 @@ cdef extern from "pjsip_ua.h":
         void on_new_session(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
         void on_rx_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil
-        #void on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
+        void on_create_offer(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
         void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
@@ -1010,6 +1012,7 @@ cdef extern from "pjsip_ua.h":
     char *pjsip_inv_state_name(pjsip_inv_state state) nogil
     int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact,
                            pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata) nogil
+    int pjsip_create_sdp_body(pj_pool_t *pool, pjmedia_sdp_session *sdp, pjsip_msg_body **p_body) nogil
 
     # Replaces
     struct pjsip_replaces_hdr:
@@ -1949,6 +1952,7 @@ cdef class Invitation(object):
     cdef pjsip_dialog *_dialog
     cdef pjsip_route_hdr _route_header
     cdef pjsip_transaction *_reinvite_transaction
+    cdef pjsip_tx_data *_tmp_tdata
     cdef PJSTR _sipfrag_payload
     cdef Timer _timer
     cdef Timer _transfer_timeout_timer
@@ -1998,6 +2002,7 @@ cdef class Invitation(object):
 
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
+cdef void _Invitation_cb_create_offer(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                                      pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil

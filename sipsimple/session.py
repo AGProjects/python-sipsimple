@@ -2324,6 +2324,42 @@ class Session(object):
                         raise #FIXME
                     else:
                         self.state = 'connected'
+                elif notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal_request':
+                    self.state = 'received_proposal_request'
+                    try:
+                        # An empty proposal was received, generate an offer
+                        self._invitation.send_response(100)
+                        local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+                        local_sdp.version += 1
+                        for stream in self.streams:
+                            stream.reset(stream.index)
+                            local_sdp.media[stream.index] = stream.get_local_media(for_offer=True)
+                        self._invitation.send_response(200, sdp=local_sdp)
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
+                        received_invitation_state = False
+                        received_sdp_update = False
+                        while not received_sdp_update or not received_invitation_state:
+                            notification = self._channel.wait()
+                            if notification.name == 'SIPInvitationGotSDPUpdate':
+                                received_sdp_update = True
+                                if notification.data.succeeded:
+                                    local_sdp = notification.data.local_sdp
+                                    remote_sdp = notification.data.remote_sdp
+                                    for stream in self.streams:
+                                        stream.update(local_sdp, remote_sdp, stream.index)
+                            elif notification.name == 'SIPInvitationChangedState':
+                                if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                                    received_invitation_state = True
+                            elif notification.data.state == 'disconnected':
+                                raise InvitationDisconnectedError(notification.sender, notification.data)
+                    except InvitationDisconnectedError, e:
+                        self.greenlet = None
+                        self.state == 'connected'
+                        self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+                    except SIPCoreError:
+                        raise #FIXME
+                    else:
+                        self.state = 'connected'
                 elif notification.data.state == 'connected' and notification.data.sub_state == 'normal' and notification.data.prev_sub_state == 'received_proposal':
                     if notification.data.originator == 'local' and notification.data.code == 487:
                         self.state = 'connected'
