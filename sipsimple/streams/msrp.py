@@ -275,6 +275,9 @@ class MSRPStreamBase(object):
     def unhold(self):
         pass
 
+    def reset(self, stream_index):
+        pass
+
     ## Internal IObserver interface
 
     def handle_notification(self, notification):

@@ -67,6 +67,8 @@ class IMediaStream(Interface):
     def unhold(self):
         pass
 
+    def reset(self, stream_index):
+        pass
 
 # The MediaStream registry
 #

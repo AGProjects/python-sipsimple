@@ -331,6 +331,13 @@ class AudioStream(object):
                 self.bridge.stop()
             self._session = None
 
+    def reset(self, stream_index):
+        with self._lock:
+            if self.direction == "inactive" and not self.on_hold_by_local:
+                new_direction = "sendrecv"
+                self._audio_transport.update_direction(new_direction)
+                self._check_hold(new_direction, False)
+
     def send_dtmf(self, digit):
         with self._lock:
             if self.state != "ESTABLISHED":
