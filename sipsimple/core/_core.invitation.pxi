@@ -1539,6 +1539,7 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                     invitation.peer_address.ip = rdata.pkt_info.src_name
                     invitation.peer_address.port = rdata.pkt_info.src_port
             if ((tsx.state == PJSIP_TSX_STATE_TERMINATED or tsx.state == PJSIP_TSX_STATE_COMPLETED) and
+                (inv.neg != NULL and pjmedia_sdp_neg_get_state(inv.neg) == PJMEDIA_SDP_NEG_STATE_DONE) and
                 invitation._reinvite_transaction != NULL and invitation._reinvite_transaction == tsx):
                 if rdata != NULL:
                     rdata_dict = dict()
