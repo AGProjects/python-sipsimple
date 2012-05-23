@@ -46,6 +46,7 @@ class AudioStream(object):
         self.notification_center = NotificationCenter()
         self.on_hold_by_local = False
         self.on_hold_by_remote = False
+        self.direction = None
         self.state = "NULL"
         self._audio_rec = None
         self._audio_transport = None
@@ -295,7 +296,7 @@ class AudioStream(object):
         with self._lock:
             if self.on_hold_by_local or self._hold_request == 'hold':
                 return
-            if self.state == "ESTABLISHED":
+            if self.state == "ESTABLISHED" and self.direction != "inactive":
                 self.bridge.remove(self)
             self._hold_request = 'hold'
 
@@ -487,9 +488,12 @@ class AudioStream(object):
     def _check_hold(self, direction, is_initial):
         was_on_hold_by_local = self.on_hold_by_local
         was_on_hold_by_remote = self.on_hold_by_remote
-        self.on_hold_by_local = "recv" not in direction
+        was_inactive = self.direction == "inactive"
+        self.direction = direction
+        inactive = self.direction == "inactive"
+        self.on_hold_by_local = "recv" not in direction and was_on_hold_by_local == inactive
         self.on_hold_by_remote = "send" not in direction
-        if (is_initial or was_on_hold_by_local) and not self.on_hold_by_local and self._hold_request != 'hold':
+        if (is_initial or was_on_hold_by_local or was_inactive) and not inactive and not self.on_hold_by_local and self._hold_request != 'hold':
             self.bridge.add(self)
         if not was_on_hold_by_local and self.on_hold_by_local:
             self.notification_center.post_notification('AudioStreamDidChangeHoldState', self,
