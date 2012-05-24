@@ -337,6 +337,8 @@ class AudioStream(object):
                 new_direction = "sendrecv"
                 self._audio_transport.update_direction(new_direction)
                 self._check_hold(new_direction, False)
+                # TODO: do a full reset, re-creating the AudioTransport, so that a new offer
+                # would contain all codecs and ICE would be renegotiated -Saul
 
     def send_dtmf(self, digit):
         with self._lock:
