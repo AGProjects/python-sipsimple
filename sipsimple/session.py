@@ -34,7 +34,7 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.account import AccountManager, BonjourAccount, PublicGRUU, PublicGRUUIfAvailable
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.payloads import ValidationError
+from sipsimple.payloads import ParserError
 from sipsimple.payloads.conference import ConferenceDocument
 from sipsimple.streams import AudioStream, MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
@@ -549,7 +549,7 @@ class ConferenceHandler(object):
                         if notification.data.event == 'conference' and notification.data.body:
                             try:
                                 conference_info = ConferenceDocument.parse(notification.data.body)
-                            except ValidationError:
+                            except ParserError:
                                 pass
                             else:
                                 notification_center.post_notification('SIPSessionGotConferenceInfo', sender=self.session, data=TimestampedNotificationData(conference_info=conference_info))

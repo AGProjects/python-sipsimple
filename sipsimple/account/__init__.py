@@ -41,7 +41,7 @@ from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.payloads import ValidationError
+from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.threading import call_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
@@ -572,7 +572,7 @@ class AccountMWISubscriber(object):
                         if notification.data.event == 'message-summary' and notification.data.body:
                             try:
                                 message_summary = MessageSummary.parse(notification.data.body)
-                            except ValidationError:
+                            except ParserError:
                                 pass
                             else:
                                 self.server_advertised_uri = message_summary.message_account and message_summary.message_account.replace('sip:', '', 1) or None
