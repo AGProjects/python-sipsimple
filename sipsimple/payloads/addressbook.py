@@ -4,7 +4,7 @@
 """Addressbook related payload elements"""
 
 
-__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'ContactURIList', 'PolicyURI', 'ElementExtension', 'ElementAttributes']
+__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'PolicyURI', 'ElementExtension', 'ElementAttributes']
 
 
 from application.python import Null
