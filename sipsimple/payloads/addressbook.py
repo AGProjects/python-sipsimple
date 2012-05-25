@@ -29,9 +29,6 @@ class Name(XMLStringElement):
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument
 
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.value)
-
 
 class Group(XMLElement, ListElement):
     _xml_tag = 'group'
