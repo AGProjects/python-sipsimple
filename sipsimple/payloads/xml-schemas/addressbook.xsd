@@ -7,9 +7,16 @@
    <xs:complexType name="Group">
     <xs:sequence>
      <xs:element name="name" type="xs:string"/>
+     <xs:element name="contacts" type="ContactList"/>
      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="id" type="xs:ID" use="required"/>
+   </xs:complexType>
+
+   <xs:complexType name="ContactList">
+    <xs:sequence>
+     <xs:element name="contact_id" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
    </xs:complexType>
 
    <xs:complexType name="Contact">
@@ -20,8 +27,7 @@
      <xs:element name="presence" type="PresenceHandling"/>
      <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
-    <xs:attribute name="id"       type="xs:ID" use="required"/>
-    <xs:attribute name="group_id" type="xs:string" use="required"/>
+    <xs:attribute name="id" type="xs:ID" use="required"/>
    </xs:complexType>
 
    <xs:complexType name="ContactURIList">

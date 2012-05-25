@@ -30,6 +30,45 @@ class Name(XMLStringElement):
     _xml_document = ResourceListsDocument
 
 
+class ContactID(XMLStringElement):
+    _xml_tag = 'contact_id'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+    _xml_value_type = ID
+
+
+class ContactList(XMLListElement):
+    _xml_tag = 'contacts'
+    _xml_namespace = namespace
+    _xml_document = ResourceListsDocument
+    _xml_item_type = ContactID
+
+    def __init__(self, contacts=[]):
+        XMLListElement.__init__(self)
+        self.update(contacts)
+
+    def __contains__(self, item):
+        if isinstance(item, basestring):
+            item = ContactID(item)
+        return super(ContactList, self).__contains__(item)
+
+    def __iter__(self):
+        return (item.value for item in super(ContactList, self).__iter__())
+
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = ContactID(item)
+        super(ContactList, self).add(item)
+
+    def remove(self, item):
+        if isinstance(item, basestring):
+            try:
+                item = (entry for entry in super(ContactList, self).__iter__() if entry.value == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(ContactList, self).remove(item)
+
+
 class Group(XMLElement, ListElement):
     _xml_tag = 'group'
     _xml_namespace = namespace
@@ -38,17 +77,19 @@ class Group(XMLElement, ListElement):
 
     id = XMLElementID('id', type=ID, required=True, test_equal=True)
     name = XMLElementChild('name', type=Name, required=True, test_equal=True)
+    contacts = XMLElementChild('contacts', type=ContactList, required=True, test_equal=True)
 
-    def __init__(self, id, name):
+    def __init__(self, id, name, contacts=[]):
         XMLElement.__init__(self)
         self.id = id
         self.name = name
+        self.contacts = ContactList(contacts)
 
     def __unicode__(self):
         return unicode(self.name)
 
     def __repr__(self):
-        return '%s(%r, %r)' % (self.__class__.__name__, self.id, self.name)
+        return '%s(%r, %r, contacts=%r)' % (self.__class__.__name__, self.id, self.name, list(self.contacts))
 
 
 class ContactURI(XMLElement):
@@ -164,24 +205,22 @@ class Contact(XMLElement, ListElement):
     _xml_document = ResourceListsDocument
 
     id = XMLElementID('id', type=ID, required=True, test_equal=True)
-    group_id = XMLAttribute('group_id', type=str, required=True, test_equal=True)
 
     name = XMLElementChild('name', type=Name, required=True, test_equal=True)
     uris = XMLElementChild('uris', type=ContactURIList, required=True, test_equal=True)
     dialog = XMLElementChild('dialog', type=DialogHandling, required=True, test_equal=True)
     presence = XMLElementChild('presence', type=PresenceHandling, required=True, test_equal=True)
 
-    def __init__(self, id, group_id, name, uris=[], presence_handling=None, dialog_handling=None):
+    def __init__(self, id, name, uris=[], presence_handling=None, dialog_handling=None):
         XMLElement.__init__(self)
         self.id = id
-        self.group_id = group_id
         self.name = name
         self.uris = ContactURIList(uris)
         self.dialog = dialog_handling or DialogHandling('default', False)
         self.presence = presence_handling or PresenceHandling('default', False)
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.group_id, self.name, list(self.uris), self.presence, self.dialog)
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.name, list(self.uris), self.presence, self.dialog)
 
 
 class PolicyURI(XMLElement):
