@@ -1202,12 +1202,14 @@ class Session(object):
             else:
                 if e.data.originator == 'remote':
                     notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=e.data.code, reason=e.data.reason))
-                if e.data.originator == 'remote':
                     code = e.data.code
                     reason = e.data.reason
                 elif e.data.disconnect_reason == 'timeout':
                     code = 408
                     reason = 'timeout'
+                elif e.data.originator == 'local' and e.data.code == 408:
+                    code = e.data.code
+                    reason = e.data.reason
                 else:
                     code = 0
                     reason = None
