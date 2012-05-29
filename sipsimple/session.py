@@ -481,7 +481,10 @@ class ConferenceHandler(object):
                 raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
 
             target_uri = SIPURI.new(self.session.remote_identity.uri)
-            refresh_interval =  getattr(command, 'refresh_interval', account.sip.subscribe_interval)
+            if account is BonjourAccount():
+                refresh_interval =  getattr(command, 'refresh_interval', 600)
+            else:
+                refresh_interval =  getattr(command, 'refresh_interval', account.sip.subscribe_interval)
 
             timeout = time() + 30
             for route in routes:
