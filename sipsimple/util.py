@@ -187,7 +187,6 @@ class Timestamp(datetime):
 
 
 class TimestampedNotificationData(NotificationData):
-
     def __init__(self, **kwargs):
         self.timestamp = datetime.now()
         NotificationData.__init__(self, **kwargs)
