@@ -283,10 +283,10 @@ class weakobjectmap(dict):
         return key in self
 
     def get(self, key, default=None):
-        super(weakobjectmap, self).get(id(key), default)
+        return super(weakobjectmap, self).get(id(key), default)
 
     def setdefault(self, key, default=None):
-        super(weakobjectmap, self).setdefault(weakobjectid(key, self.__remove__), default)
+        return super(weakobjectmap, self).setdefault(weakobjectid(key, self.__remove__), default)
 
     def pop(self, key, *args):
         try:
