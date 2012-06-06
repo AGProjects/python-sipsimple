@@ -11,7 +11,6 @@ __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 
 
 from itertools import chain
 from threading import Lock
-from weakref import WeakKeyDictionary
 
 from application import log
 from application.notification import NotificationCenter
@@ -20,7 +19,7 @@ from application.python.types import Singleton
 from backports.weakref import WeakSet
 
 from sipsimple.threading import run_in_thread
-from sipsimple.util import TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData, weakobjectmap
 
 
 ## Exceptions
@@ -234,9 +233,9 @@ class SettingsObjectID(object):
 
     def __init__(self, type):
         self.type = type
-        self.values = WeakKeyDictionary()
-        self.oldvalues = WeakKeyDictionary()
-        self.dirty = WeakKeyDictionary()
+        self.values = weakobjectmap()
+        self.oldvalues = weakobjectmap()
+        self.dirty = weakobjectmap()
         self.lock = Lock()
 
     def __get__(self, obj, objtype):
@@ -296,7 +295,7 @@ class SettingsObjectImmutableID(object):
 
     def __init__(self, type):
         self.type = type
-        self.values = WeakKeyDictionary()
+        self.values = weakobjectmap()
         self.lock = Lock()
 
     def __get__(self, obj, objtype):
@@ -331,9 +330,9 @@ class Setting(object):
         self.type = type
         self.default = default
         self.nillable = nillable
-        self.values = WeakKeyDictionary()
-        self.oldvalues = WeakKeyDictionary()
-        self.dirty = WeakKeyDictionary()
+        self.values = weakobjectmap()
+        self.oldvalues = weakobjectmap()
+        self.dirty = weakobjectmap()
         self.lock = Lock()
 
     def __get__(self, obj, objtype):
@@ -539,7 +538,7 @@ class SettingsGroupMeta(SettingsStateMeta):
     """
     def __init__(cls, name, bases, dct):
         super(SettingsGroupMeta, cls).__init__(name, bases, dct)
-        cls.values = WeakKeyDictionary()
+        cls.values = weakobjectmap()
 
     def __get__(cls, obj, objtype):
         if obj is None:

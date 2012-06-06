@@ -28,13 +28,12 @@ __all__ = ['pidf_namespace',
            'DeviceInfo']
 
 
-import weakref
-
 from itertools import izip
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLListElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
 from sipsimple.payloads.datatypes import AnyURI, ID
+from sipsimple.util import weakobjectmap
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -108,34 +107,19 @@ class DMNote(XMLLocalizedStringElement):
         return Note(self.value, self.lang)
 
 
-class objectid(long):
-    def __new__(cls, obj):
-        instance = long.__new__(cls, id(obj))
-        instance.obj = obj
-        return instance
-
-
-class objectmap(dict):
-    def __getitem__(self, key):
-        return dict.__getitem__(self, objectid(key))[0]
-    def __missing__(self, key):
-        key_id = long(key)
-        self[key_id] = value = {}, weakref.ref(key.obj, lambda weak_ref: self.pop(key_id))
-        return value
-    def __repr__(self):
-        return "objectmap(%s)" % dict.__repr__(self)
-
-
 class NoteMap(object):
     """Descriptor to be used for _note_map attributes on XML elements with notes"""
 
     def __init__(self):
-        self.object_map = objectmap()
+        self.object_map = weakobjectmap()
 
     def __get__(self, obj, type):
         if obj is None:
             return self
-        return self.object_map[obj]
+        try:
+            return self.object_map[obj]
+        except KeyError:
+            return self.object_map.setdefault(obj, {})
 
     def __set__(self, obj, value):
         raise AttributeError("cannot set attribute")

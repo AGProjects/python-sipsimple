@@ -10,7 +10,6 @@ __all__ = ['ContactGroup', 'ContactGroupExtension', 'ContactGroupManager', 'Cont
 import sys
 from itertools import chain, count
 from threading import Lock
-from weakref import WeakKeyDictionary
 from zope.interface import implements
 
 from application import log
@@ -24,7 +23,7 @@ from sipsimple.account import xcap
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroupMeta, SettingsObjectID, SettingsState, ObjectNotFoundError, DuplicateIDError, ModifiedValue, PersistentKey
 from sipsimple.payloads.resourcelists import Entry, EntryAttributes, ResourceListsDocument
 from sipsimple.threading import call_in_thread, call_in_twisted_thread, run_in_thread
-from sipsimple.util import TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData, weakobjectmap
 
 
 
@@ -272,9 +271,9 @@ class IdentityDescriptor(object):
         return object.__new__(cls)
 
     def __init__(self):
-        self.values = WeakKeyDictionary()
-        self.oldvalues = WeakKeyDictionary()
-        self.dirty = WeakKeyDictionary()
+        self.values = weakobjectmap()
+        self.oldvalues = weakobjectmap()
+        self.dirty = weakobjectmap()
 
     def __get__(self, obj, objtype):
         return self if obj is None else self.values[obj]
