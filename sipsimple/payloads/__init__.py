@@ -49,6 +49,7 @@ import os
 import sys
 import urllib
 from collections import defaultdict, deque
+from copy import deepcopy
 from decimal import Decimal
 from itertools import chain, izip
 from weakref import WeakValueDictionary
@@ -157,12 +158,13 @@ class XMLDocument(object):
         element = root_element.to_element()
         if validate and cls.schema is not None:
             cls.schema.assertValid(element)
-        # Cleanup namespaces and move element NS mappings to the global scope. We need to use a fake parent to accomplish this.
-        fake = etree.Element('fake', nsmap=dict(chain(element.nsmap.iteritems(), cls.nsmap.iteritems())))
-        fake.append(element)
-        fake.remove(element)
-        etree.cleanup_namespaces(element)
-        return etree.tostring(element, encoding=encoding or cls.encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
+        # Cleanup namespaces and move element NS mappings to the global scope.
+        normalized_element = etree.Element(element.tag, attrib=element.attrib, nsmap=dict(chain(element.nsmap.iteritems(), cls.nsmap.iteritems())))
+        normalized_element.text = element.text
+        normalized_element.tail = element.tail
+        normalized_element.extend(deepcopy(child) for child in element)
+        etree.cleanup_namespaces(normalized_element)
+        return etree.tostring(normalized_element, encoding=encoding or cls.encoding, method='xml', xml_declaration=True, pretty_print=pretty_print)
 
     @classmethod
     def create(cls, build_kw={}, **kw):
