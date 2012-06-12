@@ -427,8 +427,10 @@ class ConferenceHandler(object):
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._deactivate().wait()
-        self._command_proc.kill()
+        self._deactivate()
+        command = Command('terminate')
+        self._command_channel.send(command)
+        command.wait()
         self.session = None
 
     def _CH_subscribe(self, command):
@@ -455,6 +457,10 @@ class ConferenceHandler(object):
             subscription_proc.wait()
             self._subscription_proc = None
         command.signal()
+
+    def _CH_terminate(self, command):
+        command.signal()
+        raise proc.ProcExit()
 
     def _subscription_handler(self, command):
         notification_center = NotificationCenter()
