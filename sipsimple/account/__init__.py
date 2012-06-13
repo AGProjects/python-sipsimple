@@ -169,7 +169,9 @@ class AccountRegistrar(object):
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_proc.kill()
+        command = Command('terminate')
+        self._command_channel.send(command)
+        command.wait()
         self._command_proc = None
 
     def activate(self):
@@ -182,7 +184,7 @@ class AccountRegistrar(object):
         self._command_proc.kill(InterruptCommand)
         command = Command('unregister')
         self._command_channel.send(command)
-        command.wait()
+        return command
 
     def reactivate(self):
         self._command_channel.send(Command('unregister'))
@@ -367,6 +369,10 @@ class AccountRegistrar(object):
             self._registration = None
         self._command_channel.send(Command('register', command.event))
 
+    def _CH_terminate(self, command):
+        command.signal()
+        raise proc.ProcExit()
+
     @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -432,7 +438,9 @@ class AccountMWISubscriber(object):
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_proc.kill()
+        command = Command('terminate')
+        self._command_channel.send(command)
+        command.wait()
         self._command_proc = None
 
     def activate(self):
@@ -445,7 +453,7 @@ class AccountMWISubscriber(object):
         self.server_advertised_uri = None
         command = Command('unsubscribe')
         self._command_channel.send(command)
-        command.wait()
+        return command
 
     def reactivate(self):
         self._command_channel.send(Command('subscribe'))
@@ -480,6 +488,10 @@ class AccountMWISubscriber(object):
             subscription_proc.wait()
             self._subscription_proc = None
         command.signal()
+
+    def _CH_terminate(self, command):
+        command.signal()
+        raise proc.ProcExit()
 
     def _subscription_handler(self, command):
         notification_center = NotificationCenter()
@@ -1204,8 +1216,6 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
-        self._registrar.start()
-        self._mwi_subscriber.start()
         self.xcap_manager.load()
         self.contact_manager.load_contacts()
         self.contact_manager.start()
@@ -1223,8 +1233,6 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
         self._deactivate()
-        self._mwi_subscriber.stop()
-        self._registrar.stop()
         self.contact_manager.stop()
 
     @run_in_green_thread
@@ -1332,8 +1340,10 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountWillActivate', sender=self, data=TimestampedNotificationData())
         self._active = True
+        self._registrar.start()
         if self.sip.register:
             self._registrar.activate()
+        self._mwi_subscriber.start()
         if self.message_summary.enabled:
             self._mwi_subscriber.activate()
         if self.xcap.enabled:
@@ -1347,7 +1357,9 @@ class Account(SettingsObject):
         notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
         self._active = False
         self._mwi_subscriber.deactivate()
+        self._mwi_subscriber.stop()
         self._registrar.deactivate()
+        self._registrar.stop()
         self.xcap_manager.stop()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
