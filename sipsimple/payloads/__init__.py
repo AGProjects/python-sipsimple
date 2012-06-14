@@ -304,15 +304,20 @@ class XMLElementChild(object):
     def __set__(self, obj, value):
         if value is not None and not isinstance(value, self.type):
             value = self.type(value)
+        same_value = False
         old_value = self.values.get(obj)
-        if old_value is value:
+        if value is old_value:
             return
+        elif value is not None and value == old_value:
+            value.__dirty__ = old_value.__dirty__
+            same_value = True
         if old_value is not None:
             obj.element.remove(old_value.element)
         if value is not None:
             obj._insert_element(value.element)
         self.values[obj] = value
-        obj.__dirty__ = True
+        if not same_value:
+            obj.__dirty__ = True
         if self.onset:
             self.onset(obj, self, value)
 
@@ -397,15 +402,20 @@ class XMLElementChoiceChild(object):
     def __set__(self, obj, value):
         if value is not None and type(value) not in self.types:
             raise TypeError("%s is not an acceptable type for %s" % (value.__class__.__name__, obj.__class__.__name__))
+        same_value = False
         old_value = self.values.get(obj)
-        if old_value is value:
+        if value is old_value:
             return
+        elif value is not None and value == old_value:
+            value.__dirty__ = old_value.__dirty__
+            same_value = True
         if old_value is not None:
             obj.element.remove(old_value.element)
         if value is not None:
             obj._insert_element(value.element)
         self.values[obj] = value
-        obj.__dirty__ = True
+        if not same_value:
+            obj.__dirty__ = True
         if self.onset:
             self.onset(obj, self, value)
 
@@ -893,13 +903,23 @@ class XMLListMixin(XMLElementBase):
     def add(self, item):
         if not (item.__class__ in self._xml_item_element_types or isinstance(item, self._xml_item_extension_types)):
             raise TypeError("%s cannot add items of type %s" % (self.__class__.__name__, item.__class__.__name__))
+        same_value = False
         if item._xml_id is not None and item._xml_id in self._xmlid_map[item.__class__]:
-            self.remove(self._xmlid_map[item.__class__][item._xml_id])
+            old_item = self._xmlid_map[item.__class__][item._xml_id]
+            if item is old_item:
+                return
+            elif item == old_item:
+                item.__dirty__ = old_item.__dirty__
+                same_value = True
+            self.element.remove(old_item.element)
+            del self._xmlid_map[item.__class__][item._xml_id]
+            del self._element_map[old_item.element]
         self._insert_element(item.element)
         if item._xml_id is not None:
             self._xmlid_map[item.__class__][item._xml_id] = item
         self._element_map[item.element] = item
-        self.__dirty__ = True
+        if not same_value:
+            self.__dirty__ = True
 
     def remove(self, item):
         self.element.remove(item.element)
