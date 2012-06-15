@@ -35,7 +35,7 @@ from eventlet.greenio import GreenSocket
 from eventlet.proc import spawn, ProcExit
 from eventlet.util import tcp_socket, set_reuse_addr
 from msrplib.connect import DirectConnector, DirectAcceptor, RelayConnection, MSRPRelaySettings
-from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, parse_uri
+from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, UseNicknameHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from msrplib.transport import make_response, make_report
 
@@ -351,6 +351,14 @@ class ChatStream(MSRPStreamBase):
         except AttributeError:
             return False
 
+    @property
+    def nickname_allowed(self):
+        remote_chatroom_capabilities = chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
+        try:
+            return self.cpim_enabled and self.session.remote_focus and 'nickname' in remote_chatroom_capabilities
+        except AttributeError:
+            return False
+
     # TODO: chatroom, recvonly/sendonly (in start)?
 
     def _NH_MediaStreamDidStart(self, notification):
@@ -419,6 +427,15 @@ class ChatStream(MSRPStreamBase):
             data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
             NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', self, data)
 
+    def _on_nickname_transaction_response(self, message_id, response):
+        notification_center = NotificationCenter()
+        if response.code == 200:
+            data = TimestampedNotificationData(message_id=message_id, response=response)
+            notification_center.post_notification('ChatStreamDidSetNickname', self, data)
+        else:
+            data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
+            notification_center.post_notification('ChatStreamDidNotSetNickname', self, data)
+
     def _message_queue_handler(self):
         notification_center = NotificationCenter()
         while True:
@@ -441,6 +458,18 @@ class ChatStream(MSRPStreamBase):
                 if notify_progress and success_report == 'yes' and failure_report != 'no':
                     self.sent_messages.add(message_id)
                     notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
+
+    @run_in_green_thread
+    def _send_nickname_chunk(self, chunk):
+        notification_center = NotificationCenter()
+        if self.msrp_session is None:
+            # should we generate ChatStreamDidNotSetNickname here?
+            return
+        try:
+            self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, chunk.message_id))
+        except Exception, e:
+            ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
+            notification_center.post_notification('MediaStreamDidFail', self, ndata)
 
     @run_in_twisted_thread
     def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None, notify_progress=True):
@@ -512,6 +541,16 @@ class ChatStream(MSRPStreamBase):
             self._enqueue_message(message_id, content, IsComposingDocument.content_type, failure_report='partial', success_report='no', notify_progress=False)
         return message_id
 
+    def set_local_nickname(self, nickname):
+        if not self.msrp:
+            raise ChatStreamError('Stream is not connected')
+        if not self.nickname_allowed:
+            raise ChatStreamError('Setting nickname is not supported')
+        message_id = '%x' % random.getrandbits(64)
+        chunk = self.msrp.make_chunk(method='NICKNAME', message_id=message_id)
+        chunk.add_header(UseNicknameHeader(nickname))
+        self._send_nickname_chunk(chunk)
+        return message_id
 
 # File transfer
 #
