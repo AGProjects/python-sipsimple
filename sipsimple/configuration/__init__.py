@@ -137,7 +137,7 @@ class ConfigurationManager(object):
         try:
             data = self._get(self.data, list(key))
             return data.keys()
-        except:
+        except KeyError:
             return []
 
     def save(self):
