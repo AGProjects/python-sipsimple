@@ -548,7 +548,7 @@ class ChatStream(MSRPStreamBase):
             raise ChatStreamError('Setting nickname is not supported')
         message_id = '%x' % random.getrandbits(64)
         chunk = self.msrp.make_chunk(method='NICKNAME', message_id=message_id)
-        chunk.add_header(UseNicknameHeader(nickname))
+        chunk.add_header(UseNicknameHeader(nickname or u''))
         self._send_nickname_chunk(chunk)
         return message_id
 
