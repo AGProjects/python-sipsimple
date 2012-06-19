@@ -954,10 +954,8 @@ class XMLSimpleElement(XMLElement):
     def __eq__(self, other):
         if isinstance(other, XMLSimpleElement):
             return self is other or self.value == other.value
-        elif isinstance(other, self._xml_value_type):
-            return self.value == other
         else:
-            return NotImplemented
+            return self.value == other
 
     def __nonzero__(self):
         return bool(self.value)
@@ -1003,14 +1001,6 @@ class XMLSimpleElement(XMLElement):
 
 class XMLStringElement(XMLSimpleElement):
     _xml_value_type = unicode # Can be overwritten in subclasses
-
-    def __eq__(self, other):
-        if isinstance(other, XMLStringElement):
-            return self is other or self.value == other.value
-        elif isinstance(other, basestring):
-            return self.value == other
-        else:
-            return NotImplemented
 
     def __len__(self):
         return len(self.value)
