@@ -31,8 +31,6 @@ class DuplicateIDError(ValueError): pass
 
 
 class PersistentKey(unicode):
-    persistent = True
-
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, unicode.__repr__(self))
 
@@ -169,8 +167,7 @@ class ConfigurationManager(object):
         data_subtree = data_tree[subtree_key]
         if key:
             data = self._pop(data_subtree, key)
-            persistent_key = getattr(subtree_key, 'persistent', False)
-            if not persistent_key and not data_subtree:
+            if not isinstance(subtree_key, PersistentKey) and not data_subtree:
                 del data_tree[subtree_key]
             return data
         else:
@@ -183,8 +180,7 @@ class ConfigurationManager(object):
             self._update(data_subtree, key, data)
         else:
             self._update_dict(data_subtree, data)
-        persistent_key = getattr(subtree_key, 'persistent', False)
-        if not persistent_key and not data_subtree:
+        if not isinstance(subtree_key, PersistentKey) and not data_subtree:
             del data_tree[subtree_key]
 
     def _update_dict(self, old_data, new_data):
