@@ -34,6 +34,10 @@ class PersistentKey(unicode):
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, unicode.__repr__(self))
 
+class ItemContainer(dict):
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
+
 
 ## ConfigurationManager
 
@@ -187,6 +191,15 @@ class ConfigurationManager(object):
         for key, value in new_data.iteritems():
             if value is DefaultValue:
                 old_data.pop(key, None)
+            elif isinstance(value, ItemContainer):
+                if key not in old_data or type(old_data[key]) is not dict:
+                    old_data[key] = {}
+                key_subtree = old_data[key]
+                for removed_key in set(key_subtree) - set(value):
+                    del key_subtree[removed_key]
+                self._update_dict(key_subtree, value)
+                if not key_subtree:
+                    del old_data[key]
             elif type(value) is dict:
                 if key in old_data and type(old_data[key]) is not dict:
                     del old_data[key]
