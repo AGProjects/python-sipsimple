@@ -6,9 +6,10 @@
 from __future__ import with_statement
 
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
-           'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'SettingsObjectID',
-           'SettingsObjectImmutableID', 'SettingsObject', 'SettingsObjectExtension']
+           'AbstractSetting', 'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup',
+           'SettingsObjectID', 'SettingsObjectImmutableID', 'SettingsObject', 'SettingsObjectExtension']
 
+from abc import ABCMeta, abstractmethod
 from itertools import chain
 from threading import Lock
 
@@ -325,7 +326,41 @@ class SettingsObjectImmutableID(object):
             self.values[obj] = value
 
 
-class Setting(object):
+class AbstractSetting(object):
+    """Abstract base class for setting type descriptors"""
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def __get__(self, obj, objtype):
+        raise NotImplementedError
+
+    @abstractmethod
+    def __set__(self, obj, value):
+        raise NotImplementedError
+
+    @abstractmethod
+    def __getstate__(self, obj):
+        raise NotImplementedError
+
+    @abstractmethod
+    def __setstate__(self, obj, value):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_modified(self, obj):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_old(self, obj):
+        raise NotImplementedError
+
+    @abstractmethod
+    def undo(self, obj):
+        raise NotImplementedError
+
+
+class Setting(AbstractSetting):
     """
     Descriptor represeting a setting in a configuration object.
 
@@ -333,6 +368,7 @@ class Setting(object):
     default. Also, only Setting attributes with nillable=True can be assigned
     the value None. All other values are passed to the type specified.
     """
+
     def __init__(self, type, default=None, nillable=False):
         if default is None and not nillable:
             raise TypeError("default must be specified if object is not nillable")
@@ -403,9 +439,6 @@ class Setting(object):
             self.oldvalues[obj] = self.values[obj] = value
             self.dirty[obj] = False
 
-    def get_old(self, obj):
-        return self.oldvalues.get(obj, self.default)
-
     def get_modified(self, obj):
         """
         Returns a ModifiedValue instance with references to the old and new
@@ -423,6 +456,9 @@ class Setting(object):
                 except KeyError:
                     self.oldvalues.pop(obj, None)
                 self.dirty[obj] = False
+
+    def get_old(self, obj):
+        return self.oldvalues.get(obj, self.default)
 
     def undo(self, obj):
         with self.lock:
@@ -493,7 +529,7 @@ class SettingsState(object):
             if isinstance(attribute, SettingsGroupMeta):
                 modified_settings = getattr(self, name).get_modified()
                 modified.update(dict((name+'.'+k if k else name, v) for k,v in modified_settings.iteritems()))
-            elif isinstance(attribute, Setting):
+            elif isinstance(attribute, AbstractSetting):
                 modified_value = attribute.get_modified(self)
                 if modified_value is not None:
                     modified[name] = modified_value
@@ -518,7 +554,7 @@ class SettingsState(object):
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, SettingsGroupMeta):
                 state[name] = getattr(self, name).__getstate__()
-            elif isinstance(attribute, Setting):
+            elif isinstance(attribute, AbstractSetting):
                 state[name] = attribute.__getstate__(self)
         return state
 
@@ -533,7 +569,7 @@ class SettingsState(object):
                     group.__setstate__(value)
                 except ValueError, e:
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
-            elif isinstance(attribute, Setting):
+            elif isinstance(attribute, AbstractSetting):
                 try:
                     attribute.__setstate__(self, value)
                 except ValueError, e:
@@ -767,7 +803,7 @@ class SettingsObject(SettingsState):
             raise TypeError("expected subclass of SettingsObjectExtension, got %r" % (extension,))
         for name in dir(extension):
             attribute = getattr(extension, name, None)
-            if isinstance(attribute, (Setting, SettingsGroupMeta)):
+            if isinstance(attribute, (AbstractSetting, SettingsGroupMeta)):
                 setattr(cls, name, attribute)
 
 
