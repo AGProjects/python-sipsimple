@@ -60,7 +60,7 @@ from lxml import etree
 
 from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong
 from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, DateTime, AnyURI
-from sipsimple.util import All, weakobjectmap
+from sipsimple.util import All, MarkerType, weakobjectmap
 
 
 ## Exceptions
@@ -71,12 +71,6 @@ class ValidationError(ParserError): pass
 
 
 ## Markers
-
-class MarkerType(type):
-    def __call__(cls, *args, **kw):
-        return cls
-    def __repr__(cls):
-        return cls.__name__
 
 class Marker(object):
     __metaclass__ = MarkerType
