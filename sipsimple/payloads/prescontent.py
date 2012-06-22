@@ -19,10 +19,21 @@ class PresenceContentDocument(XMLDocument):
 PresenceContentDocument.register_namespace(namespace, prefix=None, schema='oma-pres-content.xsd')
 
 # Elements
+class MimeTypeValue(str):
+    __allowed__ = ('image/jpeg', 'image/png', 'image/gif')
+
+    def __new__(cls, value):
+        value = value.lower()
+        if value not in cls.__allowed__:
+            raise ValueError("illegal mime type value: %s" % value)
+        return str.__new__(cls, value)
+
+
 class MIMEType(XMLStringElement):
     _xml_tag = 'mime-type'
     _xml_namespace = namespace
     _xml_document = PresenceContentDocument
+    _xml_value_type = MimeTypeValue
 
 
 class Encoding(XMLStringElement):
