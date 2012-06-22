@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ["All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "combinations", "user_info", "weakobjectmap"]
+__all__ = ["MarkerType", "All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "combinations", "user_info", "weakobjectmap"]
 
 import os
 import platform
@@ -25,28 +25,19 @@ from dateutil.tz import tzoffset
 # Utility classes
 #
 
-class AllType(object):
-    __metaclass__ = Singleton
-
-    def __repr__(self):
-        return 'All'
-
-    def __reduce__(self):
-        return (self.__class__, (), None)
-
-All = AllType()
+class MarkerType(type):
+    def __call__(cls, *args, **kw):
+        return cls
+    def __repr__(cls):
+        return cls.__name__
 
 
-class AnyType(object):
-    __metaclass__ = Singleton
+class All(object):
+    __metaclass__ = MarkerType
 
-    def __repr__(self):
-        return 'Any'
 
-    def __reduce__(self):
-        return (self.__class__, (), None)
-
-Any = AnyType()
+class Any(object):
+    __metaclass__ = MarkerType
 
 
 class MultilingualText(unicode):
