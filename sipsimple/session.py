@@ -510,7 +510,7 @@ class ConferenceHandler(object):
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
-                    except (PJSIPError, SIPCoreError):
+                    except SIPCoreError:
                         notification_center.remove_observer(self, sender=subscription)
                         timeout = 5
                         raise SubscriptionError(error='Internal error', timeout=timeout)
