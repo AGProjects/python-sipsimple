@@ -488,7 +488,7 @@ class ConferenceHandler(object):
 
             target_uri = SIPURI.new(self.session.remote_identity.uri)
             default_interval = 600 if account is BonjourAccount() else account.sip.subscribe_interval
-            refresh_interval =  getattr(command, 'refresh_interval', default_interval)
+            refresh_interval = getattr(command, 'refresh_interval', default_interval)
 
             timeout = time() + 30
             for route in routes:
