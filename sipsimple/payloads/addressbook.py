@@ -223,7 +223,7 @@ class Contact(XMLElement, ListElement):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.name, list(self.uris), self.presence, self.dialog)
 
 
-class PolicyURI(XMLElement):
+class PolicyURI(XMLElement, ListElement):
     _xml_tag = 'policy-uri'
     _xml_namespace = namespace
     _xml_extension_type = ElementExtension
