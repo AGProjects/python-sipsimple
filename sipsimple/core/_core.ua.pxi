@@ -131,6 +131,7 @@ cdef class PJSIPUA:
             raise PJSIPError("Could not add 'gruu' to Supported header", status)
         self._trace_sip = int(bool(kwargs["trace_sip"]))
         self._ignore_missing_ack = int(bool(kwargs["ignore_missing_ack"]))
+        self._detect_sip_loops = int(bool(kwargs["detect_sip_loops"]))
         self._trace_module_name = PJSTR("mod-core-sip-trace")
         self._trace_module.name = self._trace_module_name.pj_str
         self._trace_module.id = -1
@@ -203,6 +204,17 @@ cdef class PJSIPUA:
         def __set__(self, value):
             self._check_self()
             self._ignore_missing_ack = int(bool(value))
+
+
+    property detect_sip_loops:
+
+        def __get__(self):
+            self._check_self()
+            return bool(self._detect_sip_loops)
+
+        def __set__(self, value):
+            self._check_self()
+            self._detect_sip_loops = int(bool(value))
 
 
     property events:
@@ -747,20 +759,21 @@ cdef class PJSIPUA:
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
         cdef pjsip_event_hdr *event_hdr
         cdef object method_name = _pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
-        # Temporarily trick PJSIP into believing the last Via header is actually the first
         if method_name != "ACK":
-            top_via = via = rdata.msg_info.via
-            while True:
-                rdata.msg_info.via = via
-                via = <pjsip_via_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_VIA, (<pj_list *> via).next)
-                if via == NULL:
-                    break
-            status = pjsip_tsx_create_key(rdata.tp_info.pool, &tsx_key,
-                                          PJSIP_ROLE_UAC, &rdata.msg_info.msg.line.req.method, rdata)
-            rdata.msg_info.via = top_via
-            if status != 0:
-                raise PJSIPError("Could not generate transaction key for incoming request", status)
-            tsx = pjsip_tsx_layer_find_tsx(&tsx_key, 0)
+            if self._detect_sip_loops:
+                # Temporarily trick PJSIP into believing the last Via header is actually the first
+                top_via = via = rdata.msg_info.via
+                while True:
+                    rdata.msg_info.via = via
+                    via = <pjsip_via_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_VIA, (<pj_list *> via).next)
+                    if via == NULL:
+                        break
+                status = pjsip_tsx_create_key(rdata.tp_info.pool, &tsx_key,
+                                              PJSIP_ROLE_UAC, &rdata.msg_info.msg.line.req.method, rdata)
+                rdata.msg_info.via = top_via
+                if status != 0:
+                    raise PJSIPError("Could not generate transaction key for incoming request", status)
+                tsx = pjsip_tsx_layer_find_tsx(&tsx_key, 0)
         if tsx != NULL:
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 482, NULL, &tdata)
             if status != 0:

@@ -35,6 +35,7 @@ class Engine(Thread):
                              "user_agent": "sipsimple-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
                              "log_level": 5,
                              "trace_sip": False,
+                             "detect_sip_loops": True,
                              "ignore_missing_ack": False,
                              "rtp_port_range": (50000, 50500),
                              "codecs": ["G722", "speex", "PCMU", "PCMA"],

@@ -1437,6 +1437,7 @@ cdef class PJSIPUA(object):
     cdef pjsip_module _event_module
     cdef PJSTR _event_module_name
     cdef int _trace_sip
+    cdef int _detect_sip_loops
     cdef int _ignore_missing_ack
     cdef PJSTR _user_agent
     cdef object _events

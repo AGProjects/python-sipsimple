@@ -158,6 +158,7 @@ class SIPApplication(object):
         options = dict(# general
                        user_agent=settings.user_agent,
                        # SIP
+                       detect_sip_loops=True,
                        ignore_missing_ack=False,
                        udp_port=settings.sip.udp_port if 'udp' in settings.sip.transport_list else None,
                        tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transport_list else None,
