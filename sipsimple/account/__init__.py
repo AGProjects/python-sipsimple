@@ -35,7 +35,6 @@ from zope.interface import implements
 
 from sipsimple.account import bonjour
 from sipsimple.account.xcap import XCAPManager
-from sipsimple.contact import AccountContactManager
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
@@ -1200,7 +1199,6 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.contact = ContactURIFactory()
         self.xcap_manager = XCAPManager(self)
-        self.contact_manager = AccountContactManager(self)
         self._active = False
         self._registrar = AccountRegistrar(self)
         self._mwi_subscriber = AccountMWISubscriber(self)
@@ -1217,8 +1215,6 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
         self.xcap_manager.load()
-        self.contact_manager.load_contacts()
-        self.contact_manager.start()
         if self.enabled:
             self._activate()
 
@@ -1233,16 +1229,13 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
         self._deactivate()
-        self.contact_manager.stop()
 
     @run_in_green_thread
     def delete(self):
         self.stop()
-        self.contact_manager.purge_contacts()
         self._mwi_subscriber = None
         self._registrar = None
         self.xcap_manager = None
-        self.contact_manager = None
         SettingsObject.delete(self)
 
     @run_in_green_thread
