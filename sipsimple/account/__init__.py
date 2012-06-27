@@ -1191,9 +1191,9 @@ class Account(SettingsObject):
     tls = TLSSettings
 
     def __new__(cls, id):
-        with AccountManager.load_accounts.lock:
-            if not AccountManager.load_accounts.called:
-                raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
+        with AccountManager.load.lock:
+            if not AccountManager.load.called:
+                raise RuntimeError("cannot instantiate %s before calling AccountManager.load" % cls.__name__)
         return SettingsObject.__new__(cls, id)
 
     def __init__(self, id):
@@ -1423,9 +1423,9 @@ class BonjourAccount(SettingsObject):
     tls = TLSSettings
 
     def __new__(cls):
-        with AccountManager.load_accounts.lock:
-            if not AccountManager.load_accounts.called:
-                raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
+        with AccountManager.load.lock:
+            if not AccountManager.load.called:
+                raise RuntimeError("cannot instantiate %s before calling AccountManager.load" % cls.__name__)
         return SettingsObject.__new__(cls)
 
     def __init__(self):
@@ -1578,7 +1578,7 @@ class AccountManager(object):
         notification_center.add_observer(self, name='CFGSettingsObjectWasCreated')
 
     @execute_once
-    def load_accounts(self):
+    def load(self):
         """
         Load all accounts from the configuration. The accounts will not be
         started until the start method is called.

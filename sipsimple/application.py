@@ -90,14 +90,14 @@ class SIPApplication(object):
         thread_manager.start()
 
         configuration_manager = ConfigurationManager()
-        account_manager = AccountManager()
         addressbook_manager = AddressbookManager()
+        account_manager = AccountManager()
 
         # load configuration
         try:
             configuration_manager.start()
             SIPSimpleSettings()
-            account_manager.load_accounts()
+            account_manager.load()
             addressbook_manager.load()
         except:
             self.state = None
