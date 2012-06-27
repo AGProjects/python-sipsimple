@@ -4,7 +4,7 @@
 """Addressbook related payload elements"""
 
 
-__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'PolicyURI', 'ElementExtension', 'ElementAttributes']
+__all__ = ['namespace', 'Group', 'Contact', 'ContactURI', 'Policy', 'ElementExtension', 'ElementAttributes']
 
 
 from application.python import Null
@@ -151,7 +151,7 @@ class PolicyValue(str):
         return super(PolicyValue, cls).__new__(cls, value)
 
 
-class Policy(XMLStringElement):
+class PolicyString(XMLStringElement):
     _xml_tag = 'policy'
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument
@@ -169,7 +169,7 @@ class DialogHandling(XMLElement):
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument
 
-    policy    = XMLElementChild('policy',    type=Policy, required=True, test_equal=True)
+    policy    = XMLElementChild('policy', type=PolicyString, required=True, test_equal=True)
     subscribe = XMLElementChild('subscribe', type=Subscribe, required=True, test_equal=True)
 
     def __init__(self, policy, subscribe):
@@ -186,7 +186,7 @@ class PresenceHandling(XMLElement):
     _xml_namespace = namespace
     _xml_document = ResourceListsDocument
 
-    policy    = XMLElementChild('policy',    type=Policy, required=True, test_equal=True)
+    policy    = XMLElementChild('policy', type=PolicyString, required=True, test_equal=True)
     subscribe = XMLElementChild('subscribe', type=Subscribe, required=True, test_equal=True)
 
     def __init__(self, policy, subscribe):
@@ -223,8 +223,8 @@ class Contact(XMLElement, ListElement):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.name, list(self.uris), self.presence, self.dialog)
 
 
-class PolicyURI(XMLElement, ListElement):
-    _xml_tag = 'policy-uri'
+class Policy(XMLElement, ListElement):
+    _xml_tag = 'policy-element'
     _xml_namespace = namespace
     _xml_extension_type = ElementExtension
     _xml_document = ResourceListsDocument
@@ -362,6 +362,6 @@ ResourceListsDocument.register_namespace(ElementAttributes._xml_namespace, prefi
 Group.register_extension('attributes', ElementAttributes)
 Contact.register_extension('attributes', ElementAttributes)
 ContactURI.register_extension('attributes', ElementAttributes)
-PolicyURI.register_extension('attributes', ElementAttributes)
+Policy.register_extension('attributes', ElementAttributes)
 
 

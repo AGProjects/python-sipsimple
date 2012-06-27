@@ -48,19 +48,19 @@
 
    <xs:complexType name="DialogHandling">
     <xs:sequence>
-     <xs:element name="policy" type="Policy"/>
+     <xs:element name="policy" type="PolicyString"/>
      <xs:element name="subscribe" type="xs:boolean"/>
     </xs:sequence>
    </xs:complexType>
 
    <xs:complexType name="PresenceHandling">
     <xs:sequence>
-     <xs:element name="policy" type="Policy"/>
+     <xs:element name="policy" type="PolicyString"/>
      <xs:element name="subscribe" type="xs:boolean"/>
     </xs:sequence>
    </xs:complexType>
 
-   <xs:simpleType name="Policy">
+   <xs:simpleType name="PolicyString">
     <xs:restriction base="xs:string">
      <xs:enumeration value="allow"/>
      <xs:enumeration value="block"/>
@@ -68,7 +68,7 @@
     </xs:restriction>
    </xs:simpleType>
 
-   <xs:complexType name="PolicyURI">
+   <xs:complexType name="Policy">
     <xs:sequence>
      <xs:element name="name" type="xs:string"/>
      <xs:element name="dialog" type="DialogHandling"/>
