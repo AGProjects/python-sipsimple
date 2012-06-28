@@ -466,7 +466,7 @@ class Group(SettingsState):
         else:
             configuration.update(self.__key__, self.__getstate__())
 
-            group_attribute_names = set(['name']) | XCAPContact.__attributes__
+            group_attribute_names = set(['name']) | XCAPGroup.__attributes__
             group_attributes = dict((name, value.new) for name, value in modified_settings.iteritems() if name in group_attribute_names)
 
             if 'contacts' in modified_settings:
