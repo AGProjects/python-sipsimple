@@ -7,6 +7,7 @@ from __future__ import absolute_import
 
 __all__ = ['AddressbookManager', 'Contact', 'ContactURI', 'Group', 'Policy', 'SharedSetting', 'ContactExtension', 'ContactURIExtension', 'GroupExtension', 'PolicyExtension']
 
+from functools import reduce
 from operator import attrgetter
 from random import randint
 from threading import Lock
@@ -31,6 +32,10 @@ from sipsimple.util import MarkerType, TimestampedNotificationData, weakobjectma
 
 def unique_id(prefix='id'):
     return "%s%d%06d" % (prefix, time()*1e6, randint(0, 999999))
+
+
+def recursive_getattr(obj, name):
+    return reduce(getattr, name.split('.'), obj)
 
 
 class Local(object):
@@ -224,6 +229,12 @@ class XCAPGroup(xcap.Group):
     def normalize(cls, group):
         return cls(group.id, group.name, group.contacts, **group.attributes)
 
+    def get_modified(self, modified_keys):
+        names = set(['name'])
+        attributes = dict((name, getattr(self, name)) for name in names.intersection(modified_keys))
+        attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
+        return attributes
+
 
 class XCAPContactURI(xcap.ContactURI):
     """An XCAP ContactURI with attributes normalized to unicode"""
@@ -237,6 +248,12 @@ class XCAPContactURI(xcap.ContactURI):
     @classmethod
     def normalize(cls, uri):
         return cls(uri.id, uri.uri, uri.type, **uri.attributes)
+
+    def get_modified(self, modified_keys):
+        names = set(['uri', 'type'])
+        attributes = dict((name, getattr(self, name)) for name in names.intersection(modified_keys))
+        attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
+        return attributes
 
 
 class XCAPContact(xcap.Contact):
@@ -253,6 +270,12 @@ class XCAPContact(xcap.Contact):
     def normalize(cls, contact):
         return cls(contact.id, contact.name, contact.uris, contact.presence, contact.dialog, **contact.attributes)
 
+    def get_modified(self, modified_keys):
+        names = set(['name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
+        attributes = dict((name, recursive_getattr(self, name)) for name in names.intersection(modified_keys))
+        attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
+        return attributes
+
 
 class XCAPPolicy(xcap.Policy):
     """An XCAP Policy with attributes normalized to unicode"""
@@ -266,6 +289,12 @@ class XCAPPolicy(xcap.Policy):
     @classmethod
     def normalize(cls, policy):
         return cls(policy.id, policy.uri, policy.name, policy.presence, policy.dialog, **policy.attributes)
+
+    def get_modified(self, modified_keys):
+        names = set(['uri', 'name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
+        attributes = dict((name, recursive_getattr(self, name)) for name in names.intersection(modified_keys))
+        attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
+        return attributes
 
 
 class ContactListDescriptor(AbstractSetting):
@@ -466,8 +495,7 @@ class Group(SettingsState):
         else:
             configuration.update(self.__key__, self.__getstate__())
 
-            group_attribute_names = set(['name']) | XCAPGroup.__attributes__
-            group_attributes = dict((name, value.new) for name, value in modified_settings.iteritems() if name in group_attribute_names)
+            attributes = self.__xcapgroup__.get_modified(modified_settings)
 
             if 'contacts' in modified_settings:
                 added_contacts = [contact.__xcapcontact__ for contact in modified_settings['contacts'].added]
@@ -490,8 +518,8 @@ class Group(SettingsState):
                         xcap_manager.add_group_member(self.__xcapgroup__, xcapcontact)
                     for xcapcontact in removed_contacts:
                         xcap_manager.remove_group_member(self.__xcapgroup__, xcapcontact)
-                    if group_attributes:
-                        xcap_manager.update_group(self.__xcapgroup__, group_attributes)
+                    if attributes:
+                        xcap_manager.update_group(self.__xcapgroup__, attributes)
 
             notification_center.post_notification('AddressbookGroupDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
             modified_data = modified_settings
@@ -842,16 +870,13 @@ class Contact(SettingsState):
         else:
             configuration.update(self.__key__, self.__getstate__())
 
-            contact_attribute_names = set(['name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe']) | XCAPContact.__attributes__
-            contact_attributes = dict((name, value.new) for name, value in modified_settings.iteritems() if name in contact_attribute_names)
+            contact_attributes = self.__xcapcontact__.get_modified(modified_settings)
 
             if 'uris' in modified_settings:
-                uri_attribute_names = set(('uri', 'type')) | XCAPContactURI.__attributes__
-                uri_attributes = lambda changemap: dict((name, value.new) for name, value in changemap.iteritems() if name in uri_attribute_names)
                 xcap_uris = self.__xcapcontact__.uris
                 added_uris = [xcap_uris[uri.id] for uri in modified_settings['uris'].added]
                 removed_uris = [uri.__toxcap__() for uri in modified_settings['uris'].removed]
-                modified_uris = dict((xcap_uris[id], uri_attributes(changemap)) for id, changemap in modified_settings['uris'].modified.iteritems())
+                modified_uris = dict((xcap_uris[id], xcap_uris[id].get_modified(changemap)) for id, changemap in modified_settings['uris'].modified.iteritems())
             else:
                 added_uris = []
                 removed_uris = []
@@ -1050,8 +1075,7 @@ class Policy(SettingsState):
         else:
             configuration.update(self.__key__, self.__getstate__())
 
-            attribute_names = set(['uri', 'name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe']) | XCAPPolicy.__attributes__
-            attributes = dict((name, value.new) for name, value in modified_settings.iteritems() if name in attribute_names)
+            attributes = self.__xcappolicy__.get_modified(modified_settings)
 
             if self.__xcappolicy__ != previous_xcappolicy:
                 outofsync_accounts = xcap_accounts
