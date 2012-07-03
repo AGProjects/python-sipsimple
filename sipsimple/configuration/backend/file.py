@@ -11,7 +11,6 @@ import re
 import platform
 import random
 from collections import deque
-from itertools import count, izip
 
 from application.system import makedirs, unlink
 from zope.interface import implements
@@ -73,7 +72,7 @@ class FileBackend(object):
 
         state_stack = deque()
         state_stack.appendleft(GroupState(-1))
-        for line, lineno in izip(file, count(1)):
+        for lineno, line in enumerate(file, 1):
             line = deque(line.rstrip().decode(self.encoding))
             indentation = 0
             while line and line[0].isspace():
