@@ -867,8 +867,7 @@ class XCAPSubscriber(object):
                         self._subscription = None
                         if e.data.code == 407:
                             # Authentication failed, so retry the subscription in some time
-                            timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error='authentication failed', timeout=timeout)
+                            raise SubscriptionError(error='authentication failed', timeout=random.uniform(60, 120))
                         elif e.data.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
@@ -877,8 +876,7 @@ class XCAPSubscriber(object):
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.data.code in (405, 406, 489):
-                            timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error='Subscription error', timeout=timeout)
+                            raise SubscriptionError(error='Subscription error', timeout=random.uniform(60, 120))
                         else:
                             # Otherwise just try the next route
                             continue
@@ -888,8 +886,7 @@ class XCAPSubscriber(object):
                         break
             else:
                 # No more routes to try, reschedule the subscription
-                timeout = random.uniform(60, 180)
-                raise SubscriptionError(error='no more routes to try', timeout=timeout)
+                raise SubscriptionError(error='no more routes to try', timeout=random.uniform(60, 180))
             # At this point it is subscribed. Handle notifications and ending/failures.
             notification_center.post_notification('XCAPSubscriptionDidStart', sender=self, data=TimestampedNotificationData())
             try:
