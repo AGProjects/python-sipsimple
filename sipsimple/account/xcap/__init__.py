@@ -31,7 +31,7 @@ from zope.interface import implements
 
 from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
+from sipsimple.core import ContactHeader, FromHeader, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError, IterateTypes, IterateIDs, IterateItems, All
 from sipsimple.payloads import addressbook, commonpolicy, dialogrules, omapolicy, pidf, prescontent, presrules, resourcelists, rlsservices, xcapcaps, xcapdiff
