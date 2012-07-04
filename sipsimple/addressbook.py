@@ -935,7 +935,7 @@ class Contact(SettingsState):
 
         xcap_accounts = [account for account in account_manager.get_accounts() if hasattr(account, 'xcap') and account.xcap.discovered]
         with MultiAccountTransaction(xcap_accounts):
-            for group in (group for group in addressbook_manager.get_groups() if self in group.contacts):
+            for group in (group for group in addressbook_manager.get_groups() if self.id in group.contacts):
                 group.contacts.remove(self)
                 group.save()
             for account in (account for account in xcap_accounts if account is not originator_account):
