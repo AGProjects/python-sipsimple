@@ -897,6 +897,7 @@ class XCAPSubscriber(object):
                     if notification.name == 'SIPSubscriptionGotNotify':
                         notification_center.post_notification('XCAPSubscriptionGotNotify', sender=self, data=notification.data)
                     elif notification.name == 'SIPSubscriptionDidEnd':
+                        notification_center.post_notification('XCAPSubscriptionDidEnd', sender=self, data=TimestampedNotificationData())
                         break
             except SIPSubscriptionDidFail:
                 notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
