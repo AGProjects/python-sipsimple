@@ -855,8 +855,7 @@ class XCAPSubscriber(object):
                         subscription.subscribe(body=body, content_type=content_type, timeout=limit(remaining_time, min=1, max=5))
                     except SIPCoreError:
                         notification_center.remove_observer(self, sender=subscription)
-                        timeout = 5
-                        raise SubscriptionError(error='Internal error', timeout=timeout)
+                        raise SubscriptionError(error='Internal error', timeout=5)
                     self._subscription = subscription
                     try:
                         while True:
