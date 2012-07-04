@@ -363,7 +363,7 @@ class ContactList(object):
         return instance
 
     def __init__(self, contacts=None):
-        self.contacts = dict((contact.id, contact) for contact in contacts or [])
+        self.contacts = dict((contact.id, contact) for contact in contacts or [] if contact.__state__ != 'deleted')
 
     def __getitem__(self, key):
         return self.contacts[key]
@@ -400,12 +400,14 @@ class ContactList(object):
     def __setstate__(self, value):
         addressbook_manager = AddressbookManager()
         with self.lock:
-            self.contacts = dict((id, addressbook_manager.get_contact(id)) for id in value)
+            self.contacts = dict((id, addressbook_manager.get_contact(id)) for id in value if addressbook_manager.has_contact(id))
 
     def ids(self):
         return sorted(self.contacts.keys())
 
     def add(self, contact):
+        if contact.__state__ == 'deleted':
+            return
         with self.lock:
             self.contacts[contact.id] = contact
 
@@ -463,6 +465,9 @@ class Group(SettingsState):
     def _internal_save(self, originator):
         if self.__state__ == 'deleted':
             return
+
+        for contact in [contact for contact in self.contacts if contact.__state__ == 'deleted']:
+            self.contacts.remove(contact)
 
         modified_settings = self.get_modified()
 
