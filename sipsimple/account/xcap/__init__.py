@@ -814,7 +814,7 @@ class XCAPSubscriber(object):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
 
-        refresh_interval = getattr(command, 'refresh_interval', None) or self.account.sip.subscribe_interval
+        refresh_interval = getattr(command, 'refresh_interval', self.account.sip.subscribe_interval)
 
         try:
             if self.account.sip.outbound_proxy is not None:
