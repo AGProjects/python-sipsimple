@@ -912,6 +912,8 @@ class XCAPSubscriber(object):
                     self._subscription.end(timeout=2)
                 except SIPCoreError:
                     pass
+                finally:
+                    notification_center.post_notification('XCAPSubscriptionDidEnd', sender=self, data=TimestampedNotificationData())
         except TerminateSubscription, e:
             if not self.subscribed:
                 command.signal(e)
@@ -930,6 +932,7 @@ class XCAPSubscriber(object):
                         pass
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
+                    notification_center.post_notification('XCAPSubscriptionDidEnd', sender=self, data=TimestampedNotificationData())
         except SubscriptionError, e:
             from twisted.internet import reactor
             notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
