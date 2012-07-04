@@ -1283,7 +1283,7 @@ class Session(object):
                     wait_count -= 1
 
             sdp_connection = self._invitation.sdp.proposed_remote.connection or (media.connection for media in self._invitation.sdp.proposed_remote.media if media.connection is not None).next()
-            local_ip = host.outgoing_ip_for(sdp_connection.address)
+            local_ip = host.outgoing_ip_for(sdp_connection.address) if sdp_connection.address != '0.0.0.0' else sdp_connection.address
             if local_ip is None:
                 for stream in self.proposed_streams:
                     notification_center.remove_observer(self, sender=stream)
@@ -2340,9 +2340,15 @@ class Session(object):
                         self._invitation.send_response(100)
                         local_sdp = SDPSession.new(self._invitation.sdp.active_local)
                         local_sdp.version += 1
+                        connection_address = host.outgoing_ip_for(self._invitation.peer_address.ip)
+                        if local_sdp.connection is not None:
+                            local_sdp.connection.address = connection_address
                         for stream in self.streams:
                             stream.reset(stream.index)
-                            local_sdp.media[stream.index] = stream.get_local_media(for_offer=True)
+                            media = stream.get_local_media(for_offer=True)
+                            if media.connection is not None:
+                                media.connection.address = connection_address
+                            local_sdp.media[stream.index] = media
                         self._invitation.send_response(200, sdp=local_sdp)
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
                         received_invitation_state = False
