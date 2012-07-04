@@ -35,6 +35,18 @@ class GroupState(object):
         self.data = {}
 
 
+class Line(object):
+    """Internal representation of lines in a configuration file"""
+    def __init__(self, indentation, name, separator, value):
+        self.indentation = indentation
+        self.name = name
+        self.separator = separator
+        self.value = value
+
+    def __repr__(self):
+        return "%s(%r, %r, %r, %r)" % (self.__class__.__name__, self.indentation, self.name, self.separator, self.value)
+
+
 class FileBackend(object):
     """
     Implementation of a configuration backend that stores data in a simple
@@ -60,7 +72,6 @@ class FileBackend(object):
         Read the file configured with this backend and parse it, returning a
         dictionary conforming to the IConfigurationBackend specification.
         """
-        READ_NAME, READ_VALUE = range(2)
 
         try:
             file = open(self.filename)
@@ -73,107 +84,18 @@ class FileBackend(object):
         state_stack = deque()
         state_stack.appendleft(GroupState(-1))
         for lineno, line in enumerate(file, 1):
-            line = deque(line.rstrip().decode(self.encoding))
-            indentation = 0
-            while line and line[0].isspace():
-                line.popleft()
-                indentation += 1
-            if not line: # line only contains space characters
+            line = self._parse_line(line, lineno)
+            if not line.name:
                 continue
-
-            name = u''
-            value = u''
-            quote_char = None
-            quoted_name = False
-            quoted_value = False
-            separator = None
-            spaces = u''
-            stage = READ_NAME
-            while line:
-                char = line.popleft()
-                if char in (u"'", u'"'):
-                    if quote_char is None:
-                        quote_char = char
-                        if stage is READ_NAME:
-                            quoted_name = True
-                        else:
-                            quoted_value = True
-                        continue
-                    elif char == quote_char:
-                        quote_char = None
-                        continue
-                elif char == u'\\':
-                    if not line:
-                        raise FileParserError("unexpected `\\' at end of line %d" % lineno)
-                    char = line.popleft()
-                    if char in (u'n', u'r'):
-                        char = ('\\%s' % char).decode('string-escape')
-                elif quote_char is None and char.isspace():
-                    if value and (not isinstance(value, list) or value[-1]):
-                        spaces += char
-                    continue
-                elif quote_char is None and char == u'#':
-                    line.clear()
-                    continue
-                elif quote_char is None and char == u':':
-                    if stage is READ_NAME:
-                        stage = READ_VALUE
-                        while line and line[0].isspace():
-                            line.popleft()
-                        if line:
-                            raise FileParserError("unexpected characters after `:' at line %d" % lineno)
-                        separator = char
-                        spaces = u''
-                        break
-                elif quote_char is None and char == u'=':
-                    if stage is READ_NAME:
-                        stage = READ_VALUE
-                        separator = char
-                        spaces = u''
-                        continue
-                elif quote_char is None and char == u',':
-                    if stage is READ_NAME:
-                        raise FileParserError("unexpected `,' in setting/setting group name at line %d" % lineno)
-                    if isinstance(value, list):
-                        value.append(u'')
-                    else:
-                        if not value:
-                            raise FileParserError("unexpected `,' at line %d" % lineno)
-                        value = [value, u'']
-                    quoted_value = False
-                    spaces = u''
-                    continue
-
-                if stage is READ_NAME:
-                    name += spaces + char
-                elif isinstance(value, list):
-                    value[-1] += spaces + char
-                else:
-                    value += spaces + char
-                spaces = u''
-
-            if quote_char is not None:
-                raise FileParserError("missing ending quote at line %d" % lineno)
-
             # find the container for this declaration
-            while state_stack[0].indentation >= indentation:
+            while state_stack[0].indentation >= line.indentation:
                 state_stack.popleft()
-            if stage is READ_NAME:
-                raise FileParserError("expected one of `:' or `=' at line %d" % lineno)
-            if not name:
-                raise FileParserError("unexpected `=' without setting name at line %d" % lineno)
-
-            if separator == u':':
-                new_group_state = GroupState(indentation)
-                state_stack[0].data[name] = new_group_state.data
+            if line.separator == u':':
+                new_group_state = GroupState(line.indentation)
+                state_stack[0].data[line.name] = new_group_state.data
                 state_stack.appendleft(new_group_state)
-            elif separator == u'=':
-                if not value and not quoted_value:
-                    value = None
-                elif isinstance(value, list):
-                    if not value[-1] and not quoted_value:
-                        value = value[:-1]
-                state_stack[0].data[name] = value
+            elif line.separator == u'=':
+                state_stack[0].data[line.name] = line.value
 
         return state_stack[-1].data
 
@@ -199,6 +121,78 @@ class FileBackend(object):
             os.rename(tmp_filename, self.filename)
         except (IOError, OSError), e:
             raise ConfigurationBackendError("failed to write configuration file: %s" % str(e))
+
+    def _parse_line(self, line, lineno):
+        def advance_to_next_token(line):
+            counter = 0
+            while line and line[0].isspace():
+                line.popleft()
+                counter += 1
+            if line and line[0] == u'#':
+                line.clear()
+            return counter
+        def token_iterator(line, delimiter=''):
+            quote_char = None
+            while line:
+                if quote_char is None and line[0] in delimiter:
+                    break
+                char = line.popleft()
+                if char in u"'\"":
+                    quote_char = char if quote_char is None else None
+                    continue
+                elif char == u'\\':
+                    if not line:
+                        raise FileParserError("unexpected `\\' at end of line %d" % lineno)
+                    char = line.popleft()
+                    if char == 'n':
+                        yield u'\n'
+                    elif char == 'r':
+                        yield u'\r'
+                    else:
+                        yield char
+                elif quote_char is None and char == u'#':
+                    line.clear()
+                    break
+                elif quote_char is None and char.isspace():
+                    break
+                else:
+                    yield char
+            if quote_char is not None:
+                raise FileParserError("missing ending quote at line %d" % lineno)
+
+        line = deque(line.rstrip().decode(self.encoding))
+        indentation = advance_to_next_token(line)
+        if not line:
+            return Line(indentation, None, None, None)
+        name = u''.join(token_iterator(line, delimiter=u':='))
+        advance_to_next_token(line)
+        if not line or line[0] not in u':=':
+            raise FileParserError("expected one of `:' or `=' at line %d" % lineno)
+        if not name:
+            raise FileParserError("missing setting/section name at line %d" % lineno)
+        separator = line.popleft()
+        advance_to_next_token(line)
+        if not line:
+            return Line(indentation, name, separator, None)
+        elif separator == u':':
+            raise FileParserError("unexpected characters after `:' at line %d" % lineno)
+        value = None
+        value_list = None
+        while line:
+            value = u''.join(token_iterator(line, delimiter=u','))
+            advance_to_next_token(line)
+            if line:
+                if line[0] == u',':
+                    line.popleft()
+                    advance_to_next_token(line)
+                    if value_list is None:
+                        value_list = []
+                else:
+                    raise FileParserError("unexpected characters after value at line %d" % lineno)
+            if value_list is not None:
+                value_list.append(value)
+        value = value_list if value_list is not None else value
+        return Line(indentation, name, separator, value)
 
     def _build_group(self, group, indentation):
         setting_lines = []
