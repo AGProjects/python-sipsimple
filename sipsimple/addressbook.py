@@ -399,8 +399,10 @@ class ContactList(object):
 
     def __setstate__(self, value):
         addressbook_manager = AddressbookManager()
+        for id in [id for id in value if not addressbook_manager.has_contact(id)]:
+            value.remove(id)
         with self.lock:
-            self.contacts = dict((id, addressbook_manager.get_contact(id)) for id in value if addressbook_manager.has_contact(id))
+            self.contacts = dict((id, addressbook_manager.get_contact(id)) for id in value)
 
     def ids(self):
         return sorted(self.contacts.keys())
