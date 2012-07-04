@@ -159,7 +159,7 @@ class WatcherInfo(XMLListRootElement):
     Definition for watcher info: a list of WatcherList elements
     
     The user agent instantiates this class once it subscribes to a *.winfo event
-    and calls its update() method with the applicatin/watcherinfo+xml documents
+    and calls its update() method with the application/watcherinfo+xml documents
     it receives via NOTIFY.
 
     The watchers can be accessed in two ways:
