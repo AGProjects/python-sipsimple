@@ -718,7 +718,7 @@ class ContactURIList(object):
 
     def __setstate__(self, value):
         with self.lock:
-            self.uris = dict((id, ContactURI(id, **state)) for id, state in value.iteritems())
+            self.uris = dict((id, ContactURI(id, **dict((str(key), val) for key, val in state.iteritems()))) for id, state in value.iteritems()) # python < 2.6.5 needs string keyword args -Dan
 
     def ids(self):
         return sorted(self.uris.keys())
