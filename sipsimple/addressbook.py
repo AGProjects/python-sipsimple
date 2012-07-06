@@ -1231,9 +1231,6 @@ class AddressbookManager(object):
     def get_contacts(self):
         return self.contacts.values()
 
-    def iter_contacts(self):
-        return self.contacts.itervalues()
-
     def has_group(self, id):
         return id in self.groups
 
@@ -1243,9 +1240,6 @@ class AddressbookManager(object):
     def get_groups(self):
         return self.groups.values()
 
-    def iter_groups(self):
-        return self.groups.itervalues()
-
     def has_policy(self, id):
         return id in self.policies
 
@@ -1254,9 +1248,6 @@ class AddressbookManager(object):
 
     def get_policies(self):
         return self.policies.values()
-
-    def iter_policies(self):
-        return self.policies.itervalues()
 
     def transaction(self):
         account_manager = AccountManager()
