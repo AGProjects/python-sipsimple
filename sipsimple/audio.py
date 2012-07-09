@@ -10,6 +10,7 @@ __all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WaveP
 import os
 import weakref
 from functools import partial
+from itertools import combinations
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter, ObserverWeakrefProxy
@@ -20,7 +21,7 @@ from zope.interface import Attribute, Interface, implements
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_waitable_green_thread
-from sipsimple.util import TimestampedNotificationData, combinations
+from sipsimple.util import TimestampedNotificationData
 
 
 class WavePlayerError(Exception): pass
@@ -135,13 +136,14 @@ class AudioBridge(object):
     def __del__(self):
         self.multiplexer.stop()
         self.demultiplexer.stop()
-        for port1, port2 in ((wr1(), wr2()) for wr1, wr2 in combinations(self.ports, 2)):
-            if port1 is None or port2 is None:
-                continue
-            if port1.producer_slot is not None and port2.consumer_slot is not None:
-                self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
-            if port2.producer_slot is not None and port1.consumer_slot is not None:
-                self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
+        if len(self.ports) >= 2:
+            for port1, port2 in ((wr1(), wr2()) for wr1, wr2 in combinations(self.ports, 2)):
+                if port1 is None or port2 is None:
+                    continue
+                if port1.producer_slot is not None and port2.consumer_slot is not None:
+                    self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
+                if port2.producer_slot is not None and port1.consumer_slot is not None:
+                    self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
         self.ports.clear()
 
     def __contains__(self, port):
@@ -272,13 +274,14 @@ class RootAudioBridge(object):
         notification_center.add_observer(ObserverWeakrefProxy(self), name='AudioPortDidChangeSlots')
 
     def __del__(self):
-        for port1, port2 in ((wr1(), wr2()) for wr1, wr2 in combinations(self.ports, 2)):
-            if port1 is None or port2 is None:
-                continue
-            if port1.producer_slot is not None and port2.consumer_slot is not None:
-                self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
-            if port2.producer_slot is not None and port1.consumer_slot is not None:
-                self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
+        if len(self.ports) >= 2:
+            for port1, port2 in ((wr1(), wr2()) for wr1, wr2 in combinations(self.ports, 2)):
+                if port1 is None or port2 is None:
+                    continue
+                if port1.producer_slot is not None and port2.consumer_slot is not None:
+                    self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
+                if port2.producer_slot is not None and port1.consumer_slot is not None:
+                    self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
         self.ports.clear()
 
     def __contains__(self, port):
