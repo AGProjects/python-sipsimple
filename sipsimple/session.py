@@ -31,8 +31,9 @@ from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription,
 from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
-from sipsimple.account import AccountManager, BonjourAccount, PublicGRUU, PublicGRUUIfAvailable
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.core import PublicGRUU, PublicGRUUIfAvailable
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.conference import ConferenceDocument

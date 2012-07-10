@@ -3,10 +3,16 @@
 
 """Miscellaneous SIP related helpers"""
 
-__all__ = ['Route']
+__all__ = ['Route', 'ContactURIFactory', 'NoGRUU', 'PublicGRUU', 'TemporaryGRUU', 'PublicGRUUIfAvailable', 'TemporaryGRUUIfAvailable']
 
+import random
 import socket
+import string
+
+from application.system import host
+
 from sipsimple.core._core import SIPURI
+from sipsimple.core._engine import Engine
 
 
 class Route(object):
@@ -64,5 +70,65 @@ class Route(object):
 
     def __str__(self):
         return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
+
+
+class ContactURIType(type):
+    def __call__(cls, *args, **kw):
+        return cls
+    def __repr__(cls):
+        return cls.__name__
+
+
+class NoGRUU:                   __metaclass__ = ContactURIType
+class PublicGRUU:               __metaclass__ = ContactURIType
+class TemporaryGRUU:            __metaclass__ = ContactURIType
+class PublicGRUUIfAvailable:    __metaclass__ = ContactURIType
+class TemporaryGRUUIfAvailable: __metaclass__ = ContactURIType
+
+
+class ContactURIFactory(object):
+    def __init__(self, username=None):
+        self.username = username or ''.join(random.sample(string.lowercase, 8))
+        self.public_gruu = None
+        self.temporary_gruu = None
+
+    def __repr__(self):
+        return '%s(username=%r)' % (self.__class__.__name__, self.username)
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple):
+            contact_type, key = key
+            if not isinstance(contact_type, ContactURIType):
+                raise KeyError("unsupported contact type: %r" % contact_type)
+        else:
+            contact_type = NoGRUU
+        if not isinstance(key, (basestring, Route)):
+            raise KeyError("key must be a transport name or Route instance")
+
+        transport = key if isinstance(key, basestring) else key.transport
+        parameters = {} if transport=='udp' else {'transport': transport}
+
+        if contact_type is PublicGRUU:
+            if self.public_gruu is None:
+                raise KeyError("could not get Public GRUU")
+            uri = SIPURI.new(self.public_gruu)
+        elif contact_type is TemporaryGRUU:
+            if self.temporary_gruu is None:
+                raise KeyError("could not get Temporary GRUU")
+            uri = SIPURI.new(self.temporary_gruu)
+        elif contact_type is PublicGRUUIfAvailable and self.public_gruu is not None:
+            uri = SIPURI.new(self.public_gruu)
+        elif contact_type is TemporaryGRUUIfAvailable and self.temporary_gruu is not None:
+            uri = SIPURI.new(self.temporary_gruu)
+        else:
+            ip = host.default_ip if isinstance(key, basestring) else host.outgoing_ip_for(key.address)
+            if ip is None:
+                raise KeyError("could not get outgoing IP address")
+            port = getattr(Engine(), '%s_port' % transport, None)
+            if port is None:
+                raise KeyError("unsupported transport: %s" % transport)
+            uri = SIPURI(user=self.username, host=ip, port=port)
+        uri.parameters.update(parameters)
+        return uri
 
 

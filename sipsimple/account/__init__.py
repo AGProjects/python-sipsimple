@@ -8,11 +8,10 @@ multiple SIP accounts and their properties.
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'NoGRUU', 'PublicGRUU', 'TemporaryGRUU', 'PublicGRUUIfAvailable', 'TemporaryGRUUIfAvailable']
+__all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
 import random
 import re
-import string
 
 from itertools import chain
 from threading import Lock
@@ -35,7 +34,7 @@ from zope.interface import implements
 
 from sipsimple.account import bonjour
 from sipsimple.account.xcap import XCAPManager
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, Route, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError, ContactURIFactory, NoGRUU, PublicGRUUIfAvailable
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -46,67 +45,6 @@ from sipsimple.threading import call_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData, user_info
 
-
-class ContactURIType(type):
-    __types__ = set()
-
-    def __init__(cls, name, bases, dct):
-        super(ContactURIType, cls).__init__(name, bases, dct)
-        cls.__types__.add(cls)
-
-    def __repr__(cls):
-        return cls.__name__
-
-NoGRUU = ContactURIType('NoGRUU', (), {})
-PublicGRUU = ContactURIType('PublicGRUU', (), {})
-TemporaryGRUU = ContactURIType('TemporaryGRUU', (), {})
-PublicGRUUIfAvailable = ContactURIType('PublicGRUUIfAvailable', (), {})
-TemporaryGRUUIfAvailable = ContactURIType('TemporaryGRUUIfAvailable', (), {})
-
-class ContactURIFactory(object):
-    def __init__(self, username=None):
-        self.username = username or ''.join(random.sample(string.lowercase, 8))
-        self.public_gruu = None
-        self.temporary_gruu = None
-
-    def __repr__(self):
-        return '%s(username=%r)' % (self.__class__.__name__, self.username)
-
-    def __getitem__(self, key):
-        if isinstance(key, tuple):
-            contact_type, key = key
-            if contact_type not in ContactURIType.__types__:
-                raise KeyError("unsupported contact type: %r" % contact_type)
-        else:
-            contact_type = NoGRUU
-        if not isinstance(key, (basestring, Route)):
-            raise KeyError("key must be a transport name or Route instance")
-
-        transport = key if isinstance(key, basestring) else key.transport
-        parameters = {} if transport=='udp' else {'transport': transport}
-
-        if contact_type is PublicGRUU:
-            if self.public_gruu is None:
-                raise KeyError("could not get Public GRUU")
-            uri = SIPURI.new(self.public_gruu)
-        elif contact_type is TemporaryGRUU:
-            if self.temporary_gruu is None:
-                raise KeyError("could not get Temporary GRUU")
-            uri = SIPURI.new(self.temporary_gruu)
-        elif contact_type is PublicGRUUIfAvailable and self.public_gruu is not None:
-            uri = SIPURI.new(self.public_gruu)
-        elif contact_type is TemporaryGRUUIfAvailable and self.temporary_gruu is not None:
-            uri = SIPURI.new(self.temporary_gruu)
-        else:
-            ip = host.default_ip if isinstance(key, basestring) else host.outgoing_ip_for(key.address)
-            if ip is None:
-                raise KeyError("could not get outgoing IP address")
-            port = getattr(Engine(), '%s_port' % transport, None)
-            if port is None:
-                raise KeyError("unsupported transport: %s" % transport)
-            uri = SIPURI(user=self.username, host=ip, port=port)
-        uri.parameters.update(parameters)
-        return uri
 
 
 class SIPRegistrationDidFail(Exception):
