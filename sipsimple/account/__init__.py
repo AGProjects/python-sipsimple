@@ -24,7 +24,7 @@ from application.python import Null, limit
 from application.python.decorator import execute_once
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
-from application.system import host
+from application.system import host as Host
 from eventlet import api, coros, proc
 from eventlet.green import select
 from gnutls.crypto import X509Certificate, X509PrivateKey
@@ -1439,7 +1439,7 @@ class BonjourAccount(SettingsObject):
 
     @property
     def uri(self):
-        return SIPURI(user=self.contact.username, host=host.default_ip)
+        return SIPURI(user=self.contact.username, host=Host.default_ip)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
