@@ -35,7 +35,7 @@ from zope.interface import implements
 
 from sipsimple.account import bonjour
 from sipsimple.account.xcap import XCAPManager
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, Route, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -44,7 +44,7 @@ from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.threading import call_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
-from sipsimple.util import Route, TimestampedNotificationData, user_info
+from sipsimple.util import TimestampedNotificationData, user_info
 
 
 class ContactURIType(type):
@@ -249,7 +249,7 @@ class AccountRegistrar(object):
                         continue
                     contact_header = ContactHeader(contact_uri)
                     contact_header.parameters['+sip.instance'] = '"<%s>"' % settings.instance_id
-                    route_header = RouteHeader(route.get_uri())
+                    route_header = RouteHeader(route.uri)
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
                     try:
                         while True:
@@ -531,7 +531,7 @@ class AccountMWISubscriber(object):
                                                 ToHeader(subscription_uri),
                                                 ContactHeader(contact_uri),
                                                 'message-summary',
-                                                RouteHeader(route.get_uri()),
+                                                RouteHeader(route.uri),
                                                 credentials=self.account.credentials,
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)

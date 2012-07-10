@@ -847,7 +847,7 @@ class XCAPSubscriber(object):
                                                 ToHeader(self.account.uri, self.account.display_name),
                                                 ContactHeader(contact_uri),
                                                 'xcap-diff',
-                                                RouteHeader(route.get_uri()),
+                                                RouteHeader(route.uri),
                                                 credentials=self.account.credentials,
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)

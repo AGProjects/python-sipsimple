@@ -3,6 +3,7 @@
 
 from sipsimple.core._core import *
 from sipsimple.core._engine import *
+from sipsimple.core._helpers import *
 from sipsimple.core._primitives import *
 
 required_revision = 153

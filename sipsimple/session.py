@@ -218,7 +218,7 @@ class ReferralHandler(object):
                                         ToHeader(target_uri),
                                         refer_to_header,
                                         ContactHeader(contact_uri),
-                                        RouteHeader(route.get_uri()),
+                                        RouteHeader(route.uri),
                                         account.credentials)
                     notification_center.add_observer(self, sender=referral)
                     try:
@@ -502,7 +502,7 @@ class ConferenceHandler(object):
                                                 ToHeader(target_uri),
                                                 ContactHeader(contact_uri),
                                                 'conference',
-                                                RouteHeader(route.get_uri()),
+                                                RouteHeader(route.uri),
                                                 credentials=account.credentials,
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
@@ -1082,7 +1082,7 @@ class Session(object):
             if stun_addresses:
                 local_sdp.connection.address = stun_addresses[0]
             from_header = FromHeader(self.account.uri, self.account.display_name)
-            route_header = RouteHeader(self.route.get_uri())
+            route_header = RouteHeader(self.route.uri)
             contact_header = ContactHeader(contact_uri)
             if is_focus:
                 contact_header.parameters['isfocus'] = None
