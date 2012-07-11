@@ -1228,7 +1228,7 @@ class XCAPManager(object):
             self.timer.cancel()
         self.timer = None
         if self.account.xcap.xcap_root:
-            self.client = XCAPClient(self.account.xcap.xcap_root, self.account.id, password=self.account.auth.password, auth=None)
+            self.client = XCAPClient(self.account.xcap.xcap_root, self.account.id, password=self.account.auth.password)
         else:
             try:
                 lookup = DNSLookup()
@@ -1237,7 +1237,7 @@ class XCAPManager(object):
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return
             else:
-                self.client = XCAPClient(uri, self.account.id, password=self.account.auth.password, auth=None)
+                self.client = XCAPClient(uri, self.account.id, password=self.account.auth.password)
 
         try:
             self.server_caps.fetch()
