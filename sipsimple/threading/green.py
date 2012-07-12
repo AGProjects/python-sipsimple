@@ -48,7 +48,7 @@ def run_in_green_thread(func):
 
 def call_in_green_thread(func, *args, **kwargs):
     if threadable.isInIOThread():
-        callInGreenThread(*args, **kwargs)
+        callInGreenThread(func, *args, **kwargs)
     else:
         from twisted.internet import reactor
         reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
