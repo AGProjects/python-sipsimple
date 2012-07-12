@@ -3,7 +3,7 @@
 
 """Green thread utilities"""
 
-__all__ = ["Command", "InterruptCommand", "run_in_green_thread", "run_in_waitable_green_thread", "call_in_green_thread"]
+__all__ = ["Command", "InterruptCommand", "run_in_green_thread", "run_in_waitable_green_thread", "call_in_green_thread", "Worker"]
 
 import sys
 
@@ -73,5 +73,49 @@ def run_in_waitable_green_thread(func):
             reactor.callFromThread(callInGreenThread, wrapped_func)
         return event
     return wrapper
+
+
+class Worker(object):
+    def __init__(self, _func, *args, **kw):
+        self.func = _func
+        self.args = args
+        self.kw = kw
+        self.event = coros.event()
+        self._started = False
+
+    def __run__(self):
+        try:
+            result = self.func(*self.args, **self.kw)
+        except:
+            self.event.send_exception(*sys.exc_info())
+        else:
+            self.event.send(result)
+
+    def start(self):
+        if self._started:
+            raise RuntimeError("worker has already been started")
+        if not threadable.isInIOThread():
+            raise RuntimeError("worker can only be started in the IO thread")
+        self._started = True
+        callInGreenThread(self.__run__)
+
+    def wait(self):
+        if not self._started:
+            raise RuntimeError("worker has not been started")
+        return self.event.wait()
+
+    def wait_ex(self):
+        if not self._started:
+            raise RuntimeError("worker has not been started")
+        try:
+            return self.event.wait()
+        except Exception, e:
+            return e
+
+    @classmethod
+    def spawn(cls, _func, *args, **kw):
+        worker = cls(_func, *args, **kw)
+        worker.start()
+        return worker
 
 
