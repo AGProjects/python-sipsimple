@@ -2026,17 +2026,17 @@ class XCAPManager(object):
             for worker in workers:
                 worker.wait_ex()
 
-    def _schedule_command(self, timeout, command):
-        from twisted.internet import reactor
-        timer = reactor.callLater(timeout, self.command_channel.send, command)
-        timer.command = command
-        return timer
-
     def _save_journal(self):
         try:
             self.storage.save('journal', cPickle.dumps(self.journal))
         except XCAPStorageError:
             pass
+
+    def _schedule_command(self, timeout, command):
+        from twisted.internet import reactor
+        timer = reactor.callLater(timeout, self.command_channel.send, command)
+        timer.command = command
+        return timer
 
 
 class XCAPTransaction(object):
