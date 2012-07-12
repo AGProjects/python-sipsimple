@@ -37,7 +37,7 @@ from sipsimple.payloads import ParserError, IterateTypes, IterateIDs, IterateIte
 from sipsimple.payloads import addressbook, commonpolicy, dialogrules, omapolicy, pidf, prescontent, presrules, resourcelists, rlsservices, xcapcaps, xcapdiff
 from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command
+from sipsimple.threading.green import Command, Worker
 from sipsimple.util import TimestampedNotificationData
 
 
@@ -1305,11 +1305,11 @@ class XCAPManager(object):
         self.timer = None
 
         try:
-            for document in (doc for doc in self.documents if doc.name in command.documents and doc.supported):
-                document.fetch()
+            self._fetch_documents(command.documents)
         except XCAPError:
             self.timer = self._schedule_command(60, Command('fetch', command.event, documents=command.documents))
             return
+
         if not self.journal and self.last_fetch_time > datetime.fromtimestamp(0) and all(doc.fetch_time < command.timestamp for doc in self.documents):
             self.last_fetch_time = datetime.utcnow()
             self.state = 'insync'
@@ -2015,6 +2015,16 @@ class XCAPManager(object):
 
         data=TimestampedNotificationData(addressbook=addressbook, presence_rules=presence_rules, dialog_rules=dialog_rules, status_icon=status_icon, offline_status=offline_status)
         NotificationCenter().post_notification('XCAPManagerDidReloadData', sender=self, data=data)
+
+    def _fetch_documents(self, documents):
+        workers = [Worker.spawn(document.fetch) for document in (doc for doc in self.documents if doc.name in documents and doc.supported)]
+        try:
+            while workers:
+                worker = workers.pop()
+                worker.wait()
+        finally:
+            for worker in workers:
+                worker.wait_ex()
 
     def _schedule_command(self, timeout, command):
         from twisted.internet import reactor
