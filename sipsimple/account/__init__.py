@@ -127,10 +127,6 @@ class AccountRegistrar(object):
         self._command_channel.send(Command('unregister'))
         self._command_channel.send(Command('register'))
 
-    def reload_settings(self):
-        command = Command('reload_settings')
-        self._command_channel.send(command)
-
     def _run(self):
         while True:
             try:
@@ -298,13 +294,6 @@ class AccountRegistrar(object):
             self.account.contact.public_gruu = None
             self.account.contact.temporary_gruu = None
         command.signal()
-
-    def _CH_reload_settings(self, command):
-        notification_center = NotificationCenter()
-        if self._registration is not None:
-            notification_center.remove_observer(self, sender=self._registration)
-            self._registration = None
-        self._command_channel.send(Command('register', command.event))
 
     def _CH_terminate(self, command):
         command.signal()
@@ -1244,7 +1233,7 @@ class Account(SettingsObject):
                     else:
                         self._registrar.deactivate()
                 elif self.sip.register and set(registrar_attributes).intersection(notification.data.modified):
-                    self._registrar.reload_settings()
+                    self._registrar.reactivate()
                 if 'message_summary.enabled' in notification.data.modified:
                     if self.message_summary.enabled:
                         self._mwi_subscriber.activate()
