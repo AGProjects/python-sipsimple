@@ -121,7 +121,6 @@ class AccountRegistrar(object):
         self._command_proc.kill(InterruptCommand)
         command = Command('unregister')
         self._command_channel.send(command)
-        return command
 
     def reactivate(self):
         self._command_channel.send(Command('unregister'))
@@ -379,7 +378,6 @@ class AccountMWISubscriber(object):
         self.server_advertised_uri = None
         command = Command('unsubscribe')
         self._command_channel.send(command)
-        return command
 
     def reactivate(self):
         self._command_channel.send(Command('subscribe'))
