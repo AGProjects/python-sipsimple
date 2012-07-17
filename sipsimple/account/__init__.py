@@ -677,7 +677,7 @@ class BonjourServices(object):
 
     def __init__(self, account):
         self.account = account
-        self._stopped = True
+        self._started = False
         self._files = []
         self._neighbours = {}
         self._command_channel = coros.queue()
@@ -702,7 +702,7 @@ class BonjourServices(object):
         self._command_channel.send_exception(api.GreenletExit)
 
     def activate(self):
-        self._stopped = False
+        self._started = True
         self._command_channel.send(Command('register'))
         self._command_channel.send(Command('discover'))
 
@@ -710,7 +710,7 @@ class BonjourServices(object):
         command = Command('stop')
         self._command_channel.send(command)
         command.wait()
-        self._stopped = True
+        self._started = False
 
     def restart_discovery(self):
         self._command_channel.send(Command('discover'))
@@ -834,7 +834,7 @@ class BonjourServices(object):
     def _handle_commands(self):
         while True:
             command = self._command_channel.wait()
-            if not self._stopped:
+            if self._started:
                 handler = getattr(self, '_CH_%s' % command.name)
                 handler(command)
 
