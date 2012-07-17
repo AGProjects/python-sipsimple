@@ -1013,7 +1013,7 @@ class XCAPManager(object):
         for document in self.documents:
             document.load_from_cache()
         try:
-            self.journal = cPickle.loads(storage.load('journal'))
+            self.journal = cPickle.loads(self.storage.load('journal'))
         except (XCAPStorageError, cPickle.UnpicklingError):
             self.journal = []
         else:
