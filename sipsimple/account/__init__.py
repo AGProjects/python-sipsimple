@@ -1139,7 +1139,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
-        self.xcap_manager.load()
+        self.xcap_manager.init()
         if self.enabled:
             self._activate()
 

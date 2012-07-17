@@ -21,6 +21,7 @@ from urllib2 import URLError
 from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python import Null, limit
+from application.python.decorator import execute_once
 from backports.collections import OrderedDict
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
@@ -984,13 +985,15 @@ class XCAPManager(object):
         from sipsimple.application import SIPApplication
         if SIPApplication.storage is None:
             raise RuntimeError("SIPApplication.storage must be defined before instantiating XCAPManager")
+        storage = SIPApplication.storage.xcap_storage_factory(account.id)
+        if not IXCAPStorage.providedBy(storage):
+            raise TypeError("storage must implement the IXCAPStorage interface")
         self.account = account
-        self.storage = None
+        self.storage = storage
         self.storage_factory = SIPApplication.storage.xcap_storage_factory
         self.client = None
         self.command_proc = None
         self.command_channel = coros.queue()
-        self.journal = []
         self.last_fetch_time = datetime.fromtimestamp(0)
         self.last_update_time = datetime.fromtimestamp(0)
         self.not_executed_fetch = None
@@ -1006,6 +1009,16 @@ class XCAPManager(object):
         self.resource_lists = ResourceListsDocument(self)
         self.rls_services = RLSServicesDocument(self)
         self.status_icon = StatusIconDocument(self)
+
+        for document in self.documents:
+            document.load_from_cache()
+        try:
+            self.journal = cPickle.loads(storage.load('journal'))
+        except (XCAPStorageError, cPickle.UnpicklingError):
+            self.journal = []
+        else:
+            for operation in self.journal:
+                operation.applied = False
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
@@ -1064,6 +1077,14 @@ class XCAPManager(object):
         else:
             for operation in self.journal:
                 operation.applied = False
+        self.command_proc = proc.spawn(self._run)
+
+    @execute_once
+    def init(self):
+        """
+        Initializes the XCAP manager before it can be started. Needs to be
+        called before any other method and in a green thread.
+        """
         self.command_proc = proc.spawn(self._run)
 
     def start(self):
