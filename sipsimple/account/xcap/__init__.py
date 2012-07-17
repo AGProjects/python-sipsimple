@@ -1057,28 +1057,6 @@ class XCAPManager(object):
     def rls_dialog_uri(self):
         return 'sip:%s+dialog@%s' % (self.account.id.username, self.account.id.domain)
 
-    def load(self):
-        """
-        Initializes the XCAP manager, by loading any saved data from disk. Needs
-        to be called before any other method and in a green thread.
-        """
-        if self.storage is not None:
-            raise RuntimeError("XCAPManager cache already loaded")
-        storage = self.storage_factory(self.account.id)
-        if not IXCAPStorage.providedBy(storage):
-            raise TypeError("storage must implement the IXCAPStorage interface")
-        self.storage = storage
-        for document in self.documents:
-            document.load_from_cache()
-        try:
-            self.journal = cPickle.loads(storage.load('journal'))
-        except (XCAPStorageError, cPickle.UnpicklingError):
-            self.journal = []
-        else:
-            for operation in self.journal:
-                operation.applied = False
-        self.command_proc = proc.spawn(self._run)
-
     @execute_once
     def init(self):
         """
