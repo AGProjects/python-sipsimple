@@ -15,11 +15,11 @@ from twisted.python import threadable
 
 
 class Command(object):
-    def __init__(self, name, event=None, timestamp=None, **kwargs):
+    def __init__(self, name, event=None, timestamp=None, **kw):
         self.name = name
         self.event = event or coros.event()
         self.timestamp = timestamp or datetime.utcnow()
-        self.__dict__.update(kwargs)
+        self.__dict__.update(kw)
 
     def signal(self, result=None):
         if isinstance(result, BaseException):
@@ -37,31 +37,31 @@ class InterruptCommand(Exception): pass
 @decorator
 def run_in_green_thread(func):
     @preserve_signature(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kw):
         if threadable.isInIOThread():
-            callInGreenThread(func, *args, **kwargs)
+            callInGreenThread(func, *args, **kw)
         else:
             from twisted.internet import reactor
-            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+            reactor.callFromThread(callInGreenThread, func, *args, **kw)
     return wrapper
 
 
-def call_in_green_thread(func, *args, **kwargs):
+def call_in_green_thread(func, *args, **kw):
     if threadable.isInIOThread():
-        callInGreenThread(func, *args, **kwargs)
+        callInGreenThread(func, *args, **kw)
     else:
         from twisted.internet import reactor
-        reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+        reactor.callFromThread(callInGreenThread, func, *args, **kw)
 
 
 @decorator
 def run_in_waitable_green_thread(func):
     @preserve_signature(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, **kw):
         event = coros.event()
         def wrapped_func():
             try:
-                result = func(*args, **kwargs)
+                result = func(*args, **kw)
             except:
                 event.send_exception(*sys.exc_info())
             else:
