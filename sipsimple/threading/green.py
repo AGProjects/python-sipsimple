@@ -14,12 +14,29 @@ from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
 
+class modulelocal(object):
+    __locals__ = {}
+    def __get__(self, obj, objtype):
+        frame = sys._getframe().f_back
+        while frame.f_globals['__name__'] == __name__:
+            frame = frame.f_back
+        module_name = frame.f_globals['__name__']
+        return self.__locals__.setdefault(module_name, {})
+
+
 class Command(object):
+    __defaults__ = modulelocal()
+
     def __init__(self, name, event=None, timestamp=None, **kw):
         self.name = name
         self.event = event or coros.event()
         self.timestamp = timestamp or datetime.utcnow()
+        self.__dict__.update(self.__defaults__.get(name, {}))
         self.__dict__.update(kw)
+
+    @classmethod
+    def register_defaults(cls, name, **kw):
+        cls.__defaults__[name] = kw
 
     def signal(self, result=None):
         if isinstance(result, BaseException):
