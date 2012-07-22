@@ -196,6 +196,10 @@ class AddressbookKey(object):
             return [self.group, self.section]
         else:
             return [self.group, self.section, PersistentKey(obj.__id__)]
+    def __set__(self, obj, value):
+        raise AttributeError('cannot set attribute')
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
 
 
 class MultiAccountTransaction(object):

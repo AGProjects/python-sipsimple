@@ -22,6 +22,10 @@ class modulelocal(object):
             frame = frame.f_back
         module_name = frame.f_globals['__name__']
         return self.__locals__.setdefault(module_name, {})
+    def __set__(self, obj, value):
+        raise AttributeError('cannot set attribute')
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
 
 
 class Command(object):
