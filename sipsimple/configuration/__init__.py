@@ -275,6 +275,9 @@ class SettingsObjectID(object):
                 self.values[obj] = self.oldvalues[obj] = value
                 self.dirty[obj] = False
 
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
+
     def get_modified(self, obj):
         """
         Returns a ModifiedValue instance with references to the old and new
@@ -326,6 +329,9 @@ class SettingsObjectImmutableID(object):
                 raise DuplicateIDError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
             self.values[obj] = value
 
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
+
 
 class AbstractSetting(object):
     """Abstract base class for setting type descriptors"""
@@ -339,6 +345,9 @@ class AbstractSetting(object):
     @abstractmethod
     def __set__(self, obj, value):
         raise NotImplementedError
+
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
 
     @abstractmethod
     def __getstate__(self, obj):
@@ -596,6 +605,9 @@ class SettingsGroupMeta(SettingsStateMeta):
 
     def __set__(cls, obj, value):
         raise AttributeError("cannot overwrite group of settings")
+
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete group of settings')
 
 
 class SettingsGroup(SettingsState):

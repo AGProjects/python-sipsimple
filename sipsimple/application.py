@@ -48,6 +48,9 @@ class ApplicationAttribute(object):
     def __set__(self, obj, value):
         self.value = value
 
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
+
 
 class SIPApplication(object):
     __metaclass__ = Singleton
