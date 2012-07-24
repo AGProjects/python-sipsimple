@@ -187,7 +187,7 @@ class weakobjectmap(dict):
         return self.__class__((key, deepcopy(value, memo)) for key, value in self.iteritems())
 
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, dict(self.iteritems()))
+        return "%s({%s})" % (self.__class__.__name__, ', '.join(('%r: %r' % (key, value) for key, value in self.iteritems())))
 
     def copy(self):
         return self.__copy__()
