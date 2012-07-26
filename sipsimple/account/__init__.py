@@ -265,7 +265,7 @@ class Account(SettingsObject):
             else:
                 self._mwi_voicemail_uri = message_summary.message_account and SIPAddress(message_summary.message_account.replace('sip:', '', 1)) or None
                 notification_center = NotificationCenter()
-                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
+                notification_center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_MWISubscriberDidDeactivate(self, notification):
         self._mwi_voicemail_uri = None
