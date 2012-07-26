@@ -9,6 +9,7 @@ import random
 import socket
 import string
 
+from application.python.types import MarkerType
 from application.system import host
 
 from sipsimple.core._core import SIPURI
@@ -72,12 +73,7 @@ class Route(object):
         return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
 
 
-class ContactURIType(type):
-    def __call__(cls, *args, **kw):
-        return cls
-    def __repr__(cls):
-        return cls.__name__
-
+class ContactURIType(MarkerType): pass
 
 class NoGRUU:                   __metaclass__ = ContactURIType
 class PublicGRUU:               __metaclass__ = ContactURIType
