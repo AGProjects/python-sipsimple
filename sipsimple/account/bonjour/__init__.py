@@ -29,17 +29,17 @@ class RestartSelect(Exception): pass
 
 
 class BonjourFile(object):
-    instances = WeakKeyDictionary()
+    __instances__ = WeakKeyDictionary()
 
     def __new__(cls, file):
         if cls is BonjourFile:
             raise TypeError("BonjourFile cannot be instantiated directly")
-        instance = cls.instances.get(file)
+        instance = cls.__instances__.get(file)
         if instance is None:
             instance = object.__new__(cls)
             instance.file = file
             instance.active = False
-            cls.instances[file] = instance
+            cls.__instances__[file] = instance
         return instance
 
     def fileno(self):
@@ -57,7 +57,7 @@ class BonjourFile(object):
     def find_by_file(cls, file):
         """Return the instance matching the given DNSServiceRef file"""
         try:
-            return cls.instances[file]
+            return cls.__instances__[file]
         except KeyError:
             raise KeyError("cannot find a %s matching the given DNSServiceRef file" % cls.__name__)
 
