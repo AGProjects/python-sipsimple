@@ -11,9 +11,7 @@ import os
 import platform
 import re
 import sys
-import weakref
 
-from collections import Mapping
 from datetime import datetime
 
 from application.notification import NotificationData
