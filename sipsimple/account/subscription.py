@@ -72,9 +72,9 @@ class MWISubscriber(object):
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
+        notification_center.post_notification('MWISubscriberDidStart', sender=self, data=TimestampedNotificationData())
         if self.account.message_summary.enabled:
             self.activate()
-        notification_center.post_notification('MWISubscriberDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
         if not self.started:
