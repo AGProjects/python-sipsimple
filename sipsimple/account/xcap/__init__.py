@@ -38,7 +38,7 @@ from sipsimple.payloads import ParserError, IterateTypes, IterateIDs, IterateIte
 from sipsimple.payloads import addressbook, commonpolicy, dialogrules, omapolicy, pidf, prescontent, presrules, resourcelists, rlsservices, xcapcaps, xcapdiff
 from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command, Worker
+from sipsimple.threading.green import Command, Worker, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData
 
 
@@ -1963,9 +1963,17 @@ class XCAPManager(object):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
+    @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
         if set(['__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
+        if 'enabled' in notification.data.modified:
+            return # global account activation is handled separately by the account itself
+        if self.account.enabled and 'xcap.enabled' in notification.data.modified:
+            if self.account.xcap.enabled:
+                self.start()
+            else:
+                self.stop()
 
     def _NH_CFGSettingsObjectWasDeleted(self, notification):
         notification_center = NotificationCenter()
