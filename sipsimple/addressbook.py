@@ -18,7 +18,8 @@ from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python import Null
 from application.python.decorator import execute_once
-from application.python.types import Singleton
+from application.python.types import Singleton, MarkerType
+from application.python.weakref import weakobjectmap
 
 from sipsimple.account import xcap, AccountManager
 from sipsimple.configuration import ConfigurationManager, AbstractSetting, SettingsGroup, SettingsGroupMeta, SettingsObjectImmutableID, SettingsState, PersistentKey, ItemContainer, ModifiedValue
@@ -27,7 +28,7 @@ from sipsimple.payloads.addressbook import PolicyValue, ElementAttributes
 from sipsimple.payloads.datatypes import ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument
 from sipsimple.threading import run_in_thread
-from sipsimple.util import MarkerType, TimestampedNotificationData, weakobjectmap
+from sipsimple.util import TimestampedNotificationData
 
 
 def unique_id(prefix='id'):

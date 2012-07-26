@@ -30,10 +30,11 @@ __all__ = ['pidf_namespace',
 
 from itertools import izip
 
+from application.python.weakref import weakobjectmap
+
 from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLListElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
 from sipsimple.payloads.datatypes import AnyURI, ID
-from sipsimple.util import weakobjectmap
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'

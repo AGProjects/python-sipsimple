@@ -16,10 +16,11 @@ from application import log
 from application.notification import NotificationCenter
 from application.python.descriptor import isdescriptor
 from application.python.types import Singleton
+from application.python.weakref import weakobjectmap
 from backports.weakref import WeakSet
 
 from sipsimple.threading import run_in_thread
-from sipsimple.util import TimestampedNotificationData, weakobjectmap
+from sipsimple.util import TimestampedNotificationData
 
 
 ## Exceptions

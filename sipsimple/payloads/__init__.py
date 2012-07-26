@@ -56,11 +56,13 @@ from weakref import WeakValueDictionary
 
 from application.python import Null
 from application.python.descriptor import classproperty
+from application.python.types import MarkerType
+from application.python.weakref import weakobjectmap
 from lxml import etree
 
 from sipsimple.payloads.datatypes import Boolean, Byte, UnsignedByte, Short, UnsignedShort, Int, UnsignedInt, Long, UnsignedLong
 from sipsimple.payloads.datatypes import PositiveInteger, NegativeInteger, NonNegativeInteger, NonPositiveInteger, DateTime, AnyURI
-from sipsimple.util import All, MarkerType, weakobjectmap
+from sipsimple.util import All
 
 
 ## Exceptions
@@ -76,7 +78,7 @@ class Marker(object):
     __metaclass__ = MarkerType
 
 class IterateTypes(Marker): pass
-class IterateIDs(Marker): pass
+class IterateIDs(Marker):   pass
 class IterateItems(Marker): pass
 
 
