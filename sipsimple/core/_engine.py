@@ -6,8 +6,6 @@ Implements a mechanism for starting the SIP core engine based on PJSIP
 (http://pjsip.org) stack.
 """
 
-from __future__ import with_statement
-
 __all__ = ["Engine"]
 
 import sys

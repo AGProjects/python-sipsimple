@@ -3,7 +3,7 @@
 
 """Audio conference support"""
 
-from __future__ import absolute_import, with_statement
+from __future__ import absolute_import
 
 __all__ = ['AudioConference']
 

@@ -6,8 +6,6 @@ Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
 RFC2833 and RFC3711, RFC3489 and draft-ietf-mmusic-ice-19.
 """
 
-from __future__ import with_statement
-
 __all__ = ['AudioStream']
 
 from threading import RLock

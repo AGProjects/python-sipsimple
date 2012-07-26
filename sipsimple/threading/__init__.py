@@ -3,8 +3,6 @@
 
 """Thread management"""
 
-from __future__ import absolute_import, with_statement
-
 __all__ = ["ThreadManager", "run_in_thread", "call_in_thread", "run_in_twisted_thread", "call_in_twisted_thread"]
 
 from application import log

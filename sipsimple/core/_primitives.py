@@ -7,8 +7,6 @@ non-session based operations like REGISTER, SUBSCRIBE, PUBLISH and
 MESSAGE.
 """
 
-from __future__ import with_statement
-
 __all__ = ["Message", "Registration", "Publication", "PublicationError"]
 
 from threading import RLock

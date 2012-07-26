@@ -7,7 +7,7 @@ establishment, modification and termination of sessions using Session
 Initiation Protocol (SIP) standardized in RFC3261.
 """
 
-from __future__ import absolute_import, with_statement
+from __future__ import absolute_import
 
 __all__ = ['Session', 'SessionManager']
 

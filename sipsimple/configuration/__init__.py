@@ -3,8 +3,6 @@
 
 """Generic configuration management"""
 
-from __future__ import with_statement
-
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
            'AbstractSetting', 'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup',
            'SettingsObjectID', 'SettingsObjectImmutableID', 'SettingsObject', 'SettingsObjectExtension',

@@ -48,9 +48,6 @@ application callbacks) are always unicode instances.
 
 """
 
-from __future__ import absolute_import
-
-
 __author__   = 'Christopher Stawarz <cstawarz@csail.mit.edu>'
 __version__  = '1.1.1'
 __revision__ = int('$Revision: 6125 $'.split()[1])
