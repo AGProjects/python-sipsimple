@@ -838,6 +838,23 @@ def _create_function_bindings():
         globals()['_' + name] = func
 
 
+# preset these so that pyflakes doesn't complain
+_DNSServiceRefDeallocate = None
+_DNSServiceRefSockFD = None
+_DNSServiceProcessResult = None
+_DNSServiceEnumerateDomains = None
+_DNSServiceRegister = None
+_DNSServiceAddRecord = None
+_DNSServiceUpdateRecord = None
+_DNSServiceRemoveRecord = None
+_DNSServiceBrowse = None
+_DNSServiceResolve = None
+_DNSServiceCreateConnection = None
+_DNSServiceRegisterRecord = None
+_DNSServiceQueryRecord = None
+_DNSServiceReconfirmRecord = None
+_DNSServiceConstructFullName = None
+
 # Only need to do this once
 _create_function_bindings()
 del _create_function_bindings
