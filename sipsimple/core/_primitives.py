@@ -9,11 +9,12 @@ MESSAGE.
 
 from __future__ import with_statement
 
+__all__ = ["Message", "Registration", "Publication", "PublicationError"]
+
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter
 from application.python import Null
-
 from zope.interface import implements
 
 from sipsimple.core._core import ContactHeader, Header, Request, RouteHeader, SIPCoreError, SIPURI, ToHeader
@@ -347,4 +348,3 @@ class Publication(object):
         self._current_request = request
 
 
-__all__ = ["Registration", "Message", "PublicationError", "Publication"]
