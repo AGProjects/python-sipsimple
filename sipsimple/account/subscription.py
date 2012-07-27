@@ -431,7 +431,7 @@ class DialogWinfoSubscriber(Subscriber):
 
     @property
     def event(self):
-        return 'presence.winfo'
+        return 'dialog.winfo'
 
     def _NH_DialogWinfoSubscriberWillStart(self, notification):
         notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
