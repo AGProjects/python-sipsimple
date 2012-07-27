@@ -315,7 +315,6 @@ cdef class Subscription:
 
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         # PJSIP holds the dialog lock when this callback is entered
-        cdef PJSIPUA ua = _get_ua()
         cdef dict event_dict = dict()
         cdef dict notify_dict = dict(obj=self)
         _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
