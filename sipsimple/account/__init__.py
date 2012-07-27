@@ -151,11 +151,13 @@ class Account(SettingsObject):
         self.contact = ContactURIFactory()
         self.xcap_manager = XCAPManager(self)
         self._active = False
-        self._mwi_voicemail_uri = None
         self._registrar = Registrar(self)
         self._mwi_subscriber = MWISubscriber(self)
         self._pwi_subscriber = PresenceWinfoSubscriber(self)
         self._dwi_subscriber = DialogWinfoSubscriber(self)
+        self._mwi_voicemail_uri = None
+        self._pwi_version = None
+        self._dwi_version = None
         self._started = False
 
     def start(self):
@@ -285,9 +287,18 @@ class Account(SettingsObject):
             except (ParserError, KeyError):
                 pass
             else:
-                if watcher_list.package == 'presence':
-                    data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
-                    notification.center.post_notification('SIPAccountGotPresenceWinfo', sender=self, data=data)
+                if watcher_list.package != 'presence':
+                    return
+                if self._pwi_version is None:
+                    if watcher_info.state == 'partial':
+                        self._pwi_subscriber.resubscribe()
+                elif watcher_info.version <= self._pwi_version:
+                    return
+                elif watcher_info.state == 'partial' and watcher_info.version > self._pwi_version + 1:
+                    self._pwi_subscriber.resubscribe()
+                self._pwi_version = watcher_info.version
+                data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                notification.center.post_notification('SIPAccountGotPresenceWinfo', sender=self, data=data)
 
     def _NH_DialogWinfoSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
@@ -297,9 +308,18 @@ class Account(SettingsObject):
             except (ParserError, KeyError):
                 pass
             else:
-                if watcher_list.package == 'dialog':
-                    data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
-                    notification.center.post_notification('SIPAccountGotDialogWinfo', sender=self, data=data)
+                if watcher_list.package != 'dialog':
+                    return
+                if self._dwi_version is None:
+                    if watcher_info.state == 'partial':
+                        self._dwi_subscriber.resubscribe()
+                elif watcher_info.version <= self._dwi_version:
+                    return
+                elif watcher_info.state == 'partial' and watcher_info.version > self._dwi_version + 1:
+                    self._dwi_subscriber.resubscribe()
+                self._dwi_version = watcher_info.version
+                data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                notification.center.post_notification('SIPAccountGotDialogWinfo', sender=self, data=data)
 
     def _activate(self):
         if self._active:
