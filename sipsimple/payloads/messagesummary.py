@@ -15,7 +15,6 @@ from sipsimple.payloads import ValidationError
 
 class MessageSummary(object):
     content_type = "application/simple-message-summary"
-    message_context_class = ["voice-message", "fax-message", "pager-message", "multimedia-message", "text-message", "none"]
 
     def __init__(self, messages_waiting=False, message_account=None, summaries=None, optional_headers=None):
         self.messages_waiting = messages_waiting
@@ -44,7 +43,7 @@ class MessageSummary(object):
                     summary.messages_waiting = Boolean(rest)
                 elif field.lower() == "message-account":
                     summary.message_account = rest
-                elif field.lower() in MessageSummary.message_context_class:
+                elif field.lower() in set(["voice-message", "fax-message", "pager-message", "multimedia-message", "text-message", "none"]):
                     m = re.match("((\d+)/(\d+))( \((\d+)/(\d+)\))?", rest)
                     if m:
                         summary.summaries[field.lower()] = dict(new_messages=m.groups()[1], old_messages=m.groups()[2], new_urgent_messages=m.groups()[4] or 0, old_urgent_messages=m.groups()[5] or 0)
