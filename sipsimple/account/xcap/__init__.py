@@ -1738,9 +1738,8 @@ class XCAPManager(object):
                 self.stop()
 
     def _NH_CFGSettingsObjectWasDeleted(self, notification):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=self.account, name='CFGSettingsObjectDidChange')
-        notification_center.remove_observer(self, sender=self.account, name='CFGSettingsObjectWasDeleted')
+        notification.center.remove_observer(self, sender=self.account, name='CFGSettingsObjectDidChange')
+        notification.center.remove_observer(self, sender=self.account, name='CFGSettingsObjectWasDeleted')
         self.command_channel.send(Command('stop'))
         self.command_channel.send(Command('cleanup'))
 

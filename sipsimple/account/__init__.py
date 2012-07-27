@@ -262,8 +262,7 @@ class Account(SettingsObject):
         if self._started and self.xcap.discovered is False:
             self.xcap.discovered = True
             self.save()
-            notification_center = NotificationCenter()
-            notification_center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self, data=TimestampedNotificationData())
+            notification.center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self, data=TimestampedNotificationData())
 
     def _NH_MWISubscriberDidDeactivate(self, notification):
         self._mwi_voicemail_uri = None
@@ -276,8 +275,7 @@ class Account(SettingsObject):
                 pass
             else:
                 self._mwi_voicemail_uri = message_summary.message_account and SIPAddress(message_summary.message_account.replace('sip:', '', 1)) or None
-                notification_center = NotificationCenter()
-                notification_center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
+                notification.center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_PresenceWinfoSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
@@ -613,10 +611,9 @@ class AccountManager(object):
         if isinstance(notification.sender, (Account, BonjourAccount)):
             account = notification.sender
             self.accounts[account.id] = account
-            notification_center = NotificationCenter()
-            notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-            notification_center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
-            notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
+            notification.center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+            notification.center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
+            notification.center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
             from sipsimple.application import SIPApplication
             if SIPApplication.running:
                 call_in_green_thread(account.start)
@@ -630,10 +627,9 @@ class AccountManager(object):
     def _NH_CFGSettingsObjectWasDeleted(self, notification):
         account = notification.sender
         del self.accounts[account.id]
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
-        notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
+        notification.center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+        notification.center.remove_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
+        notification.center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
         account = notification.sender
