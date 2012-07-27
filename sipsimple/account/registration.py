@@ -76,8 +76,8 @@ class Registrar(object):
     def stop(self):
         if not self.started:
             return
-        self.deactivate()
         self.started = False
+        self.active = False
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
@@ -256,7 +256,7 @@ class Registrar(object):
         command.signal()
 
     def _CH_terminate(self, command):
-        command.signal()
+        self._CH_unregister(command)
         raise proc.ProcExit
 
     @run_in_twisted_thread
