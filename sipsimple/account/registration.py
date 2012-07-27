@@ -226,7 +226,6 @@ class Registrar(object):
             self.account.contact.temporary_gruu = None
 
     def _CH_unregister(self, command):
-        notification_center = NotificationCenter()
         # Cancel any timer which would restart the registration process
         if self._registration_timer is not None and self._registration_timer.active():
             self._registration_timer.cancel()
@@ -237,6 +236,7 @@ class Registrar(object):
         registered = self.registered
         self.registered = False
         if self._registration is not None:
+            notification_center = NotificationCenter()
             if registered:
                 self._registration.end(timeout=2)
                 try:
