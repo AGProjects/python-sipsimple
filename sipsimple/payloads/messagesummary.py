@@ -22,10 +22,10 @@ class MessageSummary(object):
         self.summaries = summaries if summaries is not None else {}
         self.optional_headers = optional_headers if optional_headers is not None else []
 
-    @staticmethod
-    def parse(content):
+    @classmethod
+    def parse(cls, content):
         message = StringIO(content)
-        summary = MessageSummary()
+        summary = cls()
         tmp_headers = []
         for line in message:
             if line == '\r\n':
