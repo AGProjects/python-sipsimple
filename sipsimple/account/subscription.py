@@ -3,10 +3,11 @@
 
 """Implements the subscription handlers"""
 
-__all__ = ['MWISubscriber']
+__all__ = ['Subscriber', 'MWISubscriber']
 
 import random
 
+from abc import ABCMeta, abstractproperty
 from time import time
 
 from application.notification import IObserver, NotificationCenter
@@ -41,7 +42,27 @@ class InterruptSubscription(Exception): pass
 class TerminateSubscription(Exception): pass
 
 
-class MWISubscriber(object):
+class Content(object):
+    def __init__(self, body, type):
+        self.body = body
+        self.type = type
+
+
+class SubscriberNickname(dict):
+    def __missing__(self, name):
+        return self.setdefault(name, name[:-10] if name.endswith('Subscriber') else name)
+    def __get__(self, obj, objtype):
+        return self[objtype.__name__]
+    def __set__(self, obj, value):
+        raise AttributeError('cannot set attribute')
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
+
+
+class Subscriber(object):
+    __metaclass__ = ABCMeta
+    __nickname__  = SubscriberNickname()
+
     implements(IObserver)
 
     def __init__(self, account):
@@ -57,33 +78,40 @@ class MWISubscriber(object):
         self._subscription_timer = None
         self._wakeup_timer = None
 
+    @abstractproperty
+    def event(self):
+        return None
+
     @property
     def subscription_uri(self):
-        return self.account.message_summary.voicemail_uri or self.account.id
+        return self.account.id
+
+    @property
+    def content(self):
+        return Content(None, None)
 
     def start(self):
         if self.started:
             return
         self.started = True
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.add_observer(self, sender=self)
+        notification_center.post_notification(self.__class__.__name__ + 'WillStart', sender=self, data=TimestampedNotificationData())
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
-        notification_center.post_notification('MWISubscriberDidStart', sender=self, data=TimestampedNotificationData())
-        if self.account.message_summary.enabled:
-            self.activate()
+        notification_center.post_notification(self.__class__.__name__ + 'DidStart', sender=self, data=TimestampedNotificationData())
+        notification_center.remove_observer(self, sender=self)
 
     def stop(self):
         if not self.started:
             return
-        self.deactivate()
         self.started = False
+        self.active = False
         notification_center = NotificationCenter()
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.add_observer(self, sender=self)
+        notification_center.post_notification(self.__class__.__name__ + 'WillEnd', sender=self, data=TimestampedNotificationData())
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
@@ -91,7 +119,8 @@ class MWISubscriber(object):
         self._command_channel.send(command)
         command.wait()
         self._command_proc = None
-        notification_center.post_notification('MWISubscriberDidEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.remove_observer(self, sender=self)
 
     def activate(self):
         if not self.started:
@@ -99,7 +128,7 @@ class MWISubscriber(object):
         self.active = True
         self._command_channel.send(Command('subscribe'))
         notification_center = NotificationCenter()
-        notification_center.post_notification('MWISubscriberDidActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidActivate', sender=self, data=TimestampedNotificationData())
 
     def deactivate(self):
         if not self.started:
@@ -107,7 +136,7 @@ class MWISubscriber(object):
         self.active = False
         self._command_channel.send(Command('unsubscribe'))
         notification_center = NotificationCenter()
-        notification_center.post_notification('MWISubscriberDidDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def resubscribe(self):
         if self.active:
@@ -145,7 +174,7 @@ class MWISubscriber(object):
         command.signal()
 
     def _CH_terminate(self, command):
-        command.signal()
+        self._CH_unsubscribe(command)
         raise proc.ProcExit
 
     def _subscription_handler(self, command):
@@ -170,6 +199,7 @@ class MWISubscriber(object):
                 raise SubscriptionError('DNS lookup failed: %s' % e, retry_after=random.uniform(15, 30))
 
             subscription_uri = SIPURI(user=subscription_uri.username, host=subscription_uri.domain)
+            content = self.content
 
             timeout = time() + 30
             for route in routes:
@@ -182,13 +212,13 @@ class MWISubscriber(object):
                     subscription = Subscription(subscription_uri, FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(subscription_uri),
                                                 ContactHeader(contact_uri),
-                                                'message-summary',
+                                                self.event,
                                                 RouteHeader(route.uri),
                                                 credentials=self.account.credentials,
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
-                        subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
+                        subscription.subscribe(body=content.body, content_type=content.type, timeout=limit(remaining_time, min=1, max=5))
                     except SIPCoreError:
                         notification_center.remove_observer(self, sender=subscription)
                         raise SubscriptionError('Internal error', retry_after=5)
@@ -226,19 +256,19 @@ class MWISubscriber(object):
                 # There are no more routes to try, reschedule the subscription
                 raise SubscriptionError('No more routes to try', retry_after=random.uniform(60, 180))
             # At this point it is subscribed. Handle notifications and ending/failures.
-            notification_center.post_notification('MWISubscriptionDidStart', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidStart', sender=self, data=TimestampedNotificationData())
             try:
                 while True:
                     notification = self._data_channel.wait()
                     if notification.name == 'SIPSubscriptionGotNotify':
-                        notification_center.post_notification('MWISubscriberGotNotify', sender=self, data=notification.data)
+                        notification_center.post_notification(self.__nickname__ + 'SubscriptionGotNotify', sender=self, data=notification.data)
                     elif notification.name == 'SIPSubscriptionDidEnd':
-                        notification_center.post_notification('MWISubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='remote'))
+                        notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='remote'))
                         if self.active:
                             self._command_channel.send(Command('subscribe'))
                         break
             except SIPSubscriptionDidFail:
-                notification_center.post_notification('MWISubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+                notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self, data=TimestampedNotificationData())
                 if self.active:
                     self._command_channel.send(Command('subscribe'))
             notification_center.remove_observer(self, sender=self._subscription)
@@ -252,7 +282,7 @@ class MWISubscriber(object):
                 except SIPCoreError:
                     pass
                 finally:
-                    notification_center.post_notification('MWISubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
+                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
         except TerminateSubscription, e:
             if not self.subscribed:
                 command.signal(e)
@@ -271,14 +301,14 @@ class MWISubscriber(object):
                         pass
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
-                    notification_center.post_notification('MWISubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
+                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
         except SubscriptionError, e:
             def subscribe():
                 if self.active:
                     self._command_channel.send(Command('subscribe', command.event, refresh_interval=e.refresh_interval))
                 self._subscription_timer = None
             self._subscription_timer = reactor.callLater(e.retry_after, subscribe)
-            notification_center.post_notification('MWISubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self, data=TimestampedNotificationData())
         finally:
             self.subscribed = False
             self._subscription = None
@@ -305,21 +335,6 @@ class MWISubscriber(object):
         if notification.sender is self._subscription:
             self._data_channel.send(notification)
 
-    @run_in_green_thread
-    def _NH_CFGSettingsObjectDidChange(self, notification):
-        if not self.started:
-            return
-        if 'enabled' in notification.data.modified:
-            return # global account activation is handled separately by the account itself
-        elif 'message_summary.enabled' in notification.data.modified:
-            if self.account.message_summary.enabled:
-                self.activate()
-            else:
-                self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'message_summary.voicemail_uri', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
-                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
-            self._command_channel.send(Command('subscribe'))
-
     def _NH_DNSNameserversDidChange(self, notification):
         if self.active:
             self._command_channel.send(Command('subscribe'))
@@ -335,5 +350,44 @@ class MWISubscriber(object):
                     self._command_channel.send(Command('subscribe'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
+
+
+class MWISubscriber(Subscriber):
+    """Message Waiting Indicator subscriber"""
+
+    @property
+    def event(self):
+        return 'message-summary'
+
+    @property
+    def subscription_uri(self):
+        return self.account.message_summary.voicemail_uri or self.account.id
+
+    def _NH_MWISubscriberWillStart(self, notification):
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_MWISubscriberWillEnd(self, notification):
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_MWISubscriberDidStart(self, notification):
+        if self.account.message_summary.enabled:
+            self.activate()
+
+    @run_in_green_thread
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        if not self.started:
+            return
+        if 'enabled' in notification.data.modified:
+            return # global account activation is handled separately by the account itself
+        elif 'message_summary.enabled' in notification.data.modified:
+            if self.account.message_summary.enabled:
+                self.activate()
+            else:
+                self.deactivate()
+        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'message_summary.voicemail_uri', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
+                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+            self._command_channel.send(Command('subscribe'))
 
 

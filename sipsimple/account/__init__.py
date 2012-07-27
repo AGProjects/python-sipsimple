@@ -256,8 +256,11 @@ class Account(SettingsObject):
             notification_center = NotificationCenter()
             notification_center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self, data=TimestampedNotificationData())
 
-    def _NH_MWISubscriberGotNotify(self, notification):
-        if notification.data.event == 'message-summary' and notification.data.body:
+    def _NH_MWISubscriberDidDeactivate(self, notification):
+        self._mwi_voicemail_uri = None
+
+    def _NH_MWISubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == MessageSummary.content_type:
             try:
                 message_summary = MessageSummary.parse(notification.data.body)
             except ParserError:
@@ -266,9 +269,6 @@ class Account(SettingsObject):
                 self._mwi_voicemail_uri = message_summary.message_account and SIPAddress(message_summary.message_account.replace('sip:', '', 1)) or None
                 notification_center = NotificationCenter()
                 notification_center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
-
-    def _NH_MWISubscriberDidDeactivate(self, notification):
-        self._mwi_voicemail_uri = None
 
     def _activate(self):
         if self._active:
