@@ -24,7 +24,7 @@ from zope.interface import implements
 
 from sipsimple.account.bonjour import BonjourServices, _bonjour
 from sipsimple.account.registration import Registrar
-from sipsimple.account.subscription import MWISubscriber
+from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import Credentials, SIPURI, ContactURIFactory
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
@@ -32,6 +32,7 @@ from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionMode
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
+from sipsimple.payloads.watcherinfo import WatcherInfoDocument
 from sipsimple.threading import call_in_thread
 from sipsimple.threading.green import call_in_green_thread, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData, user_info
@@ -150,9 +151,11 @@ class Account(SettingsObject):
         self.contact = ContactURIFactory()
         self.xcap_manager = XCAPManager(self)
         self._active = False
+        self._mwi_voicemail_uri = None
         self._registrar = Registrar(self)
         self._mwi_subscriber = MWISubscriber(self)
-        self._mwi_voicemail_uri = None
+        self._pwi_subscriber = PresenceWinfoSubscriber(self)
+        self._dwi_subscriber = DialogWinfoSubscriber(self)
         self._started = False
 
     def start(self):
@@ -165,6 +168,8 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
         notification_center.add_observer(self, sender=self._mwi_subscriber)
+        notification_center.add_observer(self, sender=self._pwi_subscriber)
+        notification_center.add_observer(self, sender=self._dwi_subscriber)
 
         self.xcap_manager.init()
         if self.enabled:
@@ -182,12 +187,16 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.remove_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
         notification_center.remove_observer(self, sender=self._mwi_subscriber)
+        notification_center.remove_observer(self, sender=self._pwi_subscriber)
+        notification_center.remove_observer(self, sender=self._dwi_subscriber)
 
     @run_in_green_thread
     def delete(self):
         self.stop()
-        self._mwi_subscriber = None
         self._registrar = None
+        self._mwi_subscriber = None
+        self._pwi_subscriber = None
+        self._dwi_subscriber = None
         self.xcap_manager = None
         SettingsObject.delete(self)
 
@@ -270,6 +279,30 @@ class Account(SettingsObject):
                 notification_center = NotificationCenter()
                 notification_center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
 
+    def _NH_PresenceWinfoSubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
+            try:
+                watcher_info = WatcherInfoDocument.parse(notification.data.body)
+                watcher_list = watcher_info['sip:' + self.id]
+            except (ParserError, KeyError):
+                pass
+            else:
+                if watcher_list.package == 'presence':
+                    data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                    notification.center.post_notification('SIPAccountGotPresenceWinfo', sender=self, data=data)
+
+    def _NH_DialogWinfoSubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
+            try:
+                watcher_info = WatcherInfoDocument.parse(notification.data.body)
+                watcher_list = watcher_info['sip:' + self.id]
+            except (ParserError, KeyError):
+                pass
+            else:
+                if watcher_list.package == 'dialog':
+                    data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                    notification.center.post_notification('SIPAccountGotDialogWinfo', sender=self, data=data)
+
     def _activate(self):
         if self._active:
             return
@@ -278,6 +311,8 @@ class Account(SettingsObject):
         self._active = True
         self._registrar.start()
         self._mwi_subscriber.start()
+        self._pwi_subscriber.start()
+        self._dwi_subscriber.start()
         if self.xcap.enabled:
             self.xcap_manager.start()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
@@ -288,9 +323,8 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
         self._active = False
-        self._mwi_subscriber.stop()
-        self._registrar.stop()
-        self.xcap_manager.stop()
+        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self.xcap_manager]
+        proc.waitall([proc.spawn(handler.stop) for handler in handlers])
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):

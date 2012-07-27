@@ -3,7 +3,7 @@
 
 """Implements the subscription handlers"""
 
-__all__ = ['Subscriber', 'MWISubscriber']
+__all__ = ['Subscriber', 'MWISubscriber', 'PresenceWinfoSubscriber', 'DialogWinfoSubscriber']
 
 import random
 
@@ -387,6 +387,76 @@ class MWISubscriber(Subscriber):
             else:
                 self.deactivate()
         elif self.active and set(['__id__', 'auth.password', 'auth.username', 'message_summary.voicemail_uri', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
+                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+            self._command_channel.send(Command('subscribe'))
+
+
+class PresenceWinfoSubscriber(Subscriber):
+    """Presence Watcher Info subscriber"""
+
+    @property
+    def event(self):
+        return 'presence.winfo'
+
+    def _NH_PresenceWinfoSubscriberWillStart(self, notification):
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_PresenceWinfoSubscriberWillEnd(self, notification):
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_PresenceWinfoSubscriberDidStart(self, notification):
+        if self.account.presence.enabled:
+            self.activate()
+
+    @run_in_green_thread
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        if not self.started:
+            return
+        if 'enabled' in notification.data.modified:
+            return # global account activation is handled separately by the account itself
+        elif 'presence.enabled' in notification.data.modified:
+            if self.account.message_summary.enabled:
+                self.activate()
+            else:
+                self.deactivate()
+        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
+                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+            self._command_channel.send(Command('subscribe'))
+
+
+class DialogWinfoSubscriber(Subscriber):
+    """Dialog Watcher Info subscriber"""
+
+    @property
+    def event(self):
+        return 'presence.winfo'
+
+    def _NH_DialogWinfoSubscriberWillStart(self, notification):
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_DialogWinfoSubscriberWillEnd(self, notification):
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
+        notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+
+    def _NH_DialogWinfoSubscriberDidStart(self, notification):
+        if self.account.presence.enabled:
+            self.activate()
+
+    @run_in_green_thread
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        if not self.started:
+            return
+        if 'enabled' in notification.data.modified:
+            return # global account activation is handled separately by the account itself
+        elif 'presence.enabled' in notification.data.modified:
+            if self.account.message_summary.enabled:
+                self.activate()
+            else:
+                self.deactivate()
+        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
                                   'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self._command_channel.send(Command('subscribe'))
 
