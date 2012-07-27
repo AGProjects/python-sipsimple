@@ -43,6 +43,8 @@ class Engine(Thread):
                                         "message-summary": ["application/simple-message-summary"],
                                         "presence": ["application/pidf+xml"],
                                         "presence.winfo": ["application/watcherinfo+xml"],
+                                        "dialog": ["application/dialog-info+xml"],
+                                        "dialog.winfo": ["application/watcherinfo+xml"],
                                         "refer": ["message/sipfrag;version=2.0"],
                                         "xcap-diff": ["application/xcap-diff+xml"]},
                              "incoming_events": set(),
