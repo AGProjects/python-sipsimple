@@ -14,7 +14,7 @@ from sipsimple.payloads import ValidationError
 
 
 class MessageSummary(object):
-
+    content_type = "application/simple-message-summary"
     message_context_class = ["voice-message", "fax-message", "pager-message", "multimedia-message", "text-message", "none"]
 
     def __init__(self, messages_waiting=False, message_account=None, summaries=None, optional_headers=None):
