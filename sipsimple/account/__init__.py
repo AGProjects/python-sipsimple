@@ -59,10 +59,6 @@ class RTPSettings(SettingsGroup):
     use_srtp_without_tls = Setting(type=bool, default=False)
 
 
-class DialogEventSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=False)
-
-
 class NATTraversalSettings(SettingsGroup):
     use_ice = Setting(type=bool, default=False)
     stun_server_list = Setting(type=STUNServerAddressList, default=None, nillable=True)
@@ -133,7 +129,6 @@ class Account(SettingsObject):
     auth = AuthSettings
     sip = SIPSettings
     rtp = RTPSettings
-    dialog_event = DialogEventSettings
     nat_traversal = NATTraversalSettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
