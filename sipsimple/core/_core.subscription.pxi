@@ -315,18 +315,22 @@ cdef class Subscription:
 
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         # PJSIP holds the dialog lock when this callback is entered
+        cdef PJSIPUA ua = _get_ua()
         cdef dict event_dict = dict()
         cdef dict notify_dict = dict(obj=self)
         _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+        body = event_dict["body"]
+        content_type, params = event_dict["headers"].get("Content-Type", (None, None))
+        event = event_dict["headers"].get("Event", None)
+        if event is None or event.event != self.event or (body is not None and content_type not in ua.events[event.event]):
+            return 0
         notify_dict["request_uri"] = event_dict["request_uri"]
         notify_dict["from_header"] = event_dict["headers"].get("From", None)
         notify_dict["to_header"] = event_dict["headers"].get("To", None)
         notify_dict["headers"] = event_dict["headers"]
-        notify_dict["body"] = event_dict["body"]
-        content_type, params = notify_dict["headers"].get("Content-Type", (None, None))
-        notify_dict["content_type"] = ContentType(content_type) if content_type else None
-        event = notify_dict["headers"].get("Event", None)
-        notify_dict["event"] = event.event if event else None
+        notify_dict["body"] = body
+        notify_dict["content_type"] = ContentType(content_type) if content_type and body else None
+        notify_dict["event"] = event.event
         _add_event("SIPSubscriptionGotNotify", notify_dict)
 
     cdef int _cb_timeout_timer(self, PJSIPUA ua):
