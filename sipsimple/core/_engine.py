@@ -131,7 +131,7 @@ class Engine(Thread):
 
     def _post_notification(self, name, **kwargs):
         if self.notification_center is not None:
-            self.notification_center.post_notification(name, self, NotificationData(timestamp=datetime.now(), **kwargs))
+            self.notification_center.post_notification(name, self, NotificationData(**kwargs))
 
 
 def setdefault(where, **what):

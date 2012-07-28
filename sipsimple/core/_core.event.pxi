@@ -53,7 +53,6 @@ cdef int _add_event(object event_name, dict params) except -1:
     event = <_core_event *> malloc(sizeof(_core_event))
     if event == NULL:
         raise MemoryError()
-    params["timestamp"] = datetime.now()
     data = (event_name, params)
     event.is_log = 0
     event.data = <void *> data
@@ -105,10 +104,7 @@ cdef list _get_clear_event_queue():
             log_msg = PyString_FromStringAndSize(<char *> event.data, event.len)
             log_match = _re_log.match(log_msg)
             if log_match is not None:
-                event_params = dict(level=event.level, sender=log_match.group("sender"),
-                                    message=log_match.group("message"))
-                event_params["timestamp"] = datetime(*[int(arg) for arg in log_match.groups()[:6]] +
-                                                     [int(log_match.group("millisecond")) * 1000])
+                event_params = dict(level=event.level, sender=log_match.group("sender"), message=log_match.group("message"))
                 events.append(("SIPEngineLog", event_params))
         else:
             event_tup = <object> event.data
