@@ -14,7 +14,7 @@ __all__ = ["SIPApplication"]
 from threading import RLock, Thread
 from uuid import uuid4
 
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
@@ -34,7 +34,6 @@ from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
 from sipsimple.threading import ThreadManager, run_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 
@@ -120,7 +119,7 @@ class SIPApplication(object):
 
         self.end_reason = 'application request'
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPApplicationWillEnd', sender=self)
         if prev_state != 'starting':
             self._shutdown_subsystems()
 
@@ -132,7 +131,7 @@ class SIPApplication(object):
         reactor.run(installSignalHandlers=False)
 
         self.state = 'stopped'
-        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason))
+        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
 
     @run_in_green_thread
     def _initialize_subsystems(self):
@@ -146,7 +145,7 @@ class SIPApplication(object):
 
         xcap_client.DEFAULT_HEADERS = {'User-Agent': settings.user_agent}
 
-        notification_center.post_notification('SIPApplicationWillStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPApplicationWillStart', sender=self)
         if self.state == 'stopping':
             reactor.stop()
             return
@@ -196,7 +195,7 @@ class SIPApplication(object):
                                    timeout=settings.tls.timeout)
         except Exception, e:
             notification_center = NotificationCenter()
-            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
+            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
         # initialize PJSIP internal resolver
         engine.set_nameservers(dns_manager.nameservers)
@@ -257,7 +256,7 @@ class SIPApplication(object):
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
         self.state = 'started'
-        notification_center.post_notification('SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPApplicationDidStart', sender=self)
 
         self._detect_nat_type()
         self._nat_detect_channel.send(Command('detect_nat'))
@@ -449,7 +448,7 @@ class SIPApplication(object):
                                            timeout=settings.tls.timeout)
                 except Exception, e:
                     notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codec_list' in notification.data.modified:
@@ -469,7 +468,7 @@ class SIPApplication(object):
                                            timeout=settings.tls.timeout)
                 except Exception, e:
                     notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
     @run_in_thread('device-io')
     def _NH_DefaultAudioDeviceDidChange(self, notification):

@@ -9,7 +9,7 @@ import random
 
 from time import time
 
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null, limit
 from eventlet import coros, proc
 from twisted.internet import reactor
@@ -20,7 +20,6 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 
@@ -125,9 +124,9 @@ class Registrar(object):
             duration = command.refresh_interval or self.account.sip.register_interval
             self._registration = Registration(FromHeader(self.account.uri, self.account.display_name), credentials=self.account.credentials, duration=duration)
             notification_center.add_observer(self, sender=self._registration)
-            notification_center.post_notification('SIPAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
+            notification_center.post_notification('SIPAccountWillRegister', sender=self.account)
         else:
-            notification_center.post_notification('SIPAccountRegistrationWillRefresh', sender=self.account, data=TimestampedNotificationData())
+            notification_center.post_notification('SIPAccountRegistrationWillRefresh', sender=self.account)
 
         try:
             # Lookup routes
@@ -164,7 +163,7 @@ class Registrar(object):
                             if notification.name == 'SIPRegistrationDidSucceed':
                                 break
                     except SIPRegistrationDidFail, e:
-                        notification_data = TimestampedNotificationData(code=e.data.code, reason=e.data.reason, registration=self._registration, registrar=route)
+                        notification_data = NotificationData(code=e.data.code, reason=e.data.reason, registration=self._registration, registrar=route)
                         notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account, data=notification_data)
                         if e.data.code == 401:
                             # Authentication failed, so retry the registration in some time
@@ -180,7 +179,7 @@ class Registrar(object):
                             # Otherwise just try the next route
                             continue
                     else:
-                        notification_data = TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason, registration=self._registration, registrar=route)
+                        notification_data = NotificationData(code=notification.data.code, reason=notification.data.reason, registration=self._registration, registrar=route)
                         notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account, data=notification_data)
                         self.registered = True
                         # Save GRUU
@@ -200,9 +199,9 @@ class Registrar(object):
                                 self.account.contact.temporary_gruu = SIPURI.parse(temporary_gruu.strip('"'))
                             except (AttributeError, SIPCoreError):
                                 self.account.contact.temporary_gruu = None
-                        notification_data = TimestampedNotificationData(contact_header=notification.data.contact_header,
-                                                                        contact_header_list=notification.data.contact_header_list,
-                                                                        expires=notification.data.expires_in, registrar=route)
+                        notification_data = NotificationData(contact_header=notification.data.contact_header,
+                                                             contact_header_list=notification.data.contact_header_list,
+                                                             expires=notification.data.expires_in, registrar=route)
                         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self.account, data=notification_data)
                         self._register_wait = 1
                         command.signal()
@@ -215,7 +214,7 @@ class Registrar(object):
         except RegistrationError, e:
             self.registered = False
             notification_center.remove_observer(self, sender=self._registration)
-            notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account, data=TimestampedNotificationData(error=e.error, retry_after=e.retry_after))
+            notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account, data=NotificationData(error=e.error, retry_after=e.retry_after))
             def register():
                 if self.active:
                     self._command_channel.send(Command('register', command.event, refresh_interval=e.refresh_interval))
@@ -245,10 +244,10 @@ class Registrar(object):
                         if notification.name == 'SIPRegistrationDidEnd':
                             break
                 except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
-                    notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason,
-                                                                                                                                                   registration=self._registration))
+                    notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account, data=NotificationData(code=e.data.code, reason=e.data.reason,
+                                                                                                                                        registration=self._registration))
                 else:
-                    notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData(registration=self._registration))
+                    notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account, data=NotificationData(registration=self._registration))
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None
             self.account.contact.public_gruu = None

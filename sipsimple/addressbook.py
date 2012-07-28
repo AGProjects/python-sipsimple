@@ -15,7 +15,7 @@ from time import time
 from zope.interface import implements
 
 from application import log
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.decorator import execute_once
 from application.python.types import Singleton, MarkerType
@@ -28,7 +28,6 @@ from sipsimple.payloads.addressbook import PolicyValue, ElementAttributes
 from sipsimple.payloads.datatypes import ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument
 from sipsimple.threading import run_in_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 def unique_id(prefix='id'):
@@ -458,7 +457,7 @@ class Group(SettingsState):
         if self.__state__ == 'loaded':
             self.__state__ = 'active'
             notification_center = NotificationCenter()
-            notification_center.post_notification('AddressbookGroupWasActivated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookGroupWasActivated', sender=self)
 
     def __repr__(self):
         return "%s(id=%r)" % (self.__class__.__name__, self.id)
@@ -502,8 +501,8 @@ class Group(SettingsState):
             for account in (account for account in xcap_accounts if account is not originator_account):
                 account.xcap_manager.add_group(self.__xcapgroup__)
             modified_data = None
-            notification_center.post_notification('AddressbookGroupWasActivated', sender=self, data=TimestampedNotificationData())
-            notification_center.post_notification('AddressbookGroupWasCreated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookGroupWasActivated', sender=self)
+            notification_center.post_notification('AddressbookGroupWasCreated', sender=self)
         else:
             configuration.update(self.__key__, self.__getstate__())
 
@@ -533,14 +532,14 @@ class Group(SettingsState):
                     if attributes:
                         xcap_manager.update_group(self.__xcapgroup__, attributes)
 
-            notification_center.post_notification('AddressbookGroupDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            notification_center.post_notification('AddressbookGroupDidChange', sender=self, data=NotificationData(modified=modified_settings))
             modified_data = modified_settings
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_data, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
     def _internal_delete(self, originator):
@@ -562,13 +561,13 @@ class Group(SettingsState):
         for account in (account for account in account_manager.iter_accounts() if hasattr(account, 'xcap') and account.xcap.discovered and account is not originator_account):
             account.xcap_manager.remove_group(self.__xcapgroup__)
 
-        notification_center.post_notification('AddressbookGroupWasDeleted', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('AddressbookGroupWasDeleted', sender=self)
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
         """
@@ -834,7 +833,7 @@ class Contact(SettingsState):
         if self.__state__ == 'loaded':
             self.__state__ = 'active'
             notification_center = NotificationCenter()
-            notification_center.post_notification('AddressbookContactWasActivated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookContactWasActivated', sender=self)
 
     def __repr__(self):
         return "%s(id=%r)" % (self.__class__.__name__, self.id)
@@ -877,8 +876,8 @@ class Contact(SettingsState):
             for account in (account for account in xcap_accounts if account is not originator_account):
                 account.xcap_manager.add_contact(self.__xcapcontact__)
             modified_data = None
-            notification_center.post_notification('AddressbookContactWasActivated', sender=self, data=TimestampedNotificationData())
-            notification_center.post_notification('AddressbookContactWasCreated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookContactWasActivated', sender=self)
+            notification_center.post_notification('AddressbookContactWasCreated', sender=self)
         else:
             configuration.update(self.__key__, self.__getstate__())
 
@@ -913,14 +912,14 @@ class Contact(SettingsState):
                     if contact_attributes:
                         xcap_manager.update_contact(self.__xcapcontact__, contact_attributes)
 
-            notification_center.post_notification('AddressbookContactDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            notification_center.post_notification('AddressbookContactDidChange', sender=self, data=NotificationData(modified=modified_settings))
             modified_data = modified_settings
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_data, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
     def _internal_delete(self, originator):
@@ -948,13 +947,13 @@ class Contact(SettingsState):
             for account in (account for account in xcap_accounts if account is not originator_account):
                 account.xcap_manager.remove_contact(self.__xcapcontact__)
 
-        notification_center.post_notification('AddressbookContactWasDeleted', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('AddressbookContactWasDeleted', sender=self)
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
         """
@@ -1040,7 +1039,7 @@ class Policy(SettingsState):
         if self.__state__ == 'loaded':
             self.__state__ = 'active'
             notification_center = NotificationCenter()
-            notification_center.post_notification('AddressbookPolicyWasActivated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookPolicyWasActivated', sender=self)
 
     def __repr__(self):
         return "%s(id=%r)" % (self.__class__.__name__, self.id)
@@ -1082,8 +1081,8 @@ class Policy(SettingsState):
             for account in (account for account in xcap_accounts if account is not originator_account):
                 account.xcap_manager.add_policy(self.__xcappolicy__)
             modified_data = None
-            notification_center.post_notification('AddressbookPolicyWasActivated', sender=self, data=TimestampedNotificationData())
-            notification_center.post_notification('AddressbookPolicyWasCreated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('AddressbookPolicyWasActivated', sender=self)
+            notification_center.post_notification('AddressbookPolicyWasCreated', sender=self)
         else:
             configuration.update(self.__key__, self.__getstate__())
 
@@ -1099,14 +1098,14 @@ class Policy(SettingsState):
             for account in outofsync_accounts:
                 account.xcap_manager.update_policy(self.__xcappolicy__, attributes)
 
-            notification_center.post_notification('AddressbookPolicyDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            notification_center.post_notification('AddressbookPolicyDidChange', sender=self, data=NotificationData(modified=modified_settings))
             modified_data = modified_settings
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_data, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
     def _internal_delete(self, originator):
@@ -1128,13 +1127,13 @@ class Policy(SettingsState):
         for account in (account for account in account_manager.iter_accounts() if hasattr(account, 'xcap') and account.xcap.discovered and account is not originator_account):
             account.xcap_manager.remove_policy(self.__xcappolicy__)
 
-        notification_center.post_notification('AddressbookPolicyWasDeleted', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('AddressbookPolicyWasDeleted', sender=self)
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
         """
@@ -1267,37 +1266,37 @@ class AddressbookManager(object):
         contact = notification.sender
         self.contacts[contact.id] = contact
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddContact', sender=self, data=TimestampedNotificationData(contact=contact))
+        notification_center.post_notification('AddressbookManagerDidAddContact', sender=self, data=NotificationData(contact=contact))
 
     def _NH_AddressbookContactWasDeleted(self, notification):
         contact = notification.sender
         del self.contacts[contact.id]
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemoveContact', sender=self, data=TimestampedNotificationData(contact=contact))
+        notification_center.post_notification('AddressbookManagerDidRemoveContact', sender=self, data=NotificationData(contact=contact))
 
     def _NH_AddressbookGroupWasActivated(self, notification):
         group = notification.sender
         self.groups[group.id] = group
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddGroup', sender=self, data=TimestampedNotificationData(group=group))
+        notification_center.post_notification('AddressbookManagerDidAddGroup', sender=self, data=NotificationData(group=group))
 
     def _NH_AddressbookGroupWasDeleted(self, notification):
         group = notification.sender
         del self.groups[group.id]
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemoveGroup', sender=self, data=TimestampedNotificationData(group=group))
+        notification_center.post_notification('AddressbookManagerDidRemoveGroup', sender=self, data=NotificationData(group=group))
 
     def _NH_AddressbookPolicyWasActivated(self, notification):
         policy = notification.sender
         self.policies[policy.id] = policy
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddPolicy', sender=self, data=TimestampedNotificationData(policy=policy))
+        notification_center.post_notification('AddressbookManagerDidAddPolicy', sender=self, data=NotificationData(policy=policy))
 
     def _NH_AddressbookPolicyWasDeleted(self, notification):
         policy = notification.sender
         del self.policies[policy.id]
         notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemovePolicy', sender=self, data=TimestampedNotificationData(policy=policy))
+        notification_center.post_notification('AddressbookManagerDidRemovePolicy', sender=self, data=NotificationData(policy=policy))
 
     @run_in_thread('file-io')
     def _NH_SIPAccountDidDiscoverXCAPSupport(self, notification):

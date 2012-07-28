@@ -46,7 +46,6 @@ from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, I
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import run_in_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 class MSRPStreamError(StreamError): pass
@@ -178,10 +177,9 @@ class MSRPStreamBase(object):
         except api.GreenletExit:
             raise
         except Exception, ex:
-            ndata = TimestampedNotificationData(context='initialize', failure=Failure(), reason=str(ex))
-            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=Failure(), reason=str(ex)))
         else:
-            notification_center.post_notification('MediaStreamDidInitialize', self, data=TimestampedNotificationData())
+            notification_center.post_notification('MediaStreamDidInitialize', sender=self)
         finally:
             if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
                 notification_center.remove_observer(self, sender=self)
@@ -226,10 +224,9 @@ class MSRPStreamBase(object):
         except api.GreenletExit:
             raise
         except Exception, ex:
-            ndata = TimestampedNotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
-            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__))
         else:
-            notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
+            notification_center.post_notification('MediaStreamDidStart', sender=self)
         finally:
             self.greenlet = None
 
@@ -242,7 +239,7 @@ class MSRPStreamBase(object):
             self.session = None
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
+        notification_center.post_notification('MediaStreamWillEnd', sender=self)
         msrp = self.msrp
         msrp_session = self.msrp_session
         msrp_connector = self.msrp_connector
@@ -256,7 +253,7 @@ class MSRPStreamBase(object):
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
-            notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
+            notification_center.post_notification('MediaStreamDidEnd', sender=self)
             notification_center.remove_observer(self, sender=self)
             self.msrp = None
             self.msrp_session = None
@@ -292,8 +289,7 @@ class MSRPStreamBase(object):
         if error is not None:
             if self.shutting_down and isinstance(error.value, ConnectionDone):
                 return
-            ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
-            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=error, reason=error.getErrorMessage()))
         elif chunk is not None:
             method_handler = getattr(self, '_handle_%s' % chunk.method, None)
             if method_handler is not None:
@@ -372,11 +368,11 @@ class ChatStream(MSRPStreamBase):
         if chunk.message_id in self.sent_messages:
             self.sent_messages.remove(chunk.message_id)
             notification_center = NotificationCenter()
-            data = TimestampedNotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
+            data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
             if chunk.status.code == 200:
-                notification_center.post_notification('ChatStreamDidDeliverMessage', self, data)
+                notification_center.post_notification('ChatStreamDidDeliverMessage', sender=self, data=data)
             else:
-                notification_center.post_notification('ChatStreamDidNotDeliverMessage', self, data)
+                notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _handle_SEND(self, chunk):
         if self.direction=='sendonly':
@@ -412,29 +408,27 @@ class ChatStream(MSRPStreamBase):
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
             data = IsComposingDocument.parse(message.body)
-            ndata = TimestampedNotificationData(state=data.state.value,
-                                                refresh=data.refresh.value if data.refresh is not None else None,
-                                                content_type=data.content_type.value if data.content_type is not None else None,
-                                                last_active=data.last_active.value if data.last_active is not None else None,
-                                                sender=message.sender, recipients=message.recipients, private=private)
-            notification_center.post_notification('ChatStreamGotComposingIndication', self, ndata)
+            ndata = NotificationData(state=data.state.value,
+                                     refresh=data.refresh.value if data.refresh is not None else None,
+                                     content_type=data.content_type.value if data.content_type is not None else None,
+                                     last_active=data.last_active.value if data.last_active is not None else None,
+                                     sender=message.sender, recipients=message.recipients, private=private)
+            notification_center.post_notification('ChatStreamGotComposingIndication', sender=self, data=ndata)
         else:
-            notification_center.post_notification('ChatStreamGotMessage', self, TimestampedNotificationData(message=message, private=private))
+            notification_center.post_notification('ChatStreamGotMessage', sender=self, data=NotificationData(message=message, private=private))
 
     def _on_transaction_response(self, message_id, response):
         if message_id in self.sent_messages and response.code != 200:
             self.sent_messages.remove(message_id)
-            data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
-            NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', self, data)
+            data = NotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
+            NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _on_nickname_transaction_response(self, message_id, response):
         notification_center = NotificationCenter()
         if response.code == 200:
-            data = TimestampedNotificationData(message_id=message_id, response=response)
-            notification_center.post_notification('ChatStreamDidSetNickname', self, data)
+            notification_center.post_notification('ChatStreamDidSetNickname', sender=self, data=NotificationData(message_id=message_id, response=response))
         else:
-            data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
-            notification_center.post_notification('ChatStreamDidNotSetNickname', self, data)
+            notification_center.post_notification('ChatStreamDidNotSetNickname', sender=self, data=NotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment))
 
     def _message_queue_handler(self):
         notification_center = NotificationCenter()
@@ -451,13 +445,12 @@ class ChatStream(MSRPStreamBase):
             try:
                 self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
             except Exception, e:
-                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
-                notification_center.post_notification('MediaStreamDidFail', self, ndata)
+                notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
             else:
                 if notify_progress and success_report == 'yes' and failure_report != 'no':
                     self.sent_messages.add(message_id)
-                    notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
+                    notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
 
     @run_in_green_thread
     def _send_nickname_chunk(self, chunk):
@@ -468,8 +461,7 @@ class ChatStream(MSRPStreamBase):
         try:
             self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, chunk.message_id))
         except Exception, e:
-            ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
-            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
 
     @run_in_twisted_thread
     def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None, notify_progress=True):
@@ -674,9 +666,8 @@ class FileTransferStream(MSRPStreamBase):
 
     def initialize(self, session, direction):
         if self.direction == 'sendonly' and self.file_selector.fd is None:
-            ndata = TimestampedNotificationData(context='initialize', failure=None, reason='file descriptor not specified')
             notification_center = NotificationCenter()
-            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=None, reason='file descriptor not specified'))
             return
         MSRPStreamBase.initialize(self, session, direction)
 
@@ -695,17 +686,17 @@ class FileTransferStream(MSRPStreamBase):
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
         notification_center = NotificationCenter()
-        data = TimestampedNotificationData(message_id=chunk.message_id, chunk=chunk, code=chunk.status.code, reason=chunk.status.comment)
+        data = NotificationData(message_id=chunk.message_id, chunk=chunk, code=chunk.status.code, reason=chunk.status.comment)
         if chunk.status.code == 200:
             # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
             # only works as long as chunks are delivered in order. -Luci
             data.transferred_bytes = chunk.byte_range[1]
             data.file_size = chunk.byte_range[2]
-            notification_center.post_notification('FileTransferStreamDidDeliverChunk', self, data)
+            notification_center.post_notification('FileTransferStreamDidDeliverChunk', sender=self, data=data)
             if data.transferred_bytes == data.file_size:
-                notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
+                notification_center.post_notification('FileTransferStreamDidFinish', sender=self)
         else:
-            notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', self, data)
+            notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', sender=self, data=data)
 
     def _handle_SEND(self, chunk):
         notification_center = NotificationCenter()
@@ -719,15 +710,15 @@ class FileTransferStream(MSRPStreamBase):
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
             self.msrp_session.send_report(chunk, 415, 'Invalid Content-Type')
             e = MSRPStreamError("CPIM wrapper is not supported")
-            notification_center.post_notification('MediaStreamDidFail', self, TimestampedNotificationData(failure=Failure(e), reason=str(e)))
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(failure=Failure(e), reason=str(e)))
             return
         self.msrp_session.send_report(chunk, 200, 'OK')
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
         # only works as long as chunks are delivered in order. -Luci
-        ndata = TimestampedNotificationData(content=chunk.data, content_type=chunk.content_type, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
-        notification_center.post_notification('FileTransferStreamGotChunk', self, ndata)
+        ndata = NotificationData(content=chunk.data, content_type=chunk.content_type, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
+        notification_center.post_notification('FileTransferStreamGotChunk', sender=self, data=ndata)
         if ndata.transferred_bytes == ndata.file_size:
-            notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
+            notification_center.post_notification('FileTransferStreamDidFinish', sender=self)
 
 
 # Desktop sharing
@@ -802,7 +793,7 @@ class InternalVNCViewerHandler(DesktopSharingHandlerBase):
         notification_center = NotificationCenter()
         while True:
             data = self.incoming_msrp_queue.wait()
-            notification_center.post_notification('DesktopSharingStreamGotData', self, NotificationData(data=data))
+            notification_center.post_notification('DesktopSharingStreamGotData', sender=self, data=NotificationData(data=data))
 
     def _msrp_writer(self):
         pass
@@ -819,7 +810,7 @@ class InternalVNCServerHandler(DesktopSharingHandlerBase):
         notification_center = NotificationCenter()
         while True:
             data = self.incoming_msrp_queue.wait()
-            notification_center.post_notification('DesktopSharingStreamGotData', self, NotificationData(data=data))
+            notification_center.post_notification('DesktopSharingStreamGotData', sender=self, data=NotificationData(data=data))
 
     def _msrp_writer(self):
         pass
@@ -847,8 +838,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -862,8 +852,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -876,8 +865,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
             raise
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            ndata = TimestampedNotificationData(context='connecting', failure=Failure(), reason=str(e))
-            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -913,8 +901,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -928,8 +915,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -942,8 +928,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
             raise
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            ndata = TimestampedNotificationData(context='connecting', failure=Failure(), reason=str(e))
-            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -1055,8 +1040,7 @@ class DesktopSharingStream(MSRPStreamBase):
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break
-                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
+                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -1074,8 +1058,7 @@ class DesktopSharingStream(MSRPStreamBase):
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break
-                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
-                NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
+                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
 
     def _NH_MediaStreamDidStart(self, notification):
@@ -1092,7 +1075,7 @@ class DesktopSharingStream(MSRPStreamBase):
             self.msrp_writer_thread = None
 
     def _NH_DesktopSharingHandlerDidFail(self, notification):
-        NotificationCenter().post_notification('MediaStreamDidFail', self, notification.data)
+        notification.center.post_notification('MediaStreamDidFail', sender=self, data=notification.data)
 
 
 
@@ -1128,7 +1111,7 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=chunk))
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='incoming', data=chunk))
 
     def sent_new_chunk(self, data, transport, chunk):
         content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
@@ -1147,23 +1130,23 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='outgoing', data=chunk))
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='outgoing', data=chunk))
 
     def debug(self, message, **context):
         pass
 
     def info(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.INFO))
+        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.INFO))
     msg = info
 
     def warn(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.WARNING))
+        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.WARNING))
 
     def error(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.ERROR))
+        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.ERROR))
     err = error
 
     def fatal(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.CRITICAL))
+        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.CRITICAL))
 
 

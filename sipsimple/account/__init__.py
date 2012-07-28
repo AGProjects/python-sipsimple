@@ -11,7 +11,7 @@ __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 from itertools import chain
 from threading import Lock
 
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.decorator import execute_once
 from application.python.descriptor import classproperty
@@ -35,7 +35,7 @@ from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.payloads.watcherinfo import WatcherInfoDocument
 from sipsimple.threading import call_in_thread
 from sipsimple.threading.green import call_in_green_thread, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData, user_info
+from sipsimple.util import user_info
 
 
 
@@ -259,7 +259,7 @@ class Account(SettingsObject):
         if self._started and self.xcap.discovered is False:
             self.xcap.discovered = True
             self.save()
-            notification.center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self, data=TimestampedNotificationData())
+            notification.center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self)
 
     def _NH_MWISubscriberDidDeactivate(self, notification):
         self._mwi_voicemail_uri = None
@@ -272,7 +272,7 @@ class Account(SettingsObject):
                 pass
             else:
                 self._mwi_voicemail_uri = message_summary.message_account and SIPAddress(message_summary.message_account.replace('sip:', '', 1)) or None
-                notification.center.post_notification('SIPAccountGotMessageSummary', sender=self, data=TimestampedNotificationData(message_summary=message_summary))
+                notification.center.post_notification('SIPAccountGotMessageSummary', sender=self, data=NotificationData(message_summary=message_summary))
 
     def _NH_PresenceWinfoSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
@@ -292,7 +292,7 @@ class Account(SettingsObject):
                 elif watcher_info.state == 'partial' and watcher_info.version > self._pwi_version + 1:
                     self._pwi_subscriber.resubscribe()
                 self._pwi_version = watcher_info.version
-                data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                data = NotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
                 notification.center.post_notification('SIPAccountGotPresenceWinfo', sender=self, data=data)
 
     def _NH_DialogWinfoSubscriptionGotNotify(self, notification):
@@ -313,14 +313,14 @@ class Account(SettingsObject):
                 elif watcher_info.state == 'partial' and watcher_info.version > self._dwi_version + 1:
                     self._dwi_subscriber.resubscribe()
                 self._dwi_version = watcher_info.version
-                data = TimestampedNotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
+                data = NotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
                 notification.center.post_notification('SIPAccountGotDialogWinfo', sender=self, data=data)
 
     def _activate(self):
         if self._active:
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountWillActivate', sender=self)
         self._active = True
         self._registrar.start()
         self._mwi_subscriber.start()
@@ -328,17 +328,17 @@ class Account(SettingsObject):
         self._dwi_subscriber.start()
         if self.xcap.enabled:
             self.xcap_manager.start()
-        notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
     def _deactivate(self):
         if not self._active:
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
         self._active = False
         handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self.xcap_manager]
         proc.waitall([proc.spawn(handler.stop) for handler in handlers])
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.id)
@@ -517,19 +517,19 @@ class BonjourAccount(SettingsObject):
         if self._active:
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountWillActivate', sender=self)
         self._active = True
         self._bonjour_services.activate()
-        notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
     def _deactivate(self):
         if not self._active:
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
         self._active = False
         self._bonjour_services.deactivate()
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
     def __repr__(self):
         return '%s()' % self.__class__.__name__
@@ -584,9 +584,9 @@ class AccountManager(object):
         set to activate.
         """
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerWillStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountManagerWillStart', sender=self)
         proc.waitall([proc.spawn(account.start) for account in self.accounts.itervalues()])
-        notification_center.post_notification('SIPAccountManagerDidStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountManagerDidStart', sender=self)
 
     def stop(self):
         """
@@ -595,9 +595,9 @@ class AccountManager(object):
         successfully or they timed out trying.
         """
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerWillEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountManagerWillEnd', sender=self)
         proc.waitall([proc.spawn(account.stop) for account in self.accounts.itervalues()])
-        notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
 
     def has_account(self, id):
         return id in self.accounts
@@ -628,7 +628,7 @@ class AccountManager(object):
             self.accounts[account.id] = account
             notification.center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
             notification.center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
-            notification.center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
+            notification.center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=NotificationData(account=account))
             from sipsimple.application import SIPApplication
             if SIPApplication.running:
                 call_in_green_thread(account.start)
@@ -644,7 +644,7 @@ class AccountManager(object):
         del self.accounts[account.id]
         notification.center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
         notification.center.remove_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
-        notification.center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
+        notification.center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=NotificationData(account=account))
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
         account = notification.sender
@@ -681,8 +681,7 @@ class AccountManager(object):
             # we need to post the notification in the file-io thread in order to have it serialized after the
             # SIPAccountManagerDidAddAccount notification that is triggered when the account is saved the first
             # time, because save is executed in the file-io thread while this runs in the current thread. -Dan
-            data=TimestampedNotificationData(old_account=old_account, account=account)
-            call_in_thread('file-io', notification_center.post_notification, 'SIPAccountManagerDidChangeDefaultAccount', sender=self, data=data)
+            call_in_thread('file-io', notification_center.post_notification, 'SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(old_account=old_account, account=account))
 
     default_account = property(_get_default_account, _set_default_account)
     del _get_default_account, _set_default_account

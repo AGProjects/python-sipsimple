@@ -13,7 +13,7 @@ from functools import partial
 from itertools import combinations
 from threading import RLock
 
-from application.notification import IObserver, NotificationCenter, ObserverWeakrefProxy
+from application.notification import IObserver, NotificationCenter, NotificationData, ObserverWeakrefProxy
 from application.system import makedirs
 from eventlet import coros
 from zope.interface import Attribute, Interface, implements
@@ -21,7 +21,6 @@ from zope.interface import Attribute, Interface, implements
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_waitable_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 class WavePlayerError(Exception): pass
@@ -87,8 +86,8 @@ class AudioDevice(object):
         old_producer_slot = self.producer_slot
         self.__dict__['input_muted'] = value
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
-                                                                                                                       old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
+                                                                                                            old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
     input_muted = property(_get_input_muted, _set_input_muted)
     del _get_input_muted, _set_input_muted
 
@@ -102,8 +101,8 @@ class AudioDevice(object):
         old_consumer_slot = self.consumer_slot
         self.__dict__['output_muted'] = value
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=True, producer_slot_changed=False,
-                                                                                                                       old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot))
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
+                                                                                                            old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot))
     output_muted = property(_get_output_muted, _set_output_muted)
     del _get_output_muted, _set_output_muted
 
@@ -419,33 +418,33 @@ class WavePlayer(object):
                     try:
                         self._wave_file.start()
                     except SIPCoreError, e:
-                        notification_center.post_notification('WavePlayerDidFail', sender=self, data=TimestampedNotificationData(error=e))
+                        notification_center.post_notification('WavePlayerDidFail', sender=self, data=NotificationData(error=e))
                         raise WavePlayerError(e)
                     else:
                         if self._current_loop == 0:
-                            notification_center.post_notification('WavePlayerDidStart', sender=self, data=TimestampedNotificationData())
-                        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
-                                                                                                                                       old_producer_slot=None, new_producer_slot=self._wave_file.slot))
+                            notification_center.post_notification('WavePlayerDidStart', sender=self)
+                        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
+                                                                                                                            old_producer_slot=None, new_producer_slot=self._wave_file.slot))
                 elif command.name == 'reschedule':
                     self._current_loop += 1
                     notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
                     self._wave_file = None
-                    notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
-                                                                                                                                   old_producer_slot=None, new_producer_slot=None))
+                    notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
+                                                                                                                        old_producer_slot=None, new_producer_slot=None))
                     if self.loop_count == 0 or self._current_loop < self.loop_count:
                         from twisted.internet import reactor
                         reactor.callLater(self.pause_time, self._channel.send, Command('play'))
                     else:
-                        notification_center.post_notification('WavePlayerDidEnd', sender=self, data=TimestampedNotificationData())
+                        notification_center.post_notification('WavePlayerDidEnd', sender=self)
                         break
                 elif command.name == 'stop':
                     if self._wave_file is not None:
                         notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
                         self._wave_file.stop()
                         self._wave_file = None
-                        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
-                                                                                                                                       old_producer_slot=None, new_producer_slot=None))
-                        notification_center.post_notification('WavePlayerDidEnd', sender=self, data=TimestampedNotificationData())
+                        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
+                                                                                                                            old_producer_slot=None, new_producer_slot=None))
+                        notification_center.post_notification('WavePlayerDidEnd', sender=self)
                     break
         finally:
             self._channel = None
@@ -490,15 +489,15 @@ class WaveRecorder(object):
         self._recording_wave_file = RecordingWaveFile(self.mixer, self.filename)
         self._recording_wave_file.start()
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=True, producer_slot_changed=False,
-                                                                                                                       old_consumer_slot=None, new_consumer_slot=self._recording_wave_file.slot))
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
+                                                                                                            old_consumer_slot=None, new_consumer_slot=self._recording_wave_file.slot))
 
     def stop(self):
         old_slot = self.consumer_slot
         self._recording_wave_file.stop()
         self._recording_wave_file = None
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=True, producer_slot_changed=False,
-                                                                                                                       old_consumer_slot=old_slot, new_consumer_slot=None))
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
+                                                                                                            old_consumer_slot=old_slot, new_consumer_slot=None))
 
 

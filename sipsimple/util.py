@@ -5,17 +5,15 @@
 
 from __future__ import absolute_import
 
-__all__ = ["All", "Any", "MultilingualText", "Timestamp", "TimestampedNotificationData", "user_info"]
+__all__ = ["All", "Any", "MultilingualText", "Timestamp", "user_info"]
 
 import os
 import platform
 import re
 import sys
 
-from datetime import datetime
-
-from application.notification import NotificationData
 from application.python.types import Singleton, MarkerType
+from datetime import datetime
 from dateutil.tz import tzoffset
 
 
@@ -111,12 +109,6 @@ class Timestamp(datetime):
 
     def __str__(self):
         return self.format(self)
-
-
-class TimestampedNotificationData(NotificationData):
-    def __init__(self, **kwargs):
-        self.timestamp = datetime.now()
-        NotificationData.__init__(self, **kwargs)
 
 
 # Utility objects

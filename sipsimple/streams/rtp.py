@@ -20,7 +20,6 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamRegistrar, UnknownStreamError
-from sipsimple.util import TimestampedNotificationData
 
 
 class AudioStream(object):
@@ -93,8 +92,8 @@ class AudioStream(object):
         old_producer_slot = self.producer_slot
         self.__dict__['muted'] = value
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
-                                                                                                                       old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
+        data = NotificationData(consumer_slot_changed=False, producer_slot_changed=True, old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot)
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=data)
     muted = property(_get_muted, _set_muted)
     del _get_muted, _set_muted
 
@@ -198,8 +197,7 @@ class AudioStream(object):
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidFail', self,
-                                                                TimestampedNotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
+                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
                     return
                 del self._incoming_stream_has_srtp
                 del self._incoming_stream_has_srtp_forced
@@ -249,7 +247,7 @@ class AudioStream(object):
                 self.state = 'WAIT_ICE'
             else:
                 self.state = 'ESTABLISHED'
-                self.notification_center.post_notification('MediaStreamDidStart', self, TimestampedNotificationData())
+                self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def validate_update(self, remote_sdp, stream_index):
         with self._lock:
@@ -273,17 +271,15 @@ class AudioStream(object):
                                                                    if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
                 except SIPCoreError, e:
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidFail', self,
-                                                               TimestampedNotificationData(reason=e.args[0]))
+                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
                     return
                 self.notification_center.add_observer(self, sender=self._audio_transport)
-                self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
-                                            media_check_interval=settings.rtp.timeout)
-                self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=True, producer_slot_changed=True,
-                                                                                                                                    old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot,
-                                                                                                                                    old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
+                self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout, media_check_interval=settings.rtp.timeout)
+                self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=True,
+                                                                                                                         old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot,
+                                                                                                                         old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
                 self._check_hold(self._audio_transport.direction, True)
-                self.notification_center.post_notification('AudioStreamDidChangeRTPParameters', self, TimestampedNotificationData())
+                self.notification_center.post_notification('AudioStreamDidChangeRTPParameters', sender=self)
             else:
                 new_direction = local_sdp.media[stream_index].direction
                 self._audio_transport.update_direction(new_direction)
@@ -313,8 +309,7 @@ class AudioStream(object):
         with self._lock:
             if self.state != "ENDED":
                 if self._audio_transport is not None:
-                    self.notification_center.post_notification('MediaStreamWillEnd', self,
-                                                               TimestampedNotificationData())
+                    self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
                     if self._audio_rec is not None:
                         self._stop_recording()
                     self._audio_transport.stop()
@@ -322,8 +317,7 @@ class AudioStream(object):
                     self._audio_transport = None
                     self._rtp_transport = None
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidEnd', self,
-                                                               TimestampedNotificationData())
+                    self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
                 else:
                     self.state = "ENDED"
                 self.bridge.stop()
@@ -418,24 +412,22 @@ class AudioStream(object):
                                                              if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
             except SIPCoreError, e:
                 self.state = "ENDED"
-                self.notification_center.post_notification('MediaStreamDidFail', self,
-                                                           TimestampedNotificationData(reason=e.args[0]))
+                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
                 return
             self._rtp_transport = rtp_transport
             self._audio_transport = audio_transport
             self.notification_center.add_observer(self, sender=audio_transport)
             self.state = "INITIALIZED"
-            self.notification_center.post_notification('MediaStreamDidInitialize', self, TimestampedNotificationData())
+            self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
 
     def _NH_RTPAudioStreamGotDTMF(self, notification):
-        self.notification_center.post_notification('AudioStreamGotDTMF', self,
-                                                   NotificationData(timestamp=notification.data.timestamp, digit=notification.data.digit))
+        self.notification_center.post_notification('AudioStreamGotDTMF', sender=self, data=NotificationData(digit=notification.data.digit))
 
     def _NH_RTPAudioTransportDidTimeout(self, notification):
-        self.notification_center.post_notification('AudioStreamDidTimeout', self, TimestampedNotificationData())
+        self.notification_center.post_notification('AudioStreamDidTimeout', sender=self)
 
     def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
-        self.notification_center.post_notification('AudioStreamICENegotiationStateDidChange', self, data=notification.data)
+        self.notification_center.post_notification('AudioStreamICENegotiationStateDidChange', sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
         self._ice_state = "IN_USE"
@@ -444,9 +436,9 @@ class AudioStream(object):
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
-            self.notification_center.post_notification('AudioStreamICENegotiationDidSucceed', self, data=notification.data)
+            self.notification_center.post_notification('AudioStreamICENegotiationDidSucceed', sender=self, data=notification.data)
             self.state = 'ESTABLISHED'
-            self.notification_center.post_notification('MediaStreamDidStart', self, TimestampedNotificationData())
+            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def _NH_RTPTransportICENegotiationDidFail(self, notification):
         self._ice_state = "FAILED"
@@ -455,9 +447,9 @@ class AudioStream(object):
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
-            self.notification_center.post_notification('AudioStreamICENegotiationDidFail', self, data=notification.data)
+            self.notification_center.post_notification('AudioStreamICENegotiationDidFail', sender=self, data=notification.data)
             self.state = 'ESTABLISHED'
-            self.notification_center.post_notification('MediaStreamDidStart', self, TimestampedNotificationData())
+            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
 
     # Private methods
@@ -489,8 +481,7 @@ class AudioStream(object):
                 self._try_next_rtp_transport(e.args[0])
         else:
             self.state = "ENDED"
-            self.notification_center.post_notification('MediaStreamDidFail', self,
-                                                       TimestampedNotificationData(reason=failure_reason))
+            self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=failure_reason))
 
     def _check_hold(self, direction, is_initial):
         was_on_hold_by_local = self.on_hold_by_local
@@ -503,46 +494,37 @@ class AudioStream(object):
         if (is_initial or was_on_hold_by_local or was_inactive) and not inactive and not self.on_hold_by_local and self._hold_request != 'hold':
             self.bridge.add(self)
         if not was_on_hold_by_local and self.on_hold_by_local:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', self,
-                                                       TimestampedNotificationData(originator="local", on_hold=True))
+            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
         if was_on_hold_by_local and not self.on_hold_by_local:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', self,
-                                                       TimestampedNotificationData(originator="local", on_hold=False))
+            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
         if not was_on_hold_by_remote and self.on_hold_by_remote:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', self,
-                                                       TimestampedNotificationData(originator="remote", on_hold=True))
+            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
         if was_on_hold_by_remote and not self.on_hold_by_remote:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', self,
-                                                       TimestampedNotificationData(originator="remote", on_hold=False))
+            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
         if self._audio_rec is not None:
             self._check_recording()
 
     def _check_recording(self):
         if not self._audio_rec.is_active:
-            self.notification_center.post_notification('AudioStreamWillStartRecordingAudio', self,
-                                                       TimestampedNotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamWillStartRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             try:
                 self._audio_rec.start()
             except SIPCoreError, e:
                 self._audio_rec = None
-                self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', self,
-                                                           TimestampedNotificationData(filename=self._audio_rec.filename, reason=e.args[0]))
+                self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename, reason=e.args[0]))
                 return
-            self.notification_center.post_notification('AudioStreamDidStartRecordingAudio', self,
-                                                       TimestampedNotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamDidStartRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
         if not self.on_hold:
             self.bridge.add(self._audio_rec)
         elif self._audio_rec in self.bridge:
             self.bridge.remove(self._audio_rec)
 
     def _stop_recording(self):
-        self.notification_center.post_notification('AudioStreamWillStopRecordingAudio', self,
-                                                   TimestampedNotificationData(filename=self._audio_rec.filename))
+        self.notification_center.post_notification('AudioStreamWillStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
         try:
             if self._audio_rec.is_active:
                 self._audio_rec.stop()
         finally:
-            self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', self,
-                                                       TimestampedNotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             self._audio_rec = None
 

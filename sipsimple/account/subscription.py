@@ -10,7 +10,7 @@ import random
 from abc import ABCMeta, abstractproperty
 from time import time
 
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null, limit
 from eventlet import coros, proc
 from twisted.internet import reactor
@@ -21,7 +21,6 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 
@@ -96,12 +95,12 @@ class Subscriber(object):
         self.started = True
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self)
-        notification_center.post_notification(self.__class__.__name__ + 'WillStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'WillStart', sender=self)
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
-        notification_center.post_notification(self.__class__.__name__ + 'DidStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidStart', sender=self)
         notification_center.remove_observer(self, sender=self)
 
     def stop(self):
@@ -111,7 +110,7 @@ class Subscriber(object):
         self.active = False
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self)
-        notification_center.post_notification(self.__class__.__name__ + 'WillEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'WillEnd', sender=self)
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
@@ -119,7 +118,7 @@ class Subscriber(object):
         self._command_channel.send(command)
         command.wait()
         self._command_proc = None
-        notification_center.post_notification(self.__class__.__name__ + 'DidEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidEnd', sender=self)
         notification_center.remove_observer(self, sender=self)
 
     def activate(self):
@@ -128,7 +127,7 @@ class Subscriber(object):
         self.active = True
         self._command_channel.send(Command('subscribe'))
         notification_center = NotificationCenter()
-        notification_center.post_notification(self.__class__.__name__ + 'DidActivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidActivate', sender=self)
 
     def deactivate(self):
         if not self.started:
@@ -136,7 +135,7 @@ class Subscriber(object):
         self.active = False
         self._command_channel.send(Command('unsubscribe'))
         notification_center = NotificationCenter()
-        notification_center.post_notification(self.__class__.__name__ + 'DidDeactivate', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification(self.__class__.__name__ + 'DidDeactivate', sender=self)
 
     def resubscribe(self):
         if self.active:
@@ -256,19 +255,19 @@ class Subscriber(object):
                 # There are no more routes to try, reschedule the subscription
                 raise SubscriptionError('No more routes to try', retry_after=random.uniform(60, 180))
             # At this point it is subscribed. Handle notifications and ending/failures.
-            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidStart', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidStart', sender=self)
             try:
                 while True:
                     notification = self._data_channel.wait()
                     if notification.name == 'SIPSubscriptionGotNotify':
                         notification_center.post_notification(self.__nickname__ + 'SubscriptionGotNotify', sender=self, data=notification.data)
                     elif notification.name == 'SIPSubscriptionDidEnd':
-                        notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='remote'))
+                        notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=NotificationData(originator='remote'))
                         if self.active:
                             self._command_channel.send(Command('subscribe'))
                         break
             except SIPSubscriptionDidFail:
-                notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+                notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self)
                 if self.active:
                     self._command_channel.send(Command('subscribe'))
             notification_center.remove_observer(self, sender=self._subscription)
@@ -282,7 +281,7 @@ class Subscriber(object):
                 except SIPCoreError:
                     pass
                 finally:
-                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
+                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=NotificationData(originator='local'))
         except TerminateSubscription, e:
             if not self.subscribed:
                 command.signal(e)
@@ -301,14 +300,14 @@ class Subscriber(object):
                         pass
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
-                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=TimestampedNotificationData(originator='local'))
+                    notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=NotificationData(originator='local'))
         except SubscriptionError, e:
             def subscribe():
                 if self.active:
                     self._command_channel.send(Command('subscribe', command.event, refresh_interval=e.refresh_interval))
                 self._subscription_timer = None
             self._subscription_timer = reactor.callLater(e.retry_after, subscribe)
-            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification(self.__nickname__ + 'SubscriptionDidFail', sender=self)
         finally:
             self.subscribed = False
             self._subscription = None

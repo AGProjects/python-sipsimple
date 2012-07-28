@@ -18,7 +18,7 @@ from operator import attrgetter
 from urllib2 import URLError
 
 from application import log
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.decorator import execute_once
 from backports.collections import OrderedDict
@@ -38,7 +38,6 @@ from sipsimple.payloads import addressbook, commonpolicy, dialogrules, omapolicy
 from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, Worker, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 
@@ -795,7 +794,7 @@ class XCAPManager(object):
         self.__dict__['state'] = value
         if old_value != value and old_value is not Null:
             notification_center = NotificationCenter()
-            notification_center.post_notification('XCAPManagerDidChangeState', sender=self, data=TimestampedNotificationData(prev_state=old_value, state=value))
+            notification_center.post_notification('XCAPManagerDidChangeState', sender=self, data=NotificationData(prev_state=old_value, state=value))
 
     state = property(_get_state, _set_state)
     del _get_state, _set_state
@@ -943,12 +942,12 @@ class XCAPManager(object):
         self.state = 'initializing'
         self.xcap_subscriber = XCAPSubscriber(self.account)
         notification_center = NotificationCenter()
-        notification_center.post_notification('XCAPManagerWillStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('XCAPManagerWillStart', sender=self)
         notification_center.add_observer(self, sender=self.xcap_subscriber)
         notification_center.add_observer(self, sender=SIPSimpleSettings(), name='CFGSettingsObjectDidChange')
         self.xcap_subscriber.start()
         self.command_channel.send(Command('initialize'))
-        notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('XCAPManagerDidStart', sender=self)
         command.signal()
 
     def _CH_stop(self, command):
@@ -956,7 +955,7 @@ class XCAPManager(object):
             command.signal()
             return
         notification_center = NotificationCenter()
-        notification_center.post_notification('XCAPManagerWillEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('XCAPManagerWillEnd', sender=self)
         notification_center.remove_observer(self, sender=self.xcap_subscriber)
         notification_center.remove_observer(self, sender=SIPSimpleSettings(), name='CFGSettingsObjectDidChange')
         if self.timer is not None and self.timer.active():
@@ -967,7 +966,7 @@ class XCAPManager(object):
         self.client = None
         self.state = 'stopped'
         self._save_journal()
-        notification_center.post_notification('XCAPManagerDidEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('XCAPManagerDidEnd', sender=self)
         command.signal()
 
     def _CH_cleanup(self, command):
@@ -1019,7 +1018,7 @@ class XCAPManager(object):
             document.initialize(self.server_caps.content)
 
         notification_center = NotificationCenter()
-        notification_center.post_notification('XCAPManagerDidDiscoverServerCapabilities', sender=self, data=TimestampedNotificationData(auids=self.server_caps.content.auids))
+        notification_center.post_notification('XCAPManagerDidDiscoverServerCapabilities', sender=self, data=NotificationData(auids=self.server_caps.content.auids))
 
         self.state = 'fetching'
         self.command_channel.send(Command('fetch', documents=set(self.document_names)))
@@ -1781,7 +1780,7 @@ class XCAPManager(object):
         else:
             offline_status = None
 
-        data=TimestampedNotificationData(addressbook=addressbook, presence_rules=presence_rules, dialog_rules=dialog_rules, status_icon=status_icon, offline_status=offline_status)
+        data=NotificationData(addressbook=addressbook, presence_rules=presence_rules, dialog_rules=dialog_rules, status_icon=status_icon, offline_status=offline_status)
         NotificationCenter().post_notification('XCAPManagerDidReloadData', sender=self, data=data)
 
     def _fetch_documents(self, documents):

@@ -13,14 +13,13 @@ from itertools import chain
 from threading import Lock
 
 from application import log
-from application.notification import NotificationCenter
+from application.notification import NotificationCenter, NotificationData
 from application.python.descriptor import isdescriptor
 from application.python.types import Singleton
 from application.python.weakref import weakobjectmap
 from backports.weakref import WeakSet
 
 from sipsimple.threading import run_in_thread
-from sipsimple.util import TimestampedNotificationData
 
 
 ## Exceptions
@@ -577,12 +576,12 @@ class SettingsState(object):
                 try:
                     group.__setstate__(value)
                 except ValueError, e:
-                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
+                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=NotificationData(attribute=name, container=self, error=e))
             elif isinstance(attribute, AbstractSetting):
                 try:
                     attribute.__setstate__(self, value)
                 except ValueError, e:
-                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
+                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=NotificationData(attribute=name, container=self, error=e))
 
 
 class SettingsGroupMeta(SettingsStateMeta):
@@ -701,7 +700,7 @@ class SettingsObject(SettingsState):
         if self.__state__ == 'loaded' or self.__instance__ is not None:
             self.__state__ = 'active'
             notification_center = NotificationCenter()
-            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self)
 
     @property
     def __key__(self):
@@ -757,8 +756,8 @@ class SettingsObject(SettingsState):
         if self.__state__ == 'new':
             configuration.update(self.__key__, self.__getstate__())
             self.__state__ = 'active'
-            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self, data=TimestampedNotificationData())
-            notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self)
+            notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self)
             modified_data = None
         else:
             if modified_id:
@@ -768,13 +767,13 @@ class SettingsObject(SettingsState):
             modified_data = modified_settings or {}
             if modified_id:
                 modified_data['__id__'] = modified_id
-            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_data))
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=NotificationData(modified=modified_data))
 
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_data, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
     def delete(self):
@@ -790,12 +789,12 @@ class SettingsObject(SettingsState):
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
         configuration.delete(self.__oldkey__) # we need the key that wasn't yet saved
-        notification_center.post_notification('CFGSettingsObjectWasDeleted', sender=self, data=TimestampedNotificationData())
+        notification_center.post_notification('CFGSettingsObjectWasDeleted', sender=self)
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def clone(self, new_id):
         """
