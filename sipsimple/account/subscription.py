@@ -416,7 +416,7 @@ class PresenceWinfoSubscriber(Subscriber):
         if 'enabled' in notification.data.modified:
             return # global account activation is handled separately by the account itself
         elif 'presence.enabled' in notification.data.modified:
-            if self.account.message_summary.enabled:
+            if self.account.presence.enabled:
                 self.activate()
             else:
                 self.deactivate()
@@ -451,7 +451,7 @@ class DialogWinfoSubscriber(Subscriber):
         if 'enabled' in notification.data.modified:
             return # global account activation is handled separately by the account itself
         elif 'presence.enabled' in notification.data.modified:
-            if self.account.message_summary.enabled:
+            if self.account.presence.enabled:
                 self.activate()
             else:
                 self.deactivate()
