@@ -435,7 +435,6 @@ class BonjourAccount(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.add_observer(self, name='SIPAccountManagerDidChangeDefaultAccount')
 
         self._bonjour_services.start()
         if self.enabled:
@@ -452,7 +451,6 @@ class BonjourAccount(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.remove_observer(self, name='SIPAccountManagerDidChangeDefaultAccount')
 
     @classproperty
     def mdns_available(cls):
@@ -505,13 +503,6 @@ class BonjourAccount(SettingsObject):
                 if set(['sip.transport_list', 'tls.certificate']).intersection(notification.data.modified):
                     self._bonjour_services.update_registrations()
                     self._bonjour_services.restart_discovery()
-
-    @run_in_green_thread
-    def _NH_SIPAccountManagerDidChangeDefaultAccount(self, notification):
-        # re-activate account as changing the default account has the side efect of restarting the TLS transport
-        if self.enabled:
-            self._deactivate()
-            self._activate()
 
     def _activate(self):
         if self._active:
