@@ -3,7 +3,7 @@
 
 """Implements the subscription handlers"""
 
-__all__ = ['Subscriber', 'MWISubscriber', 'PresenceWinfoSubscriber', 'DialogWinfoSubscriber']
+__all__ = ['Subscriber', 'MWISubscriber', 'PresenceWinfoSubscriber', 'DialogWinfoSubscriber', 'PresenceSubscriber', 'DialogSubscriber']
 
 import random
 
@@ -16,7 +16,7 @@ from eventlet import coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import ContactHeader, FromHeader, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError, NoGRUU
+from sipsimple.core import ContactHeader, FromHeader, Header, RouteHeader, SIPURI, Subscription, ToHeader, SIPCoreError, NoGRUU
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.threading import run_in_twisted_thread
@@ -451,5 +451,45 @@ class DialogWinfoSubscriber(AbstractPresenceSubscriber):
     @property
     def event(self):
         return 'dialog.winfo'
+
+
+class PresenceSubscriber(AbstractPresenceSubscriber):
+    """Presence subscriber"""
+
+    _NH_PresenceSubscriberWillStart = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillStart
+    _NH_PresenceSubscriberWillEnd   = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillEnd
+    _NH_PresenceSubscriberDidStart  = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberDidStart
+
+    @property
+    def event(self):
+        return 'presence'
+
+    @property
+    def subscription_uri(self):
+        return self.account.xcap_manager.rls_presence_uri
+
+    @property
+    def extra_headers(self):
+        return [Header('Supported', 'eventlist')]
+
+
+class DialogSubscriber(AbstractPresenceSubscriber):
+    """Dialog subscriber"""
+
+    _NH_DialogSubscriberWillStart = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillStart
+    _NH_DialogSubscriberWillEnd   = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillEnd
+    _NH_DialogSubscriberDidStart  = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberDidStart
+
+    @property
+    def event(self):
+        return 'dialog'
+
+    @property
+    def subscription_uri(self):
+        return self.account.xcap_manager.rls_dialog_uri
+
+    @property
+    def extra_headers(self):
+        return [Header('Supported', 'eventlist')]
 
 
