@@ -31,6 +31,7 @@ from zope.interface import implements
 
 from sipsimple.account.subscription import Subscriber, Content
 from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
+from sipsimple.configuration.datatypes import SIPAddress
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError, IterateTypes, IterateIDs, IterateItems, All
@@ -815,11 +816,11 @@ class XCAPManager(object):
 
     @property
     def rls_presence_uri(self):
-        return 'sip:%s+presence@%s' % (self.account.id.username, self.account.id.domain)
+        return SIPAddress('%s+presence@%s' % (self.account.id.username, self.account.id.domain))
 
     @property
     def rls_dialog_uri(self):
-        return 'sip:%s+dialog@%s' % (self.account.id.username, self.account.id.domain)
+        return SIPAddress('%s+dialog@%s' % (self.account.id.username, self.account.id.domain))
 
     @execute_once
     def init(self):
@@ -1262,8 +1263,8 @@ class XCAPManager(object):
 
         rls_services = self.rls_services.content
 
-        rls_presence_uri = self.rls_presence_uri
-        rls_dialog_uri = self.rls_dialog_uri
+        rls_presence_uri = 'sip:' + self.rls_presence_uri
+        rls_dialog_uri   = 'sip:' + self.rls_dialog_uri
         rls_presence_list = rlsservices.ResourceList(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(sipsimple_presence_rls))
         rls_dialog_list = rlsservices.ResourceList(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(sipsimple_dialog_rls))
 
