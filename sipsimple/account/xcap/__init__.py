@@ -728,6 +728,8 @@ class SetOfflineStatusOperation(Operation):
 
 
 class XCAPSubscriber(Subscriber):
+    __transports__ = frozenset(['tls', 'tcp'])
+
     @property
     def event(self):
         return 'xcap-diff'

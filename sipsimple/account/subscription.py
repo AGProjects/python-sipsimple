@@ -59,8 +59,9 @@ class SubscriberNickname(dict):
 
 
 class Subscriber(object):
-    __metaclass__ = ABCMeta
-    __nickname__  = SubscriberNickname()
+    __metaclass__  = ABCMeta
+    __nickname__   = SubscriberNickname()
+    __transports__ = frozenset(['tls', 'tcp', 'udp'])
 
     implements(IObserver)
 
@@ -182,10 +183,11 @@ class Subscriber(object):
 
         subscription_uri = self.subscription_uri
         refresh_interval = command.refresh_interval or self.account.sip.subscribe_interval
+        valid_transports = self.__transports__.intersection(settings.sip.transport_list)
 
         try:
             # Lookup routes
-            if self.account.sip.outbound_proxy is not None:
+            if self.account.sip.outbound_proxy is not None and self.account.sip.outbound_proxy.transport in valid_transports:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
             elif self.account.sip.always_use_my_proxy:
                 uri = SIPURI(host=self.account.id.domain)
@@ -193,7 +195,7 @@ class Subscriber(object):
                 uri = SIPURI(host=subscription_uri.domain)
             lookup = DNSLookup()
             try:
-                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+                routes = lookup.lookup_sip_proxy(uri, valid_transports).wait()
             except DNSLookupError, e:
                 raise SubscriptionError('DNS lookup failed: %s' % e, retry_after=random.uniform(15, 30))
 
@@ -393,6 +395,8 @@ class MWISubscriber(Subscriber):
 class PresenceWinfoSubscriber(Subscriber):
     """Presence Watcher Info subscriber"""
 
+    __transports__ = frozenset(['tls', 'tcp'])
+
     @property
     def event(self):
         return 'presence.winfo'
@@ -427,6 +431,8 @@ class PresenceWinfoSubscriber(Subscriber):
 
 class DialogWinfoSubscriber(Subscriber):
     """Dialog Watcher Info subscriber"""
+
+    __transports__ = frozenset(['tls', 'tcp'])
 
     @property
     def event(self):
