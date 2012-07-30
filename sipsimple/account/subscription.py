@@ -90,6 +90,10 @@ class Subscriber(object):
     def content(self):
         return Content(None, None)
 
+    @property
+    def extra_headers(self):
+        return []
+
     def start(self):
         if self.started:
             return
@@ -219,7 +223,7 @@ class Subscriber(object):
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
-                        subscription.subscribe(body=content.body, content_type=content.type, timeout=limit(remaining_time, min=1, max=5))
+                        subscription.subscribe(body=content.body, content_type=content.type, extra_headers=self.extra_headers, timeout=limit(remaining_time, min=1, max=5))
                     except SIPCoreError:
                         notification_center.remove_observer(self, sender=subscription)
                         raise SubscriptionError('Internal error', retry_after=5)
