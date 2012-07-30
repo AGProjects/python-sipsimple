@@ -427,6 +427,9 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
 
+    def __repr__(self):
+        return '%s()' % self.__class__.__name__
+
     def start(self):
         if self._started:
             return
@@ -521,9 +524,6 @@ class BonjourAccount(SettingsObject):
         self._active = False
         self._bonjour_services.deactivate()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
-
-    def __repr__(self):
-        return '%s()' % self.__class__.__name__
 
 
 class AccountManager(object):
