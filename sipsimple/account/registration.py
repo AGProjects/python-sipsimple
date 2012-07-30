@@ -130,7 +130,7 @@ class Registrar(object):
 
         try:
             # Lookup routes
-            if self.account.sip.outbound_proxy is not None:
+            if self.account.sip.outbound_proxy is not None and self.account.sip.outbound_proxy.transport in settings.sip.transport_list:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
             else:
                 uri = SIPURI(host=self.account.id.domain)

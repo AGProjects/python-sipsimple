@@ -186,10 +186,8 @@ class ReferralHandler(object):
             account = self.session.account
             if account is BonjourAccount():
                 uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
-            elif account.sip.outbound_proxy is not None:
-                uri = SIPURI(host=account.sip.outbound_proxy.host,
-                             port=account.sip.outbound_proxy.port,
-                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.outbound_proxy is not None and account.sip.outbound_proxy.transport in settings.sip.transport_list:
+                uri = SIPURI(host=account.sip.outbound_proxy.host, port=account.sip.outbound_proxy.port, parameters={'transport': account.sip.outbound_proxy.transport})
             elif account.sip.always_use_my_proxy:
                 uri = SIPURI(host=account.id.domain)
             else:
@@ -471,10 +469,8 @@ class ConferenceHandler(object):
             account = self.session.account
             if account is BonjourAccount():
                 uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
-            elif account.sip.outbound_proxy is not None:
-                uri = SIPURI(host=account.sip.outbound_proxy.host,
-                             port=account.sip.outbound_proxy.port,
-                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.outbound_proxy is not None and account.sip.outbound_proxy.transport in settings.sip.transport_list:
+                uri = SIPURI(host=account.sip.outbound_proxy.host, port=account.sip.outbound_proxy.port, parameters={'transport': account.sip.outbound_proxy.transport})
             elif account.sip.always_use_my_proxy:
                 uri = SIPURI(host=account.id.domain)
             else:
@@ -735,10 +731,8 @@ class TransferHandler(object):
             account = self.session.account
             if account is BonjourAccount():
                 uri = target
-            elif account.sip.outbound_proxy is not None:
-                uri = SIPURI(host=account.sip.outbound_proxy.host,
-                             port=account.sip.outbound_proxy.port,
-                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.outbound_proxy is not None and account.sip.outbound_proxy.transport in settings.sip.transport_list:
+                uri = SIPURI(host=account.sip.outbound_proxy.host, port=account.sip.outbound_proxy.port, parameters={'transport': account.sip.outbound_proxy.transport})
             elif account.sip.always_use_my_proxy:
                 uri = SIPURI(host=account.id.domain)
             else:
