@@ -295,6 +295,15 @@ class Account(SettingsObject):
                 data = NotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
                 notification.center.post_notification('SIPAccountGotPresenceWinfo', sender=self, data=data)
 
+    def _NH_PresenceWinfoSubscriptionDidStart(self, notification):
+        self._pwi_version = None
+
+    def _NH_PresenceWinfoSubscriptionDidEnd(self, notification):
+        self._pwi_version = None
+
+    def _NH_PresenceWinfoSubscriptionDidFail(self, notification):
+        self._pwi_version = None
+
     def _NH_DialogWinfoSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == WatcherInfoDocument.content_type:
             try:
@@ -315,6 +324,15 @@ class Account(SettingsObject):
                 self._dwi_version = watcher_info.version
                 data = NotificationData(version=watcher_info.version, state=watcher_info.state, watcher_list=watcher_list)
                 notification.center.post_notification('SIPAccountGotDialogWinfo', sender=self, data=data)
+
+    def _NH_DialogWinfoSubscriptionDidStart(self, notification):
+        self._dwi_version = None
+
+    def _NH_DialogWinfoSubscriptionDidEnd(self, notification):
+        self._dwi_version = None
+
+    def _NH_DialogWinfoSubscriptionDidFail(self, notification):
+        self._dwi_version = None
 
     def _activate(self):
         if self._active:
