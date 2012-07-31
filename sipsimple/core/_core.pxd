@@ -107,7 +107,7 @@ cdef extern from "pjlib.h":
     int pj_rwmutex_lock_write(pj_rwmutex_t *mutex) nogil
     int pj_rwmutex_unlock_read(pj_rwmutex_t *mutex) nogil
     int pj_rwmutex_unlock_write(pj_rwmutex_t *mutex) nogil
-    int pj_rwmutex_destroy(pj_rwmutex_t *mutex) nogil  
+    int pj_rwmutex_destroy(pj_rwmutex_t *mutex) nogil
     int pj_thread_is_registered() nogil
     int pj_thread_register(char *thread_name, long *thread_desc, pj_thread_t **thread) nogil
 
@@ -218,7 +218,7 @@ cdef extern from "pjnath.h":
 cdef extern from "pjmedia.h":
 
 
-    
+
     enum:
         PJMEDIA_ENOSNDREC
         PJMEDIA_ENOSNDPLAY
@@ -264,8 +264,8 @@ cdef extern from "pjmedia.h":
          audio_change_callback default_audio_change
          audio_change_callback audio_devices_will_change
          audio_change_callback audio_devices_did_change
-    int pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
-    int pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
+    int pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
+    int pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
     int pjmedia_snd_get_dev_count() nogil
     int pjmedia_snd_get_default_input_dev(int channel_count) nogil
     int pjmedia_snd_get_default_output_dev(int channel_count) nogil
@@ -453,7 +453,7 @@ cdef extern from "pjmedia.h":
         pjmedia_codec_info fmt
         pjmedia_codec_param *param
         unsigned int tx_event_pt
-        
+
     struct pjmedia_rtcp_stream_stat_loss_type:
         unsigned int burst
         unsigned int random
@@ -1046,7 +1046,7 @@ cdef class PJSTR(object):
     # attributes
     cdef pj_str_t pj_str
     cdef object str
- 
+
 # core.lib
 
 cdef class PJLIB(object):
@@ -1097,7 +1097,7 @@ cdef class PJMEDIAEndpoint(object):
     cdef list _get_all_codecs(self)
     cdef list _get_current_codecs(self)
     cdef int _set_codecs(self, list req_codecs, int max_sample_rate) except -1
- 
+
 # core.helper
 
 cdef class BaseCredentials(object):
@@ -1323,7 +1323,7 @@ cdef class FrozenReasonHeader(BaseReasonHeader):
     cdef int initialized
     cdef readonly str protocol
     cdef readonly frozendict parameters
- 
+
 cdef class BaseReferToHeader(object):
     pass
 

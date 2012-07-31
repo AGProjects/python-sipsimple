@@ -161,8 +161,8 @@ cdef class PJSIPUA:
             raise PJSIPError("Could not load events module", status)
         self._audio_change_observer.default_audio_change = _cb_default_audio_change
         self._audio_change_observer.audio_devices_will_change = _cb_audio_devices_will_change
-        self._audio_change_observer.audio_devices_did_change = _cb_audio_devices_did_change	
-        status = pjmedia_add_audio_change_observer(&self._audio_change_observer); 
+        self._audio_change_observer.audio_devices_did_change = _cb_audio_devices_did_change
+        status = pjmedia_add_audio_change_observer(&self._audio_change_observer);
         if status != 0:
             raise PJSIPError("Could not set audio_change callbacks", status)
         status = pj_rwmutex_create(self._pjsip_endpoint._pool, "ua_audio_change_rwlock", &self.audio_change_rwlock)
@@ -290,12 +290,12 @@ cdef class PJSIPUA:
         cdef pjmedia_snd_dev_info_ptr_const info
         cdef list retval = list()
         cdef int status
-        
+
         with nogil:
             status = pj_rwmutex_lock_read(self.audio_change_rwlock)
         if status != 0:
             raise SIPCoreError('Could not acquire audio_change_rwlock', status)
-        
+
         try:
             for i from 0 <= i < pjmedia_snd_get_dev_count():
                 info = pjmedia_snd_get_dev_info(i)
@@ -352,7 +352,7 @@ cdef class PJSIPUA:
         def __get__(self):
             self._check_self()
             return self._get_sound_devices(0)
-            
+
     property sound_devices:
 
         def __get__(self):
@@ -362,13 +362,13 @@ cdef class PJSIPUA:
             cdef int count
             cdef pjmedia_snd_dev_info_ptr_const info
             cdef list retval = list()
-            cdef int status 
-            
+            cdef int status
+
             with nogil:
                 status = pj_rwmutex_lock_read(self.audio_change_rwlock)
             if status != 0:
                 raise SIPCoreError('Could not acquire audio_change_rwlock', status)
-            try:    
+            try:
                 for i from 0 <= i < pjmedia_snd_get_dev_count():
                     with nogil:
                         info = pjmedia_snd_get_dev_info(i)
@@ -869,7 +869,7 @@ cdef void _cb_default_audio_change(void *user_data) with gil:
      try:
         ua = _get_ua()
      except:
-        return  
+        return
      try:
         event_dict = dict()
         event_dict["changed_input"] = (type[0] == AUDIO_CHANGE_INPUT)
@@ -885,16 +885,16 @@ cdef void _cb_audio_devices_will_change(void *user_data) with gil:
      try:
         ua = _get_ua()
      except:
-        return  
+        return
      try:
         ua.old_devices = ua.sound_devices
-        with nogil: 
+        with nogil:
             status = pj_rwmutex_lock_write(ua.audio_change_rwlock)
         if status != 0:
             raise SIPCoreError('Could not acquire audio_change_rwlock for writing', status)
      except:
         ua._handle_exception(1)
-     
+
 cdef void _cb_audio_devices_did_change(void *user_data) with gil:
      cdef PJSIPUA ua
      cdef pjmedia_audio_change_observer *observer = <pjmedia_audio_change_observer*> user_data
@@ -902,13 +902,13 @@ cdef void _cb_audio_devices_did_change(void *user_data) with gil:
      try:
         ua = _get_ua()
      except:
-        return  
+        return
      try:
         with nogil:
             status = pj_rwmutex_unlock_write(ua.audio_change_rwlock)
         if status != 0:
             raise SIPCoreError('Could not release the audio_change_rwlock', status)
-        event_dict = dict() 
+        event_dict = dict()
         event_dict["old_devices"] = ua.old_devices
         event_dict["new_devices"] = ua.sound_devices
         _add_event("AudioDevicesDidChange", event_dict)

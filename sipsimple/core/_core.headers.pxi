@@ -290,7 +290,7 @@ cdef class ContactHeader(BaseContactHeader):
             if self.uri is None and parameters != {}:
                 raise ValueError("parameters cannot be specified if uri is None")
             self._parameters = parameters
-    
+
     property q:
 
         def __get__(self):
@@ -347,7 +347,7 @@ cdef class FrozenContactHeader(BaseContactHeader):
 
     def __richcmp__(self, other, op):
         return BaseContactHeader_richcmp(self, other, op)
-    
+
     property q:
 
         def __get__(self):
@@ -504,7 +504,7 @@ cdef class ToHeader(IdentityHeader):
         self.uri = uri
         self.display_name = display_name
         self.parameters = parameters if parameters is not None else {}
-    
+
     property tag:
 
         def __get__(self):
@@ -671,7 +671,7 @@ cdef class RetryAfterHeader(BaseRetryAfterHeader):
             if value is not None:
                 value = int(value)
             return value
-        
+
         def __set__(self, object value):
             if value is None:
                 self.parameters.pop("duration", None)
@@ -964,7 +964,7 @@ cdef class BaseWarningHeader:
         return BaseWarningHeader_richcmp(self, other, op)
 
     property name:
-        
+
         def __get__(self):
             return "Warning"
 

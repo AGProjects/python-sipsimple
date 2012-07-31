@@ -64,9 +64,9 @@ cdef class frozenlist:
         elif op == 1:
             return self.list.__cmp__(other) <= 0
         elif op == 2:
-            return self.list.__eq__(other) 
+            return self.list.__eq__(other)
         elif op == 3:
-            return self.list.__ne__(other) 
+            return self.list.__ne__(other)
         elif op == 4:
             return self.list.__cmp__(other) > 0
         elif op == 5:
@@ -126,9 +126,9 @@ cdef class frozendict:
         elif op == 1:
             return self.dict.__cmp__(other) <= 0
         elif op == 2:
-            return self.dict.__eq__(other) 
+            return self.dict.__eq__(other)
         elif op == 3:
-            return self.dict.__ne__(other) 
+            return self.dict.__ne__(other)
         elif op == 4:
             return self.dict.__cmp__(other) > 0
         elif op == 5:

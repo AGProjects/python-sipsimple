@@ -442,7 +442,7 @@ cdef class Invitation:
                 pjsip_dlg_dec_lock(self._dialog)
                 self._dialog = NULL
                 raise
-                
+
             if self._invite_session != NULL:
                 pjsip_inv_terminate(self._invite_session, 500, 0)
                 self._invite_session = NULL
