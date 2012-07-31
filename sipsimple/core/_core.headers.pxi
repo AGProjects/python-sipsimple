@@ -95,6 +95,112 @@ class ContentType(str):
         return self.partition('/')[2]
 
 
+cdef object BaseContentTypeHeader_richcmp(object self, object other, object op) with gil:
+    if op not in (2, 3):
+        return NotImplemented
+    if not isinstance(other, BaseContentTypeHeader):
+        return NotImplemented
+    if op == 2:
+        return self.content_type == other.content_type and self.parameters == other.parameters
+    else:
+        return self.content_type != other.content_type and self.parameters != other.parameters
+
+cdef class BaseContentTypeHeader:
+    normal_type = ContentTypeHeader
+    frozen_type = FrozenContentTypeHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.content_type, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __unicode__(self):
+        return unicode(self.__str__(), encoding='utf-8')
+
+    def __richcmp__(self, other, op):
+        return BaseContentTypeHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "ContentType"
+
+    property body:
+
+        def __get__(self):
+            if self.parameters:
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
+            else:
+                parameters = ""
+            return self.content_type + parameters
+
+def ContentTypeHeader_new(cls, BaseContentTypeHeader header):
+    return cls(header.content_type, dict(header.parameters))
+
+cdef class ContentTypeHeader(BaseContentTypeHeader):
+    def __init__(self, str content_type, dict parameters=None):
+        self.content_type = content_type
+        self.parameters = parameters if parameters is not None else {}
+
+    property content_type:
+
+        def __get__(self):
+            try:
+                return ContentType(self._content_type)
+            except ValueError:
+                return None
+
+        def __set__(self, str content_type):
+            self._content_type = content_type
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    new = classmethod(ContentTypeHeader_new)
+
+del ContentTypeHeader_new
+
+def FrozenContentTypeHeader_new(cls, BaseContentTypeHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.content_type, frozendict(header.parameters))
+
+cdef class FrozenContentTypeHeader(BaseContentTypeHeader):
+    def __init__(self, str content_type, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self._content_type = content_type
+            self.parameters = parameters
+            self.initialized = 1
+
+    property content_type:
+
+        def __get__(self):
+            try:
+                return ContentType(self._content_type)
+            except ValueError:
+                return None
+
+    def __hash__(self):
+        return hash((self.content_type, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseContentTypeHeader_richcmp(self, other, op)
+
+    new = classmethod(FrozenContentTypeHeader_new)
+
+del FrozenContentTypeHeader_new
+
+
 cdef object BaseContactHeader_richcmp(object self, object other, object op) with gil:
     if op not in (2, 3):
         return NotImplemented
@@ -1594,6 +1700,30 @@ cdef FrozenContactHeader FrozenContactHeader_create(pjsip_contact_hdr *header):
         if header.expires != -1:
             parameters["expires"] = str(header.expires)
         return FrozenContactHeader(uri, display_name, frozendict(parameters))
+
+cdef ContentTypeHeader ContentTypeHeader_create(pjsip_ctype_hdr *header):
+    cdef dict parameters
+    type_str = _pj_str_to_str(header.media.type)
+    subtype_str = _pj_str_to_str(header.media.subtype)
+    params_str = _pj_str_to_str(header.media.param)
+    if subtype_str:
+        content_type = "%s/%s" % (type_str, subtype_str)
+    else:
+        content_type = type_str
+    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
+    return ContentTypeHeader(content_type, parameters)
+
+cdef FrozenContentTypeHeader FrozenContentTypeHeader_create(pjsip_ctype_hdr *header):
+    cdef dict parameters
+    type_str = _pj_str_to_str(header.media.type)
+    subtype_str = _pj_str_to_str(header.media.subtype)
+    params_str = _pj_str_to_str(header.media.param)
+    if subtype_str:
+        content_type = "%s/%s" % (type_str, subtype_str)
+    else:
+        content_type = type_str
+    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
+    return FrozenContentTypeHeader(content_type, frozendict(parameters))
 
 cdef FromHeader FromHeader_create(pjsip_fromto_hdr *header):
     cdef pjsip_name_addr* name_addr

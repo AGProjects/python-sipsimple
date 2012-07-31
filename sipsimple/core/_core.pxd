@@ -1178,6 +1178,20 @@ cdef class FrozenContactHeader(BaseContactHeader):
     cdef readonly unicode display_name
     cdef readonly frozendict parameters
 
+cdef class BaseContentTypeHeader(object):
+    pass
+
+cdef class ContentTypeHeader(BaseContentTypeHeader):
+    # attributes
+    cdef str _content_type
+    cdef dict _parameters
+
+cdef class FrozenContentTypeHeader(BaseContentTypeHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str _content_type
+    cdef readonly frozendict parameters
+
 cdef class BaseIdentityHeader(object):
     pass
 
@@ -1360,6 +1374,8 @@ cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
 cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
 cdef FrozenContactHeader FrozenContactHeader_create(pjsip_contact_hdr *header)
+cdef ContentTypeHeader ContentTypeHeader_create(pjsip_ctype_hdr *header)
+cdef FrozenContentTypeHeader FrozenContentTypeHeader_create(pjsip_ctype_hdr *header)
 cdef FromHeader FromHeader_create(pjsip_fromto_hdr *header)
 cdef FrozenFromHeader FrozenFromHeader_create(pjsip_fromto_hdr *header)
 cdef ToHeader ToHeader_create(pjsip_fromto_hdr *header)

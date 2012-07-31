@@ -1373,8 +1373,8 @@ cdef class Invitation:
             notify_dict["to_header"] = timer.rdata["headers"].get("To", None)
             notify_dict["headers"] = timer.rdata["headers"]
             notify_dict["body"] = timer.rdata["body"]
-            content_type, params = notify_dict["headers"].get("Content-Type", (None, None))
-            notify_dict["content_type"] = ContentType(content_type) if content_type else None
+            content_type = notify_dict["headers"].get("Content-Type", None)
+            notify_dict["content_type"] = content_type.content_type if content_type else None
             event = notify_dict["headers"].get("Event", None)
             notify_dict["event"] = event.event if event else None
             _add_event("SIPInvitationTransferGotNotify", notify_dict)

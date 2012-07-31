@@ -225,10 +225,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         elif header_name == "Content-Length":
             header_data = (<pjsip_clen_hdr *> header).len
         elif header_name == "Content-Type":
-            ctype_header = <pjsip_ctype_hdr *> header
-            header_data = ("%s/%s" % (_pj_str_to_str(ctype_header.media.type),
-                                      _pj_str_to_str(ctype_header.media.subtype)),
-                                      _pj_str_to_str(ctype_header.media.param))
+            header_data = FrozenContentTypeHeader_create(<pjsip_ctype_hdr *> header)
         elif header_name == "CSeq":
             cseq_header = <pjsip_cseq_hdr *> header
             header_data = (cseq_header.cseq, _pj_str_to_str(cseq_header.method.name))
