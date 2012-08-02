@@ -676,7 +676,7 @@ class XMLElement(XMLElementBase):
                 return True
             else:
                 return __eq__(other)
-        elif self.__class__._xml_id is not None:
+        elif self._xml_id is not None:
             return self._xml_id == other
         else:
             return NotImplemented
@@ -686,7 +686,7 @@ class XMLElement(XMLElementBase):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
-        if self.__class__._xml_id is not None:
+        if self._xml_id is not None:
             return hash(self._xml_id)
         else:
             return object.__hash__(self)
