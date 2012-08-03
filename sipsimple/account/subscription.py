@@ -402,20 +402,26 @@ class AbstractPresenceSubscriber(Subscriber):
     __transports__ = frozenset(['tls', 'tcp'])
 
     def _NH_AbstractPresenceSubscriberWillStart(self, notification):
+        notification.center.add_observer(self, name='SIPAccountDidDiscoverXCAPSupport', sender=self.account)
         notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification.center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
     def _NH_AbstractPresenceSubscriberWillEnd(self, notification):
+        notification.center.remove_observer(self, name='SIPAccountDidDiscoverXCAPSupport', sender=self.account)
         notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification.center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
     def _NH_AbstractPresenceSubscriberDidStart(self, notification):
-        if self.account.presence.enabled:
+        if self.account.presence.enabled and self.account.xcap.discovered:
+            self.activate()
+
+    def _NH_SIPAccountDidDiscoverXCAPSupport(self, notification):
+        if self.account.presence.enabled and not self.active:
             self.activate()
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if not self.started:
+        if not self.started or not self.account.xcap.discovered:
             return
         if 'enabled' in notification.data.modified:
             return # global account activation is handled separately by the account itself
