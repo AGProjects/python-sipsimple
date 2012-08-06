@@ -4,8 +4,6 @@
 
 + Allow resume of failed file transfers (a=file-range SDP attribute)
 
-+ Inbound Presence http://sipsimpleclient.com/ticket/130
-
 + Outbound Presence http://sipsimpleclient.com/ticket/118
 
 + combine account.uri and account.contact into account.uri.aor and
