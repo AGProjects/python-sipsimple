@@ -63,6 +63,9 @@ class RLSNotify(object):
     def __iter__(self):
         return iter(self.resources)
 
+    def __len__(self):
+        return len(self.resources)
+
     @classmethod
     def parse(cls, payload):
         message = email.message_from_string(payload)
