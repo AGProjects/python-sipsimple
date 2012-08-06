@@ -24,7 +24,7 @@ from zope.interface import implements
 
 from sipsimple.account.bonjour import BonjourServices, _bonjour
 from sipsimple.account.registration import Registrar
-from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber
+from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber, PresenceSubscriber, DialogSubscriber
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import Credentials, SIPURI, ContactURIFactory
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
@@ -32,6 +32,7 @@ from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionMode
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
+from sipsimple.payloads.rlsnotify import RLSNotify
 from sipsimple.payloads.watcherinfo import WatcherInfoDocument
 from sipsimple.threading import call_in_thread
 from sipsimple.threading.green import call_in_green_thread, run_in_green_thread
@@ -150,9 +151,13 @@ class Account(SettingsObject):
         self._mwi_subscriber = MWISubscriber(self)
         self._pwi_subscriber = PresenceWinfoSubscriber(self)
         self._dwi_subscriber = DialogWinfoSubscriber(self)
+        self._presence_subscriber = PresenceSubscriber(self)
+        self._dialog_subscriber = DialogSubscriber(self)
         self._mwi_voicemail_uri = None
         self._pwi_version = None
         self._dwi_version = None
+        self._presence_version = None
+        self._dialog_version = None
         self._started = False
 
     def start(self):
@@ -167,6 +172,8 @@ class Account(SettingsObject):
         notification_center.add_observer(self, sender=self._mwi_subscriber)
         notification_center.add_observer(self, sender=self._pwi_subscriber)
         notification_center.add_observer(self, sender=self._dwi_subscriber)
+        notification_center.add_observer(self, sender=self._presence_subscriber)
+        notification_center.add_observer(self, sender=self._dialog_subscriber)
 
         self.xcap_manager.init()
         if self.enabled:
@@ -186,6 +193,8 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, sender=self._mwi_subscriber)
         notification_center.remove_observer(self, sender=self._pwi_subscriber)
         notification_center.remove_observer(self, sender=self._dwi_subscriber)
+        notification_center.remove_observer(self, sender=self._presence_subscriber)
+        notification_center.remove_observer(self, sender=self._dialog_subscriber)
 
     @run_in_green_thread
     def delete(self):
@@ -194,6 +203,8 @@ class Account(SettingsObject):
         self._mwi_subscriber = None
         self._pwi_subscriber = None
         self._dwi_subscriber = None
+        self._presence_subscriber = None
+        self._dialog_subscriber = None
         self.xcap_manager = None
         SettingsObject.delete(self)
 
@@ -328,6 +339,58 @@ class Account(SettingsObject):
     def _NH_DialogWinfoSubscriptionDidFail(self, notification):
         self._dwi_version = None
 
+    def _NH_PresenceSubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == RLSNotify.content_type:
+            try:
+                rls_notify = RLSNotify.parse(notification.data.body)
+            except ParserError:
+                pass
+            else:
+                if rls_notify.uri != self.xcap_manager.rls_presence_uri:
+                    return
+                if self._presence_version is None:
+                    if not rls_notify.full_state:
+                        self._presence_subscriber.resubscribe()
+                elif rls_notify.version <= self._presence_version:
+                    return
+                elif not rls_notify.full_state and rls_notify.version > self._presence_version + 1:
+                    self._presence_subscriber.resubscribe()
+                self._presence_version = rls_notify.version
+                data = NotificationData(version=rls_notify.version, full_state=rls_notify.full_state, resource_map=dict((resource.uri, resource) for resource in rls_notify))
+                notification.center.post_notification('SIPAccountGotPresenceState', sender=self, data=data)
+
+    def _NH_PresenceSubscriptionDidEnd(self, notification):
+        self._presence_version = None
+
+    def _NH_PresenceSubscriptionDidFail(self, notification):
+        self._presence_version = None
+
+    def _NH_DialogSubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == RLSNotify.content_type:
+            try:
+                rls_notify = RLSNotify.parse(notification.data.body)
+            except ParserError:
+                pass
+            else:
+                if rls_notify.uri != self.xcap_manager.rls_dialog_uri:
+                    return
+                if self._dialog_version is None:
+                    if not rls_notify.full_state:
+                        self._dialog_subscriber.resubscribe()
+                elif rls_notify.version <= self._dialog_version:
+                    return
+                elif not rls_notify.full_state and rls_notify.version > self._dialog_version + 1:
+                    self._dialog_subscriber.resubscribe()
+                self._dialog_version = rls_notify.version
+                data = NotificationData(version=rls_notify.version, full_state=rls_notify.full_state, resource_map=dict((resource.uri, resource) for resource in rls_notify))
+                notification.center.post_notification('SIPAccountGotDialogState', sender=self, data=data)
+
+    def _NH_DialogSubscriptionDidEnd(self, notification):
+        self._dialog_version = None
+
+    def _NH_DialogSubscriptionDidFail(self, notification):
+        self._dialog_version = None
+
     def _activate(self):
         if self._active:
             return
@@ -338,6 +401,8 @@ class Account(SettingsObject):
         self._mwi_subscriber.start()
         self._pwi_subscriber.start()
         self._dwi_subscriber.start()
+        self._presence_subscriber.start()
+        self._dialog_subscriber.start()
         if self.xcap.enabled:
             self.xcap_manager.start()
         notification_center.post_notification('SIPAccountDidActivate', sender=self)
@@ -348,7 +413,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
         self._active = False
-        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self.xcap_manager]
+        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber, self.xcap_manager]
         proc.waitall([proc.spawn(handler.stop) for handler in handlers])
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
