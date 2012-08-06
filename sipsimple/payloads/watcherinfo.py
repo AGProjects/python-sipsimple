@@ -14,7 +14,7 @@ __all__ = ['namespace',
 
 from sipsimple.payloads import XMLDocument, XMLAnyURIElement, XMLListElement, XMLListRootElement, XMLElementID, XMLAttribute
 from sipsimple.payloads import IterateIDs, IterateItems, All
-from sipsimple.payloads.datatypes import UnsignedLong, SIPURI
+from sipsimple.payloads.datatypes import NonNegativeInteger, UnsignedLong, SIPURI
 
 
 namespace = 'urn:ietf:params:xml:ns:watcherinfo'
@@ -177,7 +177,7 @@ class WatcherInfo(XMLListRootElement):
     _xml_children_order = {WatcherList.qname: 0}
     _xml_item_type = WatcherList
 
-    version = XMLAttribute('version', type=int, required=True, test_equal=True)
+    version = XMLAttribute('version', type=NonNegativeInteger, required=True, test_equal=True)
     state   = XMLAttribute('state', type=WatcherInfoState, required=True, test_equal=True)
 
     def __init__(self, version=-1, state='full', wlists=[]):
