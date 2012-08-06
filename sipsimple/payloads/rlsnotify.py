@@ -52,6 +52,8 @@ class Resource(object):
 class RLSNotify(object):
     """The payload from RLS notify messages"""
 
+    content_type = 'multipart/related'
+
     def __init__(self, uri, version, full_state, resources):
         self.uri = uri
         self.version = version
@@ -64,7 +66,7 @@ class RLSNotify(object):
     @classmethod
     def parse(cls, payload):
         message = email.message_from_string(payload)
-        if message.get_content_type() != 'multipart/related':
+        if message.get_content_type() != cls.content_type:
             raise ParserError("expected multipart/related content, got %s" % message.get_content_type())
         if len(message) == 0:
             raise ParserError("multipart/related body contains no parts")
