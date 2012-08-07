@@ -229,7 +229,7 @@ class Publication(object):
     def end(self, timeout=None):
         with self._lock:
             if self._last_request is None:
-                raise PublicationError("Nothing is currently published")
+                return
             self._make_and_send_request(None, RouteHeader.new(self._last_request.route_header), timeout, False)
             NotificationCenter().post_notification('SIPPublicationWillEnd', sender=self)
 
