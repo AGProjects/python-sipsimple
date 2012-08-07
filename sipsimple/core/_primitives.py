@@ -40,17 +40,19 @@ class Registration(object):
             try:
                 self._make_and_send_request(contact_header, route_header, timeout, True)
             except SIPCoreError, e:
-                NotificationCenter().post_notification('SIPRegistrationDidFail', sender=self, data=NotificationData(code=0, reason=e.args[0], route_header=route_header))
+                notification_center = NotificationCenter()
+                notification_center.post_notification('SIPRegistrationDidFail', sender=self, data=NotificationData(code=0, reason=e.args[0], route_header=route_header))
 
     def end(self, timeout=None):
         with self._lock:
             if self._last_request is None:
                 return
-            NotificationCenter().post_notification('SIPRegistrationWillEnd', sender=self)
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPRegistrationWillEnd', sender=self)
             try:
                 self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), RouteHeader.new(self._last_request.route_header), timeout, False)
             except SIPCoreError, e:
-                NotificationCenter().post_notification('SIPRegistrationDidNotEnd', sender=self, data=NotificationData(code=0, reason=e.args[0]))
+                notification_center.post_notification('SIPRegistrationDidNotEnd', sender=self, data=NotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
