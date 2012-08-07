@@ -11,11 +11,10 @@ __all__ = ["Engine"]
 import sys
 import traceback
 import atexit
-from datetime import datetime
-from threading import Thread, RLock
 
 from application.notification import NotificationCenter, NotificationData
 from application.python.types import Singleton
+from threading import Thread, RLock
 
 from sipsimple.core._core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
 from sipsimple import __version__
