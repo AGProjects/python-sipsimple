@@ -230,8 +230,12 @@ class Publication(object):
         with self._lock:
             if self._last_request is None:
                 return
-            self._make_and_send_request(None, RouteHeader.new(self._last_request.route_header), timeout, False)
-            NotificationCenter().post_notification('SIPPublicationWillEnd', sender=self)
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPPublicationWillEnd', sender=self)
+            try:
+                self._make_and_send_request(None, RouteHeader.new(self._last_request.route_header), timeout, False)
+            except SIPCoreError, e:
+                notification_center.post_notification('SIPPublicationDidNotEnd', sender=self, data=NotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
