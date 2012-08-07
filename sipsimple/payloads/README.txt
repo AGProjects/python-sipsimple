@@ -1,13 +1,9 @@
 
-SIP SIMPLE applications
------------------------
+SIP SIMPLE client Payloads
+--------------------------
 
-For more detailed information see the wiki page:
-
-http://sipsimpleclient.com/wiki/SipPresenceApi
-
-These applications provide non-SIP functionality that are required for
-implementing a feature-rich SIP SIMPLE client.
+These applications provide functionality that are required for implementing
+a feature-rich SIP SIMPLE client.
 
 These applications are used for parsing and generating bodies carried using
 SIP PUBLISH/SUBSCRIBE/NOTIFY methods that have been designed for
@@ -23,32 +19,51 @@ granular policy which allows end-users to decide who has access to which
 part of the published information.
 
 
+addressbook.py
+
+High-level implementation of an addressbook stored in XCAP documents.  The
+contacts, groups and their attributes are stored in resource lists and OMA
+extensions described in OMA-TS-Presence_SIMPLE_XDM are used for describing
+policy and RLS services by references to resource lists.  Multiple client
+instances can synchronize this addressbook using XCAP-diff event package.
+
+
 watcherinfo.py (RFC3857 and RFC3858)
 
 Parses NOTIFY body for presence.winfo event. Used for keeping track of
-watchers that subscribed to our presentity. Based on this information the
-authorization rules can be managed using presrules.py. To retrieve this
-information the SIP client must subscribe to its own address for event
-presence.winfo.
+watchers that subscribed to our presentity.  Based on this information the
+the user can manage its presence policy.  To retrieve this information the
+SIP client must subscribe to its own address for event presence.winfo.
 
 
 resourcelists.py (RFC4826)
 
 Parses and generates XML documents for constructing resource lists
-documents. Used for server side storage of presence related buddy lists
-using XCAP protocol. The SIP clients maintain the resource-lists on the XCAP
-server which provides persisten storage and aggregation point for multiple
-devices.
+documents.  Used for server side storage of presence related buddy lists
+using XCAP protocol.  The SIP clients maintain the resource-lists on the
+XCAP server which provides persisten storage and aggregation point for
+multiple devices.
 
 
 rlsservices.py (RFC4826)
 
-Parses and generates XML documents for constructing rls-services documents.
-Used for delegating presence related works to the server. The client build
+Parses and generates XML documents for constructing rls-services documents. 
+Used for delegating presence related works to the server.  The client build
 rls-services lists with buddies and instructs the server to subscribe to the
-sip uris indicated in the lists. This way the client can save bandwidth as
+sip uris indicated in the lists.  This way the client can save bandwidth as
 the server performs the signalling for subscription and collection of
 notifications and provides consolidated answer to the sip user agent.
+
+
+rlmi.py, rlsnotify.py (RFC4482)
+
+Document handling for NOTIFY body for Resource Lists Contact Information
+Extension to PIDF.
+
+
+policy.py (RFC4745)
+
+Generic data types to be used in policy applications.
 
 
 presrules.py (RFC5025)
@@ -60,7 +75,37 @@ response to a new subscription signaled by a change in the watcherinfo
 application.
 
 
-presdm.py (RFC3863 and RFC3379)
+omapolicy.py (OMA-TS-Presence_SIMPLE_XDM-V1_1)
+
+Conditions extension handling according to OMA-TS-Presence_SIMPLE_XDM-V1_1.
+This module provides an extension to RFC4745 (Common Policy) to support
+condition extensions defined by OMA.
+
+
+prescontent.py (OMA-TS-Presence_SIMPLE_XDM-V1_1)
+
+Generates presence content application documents according to OMA TS
+Presence SIMPLE Content
+
+
+directory.py (OMA Core Specifications)
+
+Parses xcap-directory messages according to OMA TS XDM Core 1.1.
+
+
+dialoginfo.py (RFC4235)
+
+Parses and produces dialog-info messages according to RFC4235
+
+
+dialogrules.py
+
+Parses and produces Dialog Authorization Rules documents. As there is no RFC
+for this we'll use common-policy format (RFC 4745).  Subscription Handling
+has been taken from RFC 5025.
+
+
+pidf.py (RFC3863 and RFC3379)
 
 This module provides classes to parse and generate PIDF documents, and also
 uses the XML Application extensibility API to allow extensions to PIDF. It
@@ -74,39 +119,13 @@ received. The list of buddys is maintained using resourcelists application.
 
 rpid.py (RFC4480)
 
-This module provides an extension to PIDF (module
-sipsimple.payloads.presdm) to support rich presence.
-
-
-policy.py (RFC4745)
-
-Generic data types to be used in policy applications.
+This module provides an extension to PIDF to support rich presence.
 
 
 presdm.py (RFC4479)
 
-This module provides an extension to the PIDF (module sipsimple.payloads.pidf)
-to support the data module defined in RFC4479.
-
-
-xcapdiff.py
-
-Parses NOTIFY body for xcap-diff event. Used to detect changes in XCAP
-documents changed by other device configured for the same presentity.
-
-
-iscomposing.py (RFC3994)
-
-This module parses and generates isComposing messages according to RFC3994. It's used
-mainly in chat environments to indicate the other party that the user is actually
-typing a message.
-
-
-dialogrules.py
-
-This module parses and generates dialog-rules documents to have authorization policy on 
-dialog-info event. There is not yet an RFC on this so the module is implemented following 
-the same ideas as pre-rules (RFC5025).
+This module provides an extension to the PIDF to support the data module
+defined in RFC4479.
 
 
 cipid.py
@@ -121,6 +140,24 @@ This module provides capabilities application: displays OPTIONS request-like inf
 as an extension to the PIDF. Defined in RFC5196.
 
 
+xcapcaps.py (RFC4825)
+
+Support for parsing and building xcap-caps documents, as defined by RFC4825.
+
+
+xcapdiff.py (RFC5874)
+
+Parses NOTIFY body for xcap-diff event. Used to detect changes in XCAP
+documents changed by other device configured for the same presentity.
+
+
+iscomposing.py (RFC3994)
+
+This module parses and generates isComposing messages according to RFC3994. It's used
+mainly in chat environments to indicate the other party that the user is actually
+typing a message.
+
+
 conference.py
 
 This module implements conference-info (RFC4575) payload parsing and generating for describing
@@ -130,5 +167,5 @@ information about conferences.
 messagesummary.py
 
 This module implements a parser and generator for message-summary payload (RFC3842) which is used
-to indicate missed calls / faxes / etc.
+to indicate missed calls or voice mail recordings.
 
