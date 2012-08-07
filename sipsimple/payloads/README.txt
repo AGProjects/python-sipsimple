@@ -57,8 +57,7 @@ notifications and provides consolidated answer to the sip user agent.
 
 rlmi.py, rlsnotify.py (RFC4482)
 
-Document handling for NOTIFY body for Resource Lists Contact Information
-Extension to PIDF.
+Document handling for NOTIFY body for Resource Lists Contact Information.
 
 
 policy.py (RFC4745)
