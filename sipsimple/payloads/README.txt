@@ -6,15 +6,15 @@ These applications provide functionality that are required for implementing
 a feature-rich SIP SIMPLE client.
 
 These applications are used for parsing and generating bodies carried using
-SIP PUBLISH/SUBSCRIBE/NOTIFY methods that have been designed for
-asynchronous event notifications to convey in real-time state and other
-information between end-points.
+PUBLISH, SUBSCRIBE and NOTIFY methods designed for asynchronous event
+notifications, to convey in near real-time, information between SIP
+end-points.
 
-An example of state information is presence, which in its basic form it
-provides user availability information based on end-user choice. In its
+An example of such information is presence, which in its basic form it
+provides user availability information based on end-user choice.  In its
 advanced form, presence can provide rich state information including but not
-limited to user mood, geo-location, environment, noise level and type of
-communication desired. The information can be disseminated based on a
+limited to user mood, geo-location, environment, noise level and the type of
+communication desired.  The information can be disseminated based on a
 granular policy which allows end-users to decide who has access to which
 part of the published information.
 
@@ -68,7 +68,7 @@ Generic data types to be used in policy applications.
 presrules.py (RFC5025)
 
 Parses and generates authorization rules in XML format for presence or other
-applications. Authorization rules are stored on the XCAP server. The
+applications.  Authorization rules are stored on the XCAP server.  The
 presence rules are generated either based on user initiative or as a
 response to a new subscription signaled by a change in the watcherinfo
 application.
@@ -76,31 +76,31 @@ application.
 
 omapolicy.py (OMA-TS-Presence_SIMPLE_XDM-V1_1)
 
-Conditions extension handling according to OMA-TS-Presence_SIMPLE_XDM-V1_1.
-This module provides an extension to RFC4745 (Common Policy) to support
-condition extensions defined by OMA.
+Conditions extension handling according to OMA-TS-Presence_SIMPLE_XDM-V1_1. 
+This module provides an extension to common policy defined in RFC4745 to
+support condition extensions defined by OMA.
 
 
 prescontent.py (OMA-TS-Presence_SIMPLE_XDM-V1_1)
 
 Generates presence content application documents according to OMA TS
-Presence SIMPLE Content
+Presence SIMPLE Content.
 
 
 directory.py (OMA Core Specifications)
 
-Parses xcap-directory messages according to OMA TS XDM Core 1.1.
+Parses xcap-directory messages according to OMA TS XDM Core.
 
 
 dialoginfo.py (RFC4235)
 
-Parses and produces dialog-info messages according to RFC4235
+Parses and produces dialog-info messages according to RFC4235.
 
 
 dialogrules.py
 
 Parses and produces Dialog Authorization Rules documents. As there is no RFC
-for this we'll use common-policy format (RFC 4745).  Subscription Handling
+for this, common-policy format from RFC 4745 is used.  Subscription Handling
 has been taken from RFC 5025.
 
 
@@ -127,16 +127,15 @@ This module provides an extension to the PIDF to support the data module
 defined in RFC4479.
 
 
-cipid.py
+cipid.py (RFC4482)
+ 
+This module provides an extension to PIDF to provide person related information.
 
-This module provides an extension to PIDF (module sipsimple.payloads.pidf) to support
-information defined in RFC4482.
 
-
-caps.py
+caps.py (RFC5196)
 
 This module provides capabilities application: displays OPTIONS request-like information
-as an extension to the PIDF. Defined in RFC5196.
+as an extension to the PIDF.
 
 
 xcapcaps.py (RFC4825)
@@ -157,14 +156,14 @@ mainly in chat environments to indicate the other party that the user is actuall
 typing a message.
 
 
-conference.py
+conference.py (RFC4575)
 
-This module implements conference-info (RFC4575) payload parsing and generating for describing
-information about conferences.
+This module implements conference-info payload parsing and generating for
+describing information about conference participants and related resources.
 
 
-messagesummary.py
+messagesummary.py (RFC3842)
 
-This module implements a parser and generator for message-summary payload (RFC3842) which is used
-to indicate missed calls or voice mail recordings.
+This module implements a parser and generator for message-summary payload,
+which is used to indicate missed calls or voice mail recordings.
 
