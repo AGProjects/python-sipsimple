@@ -7,7 +7,7 @@ non-session based operations like REGISTER, SUBSCRIBE, PUBLISH and
 MESSAGE.
 """
 
-__all__ = ["Message", "Registration", "Publication", "PublicationError"]
+__all__ = ["Message", "Registration", "Publication", "PublicationError", "PublicationETagError"]
 
 from threading import RLock
 
@@ -192,8 +192,8 @@ class Message(object):
             notification.center.remove_observer(self, sender=notification.sender)
 
 
-class PublicationError(Exception):
-    pass
+class PublicationError(Exception): pass
+class PublicationETagError(PublicationError): pass
 
 
 class Publication(object):
@@ -222,7 +222,7 @@ class Publication(object):
                 if self._last_request is None:
                     raise ValueError("Need body for initial PUBLISH")
                 elif self._last_etag is None:
-                    raise PublicationError("Cannot refresh, last ETag was invalid")
+                    raise PublicationETagError("Cannot refresh, last ETag was invalid")
             self._make_and_send_request(body, route_header, timeout, True)
 
     def end(self, timeout=None):
