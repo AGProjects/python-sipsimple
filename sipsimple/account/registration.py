@@ -156,7 +156,10 @@ class Registrar(object):
                     contact_header = ContactHeader(contact_uri)
                     contact_header.parameters['+sip.instance'] = '"<%s>"' % settings.instance_id
                     route_header = RouteHeader(route.uri)
-                    self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
+                    try:
+                        self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
+                    except SIPCoreError:
+                        raise RegistrationError('Internal error', retry_after=5)
                     try:
                         while True:
                             notification = self._data_channel.wait()
