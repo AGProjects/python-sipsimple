@@ -1134,8 +1134,20 @@ class XMLListRootElementType(XMLRootElementType, XMLListMixinType): pass
 class XMLListElement(XMLElement, XMLListMixin):
     __metaclass__ = XMLListElementType
 
+    def __nonzero__(self):
+        if self._xml_attributes or self._xml_element_children:
+            return True
+        else:
+            return len(self._element_map) != 0
+
 class XMLListRootElement(XMLRootElement, XMLListMixin):
     __metaclass__ = XMLListRootElementType
+
+    def __nonzero__(self):
+        if self._xml_attributes or self._xml_element_children:
+            return True
+        else:
+            return len(self._element_map) != 0
 
 
 class XMLStringListElementType(XMLListElementType):
