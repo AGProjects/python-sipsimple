@@ -123,6 +123,7 @@ class Subscriber(object):
         self._command_channel.send(command)
         command.wait()
         self._command_proc = None
+        notification_center.post_notification(self.__class__.__name__ + 'DidDeactivate', sender=self)
         notification_center.post_notification(self.__class__.__name__ + 'DidEnd', sender=self)
         notification_center.remove_observer(self, sender=self)
 
