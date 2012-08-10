@@ -4,8 +4,6 @@
 
 + Allow resume of failed file transfers (a=file-range SDP attribute)
 
-+ Outbound Presence http://sipsimpleclient.com/ticket/118
-
 + combine account.uri and account.contact into account.uri.aor and
   account.uri.contact. This will also remove the confusion between
   account.contact and account.contact_manager
@@ -15,11 +13,6 @@
   This will make changes be atomic inside a thread (everything from 
   attribute changes up to the save operation is contained in the thread
   and will not mix with changes done in parallel from other threads).
-
-+ contact policies must default to a special value: DefaultPolicies. else
-  if the default is the empty list, they will be set to exactly that: no
-  policies at all, which makes it impossible to create a contact that has
-  no explicit policies set (inherits the default account policies).
 
 + there is a race condition that can prevent an account to start if it is
   created while the start method of SIPApplication runs and it passed the
@@ -46,7 +39,6 @@
 
 - Use an ordered dict for keeping accounts in the AccountManager ?!?
   see http://code.activestate.com/recipes/576693/
-
 
 - send notifications when local/remote party becomes focus
   SIPSessionLocalPartyIsFocus, SIPSessionRemotePartyIsFocus
