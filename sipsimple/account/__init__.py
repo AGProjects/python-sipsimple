@@ -23,6 +23,7 @@ from gnutls.interfaces.twisted import X509Credentials
 from zope.interface import implements
 
 from sipsimple.account.bonjour import BonjourServices, _bonjour
+from sipsimple.account.publication import PresencePublisher, DialogPublisher
 from sipsimple.account.registration import Registrar
 from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber, PresenceSubscriber, DialogSubscriber
 from sipsimple.account.xcap import XCAPManager
@@ -152,6 +153,8 @@ class Account(SettingsObject):
         self._dwi_subscriber = DialogWinfoSubscriber(self)
         self._presence_subscriber = PresenceSubscriber(self)
         self._dialog_subscriber = DialogSubscriber(self)
+        self._presence_publisher = PresencePublisher(self)
+        self._dialog_publisher = DialogPublisher(self)
         self._mwi_voicemail_uri = None
         self._pwi_version = None
         self._dwi_version = None
@@ -204,6 +207,8 @@ class Account(SettingsObject):
         self._dwi_subscriber = None
         self._presence_subscriber = None
         self._dialog_subscriber = None
+        self._presence_publisher = None
+        self._dialog_publisher = None
         self.xcap_manager = None
         SettingsObject.delete(self)
 
@@ -258,6 +263,36 @@ class Account(SettingsObject):
     @property
     def voicemail_uri(self):
         return self._mwi_voicemail_uri or self.message_summary.voicemail_uri
+
+    def _get_presence_state(self):
+        try:
+            return self._presence_publisher.state
+        except AttributeError:
+            return None
+
+    def _set_presence_state(self, state):
+        try:
+            self._presence_publisher.state = state
+        except AttributeError:
+            pass
+
+    presence_state = property(_get_presence_state, _set_presence_state)
+    del _get_presence_state, _set_presence_state
+
+    def _get_dialog_state(self):
+        try:
+            return self._dialog_publisher.state
+        except AttributeError:
+            return None
+
+    def _set_dialog_state(self, state):
+        try:
+            self._dialog_publisher.state = state
+        except AttributeError:
+            pass
+
+    dialog_state = property(_get_dialog_state, _set_dialog_state)
+    del _get_dialog_state, _set_dialog_state
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -408,6 +443,8 @@ class Account(SettingsObject):
         self._dwi_subscriber.start()
         self._presence_subscriber.start()
         self._dialog_subscriber.start()
+        self._presence_publisher.start()
+        self._dialog_publisher.start()
         if self.xcap.enabled:
             self.xcap_manager.start()
         notification_center.post_notification('SIPAccountDidActivate', sender=self)
@@ -418,7 +455,8 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
         self._active = False
-        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber, self.xcap_manager]
+        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber,
+                    self._presence_publisher, self._dialog_publisher, self.xcap_manager]
         proc.waitall([proc.spawn(handler.stop) for handler in handlers])
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
