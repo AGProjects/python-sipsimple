@@ -218,11 +218,17 @@ class Account(SettingsObject):
 
     @property
     def registered(self):
-        return self._registrar.registered if self._registrar else False
+        try:
+            return self._registrar.registered
+        except AttributeError:
+            return False
 
     @property
     def mwi_active(self):
-        return self._mwi_subscriber.subscribed if self._mwi_subscriber else False
+        try:
+            return self._mwi_subscriber.subscribed
+        except AttributeError:
+            return False
 
     @property
     def tls_credentials(self):
