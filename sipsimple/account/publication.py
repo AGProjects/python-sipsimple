@@ -123,6 +123,7 @@ class Publisher(object):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.add_observer(self, name='DNSNameserversDidChange')
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
         notification_center.post_notification(self.__class__.__name__ + 'DidStart', sender=self)
@@ -139,6 +140,7 @@ class Publisher(object):
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
+        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         command = Command('terminate')
         self._command_channel.send(command)
@@ -355,6 +357,10 @@ class Publisher(object):
             self._command_channel.send(Command('publish', state=self.state))
 
     def _NH_DNSNameserversDidChange(self, notification):
+        if self.active:
+            self._command_channel.send(Command('publish', state=self.state))
+
+    def _NH_SystemIPAddressDidChange(self, notification):
         if self.active:
             self._command_channel.send(Command('publish', state=self.state))
 
