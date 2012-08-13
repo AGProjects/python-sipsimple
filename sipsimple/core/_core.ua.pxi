@@ -819,9 +819,9 @@ cdef class PJSIPUA:
             message_params["to_header"] = event_dict["headers"].get("To", None)
             message_params["headers"] = event_dict["headers"]
             message_params["body"] = event_dict["body"]
-            content_type, params = message_params["headers"].get("Content-Type", (None, None))
+            content_type = message_params["headers"].get("Content-Type", None)
             if content_type is not None:
-                message_params["content_type"] = ContentType(content_type)
+                message_params["content_type"] = content_type.content_type
                 if message_params["headers"].get("Content-Length", 0) > 0 and message_params["body"] is None:
                     bad_request = 1
                     extra_headers.append(WarningHeader(399, "local", "Missing body"))
