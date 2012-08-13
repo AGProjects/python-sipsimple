@@ -180,7 +180,7 @@ class WatcherInfo(XMLListRootElement):
     version = XMLAttribute('version', type=NonNegativeInteger, required=True, test_equal=True)
     state   = XMLAttribute('state', type=WatcherInfoState, required=True, test_equal=True)
 
-    def __init__(self, version=-1, state='full', wlists=[]):
+    def __init__(self, version=0, state='full', wlists=[]):
         XMLListRootElement.__init__(self)
         self.version = version
         self.state = state
