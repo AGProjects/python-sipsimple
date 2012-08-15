@@ -24,7 +24,7 @@ capabilities in the PIDF documents.
 
 
 __all__ = ['namespace',
-           'Audio', 
+           'Audio',
            'Application',
            'Data',
            'Control',
@@ -56,7 +56,10 @@ __all__ = ['namespace',
            'MethodsExtension',
            'ExtensionsExtension',
            'DeviceCapabilitiesExtension',
-           'MobilityExtension']
+           'MobilityExtension',
+           # Extensions
+           'FileTransfer',
+           'ScreenSharing']
 
 
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLBooleanElement, XMLElement, XMLEmptyElement
@@ -283,7 +286,7 @@ class PriorityLowerthan(XMLEmptyElement):
     _xml_tag = 'lowerthan'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     maxvalue = XMLAttribute('maxvalue', type=int, required=True, test_equal=True)
 
     def __init__(self, maxvalue):
@@ -295,7 +298,7 @@ class PriorityHigherthan(XMLEmptyElement):
     _xml_tag = 'higherthan'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     minvalue = XMLAttribute('minvalue', type=int, required=True, test_equal=True)
 
     def __init__(self, minvalue):
@@ -307,7 +310,7 @@ class PriorityEquals(XMLEmptyElement):
     _xml_tag = 'equals'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     value = XMLAttribute('value', type=int, required=True, test_equal=True)
 
     def __init__(self, value):
@@ -319,7 +322,7 @@ class PriorityRange(XMLEmptyElement):
     _xml_tag = 'range'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     maxvalue = XMLAttribute('maxvalue', type=int, required=True, test_equal=True)
     minvalue = XMLAttribute('minvalue', type=int, required=True, test_equal=True)
 
@@ -754,5 +757,26 @@ class DeviceCapabilities(XMLListElement, DeviceExtension):
         return "%s(%r, %r)" % (self.__class__.__name__, self.mobility, list(self))
 
 Device.register_extension('capabilities', type=DeviceCapabilities)
+
+
+#
+# Extensions
+#
+
+agp_caps_namespace = 'urn:ag-projects:xml:ns:pidf:caps'
+PIDFDocument.register_namespace(agp_caps_namespace, prefix='agp-caps')
+
+class FileTransfer(XMLBooleanElement, ServiceCapabilitiesExtension):
+    _xml_tag = 'file-transfer'
+    _xml_namespace = agp_caps_namespace
+    _xml_document = PIDFDocument
+
+class ScreenSharing(XMLBooleanElement, ServiceCapabilitiesExtension):
+    _xml_tag = 'screen-sharing'
+    _xml_namespace = agp_caps_namespace
+    _xml_document = PIDFDocument
+
+ServiceCapabilities.register_extension('file_transfer', type=FileTransfer)
+ServiceCapabilities.register_extension('screen_sharing', type=ScreenSharing)
 
 
