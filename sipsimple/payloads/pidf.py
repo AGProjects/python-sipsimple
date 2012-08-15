@@ -34,7 +34,7 @@ from application.python.weakref import weakobjectmap
 
 from sipsimple.payloads import ValidationError, XMLDocument, XMLListRootElement, XMLListElement, XMLElement, XMLAttribute, XMLElementID, XMLElementChild
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLDateTimeElement, XMLAnyURIElement
-from sipsimple.payloads.datatypes import AnyURI, ID
+from sipsimple.payloads.datatypes import AnyURI, ID, DateTime
 
 
 pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
@@ -478,21 +478,53 @@ class ExtendedStatus(XMLStringElement, StatusExtension):
 Status.register_extension('extended', type=ExtendedStatus)
 
 
+class Description(XMLStringElement):
+    _xml_tag = 'description'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+
+class UserAgent(XMLStringElement):
+    _xml_tag = 'user-agent'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+
+class TimeOffset(XMLStringElement):
+    _xml_tag = 'time-offset'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+
+    description = XMLAttribute('description', type=unicode, required=False, test_equal=True)
+
+    def __init__(self, value=None, description=None):
+        if value is None:
+            value = DateTime.utc_offset()
+        XMLStringElement.__init__(self, str(value))
+        self.description = description
+
+    def __int__(self):
+        return int(self.value)
+
 class DeviceInfo(XMLElement, ServiceExtension):
     _xml_tag = 'device-info'
     _xml_namespace = agp_pidf_namespace
     _xml_document = PIDFDocument
+    _xml_children_order = {Description.qname: 0,
+                           UserAgent.qname: 1}
 
     id = XMLElementID('id', type=str, required=True, test_equal=True)
-    description = XMLAttribute('description', type=str, required=False, test_equal=True)
+    description = XMLElementChild('description', type=Description, required=False, test_equal=True)
+    user_agent = XMLElementChild('user_agent', type=UserAgent, required=False, test_equal=True)
+    time_offset = XMLElementChild('time_offset', type=TimeOffset, required=False, test_equal=True)
 
-    def __init__(self, id, description=None):
+    def __init__(self, id, description=None, user_agent=None, time_offset=None):
         XMLElement.__init__(self)
         self.id = id
         self.description = description
+        self.user_agent = user_agent
+        self.time_offset = time_offset
 
     def __repr__(self):
-        return '%s(%r, %r)' % (self.__class__.__name__, self.id, self.description)
+        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.description, self.user_agent, self.time_offset)
 
 Service.register_extension('device_info', type=DeviceInfo)
 
