@@ -43,7 +43,7 @@ from lxml import etree
 from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
 from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLLocalizedStringElement, XMLStringListElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteMap, NoteList, Service, Person, Device
-from sipsimple.payloads.datatypes import UnsignedLong, DateTime
+from sipsimple.payloads.datatypes import UnsignedLong, DateTime, ID
 
 
 namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
@@ -236,13 +236,13 @@ class Mood(XMLStringListElement, PersonExtension):
     _xml_item_registry = MoodRegistry
     _xml_item_other_type = RPIDOther
     _xml_item_extension_type = MoodElement
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
     until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
-    
+
     _note_map = NoteMap()
-    
+
     def __init__(self, id=None, since=None, until=None, moods=[], notes=[]):
         XMLElement.__init__(self)
         self.id = id
@@ -367,7 +367,7 @@ class PlaceType(XMLElement, PersonExtension):
     _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_children_order = {RPIDNote.qname: 0}
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
     until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
@@ -573,11 +573,11 @@ class ServiceClass(XMLElement, ServiceExtension):
     _xml_tag = 'service-class'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     value = XMLStringChoiceChild('value', registry=ServiceClassRegistry, extension_type=ServiceClassElement)
-    
+
     _note_map = NoteMap()
-    
+
     def __init__(self, service_class=None, notes=[]):
         XMLElement.__init__(self)
         self.value = service_class
@@ -618,8 +618,8 @@ class Sphere(XMLElement, PersonExtension):
     _xml_tag = 'sphere'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
-    id = XMLAttribute('id', type=str, required=False, test_equal=True)
+
+    id = XMLAttribute('id', type=ID, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
     until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     value = XMLStringChoiceChild('value', registry=SphereRegistry, extension_type=SphereElement)
@@ -641,11 +641,11 @@ class StatusIcon(XMLStringElement, ServiceExtension, PersonExtension):
     _xml_tag = 'status-icon'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
     until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
-    
+
     def __init__(self, value=None, id=None, since=None, until=None):
         XMLStringElement.__init__(self, value)
         self.id = id
@@ -660,12 +660,12 @@ class TimeOffset(XMLStringElement, PersonExtension):
     _xml_tag = 'time-offset'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=DateTime, required=False, test_equal=True)
     until = XMLAttribute('until', type=DateTime, required=False, test_equal=True)
     description = XMLAttribute('description', type=str, required=False, test_equal=True)
-    
+
     def __init__(self, value=None, id=None, since=None, until=None, description=None):
         if value is None:
             value = DateTime.utc_offset()
@@ -686,11 +686,11 @@ class UserInput(XMLStringElement, ServiceExtension, PersonExtension, DeviceExten
     _xml_namespace = namespace
     _xml_document = PIDFDocument
     _xml_value_type = UserInputValue
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     last_input = XMLAttribute('last_input', xmlname='last-input', type=DateTime, required=False, test_equal=True)
     idle_threshold = XMLAttribute('idle_threshold', xmlname='idle-threshold', type=UnsignedLong, required=False, test_equal=True)
-    
+
     def __init__(self, value='active', id=None, last_input=None, idle_threshold=None):
         XMLStringElement.__init__(self, value)
         self.id = id
