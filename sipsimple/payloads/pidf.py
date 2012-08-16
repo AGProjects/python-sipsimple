@@ -497,7 +497,7 @@ class TimeOffset(XMLStringElement):
 
     def __init__(self, value=None, description=None):
         if value is None:
-            value = DateTime.utc_offset()
+            value = DateTime.now().utcoffset().seconds / 60
         XMLStringElement.__init__(self, str(value))
         self.description = description
 

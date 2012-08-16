@@ -668,7 +668,7 @@ class TimeOffset(XMLStringElement, PersonExtension):
 
     def __init__(self, value=None, id=None, since=None, until=None, description=None):
         if value is None:
-            value = DateTime.utc_offset()
+            value = DateTime.now().utcoffset().seconds / 60
         XMLStringElement.__init__(self, str(value))
         self.id = id
         self.since = since

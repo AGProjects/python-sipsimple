@@ -13,7 +13,7 @@ from email.parser import Parser
 from types import NoneType
 
 from sipsimple.core import SIPURI, BaseSIPURI
-from sipsimple.util import MultilingualText, Timestamp
+from sipsimple.util import MultilingualText, ISOTimestamp
 
 
 class ChatIdentity(object):
@@ -136,7 +136,7 @@ class CPIMMessage(ChatMessage):
         self.recipients = recipients if recipients is not None else []
         self.courtesy_recipients = courtesy_recipients if courtesy_recipients is not None else []
         self.subject = subject if isinstance(subject, (MultilingualText, NoneType)) else MultilingualText(subject)
-        self.timestamp = timestamp
+        self.timestamp = ISOTimestamp(timestamp) if timestamp is not None else None
         self.required = required if required is not None else []
         self.additional_headers = additional_headers if additional_headers is not None else []
 
@@ -154,7 +154,7 @@ class CPIMMessage(ChatMessage):
             for lang, translation in self.subject.translations.iteritems():
                 headers.append(u'Subject:;lang=%s %s' % (lang, translation))
         if self.timestamp:
-            headers.append(u'DateTime: %s' % Timestamp.format(self.timestamp))
+            headers.append(u'DateTime: %s' % self.timestamp)
         if self.required:
             headers.append(u'Required: %s' % ','.join(self.required))
         namespaces = {u'': self.standard_namespace}
@@ -218,7 +218,7 @@ class CPIMMessage(ChatMessage):
                     # language tags must be ASCII
                     subjects[str(lang) if lang is not None else None] = subject
                 elif name == 'DateTime' and namespace == cls.standard_namespace:
-                    message.timestamp = Timestamp.parse(value)
+                    message.timestamp = ISOTimestamp(value)
                 elif name == 'Required' and namespace == cls.standard_namespace:
                     message.required.extend(re.split(r'\s*,\s*', value))
                 elif name == 'NS' and namespace == cls.standard_namespace:
