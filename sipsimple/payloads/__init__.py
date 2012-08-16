@@ -74,12 +74,11 @@ class ValidationError(ParserError): pass
 
 ## Markers
 
-class Marker(object):
-    __metaclass__ = MarkerType
+class IterateTypes: __metaclass__ = MarkerType
+class IterateIDs:   __metaclass__ = MarkerType
+class IterateItems: __metaclass__ = MarkerType
 
-class IterateTypes(Marker): pass
-class IterateIDs(Marker):   pass
-class IterateItems(Marker): pass
+class StoredAttribute: __metaclass__ = MarkerType
 
 
 ## Utilities
@@ -447,7 +446,7 @@ class XMLStringChoiceChild(XMLElementChoiceChild):
 
     def __get__(self, obj, objtype):
         value = super(XMLStringChoiceChild, self).__get__(obj, objtype)
-        if obj is None or value is None or isinstance(value, self.extension_type or ()):
+        if obj is None or objtype is StoredAttribute or value is None or isinstance(value, self.extension_type or ()):
             return value
         else:
             return unicode(value)
@@ -578,7 +577,8 @@ class XMLElement(XMLElementBase):
             raise BuilderError(str(e))
         # build element children
         for name in self._xml_element_children:
-            child = getattr(self, name, None)
+            descriptor = getattr(self.__class__, name)
+            child = descriptor.__get__(self, StoredAttribute)
             if child is not None:
                 child.to_element()
         self._build_element()
