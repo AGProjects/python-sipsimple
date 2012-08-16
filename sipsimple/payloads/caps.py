@@ -646,6 +646,27 @@ class ServiceCapabilities(XMLListElement, ServiceExtension):
     _xml_document = PIDFDocument
     _xml_extension_type = ServiceCapabilitiesExtension
     _xml_item_type = Description
+    _xml_children_order = {Actor.qname: 0,
+                           Application.qname: 1,
+                           Audio.qname: 2,
+                           Automata.qname: 3,
+                           Class.qname: 4,
+                           Control.qname: 5,
+                           Data.qname: 6,
+                           Description.qname: 7,
+                           Duplex.qname: 8,
+                           EventPackages.qname: 9,
+                           Extensions.qname: 10,
+                           IsFocus.qname: 11,
+                           Message.qname: 12,
+                           Methods.qname: 13,
+                           Languages.qname: 14,
+                           Priority.qname: 15,
+                           Schemes.qname: 16,
+                           Text.qname: 17,
+                           Type.qname: 18,
+                           Video.qname: 19,
+                           None: 20}
 
     audio = XMLElementChild('audio', type=Audio, required=False, test_equal=True)
     application = XMLElementChild('application', type=Application, required=False, test_equal=True)
