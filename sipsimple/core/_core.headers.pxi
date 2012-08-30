@@ -127,7 +127,7 @@ cdef class BaseContentTypeHeader:
     property name:
 
         def __get__(self):
-            return "ContentType"
+            return "Content-Type"
 
     property body:
 
