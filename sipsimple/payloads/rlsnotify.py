@@ -71,9 +71,9 @@ class RLSNotify(object):
         message = email.message_from_string(payload)
         if message.get_content_type() != cls.content_type:
             raise ParserError("expected multipart/related content, got %s" % message.get_content_type())
-        if len(message) == 0:
-            raise ParserError("multipart/related body contains no parts")
         payloads = message.get_payload()
+        if len(payloads) == 0:
+            raise ParserError("multipart/related body contains no parts")
         payload_map = dict((payload['Content-ID'], payload) for payload in payloads if payload['Content-ID'] is not None)
         root_id = message.get_param('start')
         root_type = message.get_param('type', '').lower()
