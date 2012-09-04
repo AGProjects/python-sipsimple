@@ -387,7 +387,7 @@ class Account(SettingsObject):
             except ParserError:
                 pass
             else:
-                if rls_notify.uri != 'sip:'+self.xcap_manager.rls_presence_uri:
+                if rls_notify.uri != self.xcap_manager.rls_presence_uri:
                     return
                 if self._presence_version is None:
                     if not rls_notify.full_state:
@@ -414,7 +414,7 @@ class Account(SettingsObject):
             except ParserError:
                 pass
             else:
-                if rls_notify.uri != 'sip:'+self.xcap_manager.rls_dialog_uri:
+                if rls_notify.uri != self.xcap_manager.rls_dialog_uri:
                     return
                 if self._dialog_version is None:
                     if not rls_notify.full_state:

@@ -12,11 +12,20 @@ from sipsimple.payloads import rlmi, pidf
 from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
 
 
+class ResourceURI(unicode):
+    def __eq__(self, other):
+        return super(ResourceURI, self).__eq__(other) or self.rpartition('sip:')[2] == other
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
+
 class Resource(object):
     __prioritymap__ = dict(active=10, pending=20, terminated=30)
 
     def __init__(self, uri, name=None, state=None, reason=None, pidf_list=None):
-        self.uri = uri
+        self.uri = ResourceURI(uri)
         self.name = name
         self.state = state
         self.reason = reason
@@ -55,7 +64,7 @@ class RLSNotify(object):
     content_type = 'multipart/related'
 
     def __init__(self, uri, version, full_state, resources):
-        self.uri = uri
+        self.uri = ResourceURI(uri)
         self.version = version
         self.full_state = full_state
         self.resources = resources
