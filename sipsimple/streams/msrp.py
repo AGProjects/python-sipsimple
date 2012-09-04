@@ -177,7 +177,7 @@ class MSRPStreamBase(object):
         except api.GreenletExit:
             raise
         except Exception, ex:
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=Failure(), reason=str(ex)))
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=Failure(), reason=str(ex) or type(ex).__name__))
         else:
             notification_center.post_notification('MediaStreamDidInitialize', sender=self)
         finally:
