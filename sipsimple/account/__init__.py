@@ -381,9 +381,8 @@ class Account(SettingsObject):
 
     def _NH_PresenceSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == RLSNotify.content_type:
-            content = '%s\r\n\r\n%s' % (notification.data.headers['Content-Type'], notification.data.body)
             try:
-                rls_notify = RLSNotify.parse(content)
+                rls_notify = RLSNotify.parse('Content-Type: {content_type}\r\n\r\n{body}'.format(content_type=notification.data.content_type, body=notification.data.body))
             except ParserError:
                 pass
             else:
@@ -408,9 +407,8 @@ class Account(SettingsObject):
 
     def _NH_DialogSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == RLSNotify.content_type:
-            content = '%s\r\n\r\n%s' % (notification.data.headers['Content-Type'], notification.data.body)
             try:
-                rls_notify = RLSNotify.parse(content)
+                rls_notify = RLSNotify.parse('Content-Type: {content_type}\r\n\r\n{body}'.format(content_type=notification.data.content_type, body=notification.data.body))
             except ParserError:
                 pass
             else:
