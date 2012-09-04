@@ -630,12 +630,12 @@ cdef class IncomingReferral:
 
     cdef int _set_content(self, int code, str reason) except -1:
         cdef str content
-        if status is None:
+        if reason is None:
             try:
-                status = sip_status_messages[code]
+                reason = sip_status_messages[code]
             except IndexError:
-                status = "Unknown"
-        content = "SIP/2.0 %d %s\r\n" % (code, status)
+                reason = "Unknown"
+        content = "SIP/2.0 %d %s\r\n" % (code, reason)
         self._content = PJSTR(content)
 
     cdef int _set_state(self, str state) except -1:
