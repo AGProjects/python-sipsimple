@@ -17,7 +17,7 @@ from application.python.decorator import execute_once
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
 from application.system import host as Host
-from eventlet import proc
+from eventlib import proc
 from gnutls.crypto import X509Certificate, X509PrivateKey
 from gnutls.interfaces.twisted import X509Credentials
 from zope.interface import implements

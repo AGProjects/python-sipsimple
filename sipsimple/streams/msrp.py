@@ -29,11 +29,11 @@ from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
 
-from eventlet import api
-from eventlet.coros import queue
-from eventlet.greenio import GreenSocket
-from eventlet.proc import spawn, ProcExit
-from eventlet.util import tcp_socket, set_reuse_addr
+from eventlib import api
+from eventlib.coros import queue
+from eventlib.greenio import GreenSocket
+from eventlib.proc import spawn, ProcExit
+from eventlib.util import tcp_socket, set_reuse_addr
 from msrplib.connect import DirectConnector, DirectAcceptor, RelayConnection, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, UseNicknameHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile

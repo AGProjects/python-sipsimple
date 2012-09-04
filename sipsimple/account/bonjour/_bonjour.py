@@ -109,7 +109,7 @@ else:
             pass
         else:
             os.environ['AVAHI_COMPAT_NOWARN'] = '1'
-            from eventlet.green.threading import RLock
+            from eventlib.green.threading import RLock
             _global_lock = RLock()
 
     try:

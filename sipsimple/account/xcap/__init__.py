@@ -22,8 +22,8 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python import Null
 from application.python.decorator import execute_once
 from backports.collections import OrderedDict
-from eventlet import api, coros, proc
-from eventlet.green.httplib import BadStatusLine
+from eventlib import api, coros, proc
+from eventlib.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
 from xcaplib.green import XCAPClient
 from xcaplib.error import HTTPError

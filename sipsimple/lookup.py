@@ -31,10 +31,10 @@ sys.modules['dns.entropy'] = dns.entropy
 
 del partial, randint, randrange, sys
 
-# replace standard select and socket modules with versions from eventlet
-from eventlet import coros, proc
-from eventlet.green import select
-from eventlet.green import socket
+# replace standard select and socket modules with versions from eventlib
+from eventlib import coros, proc
+from eventlib.green import select
+from eventlib.green import socket
 import dns.resolver
 import dns.query
 dns.resolver.socket = socket

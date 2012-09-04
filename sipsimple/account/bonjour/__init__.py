@@ -12,8 +12,8 @@ from weakref import WeakKeyDictionary
 from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
-from eventlet import api, coros, proc
-from eventlet.green import select
+from eventlib import api, coros, proc
+from eventlib.green import select
 from twisted.internet import reactor
 from zope.interface import implements
 

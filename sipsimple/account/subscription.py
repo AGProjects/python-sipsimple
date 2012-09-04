@@ -12,7 +12,7 @@ from time import time
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null, limit
-from eventlet import coros, proc
+from eventlib import coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 

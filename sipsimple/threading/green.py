@@ -9,8 +9,8 @@ import sys
 
 from application.python.decorator import decorator, preserve_signature
 from datetime import datetime
-from eventlet import coros
-from eventlet.twistedutil import callInGreenThread
+from eventlib import coros
+from eventlib.twistedutil import callInGreenThread
 from twisted.python import threadable
 
 

@@ -15,7 +15,7 @@ from threading import RLock
 
 from application.notification import IObserver, NotificationCenter, NotificationData, ObserverWeakrefProxy
 from application.system import makedirs
-from eventlet import coros
+from eventlib import coros
 from zope.interface import Attribute, Interface, implements
 
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile

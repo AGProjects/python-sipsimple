@@ -18,7 +18,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python import Null
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
-from eventlet import api, coros, proc
+from eventlib import api, coros, proc
 from twisted.internet import reactor
 from xcaplib import client as xcap_client
 from zope.interface import implements
@@ -124,7 +124,7 @@ class SIPApplication(object):
             self._shutdown_subsystems()
 
     def _run_reactor(self):
-        from eventlet.twistedutil import join_reactor
+        from eventlib.twistedutil import join_reactor
         notification_center = NotificationCenter()
 
         self._initialize_subsystems()

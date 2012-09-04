@@ -22,8 +22,7 @@ from application.python import Null, limit
 from application.python.decorator import decorator, preserve_signature
 from application.python.types import Singleton
 from application.system import host
-from eventlet import api, coros, proc
-from eventlet.coros import queue
+from eventlib import api, coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
@@ -957,7 +956,7 @@ class Session(object):
         self.replaced_session = None
         self.transfer_handler = None
         self.transfer_info = None
-        self._channel = queue()
+        self._channel = coros.queue()
         self._hold_in_progress = False
         self._invitation = None
         self._local_identity = None
