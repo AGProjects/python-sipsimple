@@ -8,17 +8,17 @@ http://ag-projects.com
 Home page: http://sipsimpleclient.com
 
  * python                   http://python.org                                2.6, 2.7
- * python-application       http://pypi.python.org/simple/python-application  >=1.2.8
+ * python-application       http://pypi.python.org/simple/python-application  >=1.4.0
  * python-backports         http://download.ag-projects.com/SipClient         >=1.0.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * python-dateutil          http://niemeyer.net/python-dateutil                 >=1.4
- * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
+ * python-eventlib          http://download.ag-projects.com/SipClient         >=0.1.0
  * python-greenlet          http://download.ag-projects.com/SipClient          =0.4.0
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-msrplib           http://download.ag-projects.com/MSRP             >=0.14.0
  * python-xcaplib           http://download.ag-projects.com/XCAP             >=1.0.15
- * cython                   http://www.cython.org                    >=0.13.0 & <0.15
+ * cython                   http://www.cython.org                            >=0.13.0
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
