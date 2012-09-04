@@ -391,13 +391,12 @@ cdef extern from "pjmedia.h":
     # transport
     enum pjmedia_transport_type:
         PJMEDIA_TRANSPORT_TYPE_ICE
+        PJMEDIA_TRANSPORT_TYPE_SRTP
     struct pjmedia_sock_info:
         pj_sockaddr rtp_addr_name
     struct pjmedia_transport:
         char *name
         pjmedia_transport_type type
-    enum pjmedia_transport_type:
-        PJMEDIA_TRANSPORT_TYPE_SRTP
     struct pjmedia_transport_specific_info:
         pjmedia_transport_type type
         char *buffer

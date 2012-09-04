@@ -12,11 +12,14 @@ cdef class RTPTransport:
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
+        cdef bytes pool_name
+        cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
         endpoint = ua._pjsip_endpoint._obj
-        pool_name = "RTPTransport_%d" % id(self)
+        pool_name = b"RTPTransport_%d" % id(self)
+        c_pool_name = pool_name
 
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
@@ -24,7 +27,7 @@ cdef class RTPTransport:
         self._af = pj_AF_INET()
         pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "rtp_transport_lock", &self._lock)
         with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
+            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
         if pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         self._pool = pool
@@ -491,18 +494,21 @@ cdef class AudioTransport:
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
+        cdef bytes pool_name
+        cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
         endpoint = ua._pjsip_endpoint._obj
-        pool_name = "AudioTransport_%d" % id(self)
+        pool_name = b"AudioTransport_%d" % id(self)
+        c_pool_name = pool_name
 
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
 
         pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "audio_transport_lock", &self._lock)
         with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
+            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
         if pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         self._pool = pool

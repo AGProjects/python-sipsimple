@@ -845,7 +845,7 @@ del FrozenSDPAttribute_new
 #
 
 cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
-    cdef SDPConnection connection
+    cdef SDPConnection connection = None
     cdef int i
     if pj_session.conn != NULL:
         connection = SDPConnection_create(pj_session.conn)
@@ -864,7 +864,7 @@ cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
                        [SDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)])
 
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
-    cdef FrozenSDPConnection connection
+    cdef FrozenSDPConnection connection = None
     cdef int i
     if pj_session.conn != NULL:
         connection = FrozenSDPConnection_create(pj_session.conn)
@@ -883,7 +883,7 @@ cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_s
                             frozenlist([FrozenSDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)]))
 
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
-    cdef SDPConnection connection
+    cdef SDPConnection connection = None
     cdef int i
     if pj_media.conn != NULL:
         connection = SDPConnection_create(pj_media.conn)
@@ -897,7 +897,7 @@ cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
                           [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)])
 
 cdef FrozenSDPMediaStream FrozenSDPMediaStream_create(pjmedia_sdp_media *pj_media):
-    cdef FrozenSDPConnection connection
+    cdef FrozenSDPConnection connection = None
     cdef int i
     if pj_media.conn != NULL:
         connection = FrozenSDPConnection_create(pj_media.conn)
