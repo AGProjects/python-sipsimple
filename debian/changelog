@@ -1,3 +1,37 @@
+python-sipsimple (0.21.0) UNRELEASED; urgency=low
+
+  * Added PUBLISH for presence and dialog events
+  * Added SUBSCRIBE using RLS for presence and dialog events
+  * Added SUBSCRIBE for presence.winfo and dialog.winfo events
+  * Added handing for RLS NOTIFYs for presence and dialog events
+  * Added Offline Presence capability using XCAP pidf-manipulation
+  * Added Icon Storage using XCAP oma-pres-content
+  * Added Presence policy management using XCAP oma-common-policy
+  * Added Addressbook with Presence enabled Contacts
+  * Added MSRP Switch NICKNAME support
+  * Added GRUU support (RFC 5627)
+  * Added ability to configure SIP loop detection
+  * Refactored XML payloads framework and datatypes
+  * Refactored the XCAP manager and its API
+  * Refactored contact management into addressbook management
+  * Refactored interaction between the account and its handlers
+  * Fixed building sipfrag payloads
+  * Fixed crash when bogus G722 payload is received
+  * Fixed crash on SDP version overflow
+  * Fixed removing a stream if a negative response was received
+  * Fixed engine failure on bogus incoming REFER requests
+  * Fixed crash on RTCP decryption when using SRTP
+  * Fixed handling re-INVITEs with empty body
+  * Fixed subscribing to conference event from Bonjour account
+  * Reply with 200 OK to in-dialog OPTIONS requests
+  * Support hostnames in STUN servers list
+  * Honor Min-Expires header for REGISTER requests
+  * Skip processing bogus NOTIFY requests
+  * Adapted to eventlet package rename
+  * Raised dependency on msrplib and xcaplib due to API changes
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 19 Dec 2011 14:34:44 +0100
+
 python-sipsimple (0.20.0) unstable; urgency=low
 
   * Refactored XML document manipulation framework and payloads
