@@ -2,7 +2,7 @@
 Dependencies for SIP SIMPLE client SDK
 --------------------------------------
 
-Copyright (c) 2008-2011 AG Projects
+Copyright (c) 2008-2012 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -16,8 +16,8 @@ Home page: http://sipsimpleclient.com
  * python-greenlet          http://download.ag-projects.com/SipClient          =0.4.0
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
- * python-msrplib           http://download.ag-projects.com/MSRP             >=0.14.0
- * python-xcaplib           http://download.ag-projects.com/XCAP             >=1.0.15
+ * python-msrplib           http://download.ag-projects.com/MSRP             >=0.15.0
+ * python-xcaplib           http://download.ag-projects.com/XCAP             >=1.0.17
  * cython                   http://www.cython.org                            >=0.13.0
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0

@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Microsoft Windows
 -------------------------------------------------------
 
-Copyright (c) 2008-2011 AG Projects
+Copyright (c) 2008-2012 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -155,7 +155,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlet, python-greenlet, python-backports
+ 1. python-eventlib, python-greenlet, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -175,12 +175,12 @@ python setup.py install
 cd ..
 
 # Eventlet
-if [ -d python-eventlet ]; then
-        cd python-eventlet
+if [ -d python-eventlib ]; then
+        cd python-eventlib
         darcs pull -a 
 else
-        darcs get http://devel.ag-projects.com/repositories/python-eventlet
-        cd python-eventlet
+        darcs get http://devel.ag-projects.com/repositories/python-eventlib
+        cd python-eventlib
 fi
 python setup.py install
 cd ..
