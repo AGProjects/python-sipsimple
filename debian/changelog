@@ -1,4 +1,4 @@
-python-sipsimple (0.21.0) UNRELEASED; urgency=low
+python-sipsimple (0.30.0) UNRELEASED; urgency=low
 
   * Added PUBLISH for presence and dialog events
   * Added SUBSCRIBE using RLS for presence and dialog events
