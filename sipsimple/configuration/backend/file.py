@@ -138,8 +138,14 @@ class FileBackend(object):
                     break
                 char = line.popleft()
                 if char in u"'\"":
-                    quote_char = char if quote_char is None else None
-                    continue
+                    if quote_char is None:
+                        quote_char = char
+                        continue
+                    elif quote_char == char:
+                        quote_char = None
+                        continue
+                    else:
+                        yield char
                 elif char == u'\\':
                     if not line:
                         raise FileParserError("unexpected `\\' at end of line %d" % lineno)
