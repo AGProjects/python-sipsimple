@@ -1,4 +1,4 @@
-python-sipsimple (0.30.0) UNRELEASED; urgency=low
+python-sipsimple (0.30.0) unstable; urgency=low
 
   * Added PUBLISH for presence and dialog events
   * Added SUBSCRIBE using RLS for presence and dialog events
@@ -25,12 +25,12 @@ python-sipsimple (0.30.0) UNRELEASED; urgency=low
   * Fixed subscribing to conference event from Bonjour account
   * Reply with 200 OK to in-dialog OPTIONS requests
   * Support hostnames in STUN servers list
-  * Honor Min-Expires header for REGISTER requests
   * Skip processing bogus NOTIFY requests
+  * Honor Min-Expires header for REGISTER requests
   * Adapted to eventlet package rename
   * Raised dependency on msrplib and xcaplib due to API changes
 
- -- Saul Ibarra <saul@ag-projects.com>  Mon, 19 Dec 2011 14:34:44 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 06 Sep 2012 18:13:17 +0200
 
 python-sipsimple (0.20.0) unstable; urgency=low
 
