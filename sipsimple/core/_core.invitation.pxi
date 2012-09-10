@@ -1583,7 +1583,7 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
     cdef pjsip_tx_data *tdata = NULL
     cdef object rdata_dict = None
     cdef object tdata_dict = None
-    cdef object originator
+    cdef object originator = None
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
