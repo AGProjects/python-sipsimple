@@ -116,8 +116,6 @@ cdef class BaseSIPURI:
         return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers)
 
     def __str__(self):
-        cdef object name
-        cdef object val
         cdef object string = self.host
         if self.port:
             string = "%s:%d" % (string, self.port)

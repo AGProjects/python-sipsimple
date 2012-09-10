@@ -1545,7 +1545,6 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
     cdef int status
     cdef pjsip_tx_data *answer_tdata
     cdef object rdata_dict = None
-    cdef object originator
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
@@ -1565,7 +1564,6 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                 invitation.peer_address.port = rdata.pkt_info.src_port
             rdata_dict = dict()
             _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
-            originator = "remote"
             with nogil:
                 status = pjsip_inv_initial_answer(inv, rdata, 100, NULL, NULL, &answer_tdata)
             if status != 0:
@@ -1573,7 +1571,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
             with nogil:
                 pjsip_tx_data_dec_ref(answer_tdata)
             try:
-                timer = StateCallbackTimer("connected", "received_proposal", rdata_dict, None, originator)
+                timer = StateCallbackTimer("connected", "received_proposal", rdata_dict, None, "remote")
                 timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
             except:
                 invitation._fail(ua)
