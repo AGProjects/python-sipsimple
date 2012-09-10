@@ -2,6 +2,7 @@
 #
 
 import platform
+import sys
 
 
 # classes
@@ -916,13 +917,17 @@ cdef class RecordingWaveFile:
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "recording_wave_file_lock", &self._lock)
         self._slot = -1
 
-    def __init__(self, AudioMixer mixer, str filename):
+    def __init__(self, AudioMixer mixer, filename):
         if self.filename is not None:
             raise SIPCoreError("RecordingWaveFile.__init__() was already called")
         if mixer is None:
             raise ValueError("mixer argument may not be None")
         if filename is None:
             raise ValueError("filename argument may not be None")
+        if not isinstance(filename, basestring):
+            raise TypeError("file argument must be str or unicode")
+        if isinstance(filename, unicode):
+            filename = filename.encode(sys.getfilesystemencoding())
         self.mixer = mixer
         self.filename = filename
 
@@ -1061,13 +1066,17 @@ cdef class WaveFile:
         self._slot = -1
         self._volume = 100
 
-    def __init__(self, AudioMixer mixer, str filename):
+    def __init__(self, AudioMixer mixer, filename):
         if self.filename is not None:
             raise SIPCoreError("WaveFile.__init__() was already called")
         if mixer is None:
             raise ValueError("mixer argument may not be None")
         if filename is None:
             raise ValueError("filename argument may not be None")
+        if not isinstance(filename, basestring):
+            raise TypeError("file argument must be str or unicode")
+        if isinstance(filename, unicode):
+            filename = filename.encode(sys.getfilesystemencoding())
         self.mixer = mixer
         self.filename = filename
 
