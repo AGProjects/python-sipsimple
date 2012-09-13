@@ -255,7 +255,9 @@ class AudioStream(object):
 
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
-            if self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
+            connection = remote_sdp.media[stream_index].connection or remote_sdp.connection
+            if (connection.address != self._rtp_transport.remote_rtp_address_sdp or
+                    self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port):
                 settings = SIPSimpleSettings()
                 if self._audio_rec is not None:
                     self.bridge.remove(self._audio_rec)
@@ -277,7 +279,9 @@ class AudioStream(object):
                 self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=True,
                                                                                                                          old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot,
                                                                                                                          old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
-                self._check_hold(self._audio_transport.direction, True)
+                if connection.address == '0.0.0.0' and remote_sdp.media[stream_index].direction == 'sendrecv':
+                    self._audio_transport.update_direction('recvonly')
+                self._check_hold(self._audio_transport.direction, False)
                 self.notification_center.post_notification('AudioStreamDidChangeRTPParameters', sender=self)
             else:
                 new_direction = local_sdp.media[stream_index].direction
