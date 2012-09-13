@@ -207,7 +207,6 @@ class AudioStream(object):
                 self._try_forced_srtp = self.account.rtp.srtp_encryption == "mandatory" 
             if self._try_ice:
                 if self.account.nat_traversal.stun_server_list:
-                    # Assume these are IP addresses
                     stun_servers = list((server.host, server.port) for server in self.account.nat_traversal.stun_server_list)
                     self._init_rtp_transport(stun_servers)
                 elif not isinstance(self.account, BonjourAccount):
