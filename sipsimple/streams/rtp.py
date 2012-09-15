@@ -256,8 +256,7 @@ class AudioStream(object):
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
             connection = remote_sdp.media[stream_index].connection or remote_sdp.connection
-            if (connection.address != self._rtp_transport.remote_rtp_address_sdp or
-                    self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port):
+            if connection.address != self._rtp_transport.remote_rtp_address_sdp or self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
                 settings = SIPSimpleSettings()
                 if self._audio_rec is not None:
                     self.bridge.remove(self._audio_rec)
@@ -266,10 +265,7 @@ class AudioStream(object):
                 self.notification_center.remove_observer(self, sender=self._audio_transport)
                 self._audio_transport.stop()
                 try:
-                    self._audio_transport = AudioTransport(self.mixer, self._rtp_transport,
-                                                           remote_sdp, stream_index,
-                                                           codecs=(list(self.account.rtp.audio_codec_list)
-                                                                   if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
+                    self._audio_transport = AudioTransport(self.mixer, self._rtp_transport, remote_sdp, stream_index, codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
                 except SIPCoreError, e:
                     self.state = "ENDED"
                     self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
