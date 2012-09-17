@@ -1,3 +1,11 @@
+python-sipsimple (0.30.1) unstable; urgency=low
+
+  * Allow unicode filenames on WaveFile and RecordingWaveFile
+  * Fixed handling stream hold edge cases
+  * Fixed unitialized variable error when using Cython >= 0.15
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 17 Sep 2012 11:46:56 +0200
+
 python-sipsimple (0.30.0) unstable; urgency=low
 
   * Added PUBLISH for presence and dialog events
