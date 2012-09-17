@@ -8,7 +8,7 @@ This module provides an extension to PIDF to provide additional contact
 information about a presentity.
 """
 
-from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement
+from sipsimple.payloads import XMLAnyURIElement, XMLLocalizedStringElement
 from sipsimple.payloads.pidf import PIDFDocument, ServiceExtension, PersonExtension, Service, Person
 
 __all__ = ['namespace', 'Card', 'DisplayName', 'Homepage', 'Icon', 'Map', 'Sound']
@@ -17,7 +17,7 @@ namespace = "urn:ietf:params:xml:ns:pidf:cipid"
 PIDFDocument.register_namespace(namespace, prefix='c', schema='cipid.xsd')
 
 
-class Card(XMLStringElement, PersonExtension, ServiceExtension):
+class Card(XMLAnyURIElement, PersonExtension, ServiceExtension):
     _xml_tag = 'card'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
@@ -33,7 +33,7 @@ class DisplayName(XMLLocalizedStringElement, PersonExtension, ServiceExtension):
 Person.register_extension('display_name', type=DisplayName)
 Service.register_extension('display_name', type=DisplayName)
 
-class Homepage(XMLStringElement, PersonExtension, ServiceExtension):
+class Homepage(XMLAnyURIElement, PersonExtension, ServiceExtension):
     _xml_tag = 'homepage'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
@@ -41,7 +41,7 @@ class Homepage(XMLStringElement, PersonExtension, ServiceExtension):
 Person.register_extension('homepage', type=Homepage)
 Service.register_extension('homepage', type=Homepage)
 
-class Icon(XMLStringElement, PersonExtension, ServiceExtension):
+class Icon(XMLAnyURIElement, PersonExtension, ServiceExtension):
     _xml_tag = 'icon'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
@@ -49,7 +49,7 @@ class Icon(XMLStringElement, PersonExtension, ServiceExtension):
 Person.register_extension('icon', type=Icon)
 Service.register_extension('icon', type=Icon)
 
-class Map(XMLStringElement, PersonExtension, ServiceExtension):
+class Map(XMLAnyURIElement, PersonExtension, ServiceExtension):
     _xml_tag = 'map'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
@@ -57,7 +57,7 @@ class Map(XMLStringElement, PersonExtension, ServiceExtension):
 Person.register_extension('map', type=Map)
 Service.register_extension('map', type=Map)
 
-class Sound(XMLStringElement, PersonExtension, ServiceExtension):
+class Sound(XMLAnyURIElement, PersonExtension, ServiceExtension):
     _xml_tag = 'sound'
     _xml_namespace = namespace
     _xml_document = PIDFDocument
