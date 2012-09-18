@@ -112,11 +112,12 @@ class XMLDocumentType(type):
 
     def _update_schema(cls):
         if cls.schema_map:
+            schemas_path = os.path.join(os.path.dirname(__file__), 'xml-schemas')
             schema = """<?xml version="1.0"?>
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     %s
                 </xs:schema>
-            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls.schema_map.iteritems())
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, os.path.join(schemas_path, urllib.quote(schema))) for ns, schema in cls.schema_map.iteritems())
             cls.schema = etree.XMLSchema(etree.XML(schema))
             cls.parser = etree.XMLParser(schema=cls.schema, remove_blank_text=True)
         else:
