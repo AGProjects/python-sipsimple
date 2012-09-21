@@ -52,7 +52,11 @@ class Resource(object):
         pidf_list = []
         for instance in (instance for instance in instances if instance.cid is not None):
             try:
-                pidf_list.append(pidf.PIDFDocument.parse(payload_map['<%s>' % instance.cid].get_payload()))
+                payload = payload_map['<%s>' % instance.cid].get_payload()
+            except KeyError:
+                continue
+            try:
+                pidf_list.append(pidf.PIDFDocument.parse(payload))
             except ParserError:
                 pass
         return cls(xml_element.uri, name, state, reason, pidf_list)
@@ -87,7 +91,10 @@ class RLSNotify(object):
         root_id = message.get_param('start')
         root_type = message.get_param('type', '').lower()
         if root_id is not None:
-            root = payload_map[root_id]
+            try:
+                root = payload_map[root_id]
+            except KeyError:
+                raise ParserError('cannot find root element')
         else:
             root = payloads[0]
         if root_type != rlmi.RLMIDocument.content_type != root.get_content_type():
