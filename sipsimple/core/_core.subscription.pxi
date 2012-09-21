@@ -164,7 +164,7 @@ cdef class Subscription:
             self._cancel_timers(ua, 1, 1)
             _add_event("SIPSubscriptionWillEnd", dict(obj=self))
             try:
-                self._send_subscribe(ua, 0, &end_timeout, [], None, None)
+                self._send_subscribe(ua, 0, &end_timeout, self.extra_headers, None, None)
             except PJSIPError, e:
                 self._term_reason = e.args[0]
                 if self._obj != NULL:
@@ -261,7 +261,7 @@ cdef class Subscription:
                 end_timeout.msec = 0
                 _add_event("SIPSubscriptionWillEnd", dict(obj=self))
                 try:
-                    self._send_subscribe(ua, 0, &end_timeout, [], None, None)
+                    self._send_subscribe(ua, 0, &end_timeout, self.extra_headers, None, None)
                 except PJSIPError, e:
                     self._term_reason = e.args[0]
                     if self._obj != NULL:
