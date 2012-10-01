@@ -15,7 +15,7 @@ from eventlib import coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import ContactHeader, FromHeader, Registration, RouteHeader, SIPURI, SIPCoreError, NoGRUU
+from sipsimple.core import ContactHeader, FromHeader, Header, Registration, RouteHeader, SIPURI, SIPCoreError, NoGRUU
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.threading import run_in_twisted_thread
@@ -122,7 +122,7 @@ class Registrar(object):
         # Initialize the registration
         if self._registration is None:
             duration = command.refresh_interval or self.account.sip.register_interval
-            self._registration = Registration(FromHeader(self.account.uri, self.account.display_name), credentials=self.account.credentials, duration=duration)
+            self._registration = Registration(FromHeader(self.account.uri, self.account.display_name), credentials=self.account.credentials, duration=duration, extra_headers=[Header('Supported', 'gruu')])
             notification_center.add_observer(self, sender=self._registration)
             notification_center.post_notification('SIPAccountWillRegister', sender=self.account)
         else:
