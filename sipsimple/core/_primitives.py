@@ -21,10 +21,11 @@ from sipsimple.core._core import ContactHeader, Header, Request, RouteHeader, SI
 class Registration(object):
     implements(IObserver)
 
-    def __init__(self, from_header, credentials=None, duration=300):
+    def __init__(self, from_header, credentials=None, duration=300, extra_headers=[]):
         self.from_header = from_header
         self.credentials = credentials
         self.duration = duration
+        self.extra_headers = extra_headers
         self._current_request = None
         self._last_request = None
         self._unregistering = False
@@ -122,9 +123,12 @@ class Registration(object):
         else:
             call_id = None
             cseq = 1
+        extra_headers = []
+        extra_headers.append(Header("Expires", str(int(self.duration) if do_register else 0)))
+        extra_headers.extend(self.extra_headers)
         request = Request("REGISTER", SIPURI(self.from_header.uri.host), self.from_header, ToHeader.new(self.from_header), route_header,
                           credentials=self.credentials, contact_header=contact_header, call_id=call_id,
-                          cseq=cseq, extra_headers=[Header("Expires", str(int(self.duration) if do_register else 0))])
+                          cseq=cseq, extra_headers=extra_headers)
         notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
