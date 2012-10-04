@@ -32,7 +32,7 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import PublicGRUU, PublicGRUUIfAvailable
+from sipsimple.core import PublicGRUU, PublicGRUUIfAvailable, NoGRUU
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.conference import ConferenceDocument
@@ -206,7 +206,7 @@ class ReferralHandler(object):
                 remaining_time = timeout - time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = account.contact[PublicGRUUIfAvailable, route]
+                        contact_uri = account.contact[NoGRUU, route]
                     except KeyError:
                         continue
                     refer_to_header = ReferToHeader(str(self.participant_uri))
@@ -309,7 +309,7 @@ class ReferralHandler(object):
 
     def _refresh(self):
         try:
-            contact_header = ContactHeader(self.session.account.contact[PublicGRUUIfAvailable, self.route])
+            contact_header = ContactHeader(self.session.account.contact[NoGRUU, self.route])
         except KeyError:
             pass
         else:
@@ -490,7 +490,7 @@ class ConferenceHandler(object):
                 remaining_time = timeout - time()
                 if remaining_time > 0:
                     try:
-                        contact_uri = account.contact[PublicGRUUIfAvailable, route]
+                        contact_uri = account.contact[NoGRUU, route]
                     except KeyError:
                         continue
                     subscription = Subscription(target_uri, FromHeader(account.uri, account.display_name),
