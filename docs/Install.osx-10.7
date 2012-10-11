@@ -208,7 +208,7 @@ sudo -s
 export SIPSIMPLE_OSX_ARCH="i386"
 # compatible with Snow Leopard
 export SIPSIMPLE_OSX_SDK="10.6"
-python setup.py build_ext --pjsip-clean-compile
+python setup.py build_ext --pjsip-clean-compile --pjsip-disable-assertions
 python setup.py install
 
 Additional, you can install the command line interface scripts that can be
