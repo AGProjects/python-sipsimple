@@ -81,10 +81,8 @@ class MSRPStreamBase(object):
         self.account = account
         self.direction = direction
         self.greenlet = None
-        self.local_identity = ChatIdentity(self.account.uri, self.account.display_name)
         self.local_media = None
         self.remote_media = None
-        self.remote_identity = None ## will be filled in by start()
         self.msrp = None ## Placeholder for the MSRPTransport that will be set when started
         self.msrp_connector = None
         self.cpim_enabled = None ## Boolean value. None means it was not negotiated yet
@@ -191,7 +189,6 @@ class MSRPStreamBase(object):
         notification_center = NotificationCenter()
         try:
             context = 'sdp_negotiation'
-            self.remote_identity = ChatIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
             remote_media = remote_sdp.media[stream_index]
             self.remote_media = remote_media
             remote_accept_types = remote_media.attributes.getfirst('accept-types')
@@ -338,6 +335,16 @@ class ChatStream(MSRPStreamBase):
         if not any(contains_mime_type(cls.accept_types, mime_type) for mime_type in remote_accept_types.split()):
             raise InvalidStreamError("no compatible media types found")
         return stream
+
+    @property
+    def local_identity(self):
+        if self.session is not None:
+            return ChatIdentity(self.session.local_identity.uri, self.account.display_name)
+
+    @property
+    def remote_identity(self):
+        if self.session is not None:
+            return ChatIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
 
     @property
     def private_messages_allowed(self):
