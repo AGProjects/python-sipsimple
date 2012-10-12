@@ -545,12 +545,13 @@ class ChatStream(MSRPStreamBase):
         return message_id
 
     def set_local_nickname(self, nickname):
-        if not self.msrp:
-            raise ChatStreamError('Stream is not connected')
         if not self.nickname_allowed:
             raise ChatStreamError('Setting nickname is not supported')
+        msrp = self.msrp
+        if not msrp:
+            raise ChatStreamError('Stream is not connected')
         message_id = '%x' % random.getrandbits(64)
-        chunk = self.msrp.make_chunk(method='NICKNAME', message_id=message_id)
+        chunk = msrp.make_chunk(method='NICKNAME', message_id=message_id)
         chunk.add_header(UseNicknameHeader(nickname or u''))
         self._send_nickname_chunk(chunk)
         return message_id
