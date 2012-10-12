@@ -24,7 +24,7 @@ include "_core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 159
+CORE_REVISION = 160
 
 # exports
 
