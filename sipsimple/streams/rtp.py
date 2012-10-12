@@ -171,9 +171,7 @@ class AudioStream(object):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
         if account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
             raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
-        supported_codecs = account.rtp.audio_codec_list or settings.rtp.audio_codec_list
-        common_codecs = [codec for codec in remote_stream.codec_list if codec in supported_codecs]
-        if not common_codecs:
+        if not set(remote_stream.codec_list).intersection(account.rtp.audio_codec_list or settings.rtp.audio_codec_list):
             raise InvalidStreamError("no compatible codecs found")
         stream = cls(account)
         stream._incoming_remote_sdp = remote_sdp
