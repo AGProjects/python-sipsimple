@@ -169,6 +169,8 @@ class AudioStream(object):
             raise UnknownStreamError
         if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
+        if account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
+            raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
         supported_codecs = account.rtp.audio_codec_list or settings.rtp.audio_codec_list
         common_codecs = [codec for codec in remote_stream.codec_list if codec in supported_codecs]
         if not common_codecs:
@@ -178,8 +180,6 @@ class AudioStream(object):
         stream._incoming_stream_index = stream_index
         stream._incoming_stream_has_srtp = remote_stream.has_srtp
         stream._incoming_stream_has_srtp_forced = remote_stream.transport == 'RTP/SAVP'
-        if not stream._incoming_stream_has_srtp and account.rtp.srtp_encryption == "mandatory":
-            raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
         return stream
 
     def initialize(self, session, direction):
