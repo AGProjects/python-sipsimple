@@ -51,7 +51,7 @@ class AudioStream(object):
         self._ice_state = "NULL"
         self._lock = RLock()
         self._rtp_transport = None
-        self._session = None
+        self.session = None
         self._try_ice = False
         self._try_forced_srtp = False
         self._use_srtp = False
@@ -186,12 +186,12 @@ class AudioStream(object):
             if self.state != "NULL":
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
-            self._session = session
+            self.session = session
             if hasattr(self, "_incoming_remote_sdp"):
                 # ICE attributes could come at the session level or at the media level
                 remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
                 self._try_ice = self.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
-                self._use_srtp = self._incoming_stream_has_srtp and ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
+                self._use_srtp = self._incoming_stream_has_srtp and ((self.session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:
                     self.state = "ENDED"
@@ -201,8 +201,8 @@ class AudioStream(object):
                 del self._incoming_stream_has_srtp_forced
             else:
                 self._try_ice = self.account.nat_traversal.use_ice
-                self._use_srtp = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
-                self._try_forced_srtp = self.account.rtp.srtp_encryption == "mandatory" 
+                self._use_srtp = ((self.session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
+                self._try_forced_srtp = self.account.rtp.srtp_encryption == "mandatory"
             if self._try_ice:
                 if self.account.nat_traversal.stun_server_list:
                     stun_servers = list((server.host, server.port) for server in self.account.nat_traversal.stun_server_list)
@@ -318,7 +318,7 @@ class AudioStream(object):
                 else:
                     self.state = "ENDED"
                 self.bridge.stop()
-            self._session = None
+            self.session = None
 
     def reset(self, stream_index):
         with self._lock:
