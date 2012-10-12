@@ -398,17 +398,13 @@ class AudioStream(object):
             try:
                 if hasattr(self, "_incoming_remote_sdp"):
                     try:
-                        audio_transport = AudioTransport(self.mixer, rtp_transport,
-                                                         self._incoming_remote_sdp, self._incoming_stream_index,
-                                                         codecs=(list(self.account.rtp.audio_codec_list)
-                                                                 if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
+                        audio_transport = AudioTransport(self.mixer, rtp_transport, self._incoming_remote_sdp, self._incoming_stream_index,
+                                                         codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
                 else:
-                    audio_transport = AudioTransport(self.mixer, rtp_transport,
-                                                     codecs=(list(self.account.rtp.audio_codec_list) 
-                                                             if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
+                    audio_transport = AudioTransport(self.mixer, rtp_transport, codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
             except SIPCoreError, e:
                 self.state = "ENDED"
                 self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
