@@ -6,6 +6,7 @@
 #
 
 import re
+from application.python.descriptor import WriteOnceAttribute
 
 
 cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
@@ -316,6 +317,9 @@ del FrozenSDPSession_new
 
 
 class MediaCodec(object):
+    name = WriteOnceAttribute()
+    rate = WriteOnceAttribute()
+
     def __init__(self, name, rate):
         self.name = name
         self.rate = int(rate)
@@ -325,6 +329,9 @@ class MediaCodec(object):
 
     def __str__(self):
         return "%s/%s" % (self.name, self.rate)
+
+    def __hash__(self):
+        return hash(self.name)
 
     def __eq__(self, other):
         if isinstance(other, MediaCodec):
