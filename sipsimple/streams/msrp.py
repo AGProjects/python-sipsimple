@@ -338,17 +338,17 @@ class ChatStream(MSRPStreamBase):
 
     @property
     def local_identity(self):
-        session = self.session
-        if session is not None:
-            return ChatIdentity(session.local_identity.uri, self.account.display_name)
-        return None
+        try:
+            return ChatIdentity(self.session.local_identity.uri, self.account.display_name)
+        except AttributeError:
+            return None
 
     @property
     def remote_identity(self):
-        session = self.session
-        if session is not None:
-            return ChatIdentity(session.remote_identity.uri, session.remote_identity.display_name)
-        return None
+        try:
+            return ChatIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
+        except AttributeError:
+            return None
 
     @property
     def private_messages_allowed(self):
