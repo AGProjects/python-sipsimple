@@ -463,20 +463,21 @@ class ChatStream(MSRPStreamBase):
                     self.sent_messages.add(message_id)
                     notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
 
-    @run_in_green_thread
-    def _send_nickname_chunk(self, chunk):
-        notification_center = NotificationCenter()
-        if self.msrp_session is None:
-            # should we generate ChatStreamDidNotSetNickname here?
-            return
-        try:
-            self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, chunk.message_id))
-        except Exception, e:
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
-
     @run_in_twisted_thread
     def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None, notify_progress=True):
         self.message_queue.send((message_id, message, content_type, failure_report, success_report, notify_progress))
+
+    @run_in_green_thread
+    def _set_local_nickname(self, nickname, message_id):
+        if self.msrp_session is None:
+            # should we generate ChatStreamDidNotSetNickname here?
+            return
+        chunk = self.msrp.make_chunk(method='NICKNAME', message_id=message_id)
+        chunk.add_header(UseNicknameHeader(nickname or u''))
+        try:
+            self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, message_id))
+        except Exception, e:
+            NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
 
     def send_message(self, content, content_type='text/plain', recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
@@ -547,14 +548,10 @@ class ChatStream(MSRPStreamBase):
     def set_local_nickname(self, nickname):
         if not self.nickname_allowed:
             raise ChatStreamError('Setting nickname is not supported')
-        msrp = self.msrp
-        if not msrp:
-            raise ChatStreamError('Stream is not connected')
         message_id = '%x' % random.getrandbits(64)
-        chunk = msrp.make_chunk(method='NICKNAME', message_id=message_id)
-        chunk.add_header(UseNicknameHeader(nickname or u''))
-        self._send_nickname_chunk(chunk)
+        self._set_local_nickname(nickname, message_id)
         return message_id
+
 
 # File transfer
 #
