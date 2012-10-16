@@ -337,14 +337,14 @@ class ChatStream(MSRPStreamBase):
         return stream
 
     @property
-    def _local_identity(self):
+    def local_identity(self):
         session = self.session
         if session is not None:
             return ChatIdentity(session.local_identity.uri, self.account.display_name)
         return None
 
     @property
-    def _remote_identity(self):
+    def remote_identity(self):
         session = self.session
         if session is not None:
             return ChatIdentity(session.remote_identity.uri, session.remote_identity.display_name)
@@ -409,10 +409,10 @@ class ChatStream(MSRPStreamBase):
                 if message.timestamp is None:
                     message.timestamp = datetime.now(tzlocal())
                 if message.sender is None:
-                    message.sender = self._remote_identity
-                private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self._remote_identity
+                    message.sender = self.remote_identity
+                private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self.remote_identity
         else:
-            message = ChatMessage(chunk.data, chunk.content_type, self._remote_identity, self._local_identity, datetime.now(tzlocal()))
+            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
             private = False
         # TODO: check wrapped content-type and issue a report if it's invalid
         self.msrp_session.send_report(chunk, 200, 'OK')
@@ -506,18 +506,18 @@ class ChatStream(MSRPStreamBase):
             if not contains_mime_type(self.accept_wrapped_types, content_type):
                 raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
             if not recipients:
-                recipients = [self._remote_identity]
-            elif not self.private_messages_allowed and recipients != [self._remote_identity]:
+                recipients = [self.remote_identity]
+            elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
             if timestamp is None:
                 timestamp = datetime.now()
-            msg = CPIMMessage(content, content_type, sender=self._local_identity, recipients=recipients, courtesy_recipients=courtesy_recipients,
+            msg = CPIMMessage(content, content_type, sender=self.local_identity, recipients=recipients, courtesy_recipients=courtesy_recipients,
                               subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers)
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='yes', success_report='yes', notify_progress=True)
         else:
             if not contains_mime_type(self.accept_types, content_type):
                 raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
-            if recipients is not None and recipients != [self._remote_identity]:
+            if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             if courtesy_recipients or subject or timestamp or required or additional_headers:
                 raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
@@ -533,13 +533,13 @@ class ChatStream(MSRPStreamBase):
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text'))
         if self.cpim_enabled:
             if recipients is None:
-                recipients = [self._remote_identity]
-            elif not self.private_messages_allowed and recipients != [self._remote_identity]:
+                recipients = [self.remote_identity]
+            elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
-            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self._local_identity, recipients=recipients, timestamp=datetime.now())
+            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=datetime.now())
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
         else:
-            if recipients is not None and recipients != [self._remote_identity]:
+            if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             self._enqueue_message(message_id, content, IsComposingDocument.content_type, failure_report='partial', success_report='no', notify_progress=False)
         return message_id
