@@ -34,9 +34,8 @@ class AudioStream(object):
 
     hold_supported = True
 
-    def __init__(self, account):
+    def __init__(self):
         from sipsimple.application import SIPApplication
-        self.account = account
         self.mixer = SIPApplication.voice_audio_mixer
         self.bridge = AudioBridge(self.mixer)
         self.device = AudioDevice(self.mixer)
@@ -161,7 +160,7 @@ class AudioStream(object):
     #
 
     @classmethod
-    def new_from_sdp(cls, account, remote_sdp, stream_index):
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
         # TODO: actually validate the SDP
         settings = SIPSimpleSettings()
         remote_stream = remote_sdp.media[stream_index]
@@ -169,11 +168,11 @@ class AudioStream(object):
             raise UnknownStreamError
         if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
-        if account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
+        if session.account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
             raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
-        if not set(remote_stream.codec_list).intersection(account.rtp.audio_codec_list or settings.rtp.audio_codec_list):
+        if not set(remote_stream.codec_list).intersection(session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list):
             raise InvalidStreamError("no compatible codecs found")
-        stream = cls(account)
+        stream = cls()
         stream._incoming_remote_sdp = remote_sdp
         stream._incoming_stream_index = stream_index
         stream._incoming_stream_has_srtp = remote_stream.has_srtp
@@ -190,8 +189,8 @@ class AudioStream(object):
             if hasattr(self, "_incoming_remote_sdp"):
                 # ICE attributes could come at the session level or at the media level
                 remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
-                self._try_ice = self.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
-                self._use_srtp = self._incoming_stream_has_srtp and ((self.session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
+                self._try_ice = self.session.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
+                self._use_srtp = self._incoming_stream_has_srtp and ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:
                     self.state = "ENDED"
@@ -200,17 +199,17 @@ class AudioStream(object):
                 del self._incoming_stream_has_srtp
                 del self._incoming_stream_has_srtp_forced
             else:
-                self._try_ice = self.account.nat_traversal.use_ice
-                self._use_srtp = ((self.session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
-                self._try_forced_srtp = self.account.rtp.srtp_encryption == "mandatory"
+                self._try_ice = self.session.account.nat_traversal.use_ice
+                self._use_srtp = ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
+                self._try_forced_srtp = self.session.account.rtp.srtp_encryption == "mandatory"
             if self._try_ice:
-                if self.account.nat_traversal.stun_server_list:
-                    stun_servers = list((server.host, server.port) for server in self.account.nat_traversal.stun_server_list)
+                if self.session.account.nat_traversal.stun_server_list:
+                    stun_servers = list((server.host, server.port) for server in self.session.account.nat_traversal.stun_server_list)
                     self._init_rtp_transport(stun_servers)
-                elif not isinstance(self.account, BonjourAccount):
+                elif not isinstance(self.session.account, BonjourAccount):
                     dns_lookup = DNSLookup()
                     self.notification_center.add_observer(self, sender=dns_lookup)
-                    dns_lookup.lookup_service(SIPURI(self.account.id.domain), "stun")
+                    dns_lookup.lookup_service(SIPURI(self.session.account.id.domain), "stun")
             else:
                 self._init_rtp_transport()
 
@@ -263,7 +262,7 @@ class AudioStream(object):
                 self.notification_center.remove_observer(self, sender=self._audio_transport)
                 self._audio_transport.stop()
                 try:
-                    self._audio_transport = AudioTransport(self.mixer, self._rtp_transport, remote_sdp, stream_index, codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
+                    self._audio_transport = AudioTransport(self.mixer, self._rtp_transport, remote_sdp, stream_index, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
                 except SIPCoreError, e:
                     self.state = "ENDED"
                     self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
@@ -397,12 +396,12 @@ class AudioStream(object):
                 if hasattr(self, "_incoming_remote_sdp"):
                     try:
                         audio_transport = AudioTransport(self.mixer, rtp_transport, self._incoming_remote_sdp, self._incoming_stream_index,
-                                                         codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
+                                                         codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
                 else:
-                    audio_transport = AudioTransport(self.mixer, rtp_transport, codecs=list(self.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
+                    audio_transport = AudioTransport(self.mixer, rtp_transport, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
             except SIPCoreError, e:
                 self.state = "ENDED"
                 self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))

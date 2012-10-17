@@ -973,7 +973,7 @@ class Session(object):
                 if media_stream.port != 0:
                     for stream_type in MediaStreamRegistry():
                         try:
-                            stream = stream_type.new_from_sdp(self.account, remote_sdp, index)
+                            stream = stream_type.new_from_sdp(self, remote_sdp, index)
                         except InvalidStreamError:
                             break
                         except UnknownStreamError:
@@ -2251,7 +2251,7 @@ class Session(object):
                                 if media_stream.port != 0:
                                     for stream_type in MediaStreamRegistry():
                                         try:
-                                            stream = stream_type.new_from_sdp(self.account, proposed_remote_sdp, index)
+                                            stream = stream_type.new_from_sdp(self, proposed_remote_sdp, index)
                                         except InvalidStreamError:
                                             break
                                         except UnknownStreamError:

@@ -77,8 +77,7 @@ class MSRPStreamBase(object):
             raise TypeError("MSRPStreamBase cannot be instantiated directly")
         return object.__new__(cls)
 
-    def __init__(self, account, direction='sendrecv'):
-        self.account = account
+    def __init__(self, direction='sendrecv'):
         self.direction = direction
         self.greenlet = None
         self.local_media = None
@@ -94,7 +93,7 @@ class MSRPStreamBase(object):
 
     @property
     def local_uri(self):
-        return URI(host=host.default_ip, port=0, use_tls=self.transport=='tls', credentials=self.account.tls_credentials)
+        return URI(host=host.default_ip, port=0, use_tls=self.transport=='tls', credentials=self.session.account.tls_credentials)
 
     def _create_local_media(self, uri_path):
         transport = "TCP/TLS/MSRP" if uri_path[-1].use_tls else "TCP/MSRP"
@@ -113,7 +112,7 @@ class MSRPStreamBase(object):
     def get_local_media(self, for_offer=True):
         return self.local_media
 
-    def new_from_sdp(self, account, remote_sdp, stream_index):
+    def new_from_sdp(self, session, remote_sdp, stream_index):
         raise NotImplementedError
 
     @run_in_green_thread
@@ -123,38 +122,38 @@ class MSRPStreamBase(object):
         notification_center.add_observer(self, sender=self)
         try:
             self.session = session
-            self.transport = self.account.msrp.transport
+            self.transport = self.session.account.msrp.transport
             outgoing = direction=='outgoing'
             logger = NotificationProxyLogger()
-            if self.account is BonjourAccount():
+            if self.session.account is BonjourAccount():
                 if outgoing:
                     self.msrp_connector = DirectConnector(logger=logger)
                     self.local_role = 'active'
                 else:
-                    if self.transport=='tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
+                    if self.transport=='tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
                         raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                     self.msrp_connector = DirectAcceptor(logger=logger)
                     self.local_role = 'passive'
             else:
-                if self.account.msrp.connection_model == 'relay':
+                if self.session.account.msrp.connection_model == 'relay':
                     if not outgoing and self.remote_role in ('actpass', 'passive'):
                         # 'passive' not allowed by the RFC but play nice for interoperability. -Saul
                         self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
                         self.local_role = 'active'
-                    elif outgoing and not self.account.nat_traversal.use_msrp_relay_for_outbound:
+                    elif outgoing and not self.session.account.nat_traversal.use_msrp_relay_for_outbound:
                         self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
                         self.local_role = 'active'
                     else:
-                        if self.account.nat_traversal.msrp_relay is None:
+                        if self.session.account.nat_traversal.msrp_relay is None:
                             relay_host = relay_port = None
                         else:
-                            if self.transport != self.account.nat_traversal.msrp_relay.transport:
+                            if self.transport != self.session.account.nat_traversal.msrp_relay.transport:
                                 raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
-                            relay_host = self.account.nat_traversal.msrp_relay.host
-                            relay_port = self.account.nat_traversal.msrp_relay.port
-                        relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                                    username=self.account.uri.user,
-                                                    password=self.account.credentials.password,
+                            relay_host = self.session.account.nat_traversal.msrp_relay.host
+                            relay_port = self.session.account.nat_traversal.msrp_relay.port
+                        relay = MSRPRelaySettings(domain=self.session.account.uri.host,
+                                                    username=self.session.account.uri.user,
+                                                    password=self.session.account.credentials.password,
                                                     host=relay_host,
                                                     port=relay_port,
                                                     use_tls=self.transport=='tls')
@@ -166,7 +165,7 @@ class MSRPStreamBase(object):
                         self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
                         self.local_role = 'active'
                     else:
-                        if not outgoing and self.transport=='tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
+                        if not outgoing and self.transport=='tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
                             raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                         self.msrp_connector = DirectAcceptor(logger=logger, use_sessmatch=True)
                         self.local_role = 'actpass' if outgoing else 'passive'
@@ -201,12 +200,12 @@ class MSRPStreamBase(object):
             remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
             if self.transport != remote_transport:
                 raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
-            if isinstance(self.account, Account) and self.local_role == 'actpass':
+            if isinstance(self.session.account, Account) and self.local_role == 'actpass':
                 remote_setup = remote_media.attributes.getfirst('setup', 'passive')
                 if remote_setup == 'passive':
                     # If actpass is offered connectors are always started as passive
                     # We need to switch to active if the remote answers with passive
-                    if self.account.msrp.connection_model == 'relay':
+                    if self.session.account.msrp.connection_model == 'relay':
                         self.msrp_connector.mode = 'active'
                     else:
                         local_uri = self.msrp_connector.local_uri
@@ -309,23 +308,23 @@ class ChatStream(MSRPStreamBase):
     accept_types = ['message/cpim', 'text/*', 'application/im-iscomposing+xml']
     accept_wrapped_types = ['*']
 
-    def __init__(self, account, direction='sendrecv'):
-        MSRPStreamBase.__init__(self, account, direction)
+    def __init__(self, direction='sendrecv'):
+        MSRPStreamBase.__init__(self, direction)
         self.message_queue = queue()
         self.sent_messages = set()
         self.incoming_queue = {}
 
     @classmethod
-    def new_from_sdp(cls, account, remote_sdp, stream_index):
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message':
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if session.account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
-        stream = cls(account)
+        stream = cls()
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             raise InvalidStreamError("mismatching directions in chat stream")
@@ -339,7 +338,7 @@ class ChatStream(MSRPStreamBase):
     @property
     def local_identity(self):
         try:
-            return ChatIdentity(self.session.local_identity.uri, self.account.display_name)
+            return ChatIdentity(self.session.local_identity.uri, self.session.account.display_name)
         except AttributeError:
             return None
 
@@ -647,27 +646,27 @@ class FileTransferStream(MSRPStreamBase):
     accept_types = ['*']
     accept_wrapped_types = ['*']
 
-    def __init__(self, account, file_selector, direction):
+    def __init__(self, file_selector, direction):
         if direction not in ('sendonly', 'recvonly'):
             raise ValueError("direction must be one of 'sendonly' or 'recvonly'")
-        MSRPStreamBase.__init__(self, account, direction=direction)
+        MSRPStreamBase.__init__(self, direction=direction)
         self.file_selector = file_selector
 
     @classmethod
-    def new_from_sdp(cls, account, remote_sdp, stream_index):
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message' or 'file-selector' not in remote_stream.attributes:
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if session.account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
         file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
         if remote_stream.direction == 'sendonly':
-            stream = cls(account, file_selector, 'recvonly')
+            stream = cls(file_selector, 'recvonly')
         elif remote_stream.direction == 'recvonly':
-            stream = cls(account, file_selector, 'sendonly')
+            stream = cls(file_selector, 'sendonly')
         else:
             raise InvalidStreamError("wrong stream direction specified")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
@@ -966,8 +965,8 @@ class DesktopSharingStream(MSRPStreamBase):
     accept_types = ['application/x-rfb']
     accept_wrapped_types = None
 
-    def __init__(self, account, handler):
-        MSRPStreamBase.__init__(self, account, direction='sendrecv')
+    def __init__(self, handler):
+        MSRPStreamBase.__init__(self, direction='sendrecv')
         self.handler = handler
         self.incoming_queue = queue()
         self.outgoing_queue = queue()
@@ -988,23 +987,23 @@ class DesktopSharingStream(MSRPStreamBase):
     del _get_handler, _set_handler
 
     @classmethod
-    def new_from_sdp(cls, account, remote_sdp, stream_index):
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'application':
             raise UnknownStreamError
         accept_types = remote_stream.attributes.getfirst('accept-types', None)
         if accept_types is None or 'application/x-rfb' not in accept_types.split():
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if session.account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
         remote_rfbsetup = remote_stream.attributes.getfirst('rfbsetup', 'active')
         if remote_rfbsetup == 'active':
-            stream = cls(account, handler=InternalVNCServerHandler())
+            stream = cls(handler=InternalVNCServerHandler())
         elif remote_rfbsetup == 'passive':
-            stream = cls(account, handler=InternalVNCViewerHandler())
+            stream = cls(handler=InternalVNCViewerHandler())
         else:
             raise InvalidStreamError("unknown rfbsetup attribute in the remote desktop sharing stream")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')

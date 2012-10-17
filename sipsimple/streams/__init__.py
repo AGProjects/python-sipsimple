@@ -28,16 +28,15 @@ class IMediaStream(Interface):
     type = Attribute("A string identifying the stream type (ex: audio, video, ...)")
     priority = Attribute("An integer value indicating the stream priority relative to the other streams types (higher numbers have higher priority).")
 
+    session = Attribute("Session object to which this stream is attached")
+
     hold_supported = Attribute("True if the stream supports hold")
     on_hold_by_local = Attribute("True if the stream is on hold by the local party")
     on_hold_by_remote = Attribute("True if the stream is on hold by the remote")
-    on_hold = Attribute("True if either on_hold_by_local or on_hold_by_remote is true") 
-
-    def __init__(self, account):
-        pass
+    on_hold = Attribute("True if either on_hold_by_local or on_hold_by_remote is true")
 
     # this should be a classmethod, but zopeinterface complains if we decorate it with @classmethod -Dan
-    def new_from_sdp(cls, account, remote_sdp, stream_index):
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
         pass
 
     def get_local_media(self, for_offer):
