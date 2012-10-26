@@ -56,11 +56,8 @@ Creating Debian Packages
 
 Install the building dependencies:
 
-sudo apt-get install python-gnutls python-application python-lxml \
-python-dnspython python-dateutil python-twisted-core python-zopeinterface \
-python-twisted-names python-imaging cython python-setuptools \
-devscripts subversion build-essential cdbs debhelper \
-python-all-dev libasound2-dev libssl-dev
+sudo apt-get install cython cython-dbg python-setuptools \
+debhelper python-all-dev python-all-dbg libasound2-dev libssl-dev
 
 Obtain the source code using darcs as described in Install.linux document.
 
@@ -72,7 +69,7 @@ Go to the ./dist directory and untar the file created at the step above.
 
 Go to the newly created directory and type:
 
-debuild
+debuild -us -uc
 
 The .deb and related files are built in the upper directory.
 

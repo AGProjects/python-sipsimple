@@ -97,7 +97,7 @@ export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 
-easy_install -U python-gnutls dnspython twisted python-application PIL cython==0.14 python-dateutil pyOpenSSL
+easy_install -U python-gnutls dnspython twisted python-application cython python-dateutil pyOpenSSL greenlet
 
 # Install lxml python module
 STATIC_DEPS=true CFLAGS="-arch i386" easy_install lxml
@@ -111,12 +111,12 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-greenlet, python-backports
+ 1. python-eventlib, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
 
-# Eventlet
+# Eventlib
 if [ -d python-eventlib ]; then
         cd python-eventlib
         darcs pull -a 
@@ -126,23 +126,6 @@ else
         cd python-eventlib
         sudo python setup.py install
 fi
-cd ..
-
-# Greenlet
-if [ -d python-greenlet ]; then
-        cd python-greenlet
-        darcs pull -a
-else
-        darcs get http://devel.ag-projects.com/repositories/python-greenlet
-        cd python-greenlet
-fi
-sudo -s
-export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386"
-export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-python setup.py build
-python setup.py install
-exit
 cd ..
 
 # Backports
@@ -203,11 +186,10 @@ export SIPSIMPLE_OSX_SDK="10.6"
 
 Build and install SIP SIMPLE library:
 
-sudo -s
 # build only for 32 bit architechture to avoid the audio input bug
 export SIPSIMPLE_OSX_ARCH="i386"
 python setup.py build_ext --pjsip-clean-compile
-python setup.py install
+sudo python setup.py install
 
 Additional, you can install the command line interface scripts that can be
 used to test the SDK capabilities.

@@ -13,7 +13,7 @@ Home page: http://sipsimpleclient.com
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * python-dateutil          http://niemeyer.net/python-dateutil                 >=1.4
  * python-eventlib          http://download.ag-projects.com/SipClient         >=0.1.0
- * python-greenlet          http://download.ag-projects.com/SipClient          =0.4.0
+ * python-greenlet          http://pypi.python.org/pypi/greenlet              >=0.3.2
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-msrplib           http://download.ag-projects.com/MSRP             >=0.15.0

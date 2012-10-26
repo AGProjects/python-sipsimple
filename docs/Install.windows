@@ -15,13 +15,13 @@ Step 1. Prerequisites
 ---------------------
 	
 The building process is designed to work with MinGW compiler. A proper
-MSYS/MinGW setup is necessary along with Python (>= 2.5).  The development
+MSYS/MinGW setup is necessary along with Python (>= 2.6).  The development
 version of the following packages are also needed:
 
  * openssl
  * gnutls >=2.4.1
  * python-setuptools =>0.6c9
- * subversion and darcs version control tools
+ * darcs version control tool
 
 Required MSYS and MinGW packages:
 
@@ -110,7 +110,7 @@ Open the MSYS console.
 You must use the easy_install script provided by the python-setuptools
 package to install the packages:
 
-easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4 python-dateutil
+easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4 python-dateutil greenlet
 
 Some packages need to be installed manually:
 
@@ -155,7 +155,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-greenlet, python-backports
+ 1. python-eventlib, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -163,18 +163,7 @@ The SDK consists of four parts:
 Make sure that the path where you download the software below does not
 contain any space in its name.
 
-# Greenlet
-if [ -d python-greenlet ]; then
-        cd python-greenlet
-        darcs pull -a 
-else
-        darcs get http://devel.ag-projects.com/repositories/python-greenlet
-        cd python-greenlet
-fi
-python setup.py install
-cd ..
-
-# Eventlet
+# Eventlib
 if [ -d python-eventlib ]; then
         cd python-eventlib
         darcs pull -a 

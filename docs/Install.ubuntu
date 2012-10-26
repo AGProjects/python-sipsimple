@@ -19,28 +19,10 @@ Install the AG Projects debian software signing key:
 wget http://download.ag-projects.com/agp-debian-gpg.key
 sudo apt-key add agp-debian-gpg.key
 
-Add these lines to /etc/apt/sources.list:
+Add the repository to /etc/apt/sources.list (run commands as root):
 
-
-Ubuntu Natty (11.04)
---------------------
-
-deb	http://ag-projects.com/ubuntu natty main
-deb-src http://ag-projects.com/ubuntu natty main
-
-
-Ubuntu Maverick (10.10)
------------------------
-
-deb	http://ag-projects.com/ubuntu maverick main
-deb-src http://ag-projects.com/ubuntu maverick main
-
-
-Ubuntu Lucid (10.04)
---------------------
-
-deb	http://ag-projects.com/ubuntu lucid main
-deb-src http://ag-projects.com/ubuntu lucid main
+echo "deb       http://ag-projects.com/ubuntu `lsb_release -c -s` main" >> /etc/apt/sources.list
+echo "deb-src   http://ag-projects.com/ubuntu `lsb_release -c -s` main" >> /etc/apt/sources.list
 
 
 Update the list of available packages:

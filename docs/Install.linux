@@ -13,7 +13,7 @@ systems.
 
 Step 1. Prerequisites
 ---------------------
-	
+
 Both i386 or amd64 architectures are supported. Install the C compiling
 environment, Python 2.6 or 2.7 and the development version for the following
 packages:
@@ -23,7 +23,7 @@ packages:
  * libxml2 >=2.6.32
  * libxslt >=1.1.24
  * python-setuptools =>0.6c9
- * subversion and darcs version control tools
+ * darcs version control tool
 
 
 Step 2. Install dependencies
@@ -39,7 +39,7 @@ You can use the easy_install script provided by the python-setuptools
 package to install the packages:
 
 sudo easy_install -U cython dnspython twisted lxml python-gnutls \
-python-application dnspython twisted PIL python-dateutil
+python-application dnspython twisted python-dateutil greenlet
 
 
 Step 3. Install SIP SIMPLE client SDK
@@ -47,31 +47,19 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-greenlet, python-backports
+ 1. python-eventlib, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
 
-# Eventlet
+# Eventlib
 if [ -d python-eventlib ]; then
         cd python-eventlib
-        darcs pull -a 
+        darcs pull -a
         sudo python setup.py install
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlib
         cd python-eventlib
-        sudo python setup.py install
-fi
-cd ..
-
-# Greenlet
-if [ -d python-greenlet ]; then
-        cd python-greenlet
-        darcs pull -a 
-        sudo python setup.py install
-else
-        darcs get http://devel.ag-projects.com/repositories/python-greenlet
-        cd python-greenlet
         sudo python setup.py install
 fi
 cd ..
@@ -91,7 +79,7 @@ cd ..
 # XCAP library
 if [ -d python-xcaplib ]; then
         cd python-xcaplib
-        darcs pull -a 
+        darcs pull -a
         sudo python setup.py install
 else
         darcs get http://devel.ag-projects.com/repositories/python-xcaplib
@@ -116,13 +104,13 @@ cd ..
 if [ -d python-sipsimple ]; then
 	cd python-sipsimple
 	darcs pull -a
-else 
+else
 	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
 fi
 cd..
 
 cd python-sipsimple
-sudo python setup.py build_ext --pjsip-clean-compile
+python setup.py build_ext --pjsip-clean-compile
 sudo python setup.py install
 
 Additional, you can install the command line interface scripts that can be
@@ -131,7 +119,7 @@ used to test the SDK.
 if [ -d sipclients ]; then
 	cd sipclients
 	darcs pull -a
-else 
+else
 	darcs get http://devel.ag-projects.com/repositories/sipclients
 fi
 cd..
