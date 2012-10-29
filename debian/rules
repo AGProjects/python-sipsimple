@@ -2,6 +2,12 @@
 
 #export DH_VERBOSE=1
 
+BUILDFLAGS_MK=/usr/share/dpkg/buildflags.mk
+if [ -a $(BUILDFLAGS_MK) ]; then \
+	DPKG_EXPORT_BUILDFLAGS=1; \
+	include $(BUILDFLAGS_MK); \
+fi; \
+
 PYVERS:=$(shell pyversions -r)
 
 %:
