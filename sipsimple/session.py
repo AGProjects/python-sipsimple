@@ -2420,7 +2420,6 @@ class Session(object):
         else:
             stream = notification.sender
             if self.streams == [stream]:
-                self.greenlet = None
                 self.end()
             else:
                 try:
