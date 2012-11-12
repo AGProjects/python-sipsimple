@@ -17,7 +17,7 @@ from application.python.decorator import execute_once
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
 from application.system import host as Host
-from eventlib import proc
+from eventlib import coros, proc
 from gnutls.crypto import X509Certificate, X509PrivateKey
 from gnutls.interfaces.twisted import X509Credentials
 from zope.interface import implements
@@ -146,7 +146,9 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.contact = ContactURIFactory()
         self.xcap_manager = XCAPManager(self)
+        self._started = False
         self._active = False
+        self._activation_lock = coros.Semaphore(1)
         self._registrar = Registrar(self)
         self._mwi_subscriber = MWISubscriber(self)
         self._pwi_subscriber = PresenceWinfoSubscriber(self)
@@ -160,7 +162,6 @@ class Account(SettingsObject):
         self._dwi_version = None
         self._presence_version = None
         self._dialog_version = None
-        self._started = False
 
     def start(self):
         if self._started:
@@ -432,33 +433,35 @@ class Account(SettingsObject):
         self._dialog_version = None
 
     def _activate(self):
-        if self._active:
-            return
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillActivate', sender=self)
-        self._active = True
-        self._registrar.start()
-        self._mwi_subscriber.start()
-        self._pwi_subscriber.start()
-        self._dwi_subscriber.start()
-        self._presence_subscriber.start()
-        self._dialog_subscriber.start()
-        self._presence_publisher.start()
-        self._dialog_publisher.start()
-        if self.xcap.enabled:
-            self.xcap_manager.start()
-        notification_center.post_notification('SIPAccountDidActivate', sender=self)
+        with self._activation_lock:
+            if self._active:
+                return
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPAccountWillActivate', sender=self)
+            self._active = True
+            self._registrar.start()
+            self._mwi_subscriber.start()
+            self._pwi_subscriber.start()
+            self._dwi_subscriber.start()
+            self._presence_subscriber.start()
+            self._dialog_subscriber.start()
+            self._presence_publisher.start()
+            self._dialog_publisher.start()
+            if self.xcap.enabled:
+                self.xcap_manager.start()
+            notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
     def _deactivate(self):
-        if not self._active:
-            return
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
-        self._active = False
-        handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber,
-                    self._presence_publisher, self._dialog_publisher, self.xcap_manager]
-        proc.waitall([proc.spawn(handler.stop) for handler in handlers])
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
+        with self._activation_lock:
+            if not self._active:
+                return
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
+            self._active = False
+            handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber,
+                        self._presence_publisher, self._dialog_publisher, self.xcap_manager]
+            proc.waitall([proc.spawn(handler.stop) for handler in handlers])
+            notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.id)
@@ -535,9 +538,9 @@ class BonjourAccount(SettingsObject):
     def __init__(self):
         self.contact = ContactURIFactory()
         self.credentials = None
-
-        self._active = False
         self._started = False
+        self._active = False
+        self._activation_lock = coros.Semaphore(1)
         self._bonjour_services = BonjourServices(self)
 
         # initialize nat settings
@@ -628,22 +631,24 @@ class BonjourAccount(SettingsObject):
                     self._bonjour_services.restart_discovery()
 
     def _activate(self):
-        if self._active:
-            return
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillActivate', sender=self)
-        self._active = True
-        self._bonjour_services.activate()
-        notification_center.post_notification('SIPAccountDidActivate', sender=self)
+        with self._activation_lock:
+            if self._active:
+                return
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPAccountWillActivate', sender=self)
+            self._active = True
+            self._bonjour_services.activate()
+            notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
     def _deactivate(self):
-        if not self._active:
-            return
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
-        self._active = False
-        self._bonjour_services.deactivate()
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
+        with self._activation_lock:
+            if not self._active:
+                return
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
+            self._active = False
+            self._bonjour_services.deactivate()
+            notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
 
 class AccountManager(object):
