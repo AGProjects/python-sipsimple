@@ -2425,10 +2425,7 @@ class Session(object):
                 try:
                     self.remove_stream(stream)
                 except IllegalStateError:
-                    notification_center = NotificationCenter()
-                    notification_center.remove_observer(self, sender=stream)
-                    self.streams.remove(stream)
-                    notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='remote', action='remove', streams=[stream]))
+                    self.end()
 
 
 class SessionManager(object):
