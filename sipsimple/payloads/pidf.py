@@ -465,7 +465,7 @@ PIDFDocument.register_namespace(agp_pidf_namespace, prefix='agp-pidf')
 
 class ExtendedStatusValue(str):
     def __new__(cls, value):
-        if value not in ('available', 'offline', 'away', 'extended-away', 'busy'):
+        if value not in ('available', 'offline', 'away', 'busy'):
             raise ValueError("illegal value for extended status")
         return str.__new__(cls, value)
 
