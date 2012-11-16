@@ -481,7 +481,7 @@ class AudioStream(object):
         was_inactive = self.direction == "inactive"
         self.direction = direction
         inactive = self.direction == "inactive"
-        self.on_hold_by_local = "recv" not in direction and was_on_hold_by_local == inactive
+        self.on_hold_by_local = was_on_hold_by_local if inactive else direction == "sendonly"
         self.on_hold_by_remote = "send" not in direction
         if (is_initial or was_on_hold_by_local or was_inactive) and not inactive and not self.on_hold_by_local and self._hold_request != 'hold':
             self.bridge.add(self)
