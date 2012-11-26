@@ -147,6 +147,7 @@ class Account(SettingsObject):
         self.contact = ContactURIFactory()
         self.xcap_manager = XCAPManager(self)
         self._started = False
+        self._deleted = False
         self._active = False
         self._activation_lock = coros.Semaphore(1)
         self._registrar = Registrar(self)
@@ -164,7 +165,7 @@ class Account(SettingsObject):
         self._dialog_version = None
 
     def start(self):
-        if self._started:
+        if self._started or self._deleted:
             return
         self._started = True
 
@@ -201,6 +202,9 @@ class Account(SettingsObject):
 
     @run_in_green_thread
     def delete(self):
+        if self._deleted:
+            return
+        self._deleted = True
         self.stop()
         self._registrar = None
         self._mwi_subscriber = None
