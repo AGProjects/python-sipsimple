@@ -3,6 +3,12 @@ This document describes the licenses for the SIP SIMPLE client SDK and its
 dependencies.
 
 
+SIP SIMPLE Client SDK
+---------------------
+
+SIP SIMPLE Client SDK is licensed under GPLv3.
+
+
 Libxml2 
 -------
 
