@@ -5,7 +5,7 @@ Dependencies for SIP SIMPLE client SDK
 Copyright (c) 2008-2012 AG Projects
 http://ag-projects.com
 
-Home page: http://sipsimpleclient.com
+Home page: http://sipsimpleclient.org
 
  * python                   http://python.org                                2.6, 2.7
  * python-application       http://pypi.python.org/simple/python-application  >=1.4.0

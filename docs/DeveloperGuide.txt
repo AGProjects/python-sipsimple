@@ -10,5 +10,5 @@ environment is supported by such platform.
 
 The developer guide is available at:
 
-http://sipsimpleclient.com/wiki/SipDeveloperGuide
+http://sipsimpleclient.org/projects/sipsimpleclient/wiki/SipMiddlewareApi
 
