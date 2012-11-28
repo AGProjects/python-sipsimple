@@ -1,3 +1,14 @@
+python-sipsimple (0.31.1) unstable; urgency=low
+
+  * Terminate session if a stream fails and can't be removed from the session
+  * Removed extended-away state from PIDF extension
+  * Fixed setting local hold state after direction was inactive
+  * Prevent account's activate/deactivate methods to run at the same time
+  * Fixed race conditions when deleting an account
+  * Fixed some lintian warnings
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 28 Nov 2012 12:37:01 +0100
+
 python-sipsimple (0.31.0) unstable; urgency=low
 
   * Refactored streams and account relationship
