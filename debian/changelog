@@ -624,21 +624,19 @@ python-sipsimple (0.9.1) unstable; urgency=low
 python-sipsimple (0.9.0) unstable; urgency=low
 
   * Added upgrade guide:
-    http://sipsimpleclient.com/wiki/SipUpgrade
     Read this wiki page when upgrading from a previous version
   * Added developer guide:
-    http://sipsimpleclient.com/wiki/SipDeveloperGuide
+    http://sipsimpleclient.org/projects/sipsimpleclient/wiki/SipDeveloperGuide
   * Implemented notifications system from python-application
   * Added event-driven middleware API based on notifications:
-    http://sipsimpleclient.com/wiki/SipMiddlewareApi
+    http://sipsimpleclient.org/projects/sipsimpleclient/wiki/SipMiddlewareApi
   * Added high-level configuration API:
-    http://sipsimpleclient.com/wiki/SipConfigurationAPI
+    http://sipsimpleclient.org/projects/sipsimpleclient/wiki/SipConfigurationAPI
     Added sip_settings to manage the configuration framework
   * Configuration file config.ini is now deprecated. Use
     sip_migrate_settings to migrate settings from previous config.ini 
     to the new configuration API
   * Added synchronous API for non-blocking operations
-    http://sipsimpleclient.com/wiki/SipSynchronousAPI
   * Adapted all command line tools to the new APIs
   * Added re-INVITE (hold/un-hold, adding and removing other media types)
   * Added sip_session script that combines MSRP chat and RTP audio in one
