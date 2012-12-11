@@ -306,6 +306,7 @@ class SIPApplication(object):
             command = self._nat_detect_channel.wait()
             if command.name != 'detect_nat':
                 continue
+            continue # disable NAT detection for now as it is not used anywhere -Dan
             stun_locators = list(account.nat_traversal.stun_server_list or account.id.domain for account in account_manager.iter_accounts() if isinstance(account, Account))
             for stun_item in stun_locators:
                 if isinstance(stun_item, basestring):
