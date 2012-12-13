@@ -84,7 +84,7 @@ class TemporaryGRUUIfAvailable: __metaclass__ = ContactURIType
 
 class ContactURIFactory(object):
     def __init__(self, username=None):
-        self.username = username or ''.join(random.sample(string.lowercase, 8))
+        self.username = username or ''.join(random.sample(string.digits, 8))
         self.public_gruu = None
         self.temporary_gruu = None
 
