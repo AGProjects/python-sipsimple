@@ -418,11 +418,10 @@ class Setting(AbstractSetting):
             value = u'true' if value else u'false'
         elif issubclass(self.type, (int, long, basestring)):
             value = unicode(value)
+        elif hasattr(value, '__getstate__'):
+            value = value.__getstate__()
         else:
-            try:
-                value = value.__getstate__()
-            except AttributeError:
-                raise TypeError("Setting type %s does not provide __getstate__" % value.__class__.__name__)
+            value = unicode(value)
         return value
 
     def __setstate__(self, obj, value):
@@ -440,10 +439,12 @@ class Setting(AbstractSetting):
                     raise ValueError("invalid boolean value: %s" % (value,))
             elif issubclass(self.type, (int, long, basestring)):
                 value = self.type(value)
-            else:
+            elif hasattr(self.type, '__setstate__'):
                 object = self.type.__new__(self.type)
                 object.__setstate__(value)
                 value = object
+            else:
+                value = self.type(value)
             self.oldvalues[obj] = self.values[obj] = value
             self.dirty[obj] = False
 

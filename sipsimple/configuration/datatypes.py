@@ -40,14 +40,12 @@ class List(object):
                 item = u'true' if item else u'false'
             elif issubclass(self.type, (int, long, basestring)):
                 item = unicode(item)
+            elif hasattr(item, '__getstate__'):
+                item = item.__getstate__()
+                if type(item) is not unicode:
+                    raise TypeError("Expected unicode type for list member, got %s" % item.__class__.__name__)
             else:
-                try:
-                    item = item.__getstate__()
-                except AttributeError:
-                    raise TypeError("Setting type %s does not provide __getstate__" % item.__class__.__name__)
-                else:
-                    if type(item) is not unicode:
-                        raise TypeError("Expected unicode type for list member, got %s" % item.__class__.__name__)
+                item = unicode(item)
             state.append(item)
         return state
 
@@ -67,10 +65,12 @@ class List(object):
                     raise ValueError("invalid boolean value: %s" % (item,))
             elif issubclass(self.type, (int, long, basestring)):
                 item = self.type(item)
-            else:
+            elif hasattr(self.type, '__setstate__'):
                 object = self.type.__new__(self.type)
                 object.__setstate__(item)
                 item = object
+            else:
+                item = self.type(item)
             values.append(item)
         self.values = values
 
