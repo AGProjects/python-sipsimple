@@ -307,7 +307,7 @@ class EndpointAddress(object):
             raise ValueError("illegal port value: 0")
 
     def __getstate__(self):
-        return u'%s:%d' % (self.host, self.port)
+        return unicode(self)
 
     def __setstate__(self, state):
         match = self._description_re.match(state)
