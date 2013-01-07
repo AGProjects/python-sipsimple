@@ -94,6 +94,7 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-libsrtp-fix_crash_on_rtcp_decode.patch",
                    "patches/pjsip-3149-allow_empty_realm.patch",
                    "patches/pjsip-sip_inv-stop_on_create_offer_processing.patch",
+                   "patches/pjsip-sdp_neg-no_direction_update.patch",
                    "patches/pjsip-3115-aec_latency_fixes.patch",
                    "patches/pjsip-echo_reset.patch",
                    "patches/pjsip-webrtc_aec.patch"]
