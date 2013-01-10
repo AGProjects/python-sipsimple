@@ -196,16 +196,11 @@ class DialogRulesDocument(Document):
 
 class PresRulesDocument(Document):
     name               = 'pres-rules'
-    application        = 'pres-rules'
+    application        = 'org.openmobilealliance.pres-rules'
     payload_type       = presrules.PresRulesDocument
     default_namespace  = presrules.namespace
     global_tree        = False
     filename           = 'index'
-
-    def initialize(self, server_caps):
-        # TODO: sort it out later with openxcap and opensips -Dan
-        #self.application = 'org.openmobilealliance.pres-rules' if 'org.openmobilealliance.pres-rules' in server_caps.auids else 'pres-rules'
-        super(PresRulesDocument, self).initialize(server_caps)
 
 
 class ResourceListsDocument(Document):
