@@ -304,74 +304,6 @@ class StatusIconDocument(Document):
     global_tree        = False
     filename           = 'oma_status-icon/index'
 
-    def __init__(self, manager):
-        super(StatusIconDocument, self).__init__(manager)
-        self.alternative_location = None
-
-    def fetch(self):
-        try:
-            document = self.manager.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
-            self.content = self.payload_type.parse(document)
-            self.etag = document.etag
-            self.__dict__['dirty'] = False
-        except (BadStatusLine, ConnectionLost, URLError), e:
-            raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
-        except HTTPError, e:
-            if e.status == 404: # Not Found
-                if self.content is not None:
-                    self.reset()
-                    self.fetch_time = datetime.utcnow()
-            elif e.status == 304: # Not Modified:
-                self.alternative_location = e.headers.get('X-Alternative-Location', None)
-            else:
-                raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
-        except ParserError, e:
-            raise XCAPError("failed to parse %s document: %s" % (self.name, e))
-        else:
-            self.fetch_time = datetime.utcnow()
-            self.alternative_location = document.response.headers.get('X-Alternative-Location', None)
-            if self.cached:
-                try:
-                    self.manager.storage.save(self.name, self.etag + os.linesep + document)
-                except XCAPStorageError:
-                    pass
-
-    def update(self):
-        if not self.dirty:
-            return
-        data = self.content.toxml() if self.content is not None else None
-        try:
-            kw = dict(etag=self.etag) if self.etag is not None else dict(etagnot='*')
-            if data is not None:
-                response = self.manager.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
-            else:
-                response = self.manager.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
-        except (BadStatusLine, ConnectionLost, URLError), e:
-            raise XCAPError("failed to update %s document: %s" % (self.name, e))
-        except HTTPError, e:
-            if e.status == 412: # Precondition Failed
-                raise FetchRequiredError("document %s was modified externally" % self.name)
-            elif e.status == 404 and data is None: # attempted to delete a document that did't exist in the first place
-                pass
-            else:
-                raise XCAPError("failed to update %s document: %s" % (self.name, e))
-        self.alternative_location = response.headers.get('X-Alternative-Location', None)
-        self.etag = response.etag if data is not None else None
-        self.dirty = False
-        self.update_time = datetime.utcnow()
-        if self.cached:
-            try:
-                if data is not None:
-                    self.manager.storage.save(self.name, self.etag + os.linesep + data)
-                else:
-                    self.manager.storage.delete(self.name)
-            except XCAPStorageError:
-                pass
-
-    def reset(self):
-        super(StatusIconDocument, self).reset()
-        self.alternative_location = None
-
 
 class PIDFManipulationDocument(Document):
     name               = 'pidf-manipulation'
@@ -596,15 +528,14 @@ class DialogRules(object):
 class Icon(object):
     __mimetypes__ = ('image/jpeg', 'image/png', 'image/gif')
 
-    def __init__(self, data, mime_type, description=None, location=None):
+    def __init__(self, data, mime_type, description=None):
         self.data = data
         self.mime_type = mime_type
         self.description = description
-        self.location = location
 
     def __eq__(self, other):
         if isinstance(other, Icon):
-            return self is other or (self.data == other.data and self.mime_type == other.mime_type and self.description == other.description and self.location == other.location)
+            return self is other or (self.data == other.data and self.mime_type == other.mime_type and self.description == other.description)
         return NotImplemented
 
     def __ne__(self, other):
@@ -617,14 +548,14 @@ class Icon(object):
         object.__setattr__(self, name, value)
 
     @classmethod
-    def from_payload(cls, payload, location=None):
+    def from_payload(cls, payload):
         try:
             data = base64.decodestring(payload.data.value)
         except Exception:
             return None
         else:
             description = payload.description.value if payload.description else None
-            return cls(data, payload.mime_type.value, description, location)
+            return cls(data, payload.mime_type.value, description)
 
 
 class OfflineStatus(object):
@@ -1769,7 +1700,7 @@ class XCAPManager(object):
         dialog_rules = DialogRules.from_payload(default_dialog_rule)
 
         if self.status_icon.supported and self.status_icon.content:
-            status_icon = Icon.from_payload(self.status_icon.content, self.status_icon.alternative_location)
+            status_icon = Icon.from_payload(self.status_icon.content)
         else:
             status_icon = None
 
