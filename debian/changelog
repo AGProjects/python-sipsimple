@@ -1,3 +1,15 @@
+python-sipsimple (0.32.0) unstable; urgency=low
+
+  * Fixed updating local SDP direction if answer is inactive
+  * Fixed test for supported audio codecs
+  * Adjusted pres-rules auid to org.openmobilealliance.pres-rules
+  * Removed icon alternative location since it was custom and is now unused
+  * Use digits only for contact usernames to improve interoperability
+  * Disable NAT detection
+  * Allow more types to be directly used as configuration data types
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 11 Jan 2013 12:03:11 +0100
+
 python-sipsimple (0.31.1) unstable; urgency=low
 
   * Terminate session if a stream fails and can't be removed from the session
