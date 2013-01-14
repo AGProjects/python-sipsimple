@@ -780,7 +780,7 @@ class DesktopSharingHandlerBase(object):
         self.msrp_writer_thread = spawn(self._msrp_reader)
 
     def _NH_MediaStreamWillEnd(self, notification):
-        NotificationCenter().remove_observer(self, sender=notification.sender)
+        notification.center.remove_observer(self, sender=notification.sender)
         if self.msrp_reader_thread is not None:
             self.msrp_reader_thread.kill()
             self.msrp_reader_thread = None
@@ -1073,7 +1073,7 @@ class DesktopSharingStream(MSRPStreamBase):
         self.msrp_writer_thread = spawn(self._msrp_writer)
 
     def _NH_MediaStreamWillEnd(self, notification):
-        NotificationCenter().remove_observer(self, sender=self.handler)
+        notification.center.remove_observer(self, sender=self.handler)
         if self.msrp_reader_thread is not None:
             self.msrp_reader_thread.kill()
             self.msrp_reader_thread = None

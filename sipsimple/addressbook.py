@@ -1266,38 +1266,32 @@ class AddressbookManager(object):
     def _NH_AddressbookContactWasActivated(self, notification):
         contact = notification.sender
         self.contacts[contact.id] = contact
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddContact', sender=self, data=NotificationData(contact=contact))
+        notification.center.post_notification('AddressbookManagerDidAddContact', sender=self, data=NotificationData(contact=contact))
 
     def _NH_AddressbookContactWasDeleted(self, notification):
         contact = notification.sender
         del self.contacts[contact.id]
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemoveContact', sender=self, data=NotificationData(contact=contact))
+        notification.center.post_notification('AddressbookManagerDidRemoveContact', sender=self, data=NotificationData(contact=contact))
 
     def _NH_AddressbookGroupWasActivated(self, notification):
         group = notification.sender
         self.groups[group.id] = group
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddGroup', sender=self, data=NotificationData(group=group))
+        notification.center.post_notification('AddressbookManagerDidAddGroup', sender=self, data=NotificationData(group=group))
 
     def _NH_AddressbookGroupWasDeleted(self, notification):
         group = notification.sender
         del self.groups[group.id]
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemoveGroup', sender=self, data=NotificationData(group=group))
+        notification.center.post_notification('AddressbookManagerDidRemoveGroup', sender=self, data=NotificationData(group=group))
 
     def _NH_AddressbookPolicyWasActivated(self, notification):
         policy = notification.sender
         self.policies[policy.id] = policy
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidAddPolicy', sender=self, data=NotificationData(policy=policy))
+        notification.center.post_notification('AddressbookManagerDidAddPolicy', sender=self, data=NotificationData(policy=policy))
 
     def _NH_AddressbookPolicyWasDeleted(self, notification):
         policy = notification.sender
         del self.policies[policy.id]
-        notification_center = NotificationCenter()
-        notification_center.post_notification('AddressbookManagerDidRemovePolicy', sender=self, data=NotificationData(policy=policy))
+        notification.center.post_notification('AddressbookManagerDidRemovePolicy', sender=self, data=NotificationData(policy=policy))
 
     @run_in_thread('file-io')
     def _NH_SIPAccountDidDiscoverXCAPSupport(self, notification):
