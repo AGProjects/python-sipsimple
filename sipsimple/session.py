@@ -751,7 +751,6 @@ class TransferHandler(object):
                         notification = self._data_channel.wait()
                     except SIPInvitationTransferDidFail:
                         return
-            account = self.session.account
             self.new_session = Session(account)
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=self.new_session)
