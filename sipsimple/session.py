@@ -36,7 +36,7 @@ from sipsimple.core import PublicGRUU, PublicGRUUIfAvailable, NoGRUU
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.conference import ConferenceDocument
-from sipsimple.streams import AudioStream, MediaStreamRegistry, InvalidStreamError, UnknownStreamError
+from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
 
@@ -754,7 +754,8 @@ class TransferHandler(object):
             self.new_session = Session(account)
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=self.new_session)
-            self.new_session.connect(ToHeader(target), routes=routes, streams=[AudioStream(account)], transfer_info=transfer_info)
+            stream = next(cls() for cls in MediaStreamRegistry() if cls.type == 'audio')
+            self.new_session.connect(ToHeader(target), routes=routes, streams=[stream], transfer_info=transfer_info)
             while True:
                 try:
                     notification = self._data_channel.wait()
