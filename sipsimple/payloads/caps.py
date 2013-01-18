@@ -59,7 +59,8 @@ __all__ = ['namespace',
            'MobilityExtension',
            # Extensions
            'FileTransfer',
-           'ScreenSharing']
+           'ScreenSharingServer',
+           'ScreenSharingClient']
 
 
 from sipsimple.payloads import XMLStringElement, XMLLocalizedStringElement, XMLBooleanElement, XMLElement, XMLEmptyElement
