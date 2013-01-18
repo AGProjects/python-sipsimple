@@ -31,7 +31,7 @@ class ChatSettings(SettingsGroup):
     pass
 
 
-class DesktopSharingSettings(SettingsGroup):
+class ScreenSharingSettings(SettingsGroup):
     pass
 
 
@@ -76,7 +76,7 @@ class SIPSimpleSettings(SettingsObject):
 
     audio = AudioSettings
     chat = ChatSettings
-    desktop_sharing = DesktopSharingSettings
+    screen_sharing = ScreenSharingSettings
     file_transfer = FileTransferSettings
     logs = LogsSettings
     rtp = RTPSettings

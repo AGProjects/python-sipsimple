@@ -6,12 +6,12 @@ Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547
 and RFC3994.
 
 This module provides classes to parse and generate SDP related to SIP
-sessions that negotiate Instant Messsaging, File Transfer and Desktop
+sessions that negotiate Instant Messsaging, File Transfer and Screen
 Sharing and handling of the actual media streams.
 """
 
-__all__ = ['MSRPStreamError', 'ChatStreamError', 'ChatStream', 'FileSelector', 'FileTransferStream', 'IDesktopSharingHandler', 'DesktopSharingHandlerBase',
-           'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler', 'DesktopSharingStream']
+__all__ = ['MSRPStreamError', 'ChatStreamError', 'ChatStream', 'FileSelector', 'FileTransferStream', 'IScreenSharingHandler', 'ScreenSharingHandlerBase',
+           'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler', 'ScreenSharingStream']
 
 import os
 import re
@@ -728,27 +728,27 @@ class FileTransferStream(MSRPStreamBase):
             notification_center.post_notification('FileTransferStreamDidFinish', sender=self)
 
 
-# Desktop sharing
+# Screen sharing
 #
 
 class VNCConnectionError(Exception): pass
 
 
-class IDesktopSharingHandler(Interface):
+class IScreenSharingHandler(Interface):
     type = Attribute("A string identifying the direction: passive for a server, active for a client")
 
     def initialize(self, stream):
         pass
 
 
-class DesktopSharingHandlerBase(object):
-    implements(IDesktopSharingHandler, IObserver)
+class ScreenSharingHandlerBase(object):
+    implements(IScreenSharingHandler, IObserver)
 
     type = None
 
     def __new__(cls, *args, **kw):
-        if cls is DesktopSharingHandlerBase:
-            raise TypeError("DesktopSharingHandlerBase cannot be instantiated directly")
+        if cls is ScreenSharingHandlerBase:
+            raise TypeError("ScreenSharingHandlerBase cannot be instantiated directly")
         return object.__new__(cls)
 
     def __init__(self):
@@ -789,7 +789,7 @@ class DesktopSharingHandlerBase(object):
             self.msrp_writer_thread = None
 
 
-class InternalVNCViewerHandler(DesktopSharingHandlerBase):
+class InternalVNCViewerHandler(ScreenSharingHandlerBase):
     type = 'active'
 
     @run_in_twisted_thread
@@ -800,13 +800,13 @@ class InternalVNCViewerHandler(DesktopSharingHandlerBase):
         notification_center = NotificationCenter()
         while True:
             data = self.incoming_msrp_queue.wait()
-            notification_center.post_notification('DesktopSharingStreamGotData', sender=self, data=NotificationData(data=data))
+            notification_center.post_notification('ScreenSharingStreamGotData', sender=self, data=NotificationData(data=data))
 
     def _msrp_writer(self):
         pass
 
 
-class InternalVNCServerHandler(DesktopSharingHandlerBase):
+class InternalVNCServerHandler(ScreenSharingHandlerBase):
     type = 'passive'
 
     @run_in_twisted_thread
@@ -817,17 +817,17 @@ class InternalVNCServerHandler(DesktopSharingHandlerBase):
         notification_center = NotificationCenter()
         while True:
             data = self.incoming_msrp_queue.wait()
-            notification_center.post_notification('DesktopSharingStreamGotData', sender=self, data=NotificationData(data=data))
+            notification_center.post_notification('ScreenSharingStreamGotData', sender=self, data=NotificationData(data=data))
 
     def _msrp_writer(self):
         pass
 
 
-class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
+class ExternalVNCViewerHandler(ScreenSharingHandlerBase):
     type = 'active'
 
     def __init__(self, address=('localhost', 0), connect_timeout=3):
-        DesktopSharingHandlerBase.__init__(self)
+        ScreenSharingHandlerBase.__init__(self)
         self.vnc_starter_thread = None
         self.vnc_socket = GreenSocket(tcp_socket())
         set_reuse_addr(self.vnc_socket)
@@ -845,7 +845,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -859,7 +859,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -872,7 +872,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
             raise
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
+            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -886,14 +886,14 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
         if self.vnc_starter_thread is not None:
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
-        DesktopSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+        ScreenSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
 
 
-class ExternalVNCServerHandler(DesktopSharingHandlerBase):
+class ExternalVNCServerHandler(ScreenSharingHandlerBase):
     type = 'passive'
 
     def __init__(self, address, connect_timeout=3):
-        DesktopSharingHandlerBase.__init__(self)
+        ScreenSharingHandlerBase.__init__(self)
         self.address = address
         self.vnc_starter_thread = None
         self.vnc_socket = None
@@ -908,7 +908,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -922,7 +922,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
                 raise
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -935,7 +935,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
             raise
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
+            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -949,12 +949,12 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
         if self.vnc_starter_thread is not None:
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
-        DesktopSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+        ScreenSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
         if self.vnc_socket is not None:
             self.vnc_socket.close()
 
 
-class DesktopSharingStream(MSRPStreamBase):
+class ScreenSharingStream(MSRPStreamBase):
 
     type = 'screen-sharing'
     priority = 1
@@ -1004,7 +1004,7 @@ class DesktopSharingStream(MSRPStreamBase):
         elif remote_rfbsetup == 'passive':
             stream = cls(handler=InternalVNCViewerHandler())
         else:
-            raise InvalidStreamError("unknown rfbsetup attribute in the remote desktop sharing stream")
+            raise InvalidStreamError("unknown rfbsetup attribute in the remote screen sharing stream")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         return stream
 
@@ -1081,7 +1081,7 @@ class DesktopSharingStream(MSRPStreamBase):
             self.msrp_writer_thread.kill()
             self.msrp_writer_thread = None
 
-    def _NH_DesktopSharingHandlerDidFail(self, notification):
+    def _NH_ScreenSharingHandlerDidFail(self, notification):
         notification.center.post_notification('MediaStreamDidFail', sender=self, data=notification.data)
 
 
