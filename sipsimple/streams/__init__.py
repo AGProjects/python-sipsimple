@@ -71,19 +71,37 @@ class IMediaStream(Interface):
 
 # The MediaStream registry
 #
+class StreamDescriptor(object):
+    def __init__(self, type):
+        self.type = type
+    def __get__(self, obj, objtype):
+        return self if obj is None else obj.get(self.type)
+    def __set__(self, obj, value):
+        raise AttributeError('cannot set attribute')
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete attribute')
+
+
 class MediaStreamRegistry(object):
     __metaclass__ = Singleton
 
     def __init__(self):
-        self.stream_types = []
+        self.__types__ = []
 
     def __iter__(self):
-        return iter(self.stream_types)
+        return iter(self.__types__)
 
     def add(self, cls):
-        if cls.priority is not None and cls not in self.stream_types:
-            self.stream_types.append(cls)
-            self.stream_types.sort(key=attrgetter('priority'), reverse=True)
+        if cls.priority is not None and cls not in self.__types__:
+            self.__types__.append(cls)
+            self.__types__.sort(key=attrgetter('priority'), reverse=True)
+            setattr(self.__class__, cls.type.title().translate(None, ' -_') + 'Stream', StreamDescriptor(cls.type))
+
+    def get(self, type):
+        try:
+            return next(cls for cls in self.__types__ if cls.type == type)
+        except StopIteration:
+            raise UnknownStreamError("unknown stream type: %s" % type)
 
 
 class MediaStreamRegistrar(type):
