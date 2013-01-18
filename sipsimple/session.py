@@ -752,10 +752,10 @@ class TransferHandler(object):
                     except SIPInvitationTransferDidFail:
                         return
             self.new_session = Session(account)
+            stream_registry = MediaStreamRegistry()
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=self.new_session)
-            stream = next(cls() for cls in MediaStreamRegistry() if cls.type == 'audio')
-            self.new_session.connect(ToHeader(target), routes=routes, streams=[stream], transfer_info=transfer_info)
+            self.new_session.connect(ToHeader(target), routes=routes, streams=[stream_registry.AudioStream()], transfer_info=transfer_info)
             while True:
                 try:
                     notification = self._data_channel.wait()
