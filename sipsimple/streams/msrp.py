@@ -956,7 +956,7 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
 
 class DesktopSharingStream(MSRPStreamBase):
 
-    type = 'desktop-sharing'
+    type = 'screen-sharing'
     priority = 1
     use_msrp_session = False
 
