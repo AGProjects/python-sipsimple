@@ -797,7 +797,13 @@ class ScreenSharing(XMLBooleanElement, ServiceCapabilitiesExtension):
     _xml_namespace = agp_caps_namespace
     _xml_document = PIDFDocument
 
+class ScreenSharingClient(XMLBooleanElement, ServiceCapabilitiesExtension):
+    _xml_tag = 'screen-sharing-client'
+    _xml_namespace = agp_caps_namespace
+    _xml_document = PIDFDocument
+
 ServiceCapabilities.register_extension('file_transfer', type=FileTransfer)
 ServiceCapabilities.register_extension('screen_sharing', type=ScreenSharing)
+ServiceCapabilities.register_extension('screen_sharing_client', type=ScreenSharingClient)
 
 
