@@ -417,12 +417,15 @@ class BonjourServices(object):
             self._wakeup_timer.cancel()
         self._wakeup_timer = None
         old_files = self._files
+        neighbours = self._neighbours
         self._files = []
         self._select_proc.kill(RestartSelect)
         self._neighbours = {}
         for file in old_files:
             file.close()
         notification_center = NotificationCenter()
+        for neighbour in neighbours:
+            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=neighbour))
         for transport in set(file.transport for file in old_files):
             notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=NotificationData(transport=transport))
         command.signal()
