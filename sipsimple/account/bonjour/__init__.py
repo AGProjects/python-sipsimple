@@ -106,7 +106,8 @@ class BonjourServiceDescription(object):
             return object.__eq__(self, other)
 
     def __ne__(self, other):
-        return not self.__eq__(self, other)
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
 
 class BonjourServices(object):
