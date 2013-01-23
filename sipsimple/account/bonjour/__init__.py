@@ -416,17 +416,17 @@ class BonjourServices(object):
         if self._wakeup_timer is not None and self._wakeup_timer.active():
             self._wakeup_timer.cancel()
         self._wakeup_timer = None
-        old_files = self._files
+        files = self._files
         neighbours = self._neighbours
         self._files = []
         self._select_proc.kill(RestartSelect)
         self._neighbours = {}
-        for file in old_files:
+        for file in files:
             file.close()
         notification_center = NotificationCenter()
         for neighbour in neighbours:
             notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=neighbour))
-        for transport in set(file.transport for file in old_files):
+        for transport in set(file.transport for file in files):
             notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=NotificationData(transport=transport))
         command.signal()
 
