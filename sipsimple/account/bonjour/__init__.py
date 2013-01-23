@@ -423,7 +423,7 @@ class BonjourServices(object):
         for file in old_files:
             file.close()
         notification_center = NotificationCenter()
-        for transport in set(file.transport for file in self._files):
+        for transport in set(file.transport for file in old_files):
             notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=NotificationData(transport=transport))
         command.signal()
 
