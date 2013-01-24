@@ -695,6 +695,7 @@ cdef class IncomingSubscription:
 
     cdef int _cb_server_timeout(self, PJSIPUA ua) except -1:
         # PJSIP holds the dialog lock when this callback is entered
+        _add_event("SIPIncomingSubscriptionDidTimeout", dict(obj=self))
         self._terminate(ua, "timeout", 1)
 
     cdef int _cb_tsx(self, PJSIPUA ua, pjsip_event *event) except -1:
