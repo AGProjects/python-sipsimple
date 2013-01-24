@@ -1,75 +1,53 @@
-Index: pjsip/src/pjsip-simple/evsub.c
-===================================================================
---- pjsip/src/pjsip-simple/evsub.c	(revision 3368)
-+++ pjsip/src/pjsip-simple/evsub.c	(working copy)
-@@ -485,7 +485,13 @@
+--- pjsip/include/pjsip-simple/evsub.h	2008-12-23 18:27:53.000000000 +0100
++++ pjsip/include/pjsip-simple/evsub.h	2013-01-24 18:29:39.000000000 +0100
+@@ -482,6 +482,14 @@
+ PJ_DECL(void*) pjsip_evsub_get_mod_data( pjsip_evsub *sub, unsigned mod_id );
+ 
+ 
++/* Update evbsub internal refresh_time with the given interval */
++PJ_DECL(void) pjsip_evsub_update_expires( pjsip_evsub *sub, pj_uint32_t interval );
++
++
++/* Set the specified timer (UAC or UAS) to the specified time */
++PJ_DECL(void) pjsip_evsub_set_timer( pjsip_evsub *sub, int timer_id,
++		                    pj_int32_t seconds );
++
+ 
+ PJ_END_DECL
+ 
+--- pjsip/src/pjsip-simple/evsub.c	2008-12-23 18:27:53.000000000 +0100
++++ pjsip/src/pjsip-simple/evsub.c	2013-01-24 18:31:04.000000000 +0100
+@@ -153,7 +153,7 @@
+ {
+     "None",
+     "UAC_REFRESH",
+-    "UAS_TIMEOUT"
++    "UAS_TIMEOUT",
+     "UAC_TERMINATE",
+     "UAC_WAIT_NOTIFY",
+     "INVALID_TIMER"
+@@ -485,6 +485,11 @@
      sub->refresh_time.sec += interval;
  }
  
 +PJ_DEF(void) pjsip_evsub_update_expires( pjsip_evsub *sub, pj_uint32_t interval )
 +{
-+    pj_gettimeofday(&sub->refresh_time);
-+    sub->refresh_time.sec += interval;
++    update_expires(sub, interval);
 +}
- 
 +
+ 
  /* 
   * Schedule timer.
-  */
-@@ -518,7 +524,36 @@
+@@ -518,6 +523,12 @@
      }
  }
  
 +PJ_DEF(void) pjsip_evsub_set_timer( pjsip_evsub *sub, int timer_id,
 +		       pj_int32_t seconds)
 +{
-+    if (sub->timer.id != TIMER_TYPE_NONE) {
-+	PJ_LOG(5,(sub->obj_name, "%s %s timer", 
-+		  (timer_id==sub->timer.id ? "Updating" : "Cancelling"),
-+		  timer_names[sub->timer.id]));
-+	pjsip_endpt_cancel_timer(sub->endpt, &sub->timer);
-+	sub->timer.id = TIMER_TYPE_NONE;
-+    }
- 
-+    if (timer_id != TIMER_TYPE_NONE) {
-+	pj_time_val timeout;
-+
-+	PJ_ASSERT_ON_FAIL(seconds > 0, return);
-+	PJ_ASSERT_ON_FAIL(timer_id>TIMER_TYPE_NONE && timer_id<TIMER_TYPE_MAX,
-+			  return);
-+
-+	timeout.sec = seconds;
-+	timeout.msec = 0;
-+	sub->timer.id = timer_id;
-+
-+	pjsip_endpt_schedule_timer(sub->endpt, &sub->timer, &timeout);
-+
-+	PJ_LOG(5,(sub->obj_name, "Timer %s scheduled in %d seconds", 
-+		  timer_names[sub->timer.id], timeout.sec));
-+    }
++    set_timer(sub, timer_id, seconds);
 +}
 +
-+
+ 
  /*
   * Destroy session.
-  */
-Index: pjsip/include/pjsip-simple/evsub.h
-===================================================================
---- pjsip/include/pjsip-simple/evsub.h	(revision 3368)
-+++ pjsip/include/pjsip-simple/evsub.h	(working copy)
-@@ -482,7 +482,15 @@
- PJ_DECL(void*) pjsip_evsub_get_mod_data( pjsip_evsub *sub, unsigned mod_id );
- 
- 
-+/* Update evbsub internal refresh_time with the given interval */
-+PJ_DECL(void) pjsip_evsub_update_expires( pjsip_evsub *sub, pj_uint32_t interval );
- 
-+
-+/* Set the specified timer (UAC or UAS) to the specified time */
-+PJ_DECL(void) pjsip_evsub_set_timer( pjsip_evsub *sub, int timer_id,
-+		                    pj_int32_t seconds );
-+
-+
- PJ_END_DECL
- 
- /**
