@@ -1728,11 +1728,11 @@ cdef class Subscription(object):
     cdef pjsip_dialog *_dlg
     cdef pjsip_route_hdr _route_header
     cdef pj_list _route_set
-    cdef readonly object state
     cdef pj_timer_entry _timeout_timer
     cdef int _timeout_timer_active
     cdef pj_timer_entry _refresh_timer
     cdef int _refresh_timer_active
+    cdef readonly object state
     cdef readonly EndpointAddress peer_address
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
@@ -1744,6 +1744,7 @@ cdef class Subscription(object):
     cdef readonly frozenlist extra_headers
     cdef readonly object body
     cdef readonly object content_type
+    cdef readonly str call_id
     cdef pj_time_val _subscribe_timeout
     cdef int _want_end
     cdef int _term_code
@@ -1765,16 +1766,16 @@ cdef class IncomingSubscription(object):
     # attributes
     cdef pjsip_evsub *_obj
     cdef pjsip_dialog *_dlg
-    cdef readonly str state
     cdef PJSTR _content_type
     cdef PJSTR _content_subtype
     cdef PJSTR _content
     cdef pjsip_tx_data *_initial_response
     cdef pjsip_transaction *_initial_tsx
     cdef int _expires
+    cdef readonly str state
     cdef readonly str event
+    cdef readonly str call_id
     cdef readonly EndpointAddress peer_address
-    # TODO: add usefull attributes?
 
     # methods
     cdef int _set_state(self, str state) except -1

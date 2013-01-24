@@ -18,6 +18,7 @@ cdef class Subscription:
         self._refresh_timer_active = 0
         self.extra_headers = frozenlist()
         self.peer_address = None
+        self.call_id = None
 
     def __init__(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
                  object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
@@ -65,6 +66,7 @@ cdef class Subscription:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
         if status != 0:
             raise PJSIPError("Could not increment dialog session count", status)
+        self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         if contact_header.expires is not None:
             self._dlg.local.contact.expires = contact_header.expires
         if contact_header.q is not None:
@@ -385,6 +387,7 @@ cdef class IncomingSubscription:
     def __cinit__(self):
         self.state = None
         self.peer_address = None
+        self.call_id = None
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
@@ -452,6 +455,7 @@ cdef class IncomingSubscription:
         if status != 0:
             raise PJSIPError("Could not increment dialog session count", status)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
+        self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         with nogil:
             status = pjsip_evsub_create_uas(self._dlg, &_incoming_subs_cb, rdata, 0, &self._obj)
         if status != 0:
