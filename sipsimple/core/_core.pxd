@@ -958,7 +958,7 @@ cdef extern from "pjsip_simple.h":
     void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data) nogil
     void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id) nogil
     void pjsip_evsub_update_expires(pjsip_evsub *sub, int interval) nogil
-    void pjsip_evsub_set_timer(pjsip_evsub *sub, int timer_id, int seconds)
+    void pjsip_evsub_set_timer(pjsip_evsub *sub, int timer_id, int seconds) nogil
     pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m) nogil
     int pjsip_evsub_notify(pjsip_evsub *sub, pjsip_evsub_state state,
                            pj_str_t *state_str, pj_str_t *reason, pjsip_tx_data **p_tdata) nogil

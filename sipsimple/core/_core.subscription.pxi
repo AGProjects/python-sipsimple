@@ -617,6 +617,9 @@ cdef class IncomingSubscription:
             status = pjsip_dlg_send_response(self._dlg, self._initial_tsx, self._initial_response)
         if status != 0:
             raise PJSIPError("Could not send response", status)
+        with nogil:
+            # Start TIMER_TYPE_UAS_TIMEOUT, which PJSIP doesn't do for the initial SUBSCRIBE
+            pjsip_evsub_set_timer(self._obj, 2, self._expires)
         self._initial_response = NULL
         self._initial_tsx = NULL
 
