@@ -622,17 +622,17 @@ cdef class IncomingSubscription:
         cdef pj_str_t *reason_p
         cdef pjsip_tx_data *tdata
         cdef int status
-        if reason is None:
-            reason_p = NULL
-        else:
-            _str_to_pj_str(reason, &reason_pj)
-            reason_p = &reason_pj
+
+        reason_p = NULL
         if self.state == "pending":
             state = PJSIP_EVSUB_STATE_PENDING
         elif self.state == "active":
             state = PJSIP_EVSUB_STATE_ACTIVE
         else:
             state = PJSIP_EVSUB_STATE_TERMINATED
+            if reason is not None:
+                _str_to_pj_str(reason, &reason_pj)
+                reason_p = &reason_pj
         with nogil:
             status = pjsip_evsub_notify(self._obj, state, NULL, reason_p, &tdata)
         if status != 0:
