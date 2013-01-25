@@ -417,20 +417,7 @@ cdef class IncomingSubscription:
         if expires_header == NULL:
             self._expires = 3600
         else:
-            if expires_header.ivalue == 0:
-                with nogil:
-                    status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 423, NULL, &self._initial_response)
-                if status != 0:
-                    raise PJSIPError("Could not create response", status)
-                with nogil:
-                    status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, self._initial_response, NULL, NULL)
-                if status != 0:
-                    with nogil:
-                        pjsip_tx_data_dec_ref(self._initial_response)
-                    raise PJSIPError("Could not send response", status)
-                return 0
-            else:
-                self._expires = min(expires_header.ivalue, 3600)
+            self._expires = min(expires_header.ivalue, 3600)
         self._set_state("incoming")
         self.event = event
         self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
@@ -508,7 +495,11 @@ cdef class IncomingSubscription:
                                         'object is currently in the "%s" state' % self.state)
             self._send_initial_response(202)
             self._set_state("pending")
-            self._send_notify()
+            if self._expires > 0:
+                self._send_notify()
+            else:
+                # cleanup will be done by _cb_tsx
+                self._terminate(ua, "timeout", 0)
         finally:
             with nogil:
                 pjsip_dlg_dec_lock(self._dlg)
@@ -535,7 +526,11 @@ cdef class IncomingSubscription:
             if self.state == "incoming":
                 self._send_initial_response(200)
             self._set_state("active")
-            self._send_notify()
+            if self._expires > 0:
+                self._send_notify()
+            else:
+                # cleanup will be done by _cb_tsx
+                self._terminate(ua, "timeout", 0)
         finally:
             with nogil:
                 pjsip_dlg_dec_lock(self._dlg)
@@ -602,7 +597,9 @@ cdef class IncomingSubscription:
             return ua
 
     cdef int _send_initial_response(self, int code) except -1:
+        cdef PJSIPUA ua = self._get_ua(1)
         cdef int status
+
         with nogil:
             status = pjsip_dlg_modify_response(self._dlg, self._initial_response, code, NULL)
         if status != 0:
@@ -617,11 +614,12 @@ cdef class IncomingSubscription:
             status = pjsip_dlg_send_response(self._dlg, self._initial_tsx, self._initial_response)
         if status != 0:
             raise PJSIPError("Could not send response", status)
-        with nogil:
-            # Start TIMER_TYPE_UAS_TIMEOUT, which PJSIP doesn't do for the initial SUBSCRIBE
-            pjsip_evsub_set_timer(self._obj, 2, self._expires)
         self._initial_response = NULL
         self._initial_tsx = NULL
+        if self._expires > 0:
+            with nogil:
+                # Start TIMER_TYPE_UAS_TIMEOUT, which PJSIP doesn't do for the initial SUBSCRIBE
+                pjsip_evsub_set_timer(self._obj, 2, self._expires)
 
     cdef int _send_notify(self, str reason=None) except -1:
         cdef pjsip_evsub_state state
