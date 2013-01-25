@@ -1,3 +1,113 @@
+python-sipsimple (0.33.0) unstable; urgency=low
+
+  * Added notification when incoming subscription times out
+  * Added call_id attribute to Subscription and IncomingSubscription
+  * Allow incoming subscriptions to have expires 0
+  * Fixed session transfer after API changes
+  * Fixed setting initial timeout for incoming subscriptions
+  * Renamed desktop-sharing media type to screen-sharing
+  * Provide direct access to stream types on MediaStreamRegistry
+  * Post notifications about removed neighbours when stopping bonjour services
+  * Only set reason for NOTIFY if state is terminated
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 25 Jan 2013 16:22:05 +0100
+
+python-sipsimple (0.32.0) unstable; urgency=low
+
+  * Fixed updating local SDP direction if answer is inactive
+  * Fixed test for supported audio codecs
+  * Adjusted pres-rules auid to org.openmobilealliance.pres-rules
+  * Removed icon alternative location since it was custom and is now unused
+  * Use digits only for contact usernames to improve interoperability
+  * Disable NAT detection
+  * Allow more types to be directly used as configuration data types
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 11 Jan 2013 12:03:11 +0100
+
+python-sipsimple (0.31.1) unstable; urgency=low
+
+  * Terminate session if a stream fails and can't be removed from the session
+  * Removed extended-away state from PIDF extension
+  * Fixed setting local hold state after direction was inactive
+  * Prevent account's activate/deactivate methods to run at the same time
+  * Fixed race conditions when deleting an account
+  * Fixed some lintian warnings
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 28 Nov 2012 12:37:01 +0100
+
+python-sipsimple (0.31.0) unstable; urgency=low
+
+  * Refactored streams and account relationship
+  * Added Supported header indication for GRUU on REGISTERs
+  * Allow extra headers to be passed to Registration
+  * Don't use GRUU for conference subscriptions and referrals
+  * Fixed XML datatypes for CIPID extensions
+  * Fixed sending extra headers when unsubscribing
+  * Fixed parsing RLS NOTIFY fayload if advertised CID is not present
+  * Fixed thread safety issues with ChatStream functions
+  * Moved identity attributes from MSRPStreamBase to ChatStream
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 26 Oct 2012 12:33:23 +0200
+
+python-sipsimple (0.30.1) unstable; urgency=low
+
+  * Allow unicode filenames on WaveFile and RecordingWaveFile
+  * Fixed handling stream hold edge cases
+  * Fixed unitialized variable error when using Cython >= 0.15
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 17 Sep 2012 11:46:56 +0200
+
+python-sipsimple (0.30.0) unstable; urgency=low
+
+  * Added PUBLISH for presence and dialog events
+  * Added SUBSCRIBE using RLS for presence and dialog events
+  * Added SUBSCRIBE for presence.winfo and dialog.winfo events
+  * Added handing for RLS NOTIFYs for presence and dialog events
+  * Added Offline Presence capability using XCAP pidf-manipulation
+  * Added Icon Storage using XCAP oma-pres-content
+  * Added Presence policy management using XCAP oma-common-policy
+  * Added Addressbook with Presence enabled Contacts
+  * Added MSRP Switch NICKNAME support
+  * Added GRUU support (RFC 5627)
+  * Added ability to configure SIP loop detection
+  * Refactored XML payloads framework and datatypes
+  * Refactored the XCAP manager and its API
+  * Refactored contact management into addressbook management
+  * Refactored interaction between the account and its handlers
+  * Fixed building sipfrag payloads
+  * Fixed crash when bogus G722 payload is received
+  * Fixed crash on SDP version overflow
+  * Fixed removing a stream if a negative response was received
+  * Fixed engine failure on bogus incoming REFER requests
+  * Fixed crash on RTCP decryption when using SRTP
+  * Fixed handling re-INVITEs with empty body
+  * Fixed subscribing to conference event from Bonjour account
+  * Reply with 200 OK to in-dialog OPTIONS requests
+  * Support hostnames in STUN servers list
+  * Skip processing bogus NOTIFY requests
+  * Honor Min-Expires header for REGISTER requests
+  * Adapted to eventlet package rename
+  * Raised dependency on msrplib and xcaplib due to API changes
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 06 Sep 2012 18:13:17 +0200
+
+python-sipsimple (0.20.0) unstable; urgency=low
+
+  * Refactored XML document manipulation framework and payloads
+  * Added screen image extension to User from conference
+  * Accumulate chunks in ChatStream if they were segmented
+  * Do not assume content type is text in CPIM messages
+  * Validate participant URI when inviting to a conference
+  * Fixed race condition when stopping uninitialized MSRP stream
+  * Add reason attribute to notification data for SIPSessionTransferDidFail
+    when rejecting
+  * Fixed handling incoming call transfer failures
+  * Dropped support for Python 2.5
+  * Fixed issue with notifications being posted in the wrong order
+  * Updated build instructions
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 19 Dec 2011 14:34:44 +0100
+
 python-sipsimple (0.19.0) unstable; urgency=low
 
   * Added contact management

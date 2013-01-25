@@ -1,3 +1,17 @@
+python-sipsimple (0.33.0) unstable; urgency=low
+
+  * Added notification when incoming subscription times out
+  * Added call_id attribute to Subscription and IncomingSubscription
+  * Allow incoming subscriptions to have expires 0
+  * Fixed session transfer after API changes
+  * Fixed setting initial timeout for incoming subscriptions
+  * Renamed desktop-sharing media type to screen-sharing
+  * Provide direct access to stream types on MediaStreamRegistry
+  * Post notifications about removed neighbours when stopping bonjour services
+  * Only set reason for NOTIFY if state is terminated
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 25 Jan 2013 16:22:05 +0100
+
 python-sipsimple (0.32.0) unstable; urgency=low
 
   * Fixed updating local SDP direction if answer is inactive
