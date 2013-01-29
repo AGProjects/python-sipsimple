@@ -629,17 +629,16 @@ class SettingsGroup(SettingsState):
 class ConditionalSingleton(type):
     """A conditional singleton based on cls.__id__ being static or not"""
 
-    lock = Lock()
-
     def __init__(cls, name, bases, dic):
         super(ConditionalSingleton, cls).__init__(name, bases, dic)
+        cls.__instlock__ = Lock()
         cls.__instance__ = None
 
     def __call__(cls, *args, **kw):
         if isinstance(cls.__id__, basestring):
             if args or kw:
                 raise TypeError("cannot have arguments for %s because it is a singleton" % cls.__name__)
-            with cls.lock:
+            with cls.__instlock__:
                 if cls.__instance__ is None:
                     cls.__instance__ = super(ConditionalSingleton, cls).__call__(*args, **kw)
             return cls.__instance__
