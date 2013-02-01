@@ -254,6 +254,8 @@ class ReferralHandler(object):
                             if match:
                                 code = int(match.group('code'))
                                 reason = match.group('reason')
+                                if code/100 > 2:
+                                    continue
                                 if self.operation is AddParticipantOperation:
                                     notification_center.post_notification('SIPConferenceGotAddParticipantProgress', sender=self.session, data=NotificationData(participant=self.participant_uri, code=code, reason=reason))
                                 else:
