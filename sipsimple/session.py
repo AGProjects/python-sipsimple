@@ -1579,7 +1579,9 @@ class Session(object):
             self._fail_proposal(originator='remote', error=error)
         except InvitationDisconnectedError, e:
             self._fail_proposal(originator='remote', error='session ended')
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         except SIPCoreError, e:
             self._fail_proposal(originator='remote', error='SIP core error: %s' % str(e))
         else:
@@ -1723,7 +1725,9 @@ class Session(object):
             self._fail_proposal(originator='local', error=error)
         except InvitationDisconnectedError, e:
             self._fail_proposal(originator='local', error='session ended')
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         except SIPCoreError, e:
             self._fail_proposal(originator='local', error='SIP core error: %s' % str(e))
         else:
@@ -1777,7 +1781,9 @@ class Session(object):
                         raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
             self.greenlet = None
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         except SIPCoreError:
             raise #FIXME
         else:
@@ -1829,7 +1835,9 @@ class Session(object):
         except InvitationDisconnectedError, e:
             self.proposed_streams = None
             self.greenlet = None
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         else:
             self.proposed_streams = None
             self.greenlet = None
@@ -2042,7 +2050,9 @@ class Session(object):
                         raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
             self.greenlet = None
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         except SIPCoreError, e:
             raise #FIXME
         else:
@@ -2094,7 +2104,9 @@ class Session(object):
                         raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
             self.greenlet = None
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
         except SIPCoreError, e:
             raise #FIXME
         else:
@@ -2304,7 +2316,9 @@ class Session(object):
                     except InvitationDisconnectedError, e:
                         self.greenlet = None
                         self.state == 'connected'
-                        self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+                        notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+                        notification.center = NotificationCenter()
+                        self.handle_notification(notification)
                     except SIPCoreError:
                         raise #FIXME
                     else:
@@ -2346,7 +2360,9 @@ class Session(object):
                     except InvitationDisconnectedError, e:
                         self.greenlet = None
                         self.state == 'connected'
-                        self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+                        notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+                        notification.center = NotificationCenter()
+                        self.handle_notification(notification)
                     except SIPCoreError:
                         raise #FIXME
                     else:
