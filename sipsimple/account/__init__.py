@@ -529,8 +529,9 @@ class BonjourAccount(SettingsObject):
     enabled = BonjourAccountEnabledSetting(type=bool, default=True)
     display_name = Setting(type=unicode, default=user_info.fullname, nillable=False)
 
-    rtp = RTPSettings
     msrp = BonjourMSRPSettings
+    presence = PresenceSettings
+    rtp = RTPSettings
     tls = TLSSettings
 
     def __new__(cls):
@@ -614,6 +615,15 @@ class BonjourAccount(SettingsObject):
     @property
     def uri(self):
         return SIPURI(user=self.contact.username, host=Host.default_ip)
+
+    def _get_presence_state(self):
+        return self._bonjour_services.presence_state
+
+    def _set_presence_state(self, state):
+        self._bonjour_services.presence_state = state
+
+    presence_state = property(_get_presence_state, _set_presence_state)
+    del _get_presence_state, _set_presence_state
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)

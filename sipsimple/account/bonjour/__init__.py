@@ -7,6 +7,7 @@ __all__ = ['BonjourServices']
 
 import re
 
+from threading import Lock
 from weakref import WeakKeyDictionary
 
 from application import log
@@ -20,7 +21,7 @@ from zope.interface import implements
 from sipsimple.account.bonjour import _bonjour
 from sipsimple.core import FrozenSIPURI, SIPCoreError, NoGRUU
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command
 
 
@@ -124,6 +125,8 @@ class BonjourServices(object):
         self._register_timer = None
         self._update_timer = None
         self._wakeup_timer = None
+        self._lock = Lock()
+        self.__dict__['presence_state'] = None
 
     def start(self):
         notification_center = NotificationCenter()
@@ -159,6 +162,21 @@ class BonjourServices(object):
 
     def update_registrations(self):
         self._command_channel.send(Command('update_registrations'))
+
+    def _get_presence_state(self):
+        return self.__dict__['presence_state']
+
+    def _set_presence_state(self, state):
+        if state is not None and not isinstance(state, BonjourPresenceState):
+            raise ValueError("state must be a %s instance or None" % BonjourPresenceState.__name__)
+        with self._lock:
+            old_state = self.__dict__['presence_state']
+            self.__dict__['presence_state'] = state
+            if state != old_state:
+                call_in_twisted_thread(self.update_registrations)
+
+    presence_state = property(_get_presence_state, _set_presence_state)
+    del _get_presence_state, _set_presence_state
 
     def _register_cb(self, file, flags, error_code, name, regtype, domain):
         notification_center = NotificationCenter()
@@ -227,6 +245,10 @@ class BonjourServices(object):
             display_name = txt['name'].decode('utf-8') if 'name' in txt else None
             host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
             contact = txt.get('contact', file.service_description.name).split(None, 1)[0].strip('<>')
+            if self.account.presence.enabled and 'status' in txt:
+                presence_state = BonjourPresenceState(txt.get('status'), txt.get('note', '').decode('utf-8'))
+            else:
+                presence_state = None
             try:
                 uri = FrozenSIPURI.parse(contact)
             except SIPCoreError:
@@ -245,7 +267,7 @@ class BonjourServices(object):
                         return
                     if uri != contact_uri:
                         notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
-                        notification_data = NotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri)
+                        notification_data = NotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri, presence_state=presence_state)
                         self._neighbours[service_description] = uri
                         notification_center.post_notification(notification_name, sender=self.account, data=notification_data)
         else:
@@ -308,6 +330,10 @@ class BonjourServices(object):
             try:
                 contact = self.account.contact[NoGRUU, transport]
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
+                state = self.account.presence_state
+                if self.account.presence.enabled and state is not None:
+                    txtdata['status'] = state.status
+                    txtdata['note'] = state.note.encode('utf-8')
                 file = _bonjour.DNSServiceRegister(name=str(contact),
                                                    regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
                                                    port=contact.port,
@@ -344,6 +370,10 @@ class BonjourServices(object):
             try:
                 contact = self.account.contact[NoGRUU, file.transport]
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
+                state = self.account.presence_state
+                if self.account.presence.enabled and state is not None:
+                    txtdata['status'] = state.status
+                    txtdata['note'] = state.note.encode('utf-8')
                 _bonjour.DNSServiceUpdateRecord(file.file, None, flags=0, rdata=_bonjour.TXTRecord(items=txtdata), ttl=0)
             except (_bonjour.BonjourError, KeyError), e:
                 notification_center.post_notification('BonjourAccountRegistrationUpdateDidFail', sender=self.account, data=NotificationData(reason=str(e), transport=file.transport))
@@ -449,4 +479,18 @@ class BonjourServices(object):
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
+
+class BonjourPresenceState(object):
+    def __init__(self, status, note=u''):
+        self.status = status
+        self.note = note
+
+    def __eq__(self, other):
+        if isinstance(other, BonjourPresenceState):
+            return self.status == other.status and self.note == other.note
+        return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
