@@ -35,6 +35,7 @@ del partial, randint, randrange, sys
 from eventlib import coros, proc
 from eventlib.green import select
 from eventlib.green import socket
+import dns.name
 import dns.resolver
 import dns.query
 dns.resolver.socket = socket
@@ -107,6 +108,14 @@ class DNSCache(object):
             self.data.pop(key, None)
         else:
             self.data = {}
+
+
+class InternalResolver(dns.resolver.Resolver):
+    def __init__(self, *args, **kw):
+        super(InternalResolver, self).__init__(*args, **kw)
+        if self.domain.to_text().endswith('local.'):
+            self.domain = dns.name.root
+        self.search = [item for item in self.search if not item.to_text().endswith('local.')]
 
 
 class DNSResolver(dns.resolver.Resolver):
@@ -434,7 +443,7 @@ class DNSManager(object):
     implements(IObserver)
 
     def __init__(self):
-        default_resolver = dns.resolver.Resolver()
+        default_resolver = InternalResolver()
         self.search = default_resolver.search
         self.domain = default_resolver.domain
         self.nameservers = default_resolver.nameservers
@@ -490,7 +499,7 @@ class DNSManager(object):
         if self._timer is not None and self._timer.active():
             self._timer.cancel()
         self._timer = None
-        resolver = dns.resolver.Resolver()
+        resolver = InternalResolver()
         self.domain = resolver.domain
         self.search = resolver.search
         local_nameservers = resolver.nameservers
