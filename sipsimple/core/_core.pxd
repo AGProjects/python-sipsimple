@@ -368,6 +368,7 @@ cdef extern from "pjmedia.h":
     ctypedef pjmedia_sdp_session *pjmedia_sdp_session_ptr_const "const pjmedia_sdp_session *"
     pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs) nogil
     pjmedia_sdp_session *pjmedia_sdp_session_clone(pj_pool_t *pool, pjmedia_sdp_session_ptr_const sdp) nogil
+    int pjmedia_sdp_print(pjmedia_sdp_session_ptr_const sdp, char *buf, int length)
 
     # sdp negotiation
 

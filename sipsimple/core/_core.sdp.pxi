@@ -28,13 +28,18 @@ cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
 cdef class BaseSDPSession:
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPSession cannot be instantiated directly")
-    
+
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.address, self.id, self.version, self.user, self.net_type,
                     self.address_type, self.name, self.info, self.connection, self.start_time, self.stop_time, self.attributes, self.media)
 
     def __str__(self):
-        return '<%s for "%s": %s>' % (self.__class__.__name__, str(self.address), ", ".join([str(media) for media in self.media]))
+        cdef char cbuf[2048]
+        cdef int buf_len
+        buf_len = pjmedia_sdp_print(self.get_sdp_session(), cbuf, sizeof(cbuf))
+        if buf_len > -1:
+            return PyString_FromStringAndSize(cbuf, buf_len)
+        return ''
 
     def __richcmp__(self, other, op):
         return BaseSDPSession_richcmp(self, other, op)
@@ -65,10 +70,10 @@ cdef class SDPSession(BaseSDPSession):
                  str name not None=" ", str info=None, SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list media=None):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
-        
+
         pj_gettimeofday(&tv)
         version_id += tv.sec
-        
+
         self.address = address
         self.id = id if id is not None else version_id
         self.version = version if version is not None else version_id
@@ -185,7 +190,7 @@ cdef class SDPSession(BaseSDPSession):
             self._sdp_session.time.stop = stop_time
 
     property attributes:
-        
+
         def __get__(self):
             return self._attributes
 
@@ -257,8 +262,8 @@ cdef class FrozenSDPSession(BaseSDPSession):
                 str info=None, FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
-        
-        if not self.initialized:    
+
+        if not self.initialized:
             if len(attributes) > PJMEDIA_MAX_SDP_ATTR:
                 raise SIPCoreError("Too many attributes")
             for attr in attributes:
@@ -269,10 +274,10 @@ cdef class FrozenSDPSession(BaseSDPSession):
             for m in media:
                 if not isinstance(m, FrozenSDPMediaStream):
                     raise TypeError("Items in FrozenSDPSession media list must be FrozenSDPMediaStream instancess")
-            
+
             pj_gettimeofday(&tv)
             version_id += tv.sec
-            
+
             self.address = address
             _str_to_pj_str(address, &self._sdp_session.origin.addr)
             self.id = id if id is not None else version_id
@@ -388,9 +393,6 @@ cdef class BaseSDPMediaStream:
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
                 self.port_count, self.formats, self.info, self.connection, self.attributes)
-
-    def __str__(self):
-        return '<%s "%s %d %s">' % (self.__class__.__name__, str(self.media), self._sdp_media.desc.port, str(self.transport))
 
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
@@ -653,9 +655,6 @@ cdef class BaseSDPConnection:
     def __repr__(self):
         return "%s(%r, %r, %r)" % (self.__class__.__name__, self.address, self.net_type, self.address_type)
 
-    def __str__(self):
-        return '<%s "%s %s %s">' % (self.__class__.__name__, str(self.net_type), str(self.address_type), str(self.address))
-
     def __richcmp__(self, other, op):
         return BaseSDPConnection_richcmp(self, other, op)
 
@@ -783,9 +782,6 @@ cdef class BaseSDPAttribute:
 
     def __repr__(self):
         return "%s(%r, %r)" % (self.__class__.__name__, self.name, self.value)
-
-    def __str__(self):
-        return '<%s "%s: %s">' % (self.__class__.__name__, str(self.name), str(self.value))
 
     def __richcmp__(self, other, op):
         return BaseSDPAttribute_richcmp(self, other, op)
