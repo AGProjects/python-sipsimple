@@ -22,6 +22,7 @@ cdef extern from "Python.h":
     void Py_DECREF(object obj)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
+    int PyString_Size(object string) except 0
     void* PyLong_AsVoidPtr(object)
     object PyLong_FromVoidPtr(void*)
     double PyFloat_AsDouble(object)
@@ -369,6 +370,7 @@ cdef extern from "pjmedia.h":
     pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs) nogil
     pjmedia_sdp_session *pjmedia_sdp_session_clone(pj_pool_t *pool, pjmedia_sdp_session_ptr_const sdp) nogil
     int pjmedia_sdp_print(pjmedia_sdp_session_ptr_const sdp, char *buf, int length)
+    int pjmedia_sdp_parse(pj_pool_t *pool, char *buf, int length, pjmedia_sdp_session **p_sdp) nogil
 
     # sdp negotiation
 

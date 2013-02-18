@@ -25,6 +25,15 @@ cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
     else:
         return not eq
 
+cdef pjmedia_sdp_session* _parse_sdp_session(str sdp):
+    cdef int status
+    cdef pjmedia_sdp_session *sdp_session
+
+    status = pjmedia_sdp_parse(_get_ua()._pjsip_endpoint._pool, PyString_AsString(sdp), PyString_Size(sdp), &sdp_session)
+    if status != 0:
+        raise PJSIPError("failed to parse SDP", status)
+    return sdp_session
+
 cdef class BaseSDPSession:
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPSession cannot be instantiated directly")
@@ -88,6 +97,12 @@ cdef class SDPSession(BaseSDPSession):
         media = [SDPMediaStream.new(m) for m in sdp_session.media]
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
                    sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+
+    @classmethod
+    def parse(cls, str sdp):
+        cdef pjmedia_sdp_session *sdp_session
+        sdp_session = _parse_sdp_session(sdp)
+        return SDPSession_create(sdp_session)
 
     property address:
 
@@ -307,6 +322,12 @@ cdef class FrozenSDPSession(BaseSDPSession):
         media = frozenlist([FrozenSDPMediaStream.new(m) for m in sdp_session.media])
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
                    sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+
+    @classmethod
+    def parse(cls, str sdp):
+        cdef pjmedia_sdp_session *sdp_session
+        sdp_session = _parse_sdp_session(sdp)
+        return FrozenSDPSession_create(sdp_session)
 
     def __hash__(self):
         return hash((self.address, self.id, self.version, self.user, self.net_type, self.address_type, self.name, self.info, self.connection, self.start_time, self.stop_time, self.attributes, self.media))
