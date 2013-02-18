@@ -2196,9 +2196,8 @@ class Session(object):
 
     @run_in_green_thread
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
 
     def _NH_SIPInvitationChangedState(self, notification):
         if self.state == 'terminated':
