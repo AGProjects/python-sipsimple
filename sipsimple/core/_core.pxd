@@ -385,7 +385,6 @@ cdef extern from "pjmedia.h":
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
     int pjmedia_sdp_neg_modify_local_offer (pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const local) nogil
     int pjmedia_sdp_neg_cancel_offer(pjmedia_sdp_neg *neg) nogil
-    int pjmedia_sdp_neg_cancel_remote_offer(pjmedia_sdp_neg *neg) nogil
     pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg) nogil
     char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state) nogil
 

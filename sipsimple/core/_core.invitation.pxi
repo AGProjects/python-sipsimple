@@ -995,10 +995,8 @@ cdef class Invitation:
                     if (rdata, tdata) == (None, None):
                         event_dict['code'] = 408
                         event_dict['reason'] = 'Request Timeout'
-                    if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
+                    if pjmedia_sdp_neg_get_state(self._invite_session.neg) in (PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER, PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER):
                         pjmedia_sdp_neg_cancel_offer(self._invite_session.neg)
-                    if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
-                        pjmedia_sdp_neg_cancel_remote_offer(self._invite_session.neg)
                     self._reinvite_transaction = NULL
             if state == "disconnected":
                 event_dict["disconnect_reason"] = "user request" if not pjsip_error else "internal error"

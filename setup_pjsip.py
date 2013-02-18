@@ -49,8 +49,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJ_DNS_RESOLVER_INVALID_TTL 0",
                    "#define PJSIP_TRANSPORT_IDLE_TIME 7200"]
 
-    patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
-                   "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
+    patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
+                   "patches/pjsip-3217-sdp_neg_cancel_remote_offer.patch",
                    "patches/pjsip-2553-sip_inv-cancel_sdp_neg_on_sending_negative_reply_to_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-dont_disconnect_on_408_reply_to_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-terminate-reinvite-tsx-on-cancel.patch",

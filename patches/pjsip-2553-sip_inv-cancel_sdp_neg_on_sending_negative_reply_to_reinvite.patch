@@ -1,6 +1,6 @@
---- pjsip/src/pjsip-ua/sip_inv.c	(revision 2672)
-+++ pjsip/src/pjsip-ua/sip_inv.c	(working copy)
-@@ -1709,6 +1709,15 @@
+--- pjsip/src/pjsip-ua/sip_inv.c	2013-02-18 14:11:52.000000000 +0100
++++ pjsip/src/pjsip-ua/sip_inv.c	2013-02-18 14:13:16.000000000 +0100
+@@ -1727,6 +1727,15 @@
  	}
      }
  
@@ -10,7 +10,7 @@
 +        pjmedia_sdp_neg_state neg_state;
 +        neg_state = pjmedia_sdp_neg_get_state(inv->neg);
 +        if (neg_state == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER) {
-+            pjmedia_sdp_neg_cancel_remote_offer(inv->neg);
++            pjmedia_sdp_neg_cancel_offer(inv->neg);
 +        }
 +    }
  
