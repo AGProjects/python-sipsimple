@@ -47,7 +47,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if sys.platform=="darwin" else 0),
                    "#define PJ_DNS_RESOLVER_MAX_TTL 0",
                    "#define PJ_DNS_RESOLVER_INVALID_TTL 0",
-                   "#define PJSIP_TRANSPORT_IDLE_TIME 7200"]
+                   "#define PJSIP_TRANSPORT_IDLE_TIME 7200",
+                   "#define PJ_ENABLE_EXTRA_CHECK 1"]
 
     patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-3217-sdp_neg_cancel_remote_offer.patch",
@@ -81,7 +82,6 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-hide_route_header.patch",
                    "patches/pjsip-2830-runtime_device_change_detection_wmme.patch",
                    "patches/pjsip-2830-fix_crash_with_retry_after_header.patch",
-                   "patches/pjsip-3368-disable_assert_on_invite_answer.patch",
                    "patches/pjsip-3368-evsub_timer_functions.patch",
                    "patches/pjsip-3368-remove_hdr_by_name.patch",
                    "patches/pjsip-3187-sdp_neg_fix_on_bogus_answer.patch",
@@ -90,6 +90,7 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-pjmedia_get_default_device_functions.patch",
                    "patches/pjsip-3717-reset_rtcp_stats.patch",
                    "patches/pjsip-disable_mutex_unlock_assert.patch",
+                   "patches/pjsip-disable_assert_on_recoverable_error.patch",
                    "patches/pjsip-3414-g722_zero_division.patch",
                    "patches/pjsip-libsrtp-fix_crash_on_rtcp_decode.patch",
                    "patches/pjsip-3149-allow_empty_realm.patch",

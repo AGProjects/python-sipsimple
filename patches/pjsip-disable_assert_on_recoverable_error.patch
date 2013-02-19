@@ -1,0 +1,19 @@
+--- pjlib/include/pj/assert.h	2008-12-23 18:27:53.000000000 +0100
++++ pjlib/include/pj/assert.h	2013-02-19 12:34:12.000000000 +0100
+@@ -63,7 +63,7 @@
+ #if defined(PJ_ENABLE_EXTRA_CHECK) && PJ_ENABLE_EXTRA_CHECK != 0
+ #   define PJ_ASSERT_RETURN(expr,retval)    \
+ 	    do { \
+-		if (!(expr)) { pj_assert(expr); return retval; } \
++		if (!(expr)) { return retval; } \
+ 	    } while (0)
+ #else
+ #   define PJ_ASSERT_RETURN(expr,retval)    pj_assert(expr)
+@@ -82,7 +82,6 @@
+ #if defined(PJ_ENABLE_EXTRA_CHECK) && PJ_ENABLE_EXTRA_CHECK != 0
+ #   define PJ_ASSERT_ON_FAIL(expr,exec_on_fail)    \
+ 	    do { \
+-		pj_assert(expr); \
+ 		if (!(expr)) exec_on_fail; \
+ 	    } while (0)
+ #else
