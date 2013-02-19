@@ -640,12 +640,6 @@ cdef class BaseSDPConnection:
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPConnection cannot be instantiated directly")
 
-    @classmethod
-    def new(cls, BaseSDPConnection sdp_connection):
-        if isinstance(sdp_connection, FrozenSDPConnection):
-            return sdp_connection
-        return cls(sdp_connection.address, sdp_connection.net_type, sdp_connection.address_type)
-
     def __repr__(self):
         return "%s(%r, %r, %r)" % (self.__class__.__name__, self.address, self.net_type, self.address_type)
 
@@ -660,6 +654,10 @@ cdef class SDPConnection(BaseSDPConnection):
         self.address = address
         self.net_type = net_type
         self.address_type = address_type
+
+    @classmethod
+    def new(cls, BaseSDPConnection sdp_connection):
+        return cls(sdp_connection.address, sdp_connection.net_type, sdp_connection.address_type)
 
     property address:
 
@@ -698,6 +696,12 @@ cdef class FrozenSDPConnection(BaseSDPConnection):
             self.net_type = net_type
             self.address_type = address_type
             self.initialized = 1
+
+    @classmethod
+    def new(cls, BaseSDPConnection sdp_connection):
+        if isinstance(sdp_connection, FrozenSDPConnection):
+            return sdp_connection
+        return cls(sdp_connection.address, sdp_connection.net_type, sdp_connection.address_type)
 
     def __hash__(self):
         return hash((self.address, self.net_type, self.address_type))
@@ -758,12 +762,6 @@ cdef class BaseSDPAttribute:
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPAttribute cannot be instantiated directly")
 
-    @classmethod
-    def new(cls, BaseSDPAttribute sdp_attribute):
-        if isinstance(sdp_attribute, FrozenSDPAttribute):
-            return sdp_attribute
-        return cls(sdp_attribute.name, sdp_attribute.value)
-
     def __repr__(self):
         return "%s(%r, %r)" % (self.__class__.__name__, self.name, self.value)
 
@@ -777,6 +775,10 @@ cdef class SDPAttribute(BaseSDPAttribute):
     def __init__(self, str name not None, str value not None):
         self.name = name
         self.value = value
+
+    @classmethod
+    def new(cls, BaseSDPAttribute sdp_attribute):
+        return cls(sdp_attribute.name, sdp_attribute.value)
 
     property name:
 
@@ -804,6 +806,12 @@ cdef class FrozenSDPAttribute(BaseSDPAttribute):
             self.name = name
             self.value = value
             self.initialized = 1
+
+    @classmethod
+    def new(cls, BaseSDPAttribute sdp_attribute):
+        if isinstance(sdp_attribute, FrozenSDPAttribute):
+            return sdp_attribute
+        return cls(sdp_attribute.name, sdp_attribute.value)
 
     def __hash__(self):
         return hash((self.name, self.value))
