@@ -20,6 +20,7 @@ cdef extern from "string.h":
 cdef extern from "Python.h":
     void Py_INCREF(object obj)
     void Py_DECREF(object obj)
+    object PyString_FromString(char *v)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
     int PyString_Size(object string) except 0
@@ -381,12 +382,18 @@ cdef extern from "pjmedia.h":
         PJMEDIA_SDP_NEG_STATE_WAIT_NEGO
         PJMEDIA_SDP_NEG_STATE_DONE
     struct pjmedia_sdp_neg
+    int pjmedia_sdp_neg_create_w_local_offer(pj_pool_t *pool, pjmedia_sdp_session_ptr_const local, pjmedia_sdp_neg **neg) nogil
+    int pjmedia_sdp_neg_create_w_remote_offer(pj_pool_t *pool, pjmedia_sdp_session_ptr_const initial, pjmedia_sdp_session_ptr_const remote, pjmedia_sdp_neg **neg) nogil
+    int pjmedia_sdp_neg_set_local_answer(pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const local) nogil
+    int pjmedia_sdp_neg_set_remote_answer(pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const remote) nogil
+    int pjmedia_sdp_neg_set_remote_offer(pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const remote) nogil
     int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
     int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
     int pjmedia_sdp_neg_modify_local_offer (pj_pool_t *pool, pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const local) nogil
     int pjmedia_sdp_neg_cancel_offer(pjmedia_sdp_neg *neg) nogil
+    int pjmedia_sdp_neg_negotiate(pj_pool_t *poll, pjmedia_sdp_neg *neg, int allow_asym) nogil
     pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg) nogil
     char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state) nogil
 
@@ -1926,6 +1933,11 @@ cdef SDPConnection SDPConnection_create(pjmedia_sdp_conn *pj_conn)
 cdef FrozenSDPConnection FrozenSDPConnection_create(pjmedia_sdp_conn *pj_conn)
 cdef SDPAttribute SDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
+
+cdef class SDPNegotiator(object):
+    # attributes
+    cdef pjmedia_sdp_neg* _neg
+    cdef pj_pool_t *_pool
 
 # core.invitation
 

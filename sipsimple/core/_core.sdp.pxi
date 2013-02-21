@@ -925,3 +925,192 @@ cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr):
     return FrozenSDPAttribute(_pj_str_to_str(pj_attr.name), _pj_str_to_str(pj_attr.value))
 
 
+# SDP negotiator
+#
+
+cdef class SDPNegotiator:
+    def __cinit__(self, *args, **kwargs):
+        cdef pj_pool_t *pool
+        cdef bytes pool_name
+        cdef char* c_pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        endpoint = ua._pjsip_endpoint._obj
+        pool_name = b"SDPNegotiator_%d" % id(self)
+        c_pool_name = pool_name
+
+        with nogil:
+            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
+        if pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+        self._pool = pool
+        self._neg = NULL
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        cdef pjsip_endpoint *endpoint
+        cdef pj_pool_t *pool
+
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            return
+
+        endpoint = ua._pjsip_endpoint._obj
+        pool = self._pool
+
+        if pool != NULL:
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
+
+    @classmethod
+    def create_with_local_offer(cls, BaseSDPSession sdp_session):
+        cdef int status
+        cdef pjmedia_sdp_neg *neg
+        cdef pj_pool_t *pool
+        cdef SDPNegotiator obj
+
+        obj = cls()
+        pool = obj._pool
+
+        status = pjmedia_sdp_neg_create_w_local_offer(pool, sdp_session.get_sdp_session(), &neg)
+        if status != 0:
+            raise PJSIPError("failed to create SDPNegotiator with local offer", status)
+
+        obj._neg = neg
+        return obj
+
+    @classmethod
+    def create_with_remote_offer(cls, BaseSDPSession sdp_session):
+        cdef int status
+        cdef pjmedia_sdp_neg *neg
+        cdef pj_pool_t *pool
+        cdef SDPNegotiator obj
+
+        obj = cls()
+        pool = obj._pool
+
+        status = pjmedia_sdp_neg_create_w_remote_offer(pool, NULL, sdp_session.get_sdp_session(), &neg)
+        if status != 0:
+            raise PJSIPError("failed to create SDPNegotiator with remote offer", status)
+
+        obj._neg = neg
+        return obj
+
+    def __repr__(self):
+        return "%s, state=%s" % (self.__class__.__name__, self.state)
+
+    property state:
+
+        def __get__(self):
+            if self._neg == NULL:
+                return None
+            return PyString_FromString(pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_get_state(self._neg)))
+
+    property active_local:
+
+        def __get__(self):
+            cdef int status
+            cdef pjmedia_sdp_session_ptr_const sdp
+            if self._neg == NULL:
+                return None
+            status = pjmedia_sdp_neg_get_active_local(self._neg, &sdp)
+            if status != 0:
+                return None
+            return FrozenSDPSession_create(sdp)
+
+    property active_remote:
+
+        def __get__(self):
+            cdef int status
+            cdef pjmedia_sdp_session_ptr_const sdp
+            if self._neg == NULL:
+                return None
+            status = pjmedia_sdp_neg_get_active_remote(self._neg, &sdp)
+            if status != 0:
+                return None
+            return FrozenSDPSession_create(sdp)
+
+    property current_local:
+
+        def __get__(self):
+            cdef int status
+            cdef pjmedia_sdp_session_ptr_const sdp
+            if self._neg == NULL:
+                return None
+            status = pjmedia_sdp_neg_get_neg_local(self._neg, &sdp)
+            if status != 0:
+                return None
+            return FrozenSDPSession_create(sdp)
+
+    property current_remote:
+
+        def __get__(self):
+            cdef int status
+            cdef pjmedia_sdp_session_ptr_const sdp
+            if self._neg == NULL:
+                return None
+            status = pjmedia_sdp_neg_get_neg_remote(self._neg, &sdp)
+            if status != 0:
+                return None
+            return FrozenSDPSession_create(sdp)
+
+    def _check_self(self):
+        if self._neg == NULL:
+            raise RuntimeError('SDPNegotiator was not properly initialized')
+
+    def set_local_answer(self, BaseSDPSession sdp_session):
+        self._check_self()
+        cdef int status
+        cdef pj_pool_t *pool = self._pool
+
+        status = pjmedia_sdp_neg_set_local_answer(pool, self._neg, sdp_session.get_sdp_session())
+        if status != 0:
+            raise PJSIPError("failed to set local answer", status)
+
+    def set_local_offer(self, BaseSDPSession sdp_session):
+        # PJSIP has an asymmetric API here. This function will modify the local session with the new SDP and treat it as a local offer.
+        self._check_self()
+        cdef int status
+        cdef pj_pool_t *pool = self._pool
+
+        status = pjmedia_sdp_neg_modify_local_offer(pool, self._neg, sdp_session.get_sdp_session())
+        if status != 0:
+            raise PJSIPError("failed to set local offer", status)
+
+    def set_remote_answer(self, BaseSDPSession sdp_session):
+        self._check_self()
+        cdef int status
+        cdef pj_pool_t *pool = self._pool
+
+        status = pjmedia_sdp_neg_set_remote_answer(pool, self._neg, sdp_session.get_sdp_session())
+        if status != 0:
+            raise PJSIPError("failed to set remote answer", status)
+
+    def set_remote_offer(self, BaseSDPSession sdp_session):
+        self._check_self()
+        cdef int status
+        cdef pj_pool_t *pool = self._pool
+
+        status = pjmedia_sdp_neg_set_remote_offer(pool, self._neg, sdp_session.get_sdp_session())
+        if status != 0:
+            raise PJSIPError("failed to set remote offer", status)
+
+    def cancel_offer(self):
+        self._check_self()
+        cdef int status
+
+        status = pjmedia_sdp_neg_cancel_offer(self._neg)
+        if status != 0:
+            raise PJSIPError("failed to cancel offer", status)
+
+    def negotiate(self):
+        self._check_self()
+        cdef int status
+        cdef pj_pool_t *pool = self._pool
+
+        status = pjmedia_sdp_neg_negotiate(pool, self._neg, 0)
+        if status != 0:
+            raise PJSIPError("SDP negotiation failed", status)
+
