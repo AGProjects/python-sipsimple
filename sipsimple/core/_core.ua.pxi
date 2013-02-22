@@ -657,6 +657,7 @@ cdef class PJSIPUA:
     def poll(self):
         global _post_poll_handler_queue
         cdef int status
+        cdef double now
         cdef object retval = None
         cdef float max_timeout
         cdef pj_time_val pj_max_timeout
@@ -682,9 +683,10 @@ cdef class PJSIPUA:
         _process_handler_queue(self, &_post_poll_handler_queue)
         timers = list()
         processed_timers = 0
+        now = time.time()
         while processed_timers < len(self._timers):
             timer = <Timer> self._timers[processed_timers]
-            if timer.schedule_time - time.time() > 0.001:
+            if timer.schedule_time - now > 0.001:
                 break
             timers.append(timer)
             processed_timers += 1
