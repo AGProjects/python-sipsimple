@@ -77,6 +77,9 @@ class Document(object):
         self.dirty = False
         self.supported = False
 
+    def __nonzero__(self):
+        return self.content is not None
+
     def _get_dirty(self):
         return self.__dict__['dirty'] or (self.content is not None and self.content.__dirty__)
 
