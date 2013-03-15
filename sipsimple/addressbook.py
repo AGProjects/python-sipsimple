@@ -1254,7 +1254,8 @@ class AddressbookManager(object):
     def get_policies(self):
         return self.policies.values()
 
-    def transaction(self):
+    @classmethod
+    def transaction(cls):
         account_manager = AccountManager()
         xcap_accounts = [account for account in account_manager.get_accounts() if hasattr(account, 'xcap') and account.xcap.discovered]
         return MultiAccountTransaction(xcap_accounts)
