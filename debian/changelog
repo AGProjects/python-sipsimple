@@ -1,3 +1,20 @@
+python-sipsimple (0.34.0) unstable; urgency=low
+
+  * Added Bonjour presence
+  * Added presence subscriber for itself to Account
+  * Added SDPNegotiator class
+  * Added ability to properly stringify SDPSession objects
+  * Added ability to parse a SDPSession object from a string
+  * Disable PJSIP assertions on recoverable errors
+  * Removed extra cehcks on SDP origin field
+  * Fixed deadlock when cross instantiating conditional singletons
+  * Avoid sending adding participant progress if the answer is final
+  * Avoid doing mDNS lookups with dnspython
+  * Define __nonzero__ for XCAP Document objects
+  * Made AddressbookManager.transaction a class method
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 19 Mar 2013 11:31:27 +0100
+
 python-sipsimple (0.33.0) unstable; urgency=low
 
   * Added notification when incoming subscription times out
