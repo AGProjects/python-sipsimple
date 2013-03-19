@@ -25,7 +25,7 @@ from zope.interface import implements
 from sipsimple.account.bonjour import BonjourServices, _bonjour
 from sipsimple.account.publication import PresencePublisher, DialogPublisher
 from sipsimple.account.registration import Registrar
-from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber, PresenceSubscriber, DialogSubscriber
+from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscriber, DialogWinfoSubscriber, PresenceSubscriber, SelfPresenceSubscriber, DialogSubscriber
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import Credentials, SIPURI, ContactURIFactory
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
@@ -33,6 +33,7 @@ from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionMode
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
+from sipsimple.payloads.pidf import PIDFDocument
 from sipsimple.payloads.rlsnotify import RLSNotify
 from sipsimple.payloads.watcherinfo import WatcherInfoDocument
 from sipsimple.threading import call_in_thread
@@ -155,6 +156,7 @@ class Account(SettingsObject):
         self._pwi_subscriber = PresenceWinfoSubscriber(self)
         self._dwi_subscriber = DialogWinfoSubscriber(self)
         self._presence_subscriber = PresenceSubscriber(self)
+        self._self_presence_subscriber = SelfPresenceSubscriber(self)
         self._dialog_subscriber = DialogSubscriber(self)
         self._presence_publisher = PresencePublisher(self)
         self._dialog_publisher = DialogPublisher(self)
@@ -177,6 +179,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, sender=self._pwi_subscriber)
         notification_center.add_observer(self, sender=self._dwi_subscriber)
         notification_center.add_observer(self, sender=self._presence_subscriber)
+        notification_center.add_observer(self, sender=self._self_presence_subscriber)
         notification_center.add_observer(self, sender=self._dialog_subscriber)
 
         self.xcap_manager.init()
@@ -198,6 +201,7 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, sender=self._pwi_subscriber)
         notification_center.remove_observer(self, sender=self._dwi_subscriber)
         notification_center.remove_observer(self, sender=self._presence_subscriber)
+        notification_center.remove_observer(self, sender=self._self_presence_subscriber)
         notification_center.remove_observer(self, sender=self._dialog_subscriber)
 
     @run_in_green_thread
@@ -211,6 +215,7 @@ class Account(SettingsObject):
         self._pwi_subscriber = None
         self._dwi_subscriber = None
         self._presence_subscriber = None
+        self._self_presence_subscriber = None
         self._dialog_subscriber = None
         self._presence_publisher = None
         self._dialog_publisher = None
@@ -410,6 +415,17 @@ class Account(SettingsObject):
     def _NH_PresenceSubscriptionDidFail(self, notification):
         self._presence_version = None
 
+    def _NH_SelfPresenceSubscriptionGotNotify(self, notification):
+        if notification.data.body and notification.data.content_type == PIDFDocument.content_type:
+            try:
+                pidf_doc = PIDFDocument.parse(notification.data.body)
+            except ParserError:
+                pass
+            else:
+                if pidf_doc.entity.partition('sip:')[2] != self.id:
+                    return
+                notification.center.post_notification('SIPAccountGotSelfPresenceState', sender=self, data=NotificationData(pidf=pidf_doc))
+
     def _NH_DialogSubscriptionGotNotify(self, notification):
         if notification.data.body and notification.data.content_type == RLSNotify.content_type:
             try:
@@ -448,6 +464,7 @@ class Account(SettingsObject):
             self._pwi_subscriber.start()
             self._dwi_subscriber.start()
             self._presence_subscriber.start()
+            self._self_presence_subscriber.start()
             self._dialog_subscriber.start()
             self._presence_publisher.start()
             self._dialog_publisher.start()
@@ -462,7 +479,8 @@ class Account(SettingsObject):
             notification_center = NotificationCenter()
             notification_center.post_notification('SIPAccountWillDeactivate', sender=self)
             self._active = False
-            handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber, self._presence_subscriber, self._dialog_subscriber,
+            handlers = [self._registrar, self._mwi_subscriber, self._pwi_subscriber, self._dwi_subscriber,
+                        self._presence_subscriber, self._self_presence_subscriber, self._dialog_subscriber,
                         self._presence_publisher, self._dialog_publisher, self.xcap_manager]
             proc.waitall([proc.spawn(handler.stop) for handler in handlers])
             notification_center.post_notification('SIPAccountDidDeactivate', sender=self)

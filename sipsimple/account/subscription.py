@@ -3,7 +3,7 @@
 
 """Implements the subscription handlers"""
 
-__all__ = ['Subscriber', 'MWISubscriber', 'PresenceWinfoSubscriber', 'DialogWinfoSubscriber', 'PresenceSubscriber', 'DialogSubscriber']
+__all__ = ['Subscriber', 'MWISubscriber', 'PresenceWinfoSubscriber', 'DialogWinfoSubscriber', 'PresenceSubscriber', 'SelfPresenceSubscriber', 'DialogSubscriber']
 
 import random
 
@@ -478,6 +478,22 @@ class PresenceSubscriber(AbstractPresenceSubscriber):
     @property
     def extra_headers(self):
         return [Header('Supported', 'eventlist')]
+
+
+class SelfPresenceSubscriber(AbstractPresenceSubscriber):
+    """Self presence subscriber"""
+
+    _NH_SelfPresenceSubscriberWillStart = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillStart
+    _NH_SelfPresenceSubscriberWillEnd   = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberWillEnd
+    _NH_SelfPresenceSubscriberDidStart  = AbstractPresenceSubscriber._NH_AbstractPresenceSubscriberDidStart
+
+    @property
+    def event(self):
+        return 'presence'
+
+    @property
+    def subscription_uri(self):
+        return self.account.id
 
 
 class DialogSubscriber(AbstractPresenceSubscriber):
