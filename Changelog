@@ -6,7 +6,7 @@ python-sipsimple (0.34.0) unstable; urgency=low
   * Added ability to properly stringify SDPSession objects
   * Added ability to parse a SDPSession object from a string
   * Disable PJSIP assertions on recoverable errors
-  * Removed extra cehcks on SDP origin field
+  * Removed extra checks on SDP origin field
   * Fixed deadlock when cross instantiating conditional singletons
   * Avoid sending adding participant progress if the answer is final
   * Avoid doing mDNS lookups with dnspython
