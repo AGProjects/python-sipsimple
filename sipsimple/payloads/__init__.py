@@ -116,7 +116,7 @@ class XMLDocumentType(type):
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     %s
                 </xs:schema>
-            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(schema)) for ns, schema in cls.schema_map.iteritems())
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.abspath(schema_file).replace('\\', '//'))) for ns, schema_file in cls.schema_map.iteritems())
             cls.schema = etree.XMLSchema(etree.XML(schema))
             cls.parser = etree.XMLParser(schema=cls.schema, remove_blank_text=True)
         else:
