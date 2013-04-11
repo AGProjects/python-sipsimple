@@ -39,8 +39,8 @@ cdef class BaseSDPSession:
         raise TypeError("BaseSDPSession cannot be instantiated directly")
 
     def __repr__(self):
-        return "%s(%r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.address, self.id, self.version, self.user, self.net_type,
-                    self.address_type, self.name, self.info, self.connection, self.start_time, self.stop_time, self.attributes, self.media)
+        return "%s(%r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.address, self.id, self.version, self.user, self.net_type,
+                    self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.media)
 
     def __str__(self):
         cdef char cbuf[2048]
@@ -69,7 +69,7 @@ cdef class BaseSDPSession:
 
 cdef class SDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4",
-                 str name not None=" ", str info=None, SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list media=None):
+                 str name not None=" ", SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list media=None):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
 
@@ -83,7 +83,6 @@ cdef class SDPSession(BaseSDPSession):
         self.net_type = net_type
         self.address_type = address_type
         self.name = name
-        self.info = info
         self.connection = connection
         self.start_time = start_time
         self.stop_time = stop_time
@@ -96,7 +95,7 @@ cdef class SDPSession(BaseSDPSession):
         attributes = [SDPAttribute.new(attr) for attr in sdp_session.attributes]
         media = [SDPMediaStream.new(m) for m in sdp_session.media]
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
-                   sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
     @classmethod
     def parse(cls, str sdp):
@@ -164,18 +163,6 @@ cdef class SDPSession(BaseSDPSession):
         def __set__(self, str name not None):
             _str_to_pj_str(name, &self._sdp_session.name)
             self._name = name
-
-    property info:
-
-        def __get__(self):
-            return self._info
-
-        def __set__(self, str info):
-            if info is None:
-                self._sdp_session.info.slen = 0
-            else:
-                _str_to_pj_str(info, &self._sdp_session.info)
-            self._info = info
 
     property connection:
 
@@ -262,7 +249,7 @@ cdef class SDPSession(BaseSDPSession):
 
 cdef class FrozenSDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
-                str info=None, FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
+                 FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
 
@@ -295,11 +282,6 @@ cdef class FrozenSDPSession(BaseSDPSession):
             _str_to_pj_str(address_type, &self._sdp_session.origin.addr_type)
             self.name = name
             _str_to_pj_str(name, &self._sdp_session.name)
-            self.info = info
-            if info is None:
-                self._sdp_session.info.slen = 0
-            else:
-                _str_to_pj_str(info, &self._sdp_session.info)
             self.connection = connection
             if connection is None:
                 self._sdp_session.conn = NULL
@@ -321,7 +303,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
         attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_session.attributes])
         media = frozenlist([FrozenSDPMediaStream.new(m) for m in sdp_session.media])
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
-                   sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
     @classmethod
     def parse(cls, str sdp):
@@ -330,7 +312,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
         return FrozenSDPSession_create(sdp_session)
 
     def __hash__(self):
-        return hash((self.address, self.id, self.version, self.user, self.net_type, self.address_type, self.name, self.info, self.connection, self.start_time, self.stop_time, self.attributes, self.media))
+        return hash((self.address, self.id, self.version, self.user, self.net_type, self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.media))
 
     def __richcmp__(self, other, op):
         return BaseSDPSession_richcmp(self, other, op)
@@ -406,8 +388,8 @@ cdef class BaseSDPMediaStream:
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
 
     def __repr__(self):
-        return "%s(%r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
-                self.port_count, self.formats, self.info, self.connection, self.attributes)
+        return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
+                self.port_count, self.formats, self.connection, self.attributes)
 
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
@@ -448,13 +430,12 @@ cdef class BaseSDPMediaStream:
 
 cdef class SDPMediaStream(BaseSDPMediaStream):
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, list formats=None,
-                 str info=None, SDPConnection connection=None, list attributes=None):
+                 SDPConnection connection=None, list attributes=None):
         self.media = media
         self.port = port
         self.transport = transport
         self.port_count = port_count
         self.formats = formats if formats is not None else []
-        self.info = info
         self.connection = connection
         self.attributes = attributes if attributes is not None else []
 
@@ -463,7 +444,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
         connection = SDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
         attributes = [SDPAttribute.new(attr) for attr in sdp_media.attributes]
         return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count, list(sdp_media.formats),
-                   sdp_media.info, connection, attributes)
+                   connection, attributes)
 
     property media:
 
@@ -517,18 +498,6 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
         def __get__(self):
             return self._codec_list
 
-    property info:
-
-        def __get__(self):
-            return self._info
-
-        def __set__(self, str info):
-            if info is None:
-                self._sdp_media.info.slen = 0
-            else:
-                _str_to_pj_str(info, &self._sdp_media.info)
-            self._info = info
-
     property connection:
 
         def __get__(self):
@@ -567,7 +536,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
             raise ValueError("Number of attributes in SDPMediaStream got reduced")
-        for attr in ("media", "port", "transport", "port_count", "info", "formats"):
+        for attr in ("media", "port", "transport", "port_count", "formats"):
             setattr(self, attr, getattr(media, attr))
         if media._connection is None:
             self.connection = None
@@ -584,7 +553,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
 
 cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, frozenlist formats not None=frozenlist(),
-                 str info=None, FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist()):
+                 FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist()):
         if not self.initialized:
             if len(formats) > PJMEDIA_MAX_SDP_FMT:
                 raise SIPCoreError("Too many formats")
@@ -605,11 +574,6 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             self._sdp_media.desc.fmt_count = len(self.formats)
             for index, format in enumerate(self.formats):
                 _str_to_pj_str(format, &self._sdp_media.desc.fmt[index])
-            self.info = info
-            if info is None:
-                self._sdp_media.info.slen = 0
-            else:
-                _str_to_pj_str(info, &self._sdp_media.info)
             self.connection = connection
             if connection is None:
                 self._sdp_media.conn = NULL
@@ -633,10 +597,10 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
         connection = FrozenSDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
         attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_media.attributes])
         return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count,
-                   frozenlist(sdp_media.formats), sdp_media.info, connection, attributes)
+                   frozenlist(sdp_media.formats), connection, attributes)
 
     def __hash__(self):
-        return hash((self.media, self.port, self.transport, self.port_count, self.formats, self.info, self.connection, self.attributes))
+        return hash((self.media, self.port, self.transport, self.port_count, self.formats, self.connection, self.attributes))
 
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
@@ -856,7 +820,6 @@ cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
                        _pj_str_to_str(pj_session.origin.net_type),
                        _pj_str_to_str(pj_session.origin.addr_type),
                        _pj_str_to_str(pj_session.name),
-                       _pj_str_to_str(pj_session.info) or None,
                        connection,
                        pj_session.time.start,
                        pj_session.time.stop,
@@ -875,7 +838,6 @@ cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_s
                             _pj_str_to_str(pj_session.origin.net_type),
                             _pj_str_to_str(pj_session.origin.addr_type),
                             _pj_str_to_str(pj_session.name),
-                            _pj_str_to_str(pj_session.info) or None,
                             connection,
                             pj_session.time.start,
                             pj_session.time.stop,
@@ -892,7 +854,6 @@ cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
                           _pj_str_to_str(pj_media.desc.transport),
                           pj_media.desc.port_count,
                           [_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
-                          _pj_str_to_str(pj_media.info) or None,
                           connection,
                           [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)])
 
@@ -906,7 +867,6 @@ cdef FrozenSDPMediaStream FrozenSDPMediaStream_create(pjmedia_sdp_media *pj_medi
                           _pj_str_to_str(pj_media.desc.transport),
                           pj_media.desc.port_count,
                           frozenlist([_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)]),
-                          _pj_str_to_str(pj_media.info) or None,
                           connection,
                           frozenlist([FrozenSDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)]))
 
