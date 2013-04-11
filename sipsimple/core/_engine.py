@@ -35,7 +35,6 @@ class Engine(Thread):
                              "log_level": 5,
                              "trace_sip": False,
                              "detect_sip_loops": True,
-                             "ignore_missing_ack": False,
                              "rtp_port_range": (50000, 50500),
                              "codecs": ["G722", "speex", "PCMU", "PCMA"],
                              "events": {"conference":      ["application/conference-info+xml"],

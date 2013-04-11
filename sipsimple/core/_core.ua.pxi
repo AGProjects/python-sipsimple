@@ -130,7 +130,6 @@ cdef class PJSIPUA:
         if status != 0:
             raise PJSIPError("Could not add 'gruu' to Supported header", status)
         self._trace_sip = int(bool(kwargs["trace_sip"]))
-        self._ignore_missing_ack = int(bool(kwargs["ignore_missing_ack"]))
         self._detect_sip_loops = int(bool(kwargs["detect_sip_loops"]))
         self._trace_module_name = PJSTR("mod-core-sip-trace")
         self._trace_module.name = self._trace_module_name.pj_str
@@ -191,17 +190,6 @@ cdef class PJSIPUA:
         def __set__(self, value):
             self._check_self()
             self._trace_sip = int(bool(value))
-
-    property ignore_missing_ack:
-
-        def __get__(self):
-            self._check_self()
-            return bool(self._ignore_missing_ack)
-
-        def __set__(self, value):
-            self._check_self()
-            self._ignore_missing_ack = int(bool(value))
-
 
     property detect_sip_loops:
 
@@ -792,8 +780,6 @@ cdef class PJSIPUA:
                 if hdr_add != NULL:
                     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, hdr_add))
         elif method_name == "INVITE":
-            if self._ignore_missing_ack:
-                options |= PJSIP_INV_IGNORE_MISSING_ACK
             status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self._pjsip_endpoint._obj, &tdata)
             if status == 0:
                 inv = Invitation()

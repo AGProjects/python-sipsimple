@@ -1030,7 +1030,6 @@ cdef extern from "pjsip_ua.h":
     # invite sessions
     enum pjsip_inv_option:
         PJSIP_INV_SUPPORT_100REL
-        PJSIP_INV_IGNORE_MISSING_ACK
     enum pjsip_inv_state:
         PJSIP_INV_STATE_INCOMING
         PJSIP_INV_STATE_CONFIRMED
@@ -1516,7 +1515,6 @@ cdef class PJSIPUA(object):
     cdef PJSTR _event_module_name
     cdef int _trace_sip
     cdef int _detect_sip_loops
-    cdef int _ignore_missing_ack
     cdef PJSTR _user_agent
     cdef object _events
     cdef object _sent_messages
