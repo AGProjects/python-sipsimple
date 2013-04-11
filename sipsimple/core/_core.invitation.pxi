@@ -75,7 +75,6 @@ cdef class Invitation:
         self._invite_session = NULL
         self._dialog = NULL
         self._reinvite_transaction = NULL
-        self._tmp_tdata = NULL
         self._transfer_usage = NULL
         self._sdp_neg_status = -1
         self._failed_response = 0
@@ -503,20 +502,10 @@ cdef class Invitation:
                 # Retrieve the "fixed" offer from negotiator
                 pjmedia_sdp_neg_get_neg_local(invite_session.neg, &lsdp)
                 local_sdp = <pjmedia_sdp_session *>lsdp
-                tdata = self._tmp_tdata
-                if tdata == NULL:
-                    raise SIPCoreError("Could not find preallocated response object")
-                status = pjsip_create_sdp_body(tdata.pool, pjmedia_sdp_session_clone(tdata.pool, <pjmedia_sdp_session_ptr_const>local_sdp), &body)
-                if status != 0:
-                    body = NULL
-                tdata.msg.body = body
-                clean_tdata = 1
-            else:
-                with nogil:
-                    status = pjsip_inv_answer(invite_session, code, &reason_str if reason is not None else NULL,
-                                              local_sdp, &tdata)
-                if status != 0:
-                    raise PJSIPError("Could not create %d reply to INVITE" % code, status)
+            with nogil:
+                status = pjsip_inv_answer(invite_session, code, &reason_str if reason is not None else NULL, local_sdp, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create %d reply to INVITE" % code, status)
             _add_headers_to_tdata(tdata, extra_headers)
             with nogil:
                 status = pjsip_inv_send_msg(invite_session, tdata)
@@ -527,8 +516,6 @@ cdef class Invitation:
                 raise exc
             self._failed_response = 0
         finally:
-            if clean_tdata:
-                self._tmp_tdata = NULL
             with nogil:
                 pj_mutex_unlock(lock)
 
@@ -1498,50 +1485,11 @@ cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     except:
         ua._handle_exception(1)
 
-cdef void _Invitation_cb_create_offer(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil:
-    cdef int status
-    cdef pjsip_tx_data *tdata
-    cdef pjsip_tx_data *answer_tdata
-    cdef object rdata_dict = None
-    cdef Invitation invitation
-    cdef PJSIPUA ua
-    cdef StateCallbackTimer timer
-    try:
-        ua = _get_ua()
-    except:
-        return
-    try:
-        if inv.mod_data[ua._module.id] != NULL:
-            invitation = (<object> inv.mod_data[ua._module.id])()
-            if invitation is None:
-                return
-            rdata_dict = dict()
-            _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
-            originator = "remote"
-            with nogil:
-                status = pjsip_inv_initial_answer(inv, rdata, 100, NULL, NULL, &answer_tdata)
-            if status != 0:
-                raise PJSIPError("Could not create initial (unused) response to re-INVITE", status)
-            with nogil:
-                pjsip_tx_data_dec_ref(answer_tdata)
-            # Create 2xx ANSWER
-            with nogil:
-                status = pjsip_dlg_create_response(invitation._dialog, rdata, 200, NULL, &tdata);
-            if status != 0:
-                raise PJSIPError("Could not create response to re-INVITE", status)
-            invitation._tmp_tdata = tdata
-            try:
-                timer = StateCallbackTimer("connected", "received_proposal_request", rdata_dict, None, "remote")
-                timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
-            except:
-                invitation._fail(ua)
-    except:
-        ua._handle_exception(1)
-
 cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                                      pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
     cdef int status
     cdef pjsip_tx_data *answer_tdata
+    cdef pjsip_rdata_sdp_info *sdp_info
     cdef object rdata_dict = None
     cdef Invitation invitation
     cdef PJSIPUA ua
@@ -1568,8 +1516,14 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                 raise PJSIPError("Could not create initial (unused) response to re-INVITE", status)
             with nogil:
                 pjsip_tx_data_dec_ref(answer_tdata)
+            with nogil:
+                sdp_info = pjsip_rdata_get_sdp_info(rdata)
+            if sdp_info.sdp != NULL:
+                sub_state = "received_proposal"
+            else:
+                sub_state = "received_proposal_request"
             try:
-                timer = StateCallbackTimer("connected", "received_proposal", rdata_dict, None, "remote")
+                timer = StateCallbackTimer("connected", sub_state, rdata_dict, None, "remote")
                 timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
             except:
                 invitation._fail(ua)
@@ -1862,7 +1816,6 @@ cdef void _Invitation_transfer_in_cb_tsx(pjsip_evsub *sub, pjsip_transaction *ts
 cdef pjsip_inv_callback _inv_cb
 _inv_cb.on_state_changed = _Invitation_cb_state
 _inv_cb.on_media_update = _Invitation_cb_sdp_done
-_inv_cb.on_create_offer = _Invitation_cb_create_offer
 _inv_cb.on_rx_reinvite = _Invitation_cb_rx_reinvite
 _inv_cb.on_tsx_state_changed = _Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = _Invitation_cb_new
