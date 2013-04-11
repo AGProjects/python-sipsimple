@@ -1702,27 +1702,23 @@ cdef FrozenContactHeader FrozenContactHeader_create(pjsip_contact_hdr *header):
         return FrozenContactHeader(uri, display_name, frozendict(parameters))
 
 cdef ContentTypeHeader ContentTypeHeader_create(pjsip_ctype_hdr *header):
-    cdef dict parameters
     type_str = _pj_str_to_str(header.media.type)
     subtype_str = _pj_str_to_str(header.media.subtype)
-    params_str = _pj_str_to_str(header.media.param)
+    parameters = _pjsip_param_to_dict(&header.media.param)
     if subtype_str:
         content_type = "%s/%s" % (type_str, subtype_str)
     else:
         content_type = type_str
-    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
     return ContentTypeHeader(content_type, parameters)
 
 cdef FrozenContentTypeHeader FrozenContentTypeHeader_create(pjsip_ctype_hdr *header):
-    cdef dict parameters
     type_str = _pj_str_to_str(header.media.type)
     subtype_str = _pj_str_to_str(header.media.subtype)
-    params_str = _pj_str_to_str(header.media.param)
+    parameters = _pjsip_param_to_dict(&header.media.param)
     if subtype_str:
         content_type = "%s/%s" % (type_str, subtype_str)
     else:
         content_type = type_str
-    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
     return FrozenContentTypeHeader(content_type, frozendict(parameters))
 
 cdef FromHeader FromHeader_create(pjsip_fromto_hdr *header):

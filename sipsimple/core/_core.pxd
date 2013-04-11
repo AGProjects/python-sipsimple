@@ -590,7 +590,7 @@ cdef extern from "pjsip.h":
     struct pjsip_media_type:
         pj_str_t type
         pj_str_t subtype
-        pj_str_t param
+        pjsip_param param
     enum pjsip_method_e:
         PJSIP_OPTIONS_METHOD
         PJSIP_CANCEL_METHOD

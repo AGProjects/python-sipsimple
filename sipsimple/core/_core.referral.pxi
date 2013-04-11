@@ -668,9 +668,9 @@ cdef class IncomingReferral:
         cdef pj_str_t *reason_p
         cdef pjsip_tx_data *tdata
         cdef int status
+        cdef dict _sipfrag_version = dict(version="2.0")
         cdef PJSTR _content_type = PJSTR("message")
         cdef PJSTR _content_subtype = PJSTR("sipfrag")
-        cdef PJSTR _sipfrag_version = PJSTR(";version=2.0")
         cdef PJSTR reason = PJSTR("noresource")
 
         reason_p = NULL
@@ -687,7 +687,7 @@ cdef class IncomingReferral:
             raise PJSIPError("Could not create NOTIFY request", status)
         if self.state in ("active", "terminated"):
             tdata.msg.body = pjsip_msg_body_create(tdata.pool, &_content_type.pj_str, &_content_subtype.pj_str, &self._content.pj_str)
-            tdata.msg.body.content_type.param = _sipfrag_version.pj_str
+            _dict_to_pjsip_param(_sipfrag_version, &tdata.msg.body.content_type.param, tdata.pool)
         with nogil:
             status = pjsip_evsub_send_request(self._obj, tdata)
         if status != 0:
