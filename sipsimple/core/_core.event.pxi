@@ -1,11 +1,6 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-# python imports
-
-import re
-from datetime import datetime
-
 # c types
 
 cdef struct _core_event:
@@ -102,10 +97,8 @@ cdef list _get_clear_event_queue():
     while event != NULL:
         if event.is_log:
             log_msg = PyString_FromStringAndSize(<char *> event.data, event.len)
-            log_match = _re_log.match(log_msg)
-            if log_match is not None:
-                event_params = dict(level=event.level, sender=log_match.group("sender"), message=log_match.group("message"))
-                events.append(("SIPEngineLog", event_params))
+            event_params = dict(level=event.level, message=log_msg)
+            events.append(("SIPEngineLog", event_params))
         else:
             event_tup = <object> event.data
             Py_DECREF(event_tup)
@@ -169,8 +162,6 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1:
 
 # globals
 
-cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):" +
-                                 r"(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<message>.*)$")
 cdef pj_mutex_t *_event_queue_lock = NULL
 cdef _core_event *_event_queue_head = NULL
 cdef _core_event *_event_queue_tail = NULL
