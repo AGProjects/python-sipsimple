@@ -73,6 +73,7 @@ cdef extern from "pjlib.h":
         PJ_LOG_HAS_TIME
         PJ_LOG_HAS_MICRO_SEC
         PJ_LOG_HAS_SENDER
+        PJ_LOG_HAS_INDENT
     void pj_log_set_decor(int decor) nogil
     int pj_log_get_level() nogil
     void pj_log_set_level(int level) nogil

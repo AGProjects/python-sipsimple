@@ -90,7 +90,7 @@ cdef class PJSIPUA:
             raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
         pj_log_set_level(kwargs["log_level"])
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON |
-                         PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
+                         PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT)
         pj_log_set_log_func(_cb_log)
         self._pjlib = PJLIB()
         pj_srand(random.getrandbits(32)) # rely on python seed for now
