@@ -1,0 +1,213 @@
+
+Installation procedure for SIP SIMPLE client SDK on MacOSX Mountain Lion
+------------------------------------------------------------------------
+
+Copyright (c) 2008-2013 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.org
+
+This document describes the installation procedure on MacOSX 10.8 (Mountain
+Lion).
+
+The installation procedure consists of the steps described below:
+
+Step 1. Prerequisites
+Step 2. Install Dependencies
+Step 3. Install SIP SIMPLE client SDK
+
+
+Step 1. Prerequisites
+---------------------
+
+ * MacOSX 10.8 (Mountain Lion)
+ * Intel 32bit architecture
+ * Apple Developer tools (XCode 4.6)
+ * darcs version control tool from http://www.darcs.net
+
+The procedure below relies on Python interpreter 2.7 that comes with MacOSX
+Lion and Xcode version 4.6.  Make sure that during the building process you
+are not involving external tools or libraries like the ones provided by Fink
+or Darwin Ports distributions.
+
+
+Step 2. Install Dependencies
+----------------------------
+
+See Dependencies.txt for detailed description of the required libraries and
+their minimum version number.
+
+It is recommended that you do not have fink or darwin ports installed on the
+build machine, otherwise the software may be linked against libraries that 
+are not present on other systems.  
+
+A. Build and install the C dependencies, the software will be installed
+under /usr/local folder:
+
+# Install GNUTLS dependencies
+curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.10.tar.bz2
+tar -xjvf libgpg-error-1.10.tar.bz2
+cd libgpg-error-1.10
+make clean
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+curl -O http://ftp.gnu.org/pub/gnu/libtasn1/libtasn1-2.10.tar.gz
+tar zxvf libtasn1-2.10.tar.gz 
+cd libtasn1-2.10
+make clean
+CFLAGS="-arch i386" ./configure --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.5.0.tar.bz2
+tar -xjvf libgcrypt-1.5.0.tar.bz2
+cd libgcrypt-1.5.0
+make clean
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local \
+--disable-static --disable-dependency-tracking --disable-asm
+make
+sudo make install
+cd ..
+
+# Install GNUTLS
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.12.14.tar.bz2
+tar -xjvf gnutls-2.12.14.tar.bz2
+cd gnutls-2.12.14
+make clean
+CFLAGS="-arch i386" CXXFLAGS="-arch i386" ./configure --prefix=/usr/local \
+--with-libgcrypt-prefix=/usr/local --disable-static \
+--disable-dependency-tracking --without-p11-kit --with-libgcrypt
+make
+sudo make install
+cd ..
+
+
+B. Build and install the Python dependencies by using the easy_install tool.
+The software will be installed in /Library/Python/2.7/site-packages folder.
+
+You must become root first. The export the following environment variables
+before starting the build process:
+
+sudo -s
+export CC="gcc -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
+export ARCHFLAGS="-arch i386"
+export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
+
+easy_install -U python-gnutls dnspython twisted python-application cython python-dateutil pyOpenSSL greenlet
+
+# Install lxml python module
+STATIC_DEPS=true CFLAGS="-arch i386" easy_install lxml
+
+# Stop being root
+exit
+
+
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. python-eventlib, python-backports
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Eventlet
+if [ -d python-eventlib ]; then
+        cd python-eventlib
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlib
+        cd python-eventlib
+        sudo python setup.py install
+fi
+cd ..
+
+# Backports
+if [ -d python-backports ]; then
+        cd python-backports
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-backports
+        cd python-backports
+        sudo python setup.py install
+fi
+cd ..
+
+# XCAP library
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+        sudo python setup.py install
+fi
+cd ..
+
+# MSRP library
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+        sudo python setup.py install
+fi
+cd ..
+
+# SIP SIMPLE library
+if [ -d python-sipsimple ]; then
+    cd python-sipsimple
+    darcs pull -a
+else 
+    darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+    cd python-sipsimple
+fi
+
+Note: 64 bit architecture is not yet fully supported, namely there is
+hissing sound in the audio input layer that manifests itself only when
+building in 64 bit mode.  Until a fix is found, the workaround is to use the
+32 bit mode.
+
+By default the system version SDK will be used to build SIP SIMPLE SDK.
+This can be overridden by setting the following environment variable:
+
+export SIPSIMPLE_OSX_SDK="10.7"
+
+Build and install SIP SIMPLE library:
+
+# build only for 32 bit architechture to avoid the audio input bug
+export SIPSIMPLE_OSX_ARCH="i386"
+# compatible with Lion
+export SIPSIMPLE_OSX_SDK="10.7"
+python setup.py build_ext --pjsip-clean-compile --pjsip-disable-assertions
+sudo python setup.py install
+
+Additional, you can install the command line interface scripts that can be
+used to test the SDK capabilities.
+
+if [ -d sipclients ]; then
+    cd sipclients
+    darcs pull -a
+else 
+    darcs get http://devel.ag-projects.com/repositories/sipclients
+    cd sipclients
+fi
+sudo python setup.py install
+cd ..
+
+To use the sipclients command line tools, you must force the system Python
+interpreter to use the 32 bit mode as by default the Python interpreter uses
+the 64 mode while the SIP SIMPLE core is built for 32 bits:
+
+export VERSIONER_PYTHON_PREFER_32_BIT=yes
+
