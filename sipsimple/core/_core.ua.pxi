@@ -3,13 +3,14 @@
 
 # python imports
 
+import errno
+import heapq
 import re
 import random
 import sys
 import time
 import traceback
 import os
-from errno import EBADF
 
 
 # classes
@@ -650,38 +651,45 @@ cdef class PJSIPUA:
         cdef float max_timeout
         cdef pj_time_val pj_max_timeout
         cdef list timers
-        cdef int processed_timers
         cdef Timer timer
+
         self._check_self()
-        if self._timers:
-            max_timeout = min(max((<Timer>self._timers[0]).schedule_time - time.time(), 0.001), 0.100)
-            pj_max_timeout.sec = int(max_timeout)
-            pj_max_timeout.msec = int(max_timeout * 1000) % 1000
-        else:
-            pj_max_timeout.sec = 0
-            pj_max_timeout.msec = 100
+
+        max_timeout = 0.100
+        while self._timers:
+            if not (<Timer>self._timers[0])._scheduled:
+                # timer was cancelled
+                heapq.heappop(self._timers)
+            else:
+                max_timeout = min(max((<Timer>self._timers[0]).schedule_time - time.time(), 0.0), max_timeout)
+                break
+        pj_max_timeout.sec = int(max_timeout)
+        pj_max_timeout.msec = int(max_timeout * 1000) % 1000
         with nogil:
             status = pjsip_endpt_handle_events(self._pjsip_endpoint._obj, &pj_max_timeout)
         IF UNAME_SYSNAME == "Darwin":
-            if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
+            if status not in [0, PJ_ERRNO_START_SYS + errno.EBADF]:
                 raise PJSIPError("Error while handling events", status)
         ELSE:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
         _process_handler_queue(self, &_post_poll_handler_queue)
+
         timers = list()
-        processed_timers = 0
         now = time.time()
-        while processed_timers < len(self._timers):
-            timer = <Timer> self._timers[processed_timers]
-            if timer.schedule_time - now > 0.001:
+        while self._timers:
+            if not (<Timer>self._timers[0])._scheduled:
+                # timer was cancelled
+                heapq.heappop(self._timers)
+            elif (<Timer>self._timers[0]).schedule_time <= now:
+                # timer needs to be processed
+                timer = heapq.heappop(self._timers)
+                timers.append(timer)
+            else:
                 break
-            timers.append(timer)
-            processed_timers += 1
-        if processed_timers > 0:
-            del self._timers[:processed_timers]
-            for timer in timers:
-                timer.call()
+        for timer in timers:
+            timer.call()
+
         self._poll_log()
         if self._fatal_error:
             return True
@@ -712,22 +720,12 @@ cdef class PJSIPUA:
         return 0
 
     cdef int _add_timer(self, Timer timer) except -1:
-        cdef int low
-        cdef int mid
-        cdef int high
-        low = 0
-        high = len(self._timers)
-        while low < high:
-            mid = (low+high)/2
-            if timer < self._timers[mid]:
-                high = mid
-            else:
-                low = mid+1
-        self._timers.insert(low, timer)
+        heapq.heappush(self._timers, timer)
         return 0
 
     cdef int _remove_timer(self, Timer timer) except -1:
-        self._timers.remove(timer)
+        # Don't remove it from the heap, just mark it as not scheduled
+        timer._scheduled = 0
         return 0
 
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0:
