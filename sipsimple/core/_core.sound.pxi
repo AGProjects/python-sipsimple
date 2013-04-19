@@ -1,7 +1,6 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-import platform
 import sys
 
 
@@ -135,12 +134,6 @@ cdef class AudioMixer:
 
     def __cinit__(self, *args, **kwargs):
         self._connected_slots = list()
-        if platform.system() == "Darwin":
-            # At some point Snow Leopard did not like this, but it works now 2010-09-05
-            # and not platform.mac_ver()[0].startswith("10.6"):
-            self._disconnect_when_idle = 1
-        else:
-            self._disconnect_when_idle = 0
         self._input_volume = 100
         self._output_volume = 100
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
@@ -185,7 +178,7 @@ cdef class AudioMixer:
         if status != 0:
             raise PJSIPError("Could not create audio mixer", status)
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
-        if self._disconnect_when_idle and not (input_device is None and output_device is None):
+        if not (input_device is None and output_device is None):
             self._stop_sound_device(ua)
         _add_handler(_AudioMixer_dealloc_handler, self, &_dealloc_handler_queue)
 
@@ -234,8 +227,7 @@ cdef class AudioMixer:
                 raise ValueError("ec_tail_length argument cannot be negative")
             self._stop_sound_device(ua)
             self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
-            if (self._disconnect_when_idle and self.used_slot_count == 0 and not
-                (input_device is None and output_device is None)):
+            if self.used_slot_count == 0 and not (input_device is None and output_device is None):
                 self._stop_sound_device(ua)
         finally:
             with nogil:
@@ -538,9 +530,7 @@ cdef class AudioMixer:
             if status != 0:
                 raise PJSIPError("Could not add audio object to audio mixer", status)
             self.used_slot_count += 1
-            if (self.used_slot_count == 1 and self._disconnect_when_idle and
-                not (self.input_device is None and self.output_device is None) and
-                self._snd == NULL):
+            if self.used_slot_count == 1 and not (self.input_device is None and self.output_device is None) and self._snd == NULL:
                 self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length, 1)
             return slot
         finally:
@@ -567,8 +557,7 @@ cdef class AudioMixer:
                 raise PJSIPError("Could not remove audio object from audio mixer", status)
             self._connected_slots = [connection for connection in self._connected_slots if slot not in connection]
             self.used_slot_count -= 1
-            if (self.used_slot_count == 0 and self._disconnect_when_idle and
-                not (self.input_device is None and self.output_device is None)):
+            if self.used_slot_count == 0 and not (self.input_device is None and self.output_device is None):
                 timer = Timer()
                 timer.schedule(0, <timer_callback>self._cb_postpoll_stop_sound, self)
             return 0

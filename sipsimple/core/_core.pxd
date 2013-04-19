@@ -1553,7 +1553,6 @@ cdef int deallocate_weakref(object weak_ref, object timer) except -1 with gil
 
 cdef class AudioMixer(object):
     # attributes
-    cdef int _disconnect_when_idle
     cdef int _input_volume
     cdef int _output_volume
     cdef bint _muted
