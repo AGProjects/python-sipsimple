@@ -715,8 +715,6 @@ cdef extern from "pjsip.h":
         PJSIP_MAX_ACCEPT_COUNT
     struct pjsip_msg_body:
         pjsip_media_type content_type
-        void *data
-        unsigned int len
     struct pjsip_request_line:
         pjsip_method method
         pjsip_uri *uri
@@ -786,6 +784,7 @@ cdef extern from "pjsip.h":
     pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options) nogil
     void pjsip_method_init_np(pjsip_method *m, pj_str_t *str) nogil
     pj_str_t *pjsip_get_status_text(int status_code) nogil
+    int pjsip_print_body(pjsip_msg_body *msg_body, char **buf, int *len)
 
     # module
     enum pjsip_module_priority:

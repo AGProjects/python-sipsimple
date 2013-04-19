@@ -207,7 +207,8 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
     cdef pjsip_generic_array_hdr *array_header
     cdef pjsip_ctype_hdr *ctype_header
     cdef pjsip_cseq_hdr *cseq_header
-    cdef int i
+    cdef char *buf
+    cdef int buf_len, i, status
     headers = {}
     header = <pjsip_hdr *> (<pj_list *> &msg.hdr).next
     while header != &msg.hdr:
@@ -282,7 +283,11 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
     if body == NULL:
         info_dict["body"] = None
     else:
-        info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
+        status = pjsip_print_body(body, &buf, &buf_len)
+        if status != 0:
+            info_dict["body"] = None
+        else:
+            info_dict["body"] = PyString_FromStringAndSize(buf, buf_len)
     if msg.type == PJSIP_REQUEST_MSG:
         info_dict["method"] = _pj_str_to_str(msg.line.req.method.name)
         # You need to call pjsip_uri_get_uri on the request URI if the message is for transmitting,
