@@ -107,7 +107,7 @@ cdef class Invitation:
         cdef pjsip_inv_session **invite_session_address
         cdef pjsip_tpselector tp_sel
         cdef pjsip_tx_data *tdata = NULL
-        cdef PJSTR contact_uri_str
+        cdef PJSTR contact_str
 
         with nogil:
             status = pj_mutex_lock(lock)
@@ -138,9 +138,9 @@ cdef class Invitation:
                 self.local_contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                                              user=self.request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
-            contact_uri_str = PJSTR(str(self.local_contact_header.uri))
+            contact_str = PJSTR(str(self.local_contact_header.body))
             with nogil:
-                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, dialog_address)
+                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INVITE session", status)
             with nogil:
@@ -324,7 +324,7 @@ cdef class Invitation:
         cdef pjsip_route_hdr *route_set
         cdef pjsip_tx_data *tdata
         cdef PJSIPUA ua
-        cdef PJSTR contact_uri_str
+        cdef PJSTR contact_str
         cdef PJSTR from_header_str
         cdef PJSTR to_header_str
         cdef PJSTR request_uri_str
@@ -363,11 +363,11 @@ cdef class Invitation:
             to_header_parameters.pop("tag", None)
             to_header.parameters = {}
             to_header_str = PJSTR(to_header.body)
-            contact_uri_str = PJSTR(str(self.local_contact_header.uri))
+            contact_str = PJSTR(str(self.local_contact_header.body))
             request_uri_str = PJSTR(str(request_uri))
 
             with nogil:
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_uri_str.pj_str,
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_str.pj_str,
                                               &to_header_str.pj_str, &request_uri_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
