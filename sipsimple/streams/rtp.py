@@ -24,10 +24,7 @@ from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamRegis
 
 class AudioStream(object):
     __metaclass__ = MediaStreamRegistrar
-
     implements(IMediaStream, IAudioPort, IObserver)
-
-    _streams = []
 
     type = 'audio'
     priority = 1
@@ -178,7 +175,6 @@ class AudioStream(object):
 
     def initialize(self, session, direction):
         with self._lock:
-            self._streams.append(self)
             if self.state != "NULL":
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
