@@ -18,7 +18,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python import Null
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
-from eventlib import api, coros, proc
+from eventlib import coros, proc
 from twisted.internet import reactor
 from xcaplib import client as xcap_client
 from zope.interface import implements
@@ -278,18 +278,15 @@ class SIPApplication(object):
         # shutdown engine
         engine = Engine()
         engine.stop()
-        # TODO: timeout should be removed when the Engine is fixed so that it never hangs. -Saul
-        try:
-            with api.timeout(15):
-                while True:
-                    notification = self._channel.wait()
-                    if notification.name == 'SIPEngineDidEnd':
-                        break
-        except api.TimeoutError:
-            pass
+        while True:
+            notification = self._channel.wait()
+            if notification.name == 'SIPEngineDidEnd':
+                break
+
         # stop threads
         thread_manager = ThreadManager()
         thread_manager.stop()
+
         # stop the reactor
         reactor.stop()
 
