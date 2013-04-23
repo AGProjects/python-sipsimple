@@ -595,10 +595,6 @@ cdef class PJSIPUA:
             raise PJSIPError("Could not start NAT type detection", status)
         Py_INCREF(user_data)
 
-    def parse_sip_uri(self, uri_string):
-        # no need for self._check_self(), _get_ua() is called in the function
-        return SIPURI.parse(uri_string)
-
     def set_nameservers(self, list nameservers):
         self._check_self()
         return self._pjsip_endpoint._set_dns_nameservers([n for n in nameservers if _re_ipv4.match(n)])
