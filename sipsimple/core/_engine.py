@@ -25,7 +25,6 @@ class Engine(Thread):
                              "udp_port": 0,
                              "tcp_port": None,
                              "tls_port": None,
-                             "tls_protocol": "TLSv1",
                              "tls_verify_server": False,
                              "tls_ca_file": None,
                              "tls_cert_file": None,

@@ -833,7 +833,6 @@ cdef extern from "pjsip.h":
 
     # transports
     enum pjsip_ssl_method:
-        PJSIP_SSL_UNSPECIFIED_METHOD
         PJSIP_TLSV1_METHOD
     struct pjsip_transport:
         char *type_name
@@ -1129,7 +1128,6 @@ cdef class PJSIPEndpoint(object):
     cdef PJSTR _tls_privkey_file
     cdef object _local_ip_used
     cdef int _tls_timeout
-    cdef object _tls_protocol
 
     # private methods
     cdef int _make_local_addr(self, pj_sockaddr_in *local_addr, object ip_address, int port) except -1

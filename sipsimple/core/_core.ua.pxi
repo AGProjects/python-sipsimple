@@ -98,7 +98,7 @@ cdef class PJSIPUA:
         self._caching_pool = PJCachingPool()
         self._pjmedia_endpoint = PJMEDIAEndpoint(self._caching_pool)
         self._pjsip_endpoint = PJSIPEndpoint(self._caching_pool, kwargs["ip_address"], kwargs["udp_port"],
-                                             kwargs["tcp_port"], kwargs["tls_port"], kwargs["tls_protocol"],
+                                             kwargs["tcp_port"], kwargs["tls_port"],
                                              kwargs["tls_verify_server"], kwargs["tls_ca_file"],
                                              kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
         status = pj_mutex_create_simple(self._pjsip_endpoint._pool, "event_queue_lock", &_event_queue_lock)
@@ -502,12 +502,6 @@ cdef class PJSIPUA:
                 raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
             pj_log_set_level(value)
 
-    property tls_protocol:
-
-        def __get__(self):
-            self._check_self()
-            return self._pjsip_endpoint._tls_protocol
-
     property tls_verify_server:
 
         def __get__(self):
@@ -547,9 +541,8 @@ cdef class PJSIPUA:
             self._check_self()
             return self._pjsip_endpoint._tls_timeout
 
-    def set_tls_options(self, port=None, protocol="TLSv1", verify_server=False,
+    def set_tls_options(self, port=None, verify_server=False,
                         ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
-        global _tls_protocol_mapping
         cdef int c_port
         self._check_self()
         if port is None:
@@ -560,8 +553,6 @@ cdef class PJSIPUA:
             c_port = port
             if not (0 <= c_port <= 65535):
                 raise ValueError("Not a valid TCP port: %d" % port)
-            if protocol not in _tls_protocol_mapping:
-                raise ValueError("Unknown TLS protocol: %s" % protocol)
             if ca_file is not None and not os.path.isfile(ca_file):
                 raise ValueError("Cannot find the specified CA file: %s" % ca_file)
             if cert_file is not None and not os.path.isfile(cert_file):
@@ -572,7 +563,6 @@ cdef class PJSIPUA:
                 raise ValueError("Invalid TLS timeout value: %d" % timeout)
             if self._pjsip_endpoint._tls_transport != NULL:
                 self._pjsip_endpoint._stop_tls_transport()
-            self._pjsip_endpoint._tls_protocol = protocol
             self._pjsip_endpoint._tls_verify_server = int(bool(verify_server))
             if ca_file is None:
                 self._pjsip_endpoint._tls_ca_file = None

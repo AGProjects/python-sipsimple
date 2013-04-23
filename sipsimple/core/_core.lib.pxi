@@ -36,9 +36,8 @@ cdef class PJCachingPool:
 
 
 cdef class PJSIPEndpoint:
-    def __cinit__(self, PJCachingPool caching_pool, ip_address, udp_port, tcp_port, tls_port, tls_protocol,
+    def __cinit__(self, PJCachingPool caching_pool, ip_address, udp_port, tcp_port, tls_port,
                   tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
-        global _inv_cb, _tls_protocol_mapping
         cdef pj_dns_resolver *resolver
         cdef int status
         if ip_address is not None and not _is_valid_ip(pj_AF_INET(), ip_address):
@@ -78,8 +77,6 @@ cdef class PJSIPEndpoint:
             self._start_udp_transport(udp_port)
         if tcp_port is not None:
             self._start_tcp_transport(tcp_port)
-        if tls_protocol not in _tls_protocol_mapping:
-            raise ValueError("Unknown TLS protocol: %s" % tls_protocol)
         self._tls_verify_server = int(tls_verify_server)
         if tls_ca_file is not None:
             self._tls_ca_file = PJSTR(tls_ca_file.encode(sys.getfilesystemencoding()))
@@ -134,7 +131,6 @@ cdef class PJSIPEndpoint:
         return 0
 
     cdef int _start_tls_transport(self, port) except -1:
-        global _tls_protocol_mapping
         cdef pj_sockaddr_in local_addr
         cdef pjsip_tls_setting tls_setting
         self._make_local_addr(&local_addr, self._local_ip_used, port)
@@ -148,7 +144,7 @@ cdef class PJSIPEndpoint:
             tls_setting.cert_file = self._tls_cert_file.pj_str
         if self._tls_privkey_file is not None:
             tls_setting.privkey_file = self._tls_privkey_file.pj_str
-        tls_setting.method = _tls_protocol_mapping[self._tls_protocol]
+        tls_setting.method = PJSIP_TLSV1_METHOD
         tls_setting.verify_server = self._tls_verify_server
         status = pjsip_tls_transport_start(self._obj, &tls_setting, &local_addr, NULL, 1, &self._tls_transport)
         if status in (PJSIP_TLS_EUNKNOWN, PJSIP_TLS_EINVMETHOD, PJSIP_TLS_ECACERT, PJSIP_TLS_ECERTFILE, PJSIP_TLS_EKEYFILE, PJSIP_TLS_ECIPHER, PJSIP_TLS_ECTX):
@@ -316,7 +312,3 @@ cdef class PJMEDIAEndpoint:
                     raise PJSIPError("Could not set codec priority", status)
         return 0
 
-# globals
-
-cdef object _tls_protocol_mapping = {None: PJSIP_SSL_UNSPECIFIED_METHOD,
-                                     "TLSv1": PJSIP_TLSV1_METHOD}

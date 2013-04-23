@@ -11,7 +11,7 @@ from sipsimple import __version__
 from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
-from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
+from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList
 from sipsimple.configuration.datatypes import Path
 
 
@@ -63,7 +63,6 @@ class SIPSettings(SettingsGroup):
 
 class TLSSettings(SettingsGroup):
     ca_list = Setting(type=Path, default=None, nillable=True)
-    protocol = Setting(type=TLSProtocol, default='TLSv1')
     timeout = Setting(type=NonNegativeInteger, default=3000)
 
 

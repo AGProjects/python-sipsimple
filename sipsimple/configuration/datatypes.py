@@ -14,7 +14,7 @@ __all__ = [# Base datatypes
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
-           'MSRPConnectionModel', 'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
+           'MSRPConnectionModel', 'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption',
            # Path datatypes
            'Path']
 
@@ -568,15 +568,6 @@ class SRTPEncryption(str):
         value = str(value)
         if value not in cls.available_values:
             raise ValueError("illegal value for srtp encryption: %s" % value)
-        return value
-
-
-class TLSProtocol(str):
-    available_values = ('TLSv1',)
-    def __new__(cls, value):
-        value = str(value)
-        if value not in cls.available_values:
-            raise ValueError("illegal value for tls protocol: %s" % value)
         return value
 
 

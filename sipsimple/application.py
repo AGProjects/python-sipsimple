@@ -162,7 +162,6 @@ class SIPApplication(object):
                        tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transport_list else None,
                        tls_port=None,
                        # TLS
-                       tls_protocol='TLSv1',
                        tls_verify_server=False,
                        tls_ca_file=None,
                        tls_cert_file=None,
@@ -186,7 +185,6 @@ class SIPApplication(object):
         # initialize TLS
         try:
             engine.set_tls_options(port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
-                                   protocol=settings.tls.protocol,
                                    verify_server=account.tls.verify_server if account else False,
                                    ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                    cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
@@ -457,7 +455,6 @@ class SIPApplication(object):
                 account = account_manager.default_account
                 try:
                     engine.set_tls_options(port=settings.sip.tls_port,
-                                           protocol=settings.tls.protocol,
                                            verify_server=account.tls.verify_server,
                                            ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                            cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
