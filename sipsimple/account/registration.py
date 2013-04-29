@@ -187,7 +187,7 @@ class Registrar(object):
                         self.registered = True
                         # Save GRUU
                         try:
-                            header = next(header for header in notification.data.contact_header_list if header.parameters.get('+sip.instance', '').strip('"') == settings.instance_id)
+                            header = next(header for header in notification.data.contact_header_list if header.parameters.get('+sip.instance', '').strip('"<>') == settings.instance_id)
                         except StopIteration:
                             self.account.contact.public_gruu = None
                             self.account.contact.temporary_gruu = None
