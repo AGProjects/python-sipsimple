@@ -498,6 +498,8 @@ class SIPApplication(object):
 
     @run_in_thread('device-io')
     def _NH_AudioDevicesDidChange(self, notification):
+        settings = SIPSimpleSettings()
+
         old_devices = set(notification.data.old_devices)
         new_devices = set(notification.data.new_devices)
         removed_devices = old_devices - new_devices
@@ -509,9 +511,21 @@ class SIPApplication(object):
         output_device = self.voice_audio_bridge.mixer.output_device
         alert_device = self.alert_audio_bridge.mixer.output_device
         if self.voice_audio_bridge.mixer.real_input_device in removed_devices:
-            input_device = u'system_default' if new_devices else None
+            if new_devices:
+                if settings.audio.previous_input_device is not None and settings.audio.previous_input_device in new_devices:
+                    input_device = settings.audio.previous_input_device
+                else:
+                    input_device = u'system_default'
+            else:
+                input_device = None
         if self.voice_audio_bridge.mixer.real_output_device in removed_devices:
-            output_device = u'system_default' if new_devices else None
+            if new_devices:
+                if settings.audio.previous_output_device is not None and settings.audio.previous_output_device in new_devices:
+                    output_device = settings.audio.previous_output_device
+                else:
+                    output_device = u'system_default'
+            else:
+                output_device = None
         if self.alert_audio_bridge.mixer.real_output_device in removed_devices:
             alert_device = u'system_default' if new_devices else None
 
