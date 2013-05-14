@@ -172,10 +172,6 @@ class Message(object):
             except:
                 notification_center.remove_observer(self, sender=self._request)
 
-    def end(self):
-        with self._lock:
-            self._request.end()
-
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
