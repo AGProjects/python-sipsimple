@@ -170,6 +170,7 @@ class Message(object):
                 self._request.send(timeout)
             except:
                 notification_center.remove_observer(self, sender=self._request)
+                raise
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
