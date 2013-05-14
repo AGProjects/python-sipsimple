@@ -147,8 +147,7 @@ class Message(object):
     implements(IObserver)
 
     def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None, extra_headers=[]):
-        self._request = Request("MESSAGE", to_header.uri, from_header, to_header, route_header,
-                                credentials=credentials, extra_headers=extra_headers, content_type=content_type, body=body)
+        self._request = Request("MESSAGE", to_header.uri, from_header, to_header, route_header, credentials=credentials, extra_headers=extra_headers, content_type=content_type, body=body)
         self._lock = RLock()
 
     from_header = property(lambda self: self._request.from_header)
@@ -177,19 +176,16 @@ class Message(object):
         handler(notification)
 
     def _NH_SIPRequestDidSucceed(self, notification):
-        with self._lock:
-            if notification.data.expires:
-                # this shouldn't happen really
-                notification.sender.end()
-            notification.center.post_notification('SIPMessageDidSucceed', sender=self, data=notification.data)
+        if notification.data.expires:
+            # this shouldn't happen really
+            notification.sender.end()
+        notification.center.post_notification('SIPMessageDidSucceed', sender=self, data=notification.data)
 
     def _NH_SIPRequestDidFail(self, notification):
-        with self._lock:
-            notification.center.post_notification('SIPMessageDidFail', sender=self, data=notification.data)
+        notification.center.post_notification('SIPMessageDidFail', sender=self, data=notification.data)
 
     def _NH_SIPRequestDidEnd(self, notification):
-        with self._lock:
-            notification.center.remove_observer(self, sender=notification.sender)
+        notification.center.remove_observer(self, sender=notification.sender)
 
 
 class PublicationError(Exception): pass
