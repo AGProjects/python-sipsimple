@@ -1,15 +1,16 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
+# Copyright (C) 2008-2013 AG Projects. See LICENSE for details.
 #
 
 """Generic configuration management"""
 
-__all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
-           'AbstractSetting', 'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup',
-           'SettingsObjectID', 'SettingsObjectImmutableID', 'SettingsObject', 'SettingsObjectExtension',
-           'PersistentKey', 'ItemContainer']
+__all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError',
+           'SettingsObjectID', 'SettingsObjectImmutableID', 'AbstractSetting', 'Setting', 'CorrelatedSetting',
+           'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'ItemCollection', 'SettingsObject', 'SettingsObjectExtension',
+           'DefaultValue', 'ModifiedValue', 'ModifiedList', 'PersistentKey', 'ItemContainer', 'ItemManagement']
 
 from abc import ABCMeta, abstractmethod
 from itertools import chain
+from operator import attrgetter
 from threading import Lock
 
 from application import log
@@ -30,9 +31,12 @@ class ObjectNotFoundError(ConfigurationError): pass
 class DuplicateIDError(ValueError): pass
 
 
+## Structure markers
+
 class PersistentKey(unicode):
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, unicode.__repr__(self))
+
 
 class ItemContainer(dict):
     def __repr__(self):
@@ -233,6 +237,23 @@ class ModifiedValue(object):
 
     def __repr__(self):
         return '%s(old=%r, new=%r)' % (self.__class__.__name__, self.old, self.new)
+
+
+class ModifiedList(object):
+    """
+    Represents the modified state (added, removed, modified) of list like
+    settings.
+    """
+
+    __slots__ = ('added', 'removed', 'modified')
+
+    def __init__(self, added, removed, modified):
+        self.added = added
+        self.removed = removed
+        self.modified = modified
+
+    def __repr__(self):
+        return '%s(added=%r, removed=%r, modified=%r)' % (self.__class__.__name__, self.added, self.removed, self.modified)
 
 
 class SettingsObjectID(object):
@@ -624,6 +645,133 @@ class SettingsGroup(SettingsState):
     """
 
     __metaclass__ = SettingsGroupMeta
+
+
+class ItemMap(dict):
+    def __init__(self, *args, **kw):
+        super(ItemMap, self).__init__(*args, **kw)
+        self.old = dict(self)
+
+    def get_modified(self):
+        new_ids = set(self)
+        old_ids = set(self.old)
+        added_items = [self[id] for id in new_ids - old_ids]
+        removed_items = [self.old[id] for id in old_ids - new_ids]
+        modified_items = dict((id, modified) for id, modified in ((id, self[id].get_modified()) for id in new_ids & old_ids) if modified)
+        for item in added_items:
+            item.get_modified() # reset the dirty flag of the added items and sync their old and new values
+        if added_items or removed_items or modified_items:
+            self.old = dict(self)
+            return ModifiedList(added=added_items, removed=removed_items, modified=modified_items)
+        else:
+            return None
+
+
+class ItemManagement(object):
+    def add_item(self, item, collection):
+        pass
+
+    def remove_item(self, item, collection):
+        pass
+
+    def set_items(self, items, collection):
+        pass
+
+
+class ItemCollectionMeta(SettingsGroupMeta):
+    def __init__(cls, name, bases, dct):
+        if cls._item_type is not None and not issubclass(cls._item_type, SettingsState):
+            raise TypeError('_item_type must be a subclass of SettingsState')
+        if cls._item_type is not None and not isinstance(getattr(cls._item_type, 'id', None), (SettingsObjectID, SettingsObjectImmutableID)):
+            raise ValueError('the type in _item_type must have an id attribute of type SettingsObjectID or SettingsObjectImmutableID')
+        if not isinstance(cls._item_management, ItemManagement):
+            raise TypeError('_item_management must be an instance of a subclass of ItemManagement')
+        super(ItemCollectionMeta, cls).__init__(name, bases, dct)
+
+    def __set__(cls, obj, items):
+        if not all(isinstance(item, cls._item_type) for item in items):
+            raise TypeError("items must be instances of %s" % cls._item_type.__name__)
+        if set(item.id for item in items).intersection(name for name in dir(cls) if isinstance(getattr(cls, name, None), (SettingsGroupMeta, AbstractSetting))):
+            raise ValueError("item IDs cannot overlap with static setting names")
+        collection = cls.__get__(obj, obj.__class__)
+        with collection._lock:
+            collection._item_management.set_items(items, collection)
+            collection._item_map.clear()
+            collection._item_map.update((item.id, item) for item in items)
+
+    def __delete__(self, obj):
+        raise AttributeError('cannot delete item collection')
+
+
+class ItemCollection(SettingsGroup):
+    """A SettingsGroup that also contains a dynamic collection of sub-setting"""
+
+    __metaclass__ = ItemCollectionMeta
+
+    _item_type = None
+    _item_management = ItemManagement()
+
+    def __init__(self):
+        self._item_map = ItemMap()
+        self._lock = Lock()
+
+    def __getitem__(self, key):
+        return self._item_map[key]
+
+    def __contains__(self, key):
+        return key in self._item_map
+
+    def __iter__(self):
+        return iter(sorted(self._item_map.values(), key=attrgetter('id')))
+
+    def __reversed__(self):
+        return iter(sorted(self._item_map.values(), key=attrgetter('id'), reverse=True))
+
+    __hash__ = None
+
+    def __len__(self):
+        return len(self._item_map)
+
+    def __getstate__(self):
+        with self._lock:
+            state = ItemContainer((id, item.__getstate__()) for id, item in self._item_map.iteritems())
+            state.update(super(ItemCollection, self).__getstate__())
+            return state
+
+    def __setstate__(self, state):
+        with self._lock:
+            super(ItemCollection, self).__setstate__(state)
+            setting_names = set(name for name in dir(self.__class__) if isinstance(getattr(self.__class__, name, None), (SettingsGroupMeta, AbstractSetting)))
+            kwdict = lambda dct: dict((str(key), value) for key, value in dct.iteritems()) # in python < 2.6.5 keyword arg names must be strings. To be removed later -Dan
+            self._item_map = ItemMap((id, self._item_type(id, **kwdict(item_state))) for id, item_state in state.iteritems() if id not in setting_names)
+
+    def get_modified(self):
+        with self._lock:
+            modified_settings = super(ItemCollection, self).get_modified()
+            modified_items = self._item_map.get_modified()
+            if modified_items is not None:
+                modified_settings[None] = modified_items
+            return modified_settings
+
+    def ids(self):
+        return sorted(self._item_map.keys())
+
+    def get(self, key, default=None):
+        return self._item_map.get(key, default)
+
+    def add(self, item):
+        if not isinstance(item, self._item_type):
+            raise TypeError("item must be an instances of %s" % self._item_type.__name__)
+        if item.id in set(name for name in dir(self.__class__) if isinstance(getattr(self.__class__, name, None), (SettingsGroupMeta, AbstractSetting))):
+            raise ValueError("item IDs cannot overlap with static setting names")
+        with self._lock:
+            self._item_management.add_item(item, self)
+            self._item_map[item.id] = item
+
+    def remove(self, item):
+        with self._lock:
+            self._item_management.remove_item(item, self)
+            self._item_map.pop(item.id, None)
 
 
 class ConditionalSingleton(type):
