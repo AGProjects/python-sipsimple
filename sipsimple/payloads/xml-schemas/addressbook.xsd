@@ -34,6 +34,7 @@
     <xs:sequence>
      <xs:element name="uri" type="ContactURI" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
+    <xs:attribute name="default" type="xs:string"/>
    </xs:complexType>
 
    <xs:complexType name="ContactURI">

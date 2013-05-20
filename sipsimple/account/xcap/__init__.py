@@ -351,6 +351,24 @@ class ItemCollection(object):
         del self.items[item.id]
 
 
+class ContactList(ItemCollection):
+    pass
+
+
+class ContactURIList(ItemCollection):
+    def __init__(self, items, default=None):
+        super(ContactURIList, self).__init__(items)
+        self.default = default
+
+    def __eq__(self, other):
+        if isinstance(other, ContactURIList):
+            return self.items == other.items and self.default == other.default
+        return NotImplemented
+
+    def __repr__(self):
+        return "%s(%r, default=%r)" % (self.__class__.__name__, self.items.values(), self.default)
+
+
 class Group(object):
     def __init__(self, id, name, contacts, **attributes):
         self.id = id
@@ -368,8 +386,8 @@ class Group(object):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __setattr__(self, name, value):
-        if name == 'contacts' and not isinstance(value, ItemCollection):
-            value = ItemCollection(value)
+        if name == 'contacts' and not isinstance(value, ContactList):
+            value = ContactList(value)
         object.__setattr__(self, name, value)
 
 
@@ -428,8 +446,8 @@ class Contact(object):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __setattr__(self, name, value):
-        if name == 'uris' and not isinstance(value, ItemCollection):
-            value = ItemCollection(value)
+        if name == 'uris' and not isinstance(value, ContactURIList):
+            value = ContactURIList(value)
         object.__setattr__(self, name, value)
 
 
@@ -471,7 +489,7 @@ class Addressbook(object):
     @classmethod
     def from_payload(cls, payload):
         def payload_to_contact(payload):
-            uris = [ContactURI(uri.id, uri.uri, uri.type, **(uri.attributes or {})) for uri in payload.uris]
+            uris = ContactURIList((ContactURI(uri.id, uri.uri, uri.type, **(uri.attributes or {})) for uri in payload.uris), default=payload.uris.default)
             presence_handling = EventHandling(payload.presence.policy.value, payload.presence.subscribe.value)
             dialog_handling = EventHandling(payload.dialog.policy.value, payload.dialog.subscribe.value)
             return Contact(payload.id, payload.name.value, uris, presence_handling, dialog_handling, **(payload.attributes or {}))
@@ -1439,6 +1457,7 @@ class XCAPManager(object):
             contact_uri = addressbook.ContactURI(uri.id, uri.uri, uri.type)
             contact_uri.attributes = addressbook.ContactURI.attributes.type(uri.attributes)
             xml_contact.uris.add(contact_uri)
+        xml_contact.uris.default = contact.uris.default
         xml_contact.attributes = addressbook.Contact.attributes.type(contact.attributes)
         sipsimple_addressbook.add(xml_contact)
 
@@ -1453,6 +1472,8 @@ class XCAPManager(object):
         attributes.pop('uris', None) # uris are modified using dedicated methods
         if 'name' in attributes:
             contact.name = attributes.pop('name')
+        if 'uris.default' in attributes:
+            contact.uris.default = attributes.pop('uris.default')
         if 'presence.policy' in attributes:
             contact.presence.policy = attributes.pop('presence.policy')
         if 'presence.subscribe' in attributes:

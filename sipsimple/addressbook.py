@@ -22,8 +22,8 @@ from application.python.types import Singleton, MarkerType
 from application.python.weakref import weakobjectmap
 
 from sipsimple.account import xcap, AccountManager
-from sipsimple.configuration import ConfigurationManager, AbstractSetting, SettingsGroup, SettingsGroupMeta, SettingsObjectImmutableID, SettingsState, PersistentKey, ItemContainer, ModifiedValue
-from sipsimple.configuration import ObjectNotFoundError, DuplicateIDError
+from sipsimple.configuration import ConfigurationManager, ObjectNotFoundError, DuplicateIDError, PersistentKey, ModifiedValue, ModifiedList
+from sipsimple.configuration import AbstractSetting, SettingsObjectImmutableID, SettingsGroup, SettingsGroupMeta, SettingsState, ItemCollection, ItemManagement
 from sipsimple.payloads.addressbook import PolicyValue, ElementAttributes
 from sipsimple.payloads.datatypes import ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument
@@ -56,18 +56,6 @@ class defaultweakobjectmap(weakobjectmap):
         super(defaultweakobjectmap, self).__init__(*args, **kw)
     def __missing__(self, key):
         return self.setdefault(key.object, self.default_factory())
-
-
-class ModifiedList(object):
-    __slots__ = ('added', 'removed', 'modified')
-
-    def __init__(self, added, removed, modified):
-        self.added = added
-        self.removed = removed
-        self.modified = modified
-
-    def __repr__(self):
-        return '%s(added=%r, removed=%r, modified=%r)' % (self.__class__.__name__, self.added, self.removed, self.modified)
 
 
 class Setting(AbstractSetting):
@@ -268,7 +256,7 @@ class XCAPContact(xcap.Contact):
 
     def __init__(self, id, name, uris, presence_handling=None, dialog_handling=None, **attributes):
         normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
-        uris = [XCAPContactURI.normalize(uri) for uri in uris]
+        uris = xcap.ContactURIList((XCAPContactURI.normalize(uri) for uri in uris), default=getattr(uris, 'default', None))
         super(XCAPContact, self).__init__(id, name, uris, presence_handling, dialog_handling, **normalized_attributes)
 
     @classmethod
@@ -276,7 +264,7 @@ class XCAPContact(xcap.Contact):
         return cls(contact.id, contact.name, contact.uris, contact.presence, contact.dialog, **contact.attributes)
 
     def get_modified(self, modified_keys):
-        names = set(['name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
+        names = set(['name', 'uris.default', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
         attributes = dict((name, recursive_getattr(self, name)) for name in names.intersection(modified_keys))
         attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
         return attributes
@@ -617,126 +605,6 @@ class GroupExtension(object):
         raise TypeError("GroupExtension subclasses cannot be instantiated")
 
 
-class ContactURIListDescriptor(AbstractSetting):
-    def __init__(self):
-        self.values = defaultweakobjectmap(ContactURIList)
-        self.oldvalues = defaultweakobjectmap(ContactURIList)
-        self.lock = Lock()
-
-    def __get__(self, obj, objtype):
-        if obj is None:
-            return self
-        with self.lock:
-            return self.values[obj]
-
-    def __set__(self, obj, value):
-        if value is None:
-            raise ValueError("setting attribute is not nillable")
-        elif not isinstance(value, ContactURIList):
-            value = ContactURIList(value)
-        with self.lock:
-            self.values[obj] = value
-
-    def __getstate__(self, obj):
-        with self.lock:
-            return self.values[obj].__getstate__()
-
-    def __setstate__(self, obj, value):
-        if value is None:
-            raise ValueError("setting attribute is not nillable")
-        object = ContactURIList.__new__(ContactURIList)
-        object.__setstate__(value)
-        with self.lock:
-            self.values[obj] = object
-            self.oldvalues[obj] = ContactURIList(object)
-
-    def get_modified(self, obj):
-        with self.lock:
-            old = self.oldvalues[obj]
-            new = self.values[obj]
-            with new.lock:
-                old_ids = set(old.ids())
-                new_ids = set(new.ids())
-                added_uris = [new[id] for id in new_ids - old_ids]
-                removed_uris = [old[id] for id in old_ids - new_ids]
-                modified_uris = dict((id, modified) for id, modified in ((id, new[id].get_modified()) for id in new_ids & old_ids) if modified)
-                for uri in added_uris:
-                    uri.get_modified() # reset the dirty flag of the added uris and sync their old and new values
-                try:
-                    if added_uris or removed_uris or modified_uris:
-                        return ModifiedList(added=added_uris, removed=removed_uris, modified=modified_uris)
-                    else:
-                        return None
-                finally:
-                    self.oldvalues[obj] = ContactURIList(new)
-
-    def get_old(self, obj):
-        with self.lock:
-            return self.oldvalues[obj]
-
-    def undo(self, obj):
-        with self.lock:
-            self.values[obj] = ContactURIList(self.oldvalues[obj])
-
-
-class ContactURIList(object):
-    def __new__(cls, uris=None):
-        instance = object.__new__(cls)
-        instance.lock = Lock()
-        return instance
-
-    def __init__(self, uris=None):
-        self.uris = dict((uri.id, uri) for uri in uris or [])
-
-    def __getitem__(self, key):
-        return self.uris[key]
-
-    def __contains__(self, key):
-        return key in self.uris
-
-    def __iter__(self):
-        return iter(sorted(self.uris.values(), key=attrgetter('id')))
-
-    def __reversed__(self):
-        return iter(sorted(self.uris.values(), key=attrgetter('id'), reverse=True))
-
-    __hash__ = None
-
-    def __len__(self):
-        return len(self.uris)
-
-    def __eq__(self, other):
-        if isinstance(other, ContactURIList):
-            return self.uris == other.uris
-        return NotImplemented
-
-    def __ne__(self, other):
-        equal = self.__eq__(other)
-        return NotImplemented if equal is NotImplemented else not equal
-
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, sorted(self.uris.values(), key=attrgetter('id')))
-
-    def __getstate__(self):
-        with self.lock:
-            return ItemContainer((id, uri.__getstate__()) for id, uri in self.uris.iteritems())
-
-    def __setstate__(self, value):
-        with self.lock:
-            self.uris = dict((id, ContactURI(id, **dict((str(key), val) for key, val in state.iteritems()))) for id, state in value.iteritems()) # python < 2.6.5 needs string keyword args -Dan
-
-    def ids(self):
-        return sorted(self.uris.keys())
-
-    def add(self, uri):
-        with self.lock:
-            self.uris[uri.id] = uri
-
-    def remove(self, uri):
-        with self.lock:
-            self.uris.pop(uri.id, None)
-
-
 class ContactURI(SettingsState):
     __id__ = SettingsObjectImmutableID(type=ID)
 
@@ -787,6 +655,55 @@ class ContactURIExtension(object):
         raise TypeError("ContactURIExtension subclasses cannot be instantiated")
 
 
+class DefaultContactURI(Setting):
+    def __init__(self):
+        super(DefaultContactURI, self).__init__(type=str, default=None, nillable=True)
+
+    def __get__(self, obj, objtype):
+        value = super(DefaultContactURI, self).__get__(obj, objtype)
+        return value if value in (self, None) else obj._item_map.get(value)
+
+    def __set__(self, obj, value):
+        if value is not None:
+            if not isinstance(value, ContactURI):
+                raise TypeError("the default URI must be a ContactURI instance or None")
+            with obj._lock:
+                if value.id not in obj._item_map:
+                    raise ValueError("the default URI can only be set to one of the URIs of the contact")
+                super(DefaultContactURI, self).__set__(obj, value.id)
+        else:
+            super(DefaultContactURI, self).__set__(obj, None)
+
+    def get_modified(self, obj):
+        modified_value = super(DefaultContactURI, self).get_modified(obj)
+        if modified_value is not None:
+            old_uri = obj._item_map.old.get(modified_value.old) if modified_value.old is not None else None
+            new_uri = obj._item_map.get(modified_value.new) if modified_value.new is not None else None
+            modified_value = ModifiedValue(old=old_uri, new=new_uri)
+        return modified_value
+
+    def get_old(self, obj):
+        value = super(DefaultContactURI, self).get_old(obj)
+        return value if value is None else obj._item_map.old.get(value)
+
+
+class ContactURIManagement(ItemManagement):
+    def remove_item(self, item, collection):
+        if collection.default is item:
+            collection.default = None
+
+    def set_items(self, items, collection):
+        if collection.default is not None and collection.default not in items:
+            collection.default = None
+
+
+class ContactURIList(ItemCollection):
+    _item_type = ContactURI
+    _item_management = ContactURIManagement()
+
+    default = DefaultContactURI()
+
+
 class DialogSettings(SettingsGroup):
     policy = Setting(type=PolicyValue, default='default')
     subscribe = Setting(type=bool, default=False)
@@ -803,7 +720,7 @@ class Contact(SettingsState):
 
     id = __id__
     name = Setting(type=unicode, default='')
-    uris = ContactURIListDescriptor()
+    uris = ContactURIList
     dialog = DialogSettings
     presence = PresenceSettings
 
@@ -840,7 +757,7 @@ class Contact(SettingsState):
         return "%s(id=%r)" % (self.__class__.__name__, self.id)
 
     def __toxcap__(self):
-        contact_uris = [uri.__toxcap__() for uri in self.uris]
+        contact_uris = xcap.ContactURIList((uri.__toxcap__() for uri in self.uris), default=self.uris.default.id if self.uris.default is not None else None)
         dialog_handling = xcap.EventHandling(self.dialog.policy, self.dialog.subscribe)
         presence_handling = xcap.EventHandling(self.presence.policy, self.presence.subscribe)
         attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
@@ -1365,6 +1282,7 @@ class AddressbookManager(object):
                         setattr(uri, name, value)
                 for uri in (uri for uri in list(contact.uris) if uri.id not in xcap_contact.uris):
                     contact.uris.remove(uri)
+                contact.uris.default = contact.uris.get(xcap_contact.uris.default, None)
                 contact._internal_save(originator=Remote(xcap_manager.account, xcap_contact))
 
             for xcap_group in xcap_groups:

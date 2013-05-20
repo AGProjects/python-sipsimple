@@ -1,4 +1,4 @@
-# Copyright (C) 2012 AG Projects. See LICENSE for details.
+# Copyright (C) 2012-2013 AG Projects. See LICENSE for details.
 #
 
 """Addressbook related payload elements"""
@@ -121,9 +121,12 @@ class ContactURIList(XMLListElement):
     _xml_document = ResourceListsDocument
     _xml_item_type = ContactURI
 
-    def __init__(self, uris=[]):
+    default = XMLAttribute('default', type=str, required=False, test_equal=True)
+
+    def __init__(self, uris=[], default=None):
         XMLListElement.__init__(self)
         self.update(uris)
+        self.default = default
 
     def __getitem__(self, key):
         if key is IterateIDs:
@@ -215,7 +218,7 @@ class Contact(XMLElement, ListElement):
         XMLElement.__init__(self)
         self.id = id
         self.name = name
-        self.uris = ContactURIList(uris)
+        self.uris = uris
         self.dialog = dialog_handling or DialogHandling('default', False)
         self.presence = presence_handling or PresenceHandling('default', False)
 
