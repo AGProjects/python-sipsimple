@@ -1608,7 +1608,7 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 
 cdef class EndpointAddress(object):
     # attributes
-    cdef readonly str ip
+    cdef readonly bytes ip
     cdef readonly int port
 
 cdef class Request(object):
@@ -2060,8 +2060,8 @@ cdef class RTPTransport(object):
     cdef pjmedia_transport *_obj
     cdef pjmedia_transport *_wrapped_transport
     cdef object _local_rtp_addr
-    cdef str _local_rtp_candidate_type
-    cdef str _remote_rtp_candidate_type
+    cdef bytes _local_rtp_candidate_type
+    cdef bytes _remote_rtp_candidate_type
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
     cdef readonly object remote_rtp_port_sdp
