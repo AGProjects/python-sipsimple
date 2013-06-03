@@ -1045,6 +1045,8 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
                     _add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
                 else:
                     _add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
+            else:
+                pass
     except:
         ua._handle_exception(1)
 

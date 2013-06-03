@@ -154,7 +154,7 @@ cdef class Request:
             if hdr.type == PJSIP_H_CONTACT:
                 contact_hdr = <pjsip_contact_hdr *> hdr
                 _dict_to_pjsip_param(contact_parameters, &contact_hdr.other_param, self._tdata.pool)
-            if hdr.type == PJSIP_H_CALL_ID:
+            elif hdr.type == PJSIP_H_CALL_ID:
                 cid_hdr = <pjsip_cid_hdr *> hdr
                 self._call_id = PJSTR(_pj_str_to_str(cid_hdr.id))
             elif hdr.type == PJSIP_H_CSEQ:
@@ -162,6 +162,8 @@ cdef class Request:
                 self.cseq = cseq_hdr.cseq
             elif hdr.type == PJSIP_H_FROM:
                 self.from_header = FrozenFromHeader_create(<pjsip_fromto_hdr*> hdr)
+            else:
+                pass
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
         _BaseRouteHeader_to_pjsip_route_hdr(self.route_header, &self._route_header, self._tdata.pool)
         pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route_header)
@@ -353,7 +355,7 @@ cdef class Request:
                     else:
                         self.state = "TERMINATED"
                         _add_event("SIPRequestDidEnd", dict(obj=self))
-        if self._tsx.state == PJSIP_TSX_STATE_TERMINATED:
+        elif self._tsx.state == PJSIP_TSX_STATE_TERMINATED:
             if self.state == "IN_PROGRESS":
                 if self._timer_active:
                     pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
@@ -364,6 +366,8 @@ cdef class Request:
                 _add_event("SIPRequestDidEnd", dict(obj=self))
             self._tsx.mod_data[ua._module.id] = NULL
             self._tsx = NULL
+        else:
+            pass
 
     cdef int _cb_timer(self, PJSIPUA ua) except -1:
         cdef pj_time_val expires
