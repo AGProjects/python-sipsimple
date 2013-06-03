@@ -287,8 +287,8 @@ class PJSIP_build_ext(build_ext):
         if sys.platform == "darwin":
             extension.extra_link_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
             extension.extra_compile_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
-            extension.library_dirs.append("/Developer/SDKs/MacOSX%s.sdk/usr/lib" % sipsimple_osx_sdk)
-            extension.include_dirs.append("/Developer/SDKs/MacOSX%s.sdk/usr/include" % sipsimple_osx_sdk)
+            extension.library_dirs.append("%s/usr/lib" % osx_sdk_path)
+            extension.include_dirs.append("%s/usr/include" % osx_sdk_path)
 
         extension.depends = build_mak_vars["PJ_LIB_FILES"].split()
         self.libraries = extension.depends[:]
