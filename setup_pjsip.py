@@ -19,9 +19,15 @@ import urllib2
 if sys.platform == "darwin":
     sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
     sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
-    os.environ['CC'] = "gcc -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
+    old_sdk_path = "/Developer/SDKs"
+    new_sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs"
+    if os.path.exists(new_sdk_path):
+        osx_sdk_path = os.path.join(new_sdk_path, "MacOSX%s.sdk" % sipsimple_osx_sdk)
+    else:
+        osx_sdk_path = os.path.join(old_sdk_path, "MacOSX%s.sdk" % sipsimple_osx_sdk)
+    os.environ['CC'] = "gcc -isysroot %s" % osx_sdk_path
     os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
-    os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
+    os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot %s" % osx_sdk_path
 
 from distutils import log
 from distutils.errors import DistutilsError
@@ -236,13 +242,13 @@ class PJSIP_build_ext(build_ext):
         else:
             cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
-            cflags += " %s -mmacosx-version-min=%s -isysroot /Developer/SDKs/MacOSX%s.sdk " % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk, sipsimple_osx_sdk)
+            cflags += " %s -mmacosx-version-min=%s -isysroot %s " % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk, osx_sdk_path)
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys.platform == "darwin":
-            env['LDFLAGS'] = "%s -L/Developer/SDKs/MacOSX%s.sdk/usr/lib" % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk)
+            env['LDFLAGS'] = "%s -L%s/usr/lib" % (os.environ['ARCHFLAGS'], osx_sdk_path)
             self.distutils_exec_process(["./configure"], True, cwd=self.build_dir, env=env)
         elif sys.platform == "win32":
             # TODO: add support for building with other compilers like Visual Studio. -Saul
