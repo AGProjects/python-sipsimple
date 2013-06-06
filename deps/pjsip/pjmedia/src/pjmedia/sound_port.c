@@ -93,7 +93,7 @@ static pj_status_t play_cb(void *user_data, pjmedia_frame *frame)
     if (snd_port->ec_state) {
 	if (snd_port->ec_suspended) {
 	    snd_port->ec_suspended = PJ_FALSE;
-	    //pjmedia_echo_state_reset(snd_port->ec_state);
+	    pjmedia_echo_reset(snd_port->ec_state);
 	    PJ_LOG(4,(THIS_FILE, "EC activated"));
 	}
 	snd_port->ec_suspend_count = 0;
@@ -506,6 +506,18 @@ PJ_DEF(pjmedia_aud_stream*) pjmedia_snd_port_get_snd_stream(
 {
     PJ_ASSERT_RETURN(snd_port, NULL);
     return snd_port->aud_stream;
+}
+
+
+/* Reset EC state */
+PJ_DEF(pj_status_t) pjmedia_snd_port_reset_ec_state( pjmedia_snd_port *snd_port )
+{
+    PJ_ASSERT_RETURN(snd_port, PJ_EINVAL);
+    if (snd_port->ec_state) {
+	pjmedia_echo_reset(snd_port->ec_state);
+	PJ_LOG(4,(THIS_FILE, "EC reset"));
+    }
+    return PJ_SUCCESS;
 }
 
 

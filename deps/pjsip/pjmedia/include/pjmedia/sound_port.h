@@ -298,6 +298,16 @@ pjmedia_snd_port_get_clock_src( pjmedia_snd_port *snd_port,
 
 
 /**
+ * Reset the EC state in the sound port.
+ *
+ * @param snd_port	    The sound device port.
+ *
+ * @return		    PJ_SUCCESS on success.
+ */
+PJ_DECL(pj_status_t) pjmedia_snd_port_reset_ec_state(pjmedia_snd_port *snd_port);
+
+
+/**
  * Connect a port to the sound device port. If the sound device port has a
  * sound recorder device, then this will start periodic function call to
  * the port's put_frame() function. If the sound device has a sound player
