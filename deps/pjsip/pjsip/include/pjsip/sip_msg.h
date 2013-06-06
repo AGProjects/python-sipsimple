@@ -892,6 +892,20 @@ PJ_DECL(void*)  pjsip_msg_find_hdr_by_names(const pjsip_msg *msg,
 PJ_DECL(void*)  pjsip_msg_find_remove_hdr( pjsip_msg *msg, 
 					   pjsip_hdr_e hdr, void *start);
 
+/**
+ * Find and remove a header in the message.
+ *
+ * @param msg	    The message.
+ * @param name	    The header name to find.
+ * @param start	    The first header field where the search should begin,
+ *		    or NULL to search from the first header in the message.
+ *
+ * @return	    The header field, or NULL if not found.
+ */
+PJ_DECL(void*)  pjsip_msg_find_remove_hdr_by_name( pjsip_msg *msg,
+                                                   pj_str_t *name,
+                                                   void *start);
+
 /** 
  * Add a header to the message, putting it last in the header list.
  *

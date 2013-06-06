@@ -395,6 +395,17 @@ PJ_DEF(void*) pjsip_msg_find_remove_hdr( pjsip_msg *msg,
     return hdr;
 }
 
+PJ_DEF(void*) pjsip_msg_find_remove_hdr_by_name( pjsip_msg *msg,
+                                                 pj_str_t *name,
+                                                 void *start)
+{
+    pjsip_hdr *hdr = (pjsip_hdr*) pjsip_msg_find_hdr_by_name(msg, name, start);
+    if (hdr) {
+	pj_list_erase(hdr);
+    }
+    return hdr;
+}
+
 PJ_DEF(pj_ssize_t) pjsip_msg_print( const pjsip_msg *msg, 
 				    char *buf, pj_size_t size)
 {
