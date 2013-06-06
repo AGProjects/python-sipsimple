@@ -63,9 +63,6 @@ ifneq ($(findstring pa,@ac_pjmedia_snd@),)
 ifeq (@ac_external_pa@,1)
 # External PA
 APP_THIRD_PARTY_EXT += -lportaudio
-else
-APP_THIRD_PARTY_LIBS += -lportaudio-$(TARGET_NAME)
-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libportaudio-$(LIB_SUFFIX)
 endif
 endif
 

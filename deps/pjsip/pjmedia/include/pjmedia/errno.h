@@ -46,18 +46,6 @@ PJ_BEGIN_DECL
 #define PJMEDIA_ERRNO_END         (PJMEDIA_ERRNO_START + PJ_ERRNO_SPACE_SIZE - 1)
 
 
-/**
- * Mapping from PortAudio error codes to pjmedia error space.
- */
-#define PJMEDIA_PORTAUDIO_ERRNO_START (PJMEDIA_ERRNO_END-10000)
-#define PJMEDIA_PORTAUDIO_ERRNO_END   (PJMEDIA_PORTAUDIO_ERRNO_START + 10000 -1)
-/**
- * Convert PortAudio error code to PJMEDIA error code.
- * PortAudio error code range: 0 >= err >= -10000
- */
-#define PJMEDIA_ERRNO_FROM_PORTAUDIO(err)   ((int)PJMEDIA_PORTAUDIO_ERRNO_START-err)
-
-
 #if defined(PJMEDIA_HAS_SRTP) && (PJMEDIA_HAS_SRTP != 0)
 
  /**

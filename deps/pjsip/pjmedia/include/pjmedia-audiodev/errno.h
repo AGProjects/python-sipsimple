@@ -49,20 +49,6 @@ PJ_BEGIN_DECL
 
 
 /**
- * Mapping from PortAudio error codes to pjmedia error space.
- */
-#define PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_START \
-	    (PJMEDIA_AUDIODEV_ERRNO_END-10000)
-#define PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_END   \
-	    (PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_START + 10000 -1)
-/**
- * Convert PortAudio error code to PJLIB error code.
- * PortAudio error code range: 0 >= err >= -10000
- */
-#define PJMEDIA_AUDIODEV_ERRNO_FROM_PORTAUDIO(err) \
-	    ((int)PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_START-err)
-
-/**
  * Mapping from Windows multimedia WaveIn error codes.
  */
 #define PJMEDIA_AUDIODEV_WMME_IN_ERROR_START	\

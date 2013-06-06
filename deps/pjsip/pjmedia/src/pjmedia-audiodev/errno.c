@@ -19,9 +19,6 @@
 #include <pjmedia-audiodev/errno.h>
 #include <pj/string.h>
 #include <pj/unicode.h>
-#if PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO
-#   include <portaudio.h>
-#endif
 #if PJMEDIA_AUDIO_DEV_HAS_WMME
 #   ifdef _MSC_VER
 #	pragma warning(push, 3)
@@ -90,26 +87,6 @@ PJ_DEF(pj_str_t) pjmedia_audiodev_strerror(pj_status_t statcode,
 	return errstr;
     } else
 #endif
-
-    /* See if the error comes from PortAudio. */
-#if PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO
-    if (statcode >= PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_START &&
-	statcode <= PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_END)
-    {
-
-	//int pa_err = statcode - PJMEDIA_ERRNO_FROM_PORTAUDIO(0);
-	int pa_err = PJMEDIA_AUDIODEV_PORTAUDIO_ERRNO_START - statcode;
-	pj_str_t msg;
-	
-	msg.ptr = (char*)Pa_GetErrorText(pa_err);
-	msg.slen = pj_ansi_strlen(msg.ptr);
-
-	errstr.ptr = buf;
-	pj_strncpy_with_null(&errstr, &msg, bufsize);
-	return errstr;
-
-    } else 
-#endif	/* PJMEDIA_SOUND_IMPLEMENTATION */
 
     /* See if the error comes from WMME */
 #if PJMEDIA_AUDIO_DEV_HAS_WMME

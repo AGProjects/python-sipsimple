@@ -664,10 +664,6 @@ ac_pjmedia_video_has_qt
 ac_ios_cflags
 ac_pjmedia_video_has_ios
 ac_pjmedia_video
-ac_pa_use_oss
-ac_pa_use_alsa
-ac_pa_cflags
-ac_external_pa
 ac_pjmedia_snd
 ac_external_gsm
 ac_external_speex
@@ -758,8 +754,6 @@ enable_epoll
 with_external_speex
 with_external_gsm
 enable_sound
-with_external_pa
-enable_oss
 enable_video
 enable_ext_sound
 enable_small_filter
@@ -1422,7 +1416,6 @@ Optional Features:
                           Disable floating point where possible
   --enable-epoll          Use /dev/epoll ioqueue on Linux (experimental)
   --disable-sound         Exclude sound (i.e. use null sound)
-  --disable-oss           Disable OSS audio (default: not disabled)
   --disable-video         Disable video feature
   --enable-ext-sound      PJMEDIA will not provide any sound device backend
   --disable-small-filter  Exclude small filter in resampling
@@ -1467,11 +1460,6 @@ Optional Packages:
                           make sure that the GSM include/lib files are
                           accessible to use (hint: use CFLAGS and LDFLAGS env
                           var to set the include/lib paths)
-  --with-external-pa      Use external PortAudio development files, not the
-                          one in "third_party" directory. When this option is
-                          set, make sure that PortAudio is accessible to use
-                          (hint: use CFLAGS and LDFLAGS env var to set the
-                          include/lib paths)
   --with-sdl=DIR          Specify alternate libSDL prefix
   --with-ffmpeg=DIR       Specify alternate FFMPEG prefix
   --with-ipp=DIR          Specify the Intel IPP location
@@ -2460,7 +2448,7 @@ test -n "$target_alias" &&
   program_prefix=${target_alias}-
 ac_config_headers="$ac_config_headers pjlib/include/pj/compat/os_auto.h pjlib/include/pj/compat/m_auto.h pjmedia/include/pjmedia/config_auto.h pjmedia/include/pjmedia-codec/config_auto.h pjsip/include/pjsip/sip_autoconf.h"
 
-ac_config_files="$ac_config_files build.mak build/os-auto.mak build/cc-auto.mak pjlib/build/os-auto.mak pjlib-util/build/os-auto.mak pjmedia/build/os-auto.mak pjsip/build/os-auto.mak third_party/build/os-auto.mak third_party/build/portaudio/os-auto.mak"
+ac_config_files="$ac_config_files build.mak build/os-auto.mak build/cc-auto.mak pjlib/build/os-auto.mak pjlib-util/build/os-auto.mak pjmedia/build/os-auto.mak pjsip/build/os-auto.mak third_party/build/os-auto.mak"
 
 
 
@@ -5609,69 +5597,6 @@ $as_echo "Checking if sound is disabled... yes" >&6; }
 fi
 
 
-ac_external_pa=0
-
-
-# Check whether --with-external-pa was given.
-if test "${with_external_pa+set}" = set; then :
-  withval=$with_external_pa;
-	if test "x$with_external_pa" != "xno"; then
-		# Test PortAudio installation
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if external PortAudio devkit is installed" >&5
-$as_echo_n "checking if external PortAudio devkit is installed... " >&6; }
-		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <portaudio.h>
-
-int
-main ()
-{
-Pa_Initialize();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes!!" >&5
-$as_echo "yes!!" >&6; }
-				   ac_external_pa="1"
-
-else
-  as_fn_error $? "Unable to use PortAudio. If PortAudio development files are not available in the default locations, use CFLAGS and LDFLAGS env var to set the include/lib paths" "$LINENO" 5
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-	fi
-
-
-fi
-
-
-
-ac_fn_c_check_header_mongrel "$LINENO" "sys/soundcard.h" "ac_cv_header_sys_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_soundcard_h" = xyes; then :
-  ac_pa_cflags="$ac_pa_cflags -DHAVE_SYS_SOUNDCARD_H"
-fi
-
-
-ac_fn_c_check_header_mongrel "$LINENO" "linux/soundcard.h" "ac_cv_header_linux_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_soundcard_h" = xyes; then :
-  ac_pa_cflags="$ac_pa_cflags -DHAVE_LINUX_SOUNDCARD_H"
-fi
-
-
-ac_fn_c_check_header_mongrel "$LINENO" "machine/soundcard.h" "ac_cv_header_machine_soundcard_h" "$ac_includes_default"
-if test "x$ac_cv_header_machine_soundcard_h" = xyes; then :
-  ac_pa_cflags="$ac_pa_cflags -DHAVE_MACHINE_SOUNDCARD_H"
-fi
-
-
-
-if test "x$ac_cv_c_bigendian" = "xyes"; then
-  ac_pa_cflags="$ac_pa_cflags -DPA_BIG_ENDIAN"
-else
-  ac_pa_cflags="$ac_pa_cflags -DPA_LITTLE_ENDIAN"
-fi
-
 if test "$enable_sound" = "no"; then
   true;
 else
@@ -5688,58 +5613,26 @@ $as_echo "Checking sound device backend... AudioUnit" >&6; }
 	;;
   *darwin*)
 	LIBS="$LIBS -framework CoreAudio -framework CoreServices -framework AudioUnit -framework AudioToolbox"
-	if test "`uname -r`" = "6.8"; then
-		#ac_pa_cflags="$ac_pa_cflags -DPA_OLD_CORE_AUDIO -DMOSX_USE_NON_ATOMIC_FLAG_BITS"
-		#AC_MSG_RESULT([Setting additional PortAudio CFLAGS.. -DPA_OLD_CORE_AUDIO -DMOSX_USE_NON_ATOMIC_FLAG_BITS])
-		ac_pjmedia_snd=pa_old_darwinos
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... old coreaudio" >&5
-$as_echo "Checking sound device backend... old coreaudio" >&6; }
-	else
-		ac_pjmedia_snd=pa_darwinos
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... coreaudio" >&5
-$as_echo "Checking sound device backend... coreaudio" >&6; }
-	fi
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... CoreAudio" >&5
+$as_echo "Checking sound device backend... CoreAudio" >&6; }
 	;;
   *cygwin* | *mingw*)
-	ac_pjmedia_snd=pa_win32
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... win32 sound" >&5
 $as_echo "Checking sound device backend... win32 sound" >&6; }
 	;;
   *rtems*)
-	ac_pjmedia_snd=null
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... null sound" >&5
 $as_echo "Checking sound device backend... null sound" >&6; }
 	;;
   *)
-		ac_pjmedia_snd=pa_unix
-	ac_fn_c_check_header_mongrel "$LINENO" "alsa/version.h" "ac_cv_header_alsa_version_h" "$ac_includes_default"
+		ac_fn_c_check_header_mongrel "$LINENO" "alsa/version.h" "ac_cv_header_alsa_version_h" "$ac_includes_default"
 if test "x$ac_cv_header_alsa_version_h" = xyes; then :
-  ac_pa_use_alsa=1
-
-			 LIBS="$LIBS -lasound"
-
-else
-  ac_pa_use_alsa=0
-
+  LIBS="$LIBS -lasound"
 fi
 
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking sound device backend... unix" >&5
 $as_echo "Checking sound device backend... unix" >&6; }
-
-		ac_pa_use_oss=1
-
-	# Check whether --enable-oss was given.
-if test "${enable_oss+set}" = set; then :
-  enableval=$enable_oss;
-			if test "$enable_oss" = "no"; then
-			 ac_pa_use_oss=0
-			 { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if OSS audio is disabled... yes" >&5
-$as_echo "Checking if OSS audio is disabled... yes" >&6; }
-			fi
-
-fi
-
 	;;
  esac
 fi
@@ -8259,7 +8152,6 @@ do
     "pjmedia/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES pjmedia/build/os-auto.mak" ;;
     "pjsip/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES pjsip/build/os-auto.mak" ;;
     "third_party/build/os-auto.mak") CONFIG_FILES="$CONFIG_FILES third_party/build/os-auto.mak" ;;
-    "third_party/build/portaudio/os-auto.mak") CONFIG_FILES="$CONFIG_FILES third_party/build/portaudio/os-auto.mak" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

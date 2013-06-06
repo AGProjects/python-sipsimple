@@ -43,21 +43,6 @@ PJ_BEGIN_DECL
  */
 
 /**
- * This setting controls whether PortAudio support should be included.
- *
- * By default it is enabled except on Windows platforms (including
- * Windows Mobile) and Symbian.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO
-#   if (defined(PJ_WIN32) && PJ_WIN32!=0) || \
-       (defined(PJ_SYMBIAN) && PJ_SYMBIAN!=0)
-#	define PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO	0
-#   else
-#	define PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO	1
-#   endif
-#endif
-
-/**
  * This setting controls whether Android OpenSL audio support should be
  * included.
  */
@@ -109,7 +94,7 @@ PJ_BEGIN_DECL
  * This setting controls whether WMME support should be included.
  */
 #ifndef PJMEDIA_AUDIO_DEV_HAS_WMME
-#   define PJMEDIA_AUDIO_DEV_HAS_WMME		1
+#   define PJMEDIA_AUDIO_DEV_HAS_WMME		0
 #endif
 
  

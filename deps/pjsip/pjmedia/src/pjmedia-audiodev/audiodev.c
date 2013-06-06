@@ -65,11 +65,6 @@ static struct cap_info
 #define DEFAULT_DEV_ID		    0
 
 
-/* extern functions to create factories */
-#if PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO
-pjmedia_aud_dev_factory* pjmedia_pa_factory(pj_pool_factory *pf);
-#endif
-
 #if PJMEDIA_AUDIO_DEV_HAS_COREAUDIO
 pjmedia_aud_dev_factory* pjmedia_coreaudio_factory(pj_pool_factory *pf);
 #endif
@@ -417,9 +412,6 @@ PJ_DEF(pj_status_t) pjmedia_aud_subsys_init(pj_pool_factory *pf)
 #endif
 #if PJMEDIA_AUDIO_DEV_HAS_COREAUDIO
     aud_subsys.drv[aud_subsys.drv_cnt++].create = &pjmedia_coreaudio_factory;
-#endif
-#if PJMEDIA_AUDIO_DEV_HAS_PORTAUDIO
-    aud_subsys.drv[aud_subsys.drv_cnt++].create = &pjmedia_pa_factory;
 #endif
 #if PJMEDIA_AUDIO_DEV_HAS_WMME
     aud_subsys.drv[aud_subsys.drv_cnt++].create = &pjmedia_wmme_factory;
