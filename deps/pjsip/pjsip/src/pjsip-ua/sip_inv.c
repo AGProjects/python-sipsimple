@@ -1719,6 +1719,19 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
 	return PJMEDIA_SDP_EINSDP;
     }
 
+    /* Only accept SDP in INVITE, UPDATE and ACK requests, 18x (reliable) and 183 provisional responses
+     * and 200 final response.
+     */
+    if (!(msg->type == PJSIP_REQUEST_MSG && msg->line.req.method.id == PJSIP_INVITE_METHOD) &&
+        !(msg->type == PJSIP_REQUEST_MSG && msg->line.req.method.id == PJSIP_ACK_METHOD) &&
+        !(msg->type == PJSIP_REQUEST_MSG && pjsip_method_cmp(&msg->line.req.method, &pjsip_update_method)==0) &&
+        !(msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code/10==18 && pjsip_100rel_is_reliable(rdata)) &&
+        !(msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code == 183) &&
+        !(msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code == 200)) {
+	    PJ_LOG(4,(inv->obj_name, "ignored SDP body"));
+        return PJ_SUCCESS;
+    }
+
     /* Get/attach invite session's transaction data */
     tsx_inv_data = (struct tsx_inv_data*) tsx->mod_data[mod_inv.mod.id];
     if (tsx_inv_data == NULL) {
