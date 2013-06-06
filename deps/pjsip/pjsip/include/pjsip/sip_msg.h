@@ -673,6 +673,21 @@ struct pjsip_msg_body
 };
 
 /**
+ * General purpose function to print a SIP message body.
+ * Uses the appropriate internal functions to print the string representation
+ * of a SIP message body. It sets the output buffer to a statically allocated
+ * buffer, so the caller is responsible to copy it.
+ *
+ * @param msg_body	The message body.
+ * @param buf		Pointer to get the result buffer (statically allocated).
+ * @param size		The size of the buffer.
+ *
+ * @return		The length copied to the buffer, or -1.
+ */
+PJ_DECL(int) pjsip_print_body( pjsip_msg_body *msg_body,
+				    char **buf, int *len);
+
+/**
  * General purpose function to textual data in a SIP body. Attach this function
  * in a SIP message body only if the data in pjsip_msg_body is a textual 
  * message ready to be embedded in a SIP message. If the data in the message

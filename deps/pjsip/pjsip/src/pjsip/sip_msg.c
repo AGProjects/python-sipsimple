@@ -2140,6 +2140,20 @@ PJ_DEF(pjsip_warning_hdr*) pjsip_warning_hdr_create_from_status(pj_pool_t *pool,
 /*
  * Message body manipulations.
  */
+PJ_DEF(int) pjsip_print_body(pjsip_msg_body *msg_body, char **buf, int *len)
+{
+    static char s_buf[PJSIP_MAX_PKT_LEN];
+    int res;
+
+    res = (*msg_body->print_body)(msg_body, s_buf, PJSIP_MAX_PKT_LEN);
+    if (res < 0) {
+        return -1;
+    }
+    *buf = s_buf;
+    *len = res;
+    return 0;
+}
+
 PJ_DEF(int) pjsip_print_text_body(pjsip_msg_body *msg_body, char *buf, pj_size_t size)
 {
     if (size < msg_body->len)
