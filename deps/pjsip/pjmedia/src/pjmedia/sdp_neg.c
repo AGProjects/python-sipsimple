@@ -644,9 +644,8 @@ static pj_status_t process_m_answer( pj_pool_t *pool,
 	return PJ_SUCCESS;
     }
 
-    /* Process direction attributes */
-    update_media_direction(pool, answer, offer);
- 
+    /* No need to update the direction when processing an answer */
+
     /* If asymetric media is allowed, then just check that remote answer has 
      * codecs that are within the offer. 
      *
