@@ -59,6 +59,28 @@ typedef struct pjmedia_ice_cb
 			       pj_ice_strans_op op,
 			       pj_status_t status);
 
+    /**
+     * This callback will be called when ICE state changes.
+     *
+     * @param tp	PJMEDIA ICE transport.
+     * @param prev	Previous state.
+     * @param curr	Current state.
+     */
+    void    (*on_ice_state)(pjmedia_transport *tp,
+			    pj_ice_strans_state prev,
+			    pj_ice_strans_state curr);
+
+    /**
+     * This callback will be called when ICE is stopped.
+     *
+     * @param tp	PJMEDIA ICE transport.
+     * @param reason	Reason for stopping ICE.
+     * @param err	Error code
+     */
+    void    (*on_ice_stop)(pjmedia_transport *tp,
+			   char *reason,
+			   pj_status_t err);
+
 } pjmedia_ice_cb;
 
 
@@ -220,6 +242,16 @@ PJ_DECL(pj_status_t) pjmedia_ice_create3(pjmedia_endpt *endpt,
 					 unsigned options,
 					 void *user_data,
 					 pjmedia_transport **p_tp);
+
+/**
+ * Return the ICE stream transport associated with this PJMEDIA transport
+ *
+ * @param tp		Media transport instance.
+ *
+ * @return		Pointer to the pj_ice_strans instance associated with this
+ *                      media transport.
+ */
+PJ_DECL(pj_ice_strans*) pjmedia_ice_get_strans(pjmedia_transport *tp);
 
 PJ_END_DECL
 

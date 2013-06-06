@@ -167,6 +167,17 @@ typedef struct pj_ice_strans_cb
 			       pj_ice_strans_op op,
 			       pj_status_t status);
 
+    /**
+     * Callback to report ICE state changes.
+     *
+     * @param ice_st	    The ICE stream transport.
+     * @param prev	    Previous state.
+     * @param curr	    Current state.
+     */
+    void    (*on_ice_state)(pj_ice_strans *ice_st,
+			    int prev,
+			    int curr);
+
 } pj_ice_strans_cb;
 
 
@@ -748,6 +759,26 @@ PJ_DECL(pj_status_t) pj_ice_strans_start_ice(pj_ice_strans *ice_st,
 PJ_DECL(const pj_ice_sess_check*) 
 pj_ice_strans_get_valid_pair(const pj_ice_strans *ice_st,
 			     unsigned comp_id);
+
+/**
+ * Retrieve the ICE session associated with this transport
+ *
+ * @param ice_st	The ICE stream transport.
+ *
+ * @return		The ICE session associated with this transport
+ */
+PJ_DECL(pj_ice_sess*)
+pj_ice_strans_get_session(const pj_ice_strans *ice_st);
+
+/**
+ * Retrieve the ICE start time
+ *
+ * @param ice_st	The ICE stream transport.
+ *
+ * @return		The ICE start time
+ */
+PJ_DECL(pj_time_val)
+pj_ice_strans_get_start_time(const pj_ice_strans *ice_st);
 
 /**
  * Stop and destroy the ICE session inside this media transport. Application

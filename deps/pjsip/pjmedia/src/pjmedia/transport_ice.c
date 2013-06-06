@@ -147,6 +147,9 @@ static void ice_on_rx_data(pj_ice_strans *ice_st,
 static void ice_on_ice_complete(pj_ice_strans *ice_st, 
 				pj_ice_strans_op op,
 			        pj_status_t status);
+static void ice_on_ice_state(pj_ice_strans *ice_st,
+			     pj_ice_strans_state prev,
+			     pj_ice_strans_state curr);
 
 
 static pjmedia_transport_op transport_ice_op = 
@@ -256,6 +259,7 @@ PJ_DEF(pj_status_t) pjmedia_ice_create3(pjmedia_endpt *endpt,
     /* Configure ICE callbacks */
     pj_bzero(&ice_st_cb, sizeof(ice_st_cb));
     ice_st_cb.on_ice_complete = &ice_on_ice_complete;
+    ice_st_cb.on_ice_state = &ice_on_ice_state;
     ice_st_cb.on_rx_data = &ice_on_rx_data;
 
     /* Create ICE */
@@ -271,6 +275,17 @@ PJ_DEF(pj_status_t) pjmedia_ice_create3(pjmedia_endpt *endpt,
     return PJ_SUCCESS;
 }
 
+/*
+ * Get the ICE stream transport associated with this media transport.
+ */
+PJ_DEF(pj_ice_strans*) pjmedia_ice_get_strans(pjmedia_transport *tp)
+{
+    struct transport_ice *tp_ice;
+
+    tp_ice = (struct transport_ice*) tp;
+    return tp_ice->ice_st;
+}
+
 /* Disable ICE when SDP from remote doesn't contain a=candidate line */
 static void set_no_ice(struct transport_ice *tp_ice, const char *reason,
 		       pj_status_t err)
@@ -284,6 +299,10 @@ static void set_no_ice(struct transport_ice *tp_ice, const char *reason,
 	PJ_LOG(4,(tp_ice->base.name, 
 		  "Stopping ICE, reason=%s", reason));
     }
+
+    /* Notify application about ICE stop */
+    if (tp_ice->cb.on_ice_stop)
+        (*tp_ice->cb.on_ice_stop)(&tp_ice->base, (char *)reason, err);
 
     if (tp_ice->ice_st) {
 	pj_ice_strans_stop_ice(tp_ice->ice_st);
@@ -1812,6 +1831,20 @@ static void ice_on_ice_complete(pj_ice_strans *ice_st,
     /* Notify application */
     if (tp_ice->cb.on_ice_complete)
 	(*tp_ice->cb.on_ice_complete)(&tp_ice->base, op, result);
+}
+
+
+static void ice_on_ice_state(pj_ice_strans *ice_st,
+			     pj_ice_strans_state prev,
+			     pj_ice_strans_state curr)
+{
+    struct transport_ice *tp_ice;
+
+    tp_ice = (struct transport_ice*) pj_ice_strans_get_user_data(ice_st);
+
+    /* Notify application */
+    if (tp_ice->cb.on_ice_state)
+	(*tp_ice->cb.on_ice_state)(&tp_ice->base, prev, curr);
 }
 
 
