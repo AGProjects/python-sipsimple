@@ -153,7 +153,7 @@ static const char *timer_names[] =
 {
     "None",
     "UAC_REFRESH",
-    "UAS_TIMEOUT"
+    "UAS_TIMEOUT",
     "UAC_TERMINATE",
     "UAC_WAIT_NOTIFY",
     "INVALID_TIMER"
