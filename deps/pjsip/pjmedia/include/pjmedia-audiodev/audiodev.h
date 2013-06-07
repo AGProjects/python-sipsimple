@@ -29,6 +29,7 @@
 #include <pjmedia/format.h>
 #include <pjmedia/frame.h>
 #include <pjmedia/types.h>
+#include <pj/os.h>
 #include <pj/pool.h>
 
 
@@ -433,6 +434,28 @@ typedef struct pjmedia_aud_param
 } pjmedia_aud_param;
 
 
+typedef enum pjmedia_aud_dev_event {
+    PJMEDIA_AUD_DEV_DEFAULT_INPUT_CHANGED,
+    PJMEDIA_AUD_DEV_DEFAULT_OUTPUT_CHANGED,
+    PJMEDIA_AUD_DEV_LIST_WILL_REFRESH,
+    PJMEDIA_AUD_DEV_LIST_DID_REFRESH
+} pjmedia_aud_dev_event;
+
+
+typedef void (*pjmedia_aud_dev_observer_callback)(pjmedia_aud_dev_event event);
+
+/**
+ * This structure specifies the parameters to set an audio device observer
+ */
+typedef struct pjmedia_aud_dev_observer {
+    pjmedia_aud_dev_observer_callback cb;
+    pj_pool_t *pool;
+    pj_mutex_t *lock;
+    pj_thread_t *thread;
+    pj_thread_desc thread_desc;
+} pjmedia_aud_dev_observer;
+
+
 /** Forward declaration for pjmedia_aud_stream */
 typedef struct pjmedia_aud_stream pjmedia_aud_stream;
 
@@ -712,6 +735,18 @@ PJ_DECL(pj_status_t) pjmedia_aud_stream_stop(pjmedia_aud_stream *strm);
  *			error code.
  */
 PJ_DECL(pj_status_t) pjmedia_aud_stream_destroy(pjmedia_aud_stream *strm);
+
+/**
+ * Set an audio device observer callback.
+ *
+ * @param cb		The callback that needs to be registred, or NULL in
+ *                      in case it needs to be unregistered. Only one callback
+ *                      can be registered.
+ *
+ * @return		PJ_SUCCESS on successful operation or the appropriate
+ *			error code.
+ */
+PJ_DECL(pj_status_t) pjmedia_aud_dev_set_observer_cb(pjmedia_aud_dev_observer_callback cb);
 
 
 /**

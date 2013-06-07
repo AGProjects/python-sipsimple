@@ -140,7 +140,63 @@ static struct aud_subsys
     unsigned	     dev_cnt;		/* Total number of devices.	    */
     pj_uint32_t	     dev_list[MAX_DEVS];/* Array of device IDs.		    */
 
+    pjmedia_aud_dev_observer  dev_observer;
+
 } aud_subsys;
+
+/* callback for device change operations */
+static void process_aud_dev_change_event(pjmedia_aud_dev_change_event event)
+{
+    pj_status_t status;
+
+    if (!pj_thread_is_registered()) {
+        status = pj_thread_register("aud_dev_observer", aud_subsys.dev_observer.thread_desc, &aud_subsys.dev_observer.thread);
+        if (status != PJ_SUCCESS) {
+            return;
+        }
+        PJ_LOG(5, (THIS_FILE, "Audio device change thread registered"));
+    }
+
+    status = pj_mutex_lock(aud_subsys.dev_observer.lock);
+    if (status != PJ_SUCCESS) {
+        PJ_LOG(5, (THIS_FILE, "Could not acquire audio device change lock"));
+        return;
+    }
+
+    if (!aud_subsys.dev_observer.cb) {
+        /* there is no registered callback to call */
+        goto end;
+    }
+
+    switch(event) {
+    case DEFAULT_INPUT_CHANGED:
+        PJ_LOG(5, (THIS_FILE, "Default input device changed"));
+        pjmedia_aud_dev_refresh();
+        (*aud_subsys.dev_observer.cb)(PJMEDIA_AUD_DEV_DEFAULT_INPUT_CHANGED);
+        break;
+    case DEFAULT_OUTPUT_CHANGED:
+        PJ_LOG(5, (THIS_FILE, "Default output device changed"));
+        pjmedia_aud_dev_refresh();
+        (*aud_subsys.dev_observer.cb)(PJMEDIA_AUD_DEV_DEFAULT_OUTPUT_CHANGED);
+        break;
+    case DEVICE_LIST_CHANGED:
+        PJ_LOG(5, (THIS_FILE, "Device list changed"));
+        (*aud_subsys.dev_observer.cb)(PJMEDIA_AUD_DEV_LIST_WILL_REFRESH);
+        pjmedia_aud_dev_refresh();
+        (*aud_subsys.dev_observer.cb)(PJMEDIA_AUD_DEV_LIST_DID_REFRESH);
+        break;
+    default:
+        PJ_LOG(5, (THIS_FILE, "Unknown event: %d", event));
+        break;
+    }
+
+end:
+    status = pj_mutex_unlock(aud_subsys.dev_observer.lock);
+    if (status != PJ_SUCCESS) {
+        PJ_LOG(5, (THIS_FILE, "Could not release audio device change lock"));
+    }
+
+}
 
 /* API: get capability name/info */
 PJ_DEF(const char*) pjmedia_aud_dev_cap_name(pjmedia_aud_dev_cap cap,
@@ -286,6 +342,11 @@ static pj_status_t init_driver(unsigned drv_idx, pj_bool_t refresh)
 	f = drv->f;
     }
 
+    /* Register device change observer */
+    if (!refresh) {
+        f->op->set_dev_change_cb(f, &process_aud_dev_change_event);
+    }
+
     /* Get number of devices */
     dev_cnt = f->op->get_dev_count(f);
     if (dev_cnt + aud_subsys.dev_cnt > MAX_DEVS) {
@@ -365,6 +426,7 @@ static void deinit_driver(unsigned drv_idx)
     struct driver *drv = &aud_subsys.drv[drv_idx];
 
     if (drv->f) {
+        drv->f->op->set_dev_change_cb(drv->f, NULL);
 	drv->f->op->destroy(drv->f);
 	drv->f = NULL;
     }
@@ -431,6 +493,18 @@ PJ_DEF(pj_status_t) pjmedia_aud_subsys_init(pj_pool_factory *pf)
 #if PJMEDIA_AUDIO_DEV_HAS_NULL_AUDIO
     aud_subsys.drv[aud_subsys.drv_cnt++].create = &pjmedia_null_audio_factory;
 #endif
+
+    /* Initialize audio device observer objects */
+    pj_status_t st;
+    aud_subsys.dev_observer.pool = pj_pool_create(pf, "aud_dev_observer_pool", 512, 512, NULL);
+    if (!aud_subsys.dev_observer.pool) {
+        return PJ_ENOMEM;
+    }
+    st = pj_mutex_create_simple(aud_subsys.dev_observer.pool, "aud_dev_observer_lock", &aud_subsys.dev_observer.lock);
+    if (st != PJ_SUCCESS) {
+        return st;
+    }
+    aud_subsys.dev_observer.cb = NULL;
 
     /* Initialize each factory and build the device ID list */
     for (i=0; i<aud_subsys.drv_cnt; ++i) {
@@ -514,6 +588,9 @@ PJ_DEF(pj_status_t) pjmedia_aud_subsys_shutdown(void)
 	for (i=0; i<aud_subsys.drv_cnt; ++i) {
 	    deinit_driver(i);
 	}
+
+        pj_mutex_destroy(aud_subsys.dev_observer.lock);
+        pj_pool_release(aud_subsys.dev_observer.pool);
 
 	aud_subsys.pf = NULL;
     }
@@ -832,4 +909,24 @@ PJ_DEF(pj_status_t) pjmedia_aud_stream_destroy(pjmedia_aud_stream *strm)
     return strm->op->destroy(strm);
 }
 
+/* API: Register device change observer. */
+PJ_DEF(pj_status_t) pjmedia_aud_dev_set_observer_cb(pjmedia_aud_dev_observer_callback cb)
+{
+    pj_status_t status;
+
+    status = pj_mutex_lock(aud_subsys.dev_observer.lock);
+    if (status != PJ_SUCCESS) {
+        PJ_LOG(5, (THIS_FILE, "Could not acquire audio device change lock"));
+        return status;
+    }
+
+    aud_subsys.dev_observer.cb = cb;
+
+    status = pj_mutex_unlock(aud_subsys.dev_observer.lock);
+    if (status != PJ_SUCCESS) {
+        PJ_LOG(5, (THIS_FILE, "Could not release audio device change lock"));
+    }
+
+    return status;
+}
 

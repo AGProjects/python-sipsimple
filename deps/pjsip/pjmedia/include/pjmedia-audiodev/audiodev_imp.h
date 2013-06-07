@@ -29,6 +29,14 @@
  * @{
  */
 
+typedef enum pjmedia_aud_dev_change_event {
+    DEFAULT_INPUT_CHANGED = 1,
+    DEFAULT_OUTPUT_CHANGED,
+    DEVICE_LIST_CHANGED
+} pjmedia_aud_dev_change_event;
+
+typedef void (*pjmedia_aud_dev_change_callback)(pjmedia_aud_dev_change_event event);
+
 /**
  * Sound device factory operations.
  */
@@ -98,6 +106,15 @@ typedef struct pjmedia_aud_dev_factory_op
      * @param f		The audio device factory.
      */
     pj_status_t (*refresh)(pjmedia_aud_dev_factory *f);
+
+    /**
+     * Set audio device change callback
+     *
+     * @param f		The audio device factory.
+     * @param cb	The audio device change callback.
+     */
+    void (*set_dev_change_cb)(pjmedia_aud_dev_factory *f,
+                              pjmedia_aud_dev_change_callback cb);
 
 } pjmedia_aud_dev_factory_op;
 
