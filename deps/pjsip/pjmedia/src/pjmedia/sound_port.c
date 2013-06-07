@@ -287,15 +287,10 @@ static pj_status_t start_sound_device( pj_pool_t *pool,
 	    PJ_LOG(4,(THIS_FILE, "AEC tail is set to default %u ms",
 				 snd_port->aud_param.ec_tail_ms));
 	}
-	    
-	status = pjmedia_snd_port_set_ec(snd_port, pool, 
-					 snd_port->aud_param.ec_tail_ms,
-					 snd_port->prm_ec_options);
-	if (status != PJ_SUCCESS) {
-	    pjmedia_aud_stream_destroy(snd_port->aud_stream);
-	    snd_port->aud_stream = NULL;
-	    return status;
-	}
+
+	pjmedia_snd_port_set_ec(snd_port, pool,
+				snd_port->aud_param.ec_tail_ms,
+				snd_port->prm_ec_options);
     }
 
     /* Start sound stream. */
