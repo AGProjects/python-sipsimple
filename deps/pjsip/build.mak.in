@@ -30,6 +30,10 @@ export APP_THIRD_PARTY_LIBS := -lresample-$(TARGET_NAME) $(APP_THIRD_PARTY_LIBS)
 export APP_THIRD_PARTY_LIB_FILES := $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX) $(APP_THIRD_PARTY_LIB_FILES)
 endif
 
+# WebRTC
+APP_THIRD_PARTY_LIBS += -lwebrtcaec-$(TARGET_NAME)
+APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtcaec-$(LIB_SUFFIX)
+
 ifneq (@ac_no_gsm_codec@,1)
 ifeq (@ac_external_gsm@,1)
 # External GSM library

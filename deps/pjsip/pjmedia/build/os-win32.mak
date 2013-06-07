@@ -55,6 +55,9 @@ endif
 
 endif
 
+export CFLAGS += -I$(THIRD_PARTY)/webrtc/src
+export PJMEDIA_OBJS += echo_webrtc_aec.o
+
 ifeq ($(AC_NO_ILBC_CODEC),1)
 export CFLAGS += -DPJMEDIA_HAS_ILBC_CODEC=0
 else

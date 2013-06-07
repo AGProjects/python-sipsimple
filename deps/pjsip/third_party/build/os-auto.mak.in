@@ -23,3 +23,7 @@ ifneq (@ac_no_g7221_codec@,1)
 DIRS += g7221
 endif
 
+ifneq ($(findstring webrtc,@ac_webrtc_platform@),)
+DIRS += webrtc
+endif
+

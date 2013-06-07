@@ -79,6 +79,12 @@ typedef enum pjmedia_echo_flag
     PJMEDIA_ECHO_SIMPLE	= 2,
 
     /**
+     * Force to use WebRTC AEC as the backend echo canceller algorithm.
+     * This setting is mutually exclusive with PJMEDIA_ECHO_SIMPLE & PJMEDIA_ECHO_SPEEX.
+     */
+    PJMEDIA_ECHO_WEBRTC = 3,
+
+    /**
      * For internal use.
      */
     PJMEDIA_ECHO_ALGO_MASK = 15,

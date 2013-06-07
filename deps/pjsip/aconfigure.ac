@@ -18,6 +18,7 @@ AC_CONFIG_FILES([build.mak
 		 pjlib-util/build/os-auto.mak 
 		 pjmedia/build/os-auto.mak
 		 pjsip/build/os-auto.mak
+ 		 third_party/build/webrtc/os-auto.mak
 		 third_party/build/os-auto.mak
 		 ])
 
@@ -1213,6 +1214,28 @@ export IPP_LIBS=$IPP_LIBS"
 else
     AC_MSG_RESULT([Skipping Intel IPP settings (not wanted)])
 fi
+
+
+dnl ##########################################
+dnl #
+dnl # WebRTC AEC Support
+dnl #
+
+AC_SUBST(ac_webrtc_platform)
+case $target in
+ *darwin*)
+       ac_webrtc_platform=webrtc_darwinos
+       ;;
+ *mingw*)
+       ac_webrtc_platform=webrtc_win32
+       ;;
+ *linux*)
+       ac_webrtc_platform=webrtc_linux
+       ;;
+ *)
+       ac_webrtc_platform=null
+       ;;
+esac
 
 
 dnl ##########################################
