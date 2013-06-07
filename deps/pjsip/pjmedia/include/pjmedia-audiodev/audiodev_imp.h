@@ -116,6 +116,20 @@ typedef struct pjmedia_aud_dev_factory_op
     void (*set_dev_change_cb)(pjmedia_aud_dev_factory *f,
                               pjmedia_aud_dev_change_callback cb);
 
+    /**
+     * Get default recording device index
+     *
+     * @param f		The audio device factory.
+     */
+    int (*get_default_rec_dev)(pjmedia_aud_dev_factory *f);
+
+    /**
+     * Get default playback device index
+     *
+     * @param f		The audio device factory.
+     */
+    int (*get_default_play_dev)(pjmedia_aud_dev_factory *f);
+
 } pjmedia_aud_dev_factory_op;
 
 

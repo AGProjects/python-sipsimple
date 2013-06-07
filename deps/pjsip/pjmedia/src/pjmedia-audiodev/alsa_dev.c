@@ -71,6 +71,11 @@ static pj_status_t alsa_factory_create_stream(pjmedia_aud_dev_factory *f,
 					      pjmedia_aud_play_cb play_cb,
 					      void *user_data,
 					      pjmedia_aud_stream **p_strm);
+static void alsa_factory_set_observer(pjmedia_aud_dev_factory *f,
+                                      pjmedia_aud_dev_change_callback cb);
+static int alsa_factory_get_default_rec_dev(pjmedia_aud_dev_factory *f);
+static int alsa_factory_get_default_play_dev(pjmedia_aud_dev_factory *f);
+
 
 /*
  * Stream prototypes
@@ -136,7 +141,10 @@ static pjmedia_aud_dev_factory_op alsa_factory_op =
     &alsa_factory_get_dev_info,
     &alsa_factory_default_param,
     &alsa_factory_create_stream,
-    &alsa_factory_refresh
+    &alsa_factory_refresh,
+    &alsa_factory_set_observer,
+    &alsa_factory_get_default_rec_dev,
+    &alsa_factory_get_default_play_dev
 };
 
 static pjmedia_aud_stream_op alsa_stream_op =
@@ -827,6 +835,28 @@ static pj_status_t alsa_factory_create_stream(pjmedia_aud_dev_factory *f,
     return PJ_SUCCESS;
 }
 
+
+/* API: set audio device change observer */
+static void alsa_factory_set_observer(pjmedia_aud_dev_factory *f,
+                                      pjmedia_aud_dev_change_callback cb)
+{
+    PJ_UNUSED_ARG(f);
+    PJ_UNUSED_ARG(cb);
+}
+
+/* API: get default recording device */
+static int alsa_factory_get_default_rec_dev(pjmedia_aud_dev_factory *f)
+{
+    PJ_UNUSED_ARG(f);
+    return -1;
+}
+
+/* API: get default playback device */
+static int alsa_factory_get_default_play_dev(pjmedia_aud_dev_factory *f)
+{
+    PJ_UNUSED_ARG(f);
+    return -1;
+}
 
 /* API: get running parameter */
 static pj_status_t alsa_stream_get_param(pjmedia_aud_stream *s,

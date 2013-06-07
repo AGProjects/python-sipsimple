@@ -125,7 +125,6 @@ struct driver
     unsigned		     start_idx;	/* Start index in global list	    */
     int			     rec_dev_idx;/* Default capture device.	    */
     int			     play_dev_idx;/* Default playback device	    */
-    int			     dev_idx;	/* Default device.		    */
 };
 
 /* The audio subsystem */
@@ -367,7 +366,8 @@ static pj_status_t init_driver(unsigned drv_idx, pj_bool_t refresh)
     */
 
     /* Fill in default devices */
-    drv->play_dev_idx = drv->rec_dev_idx = drv->dev_idx = -1;
+    drv->rec_dev_idx = f->op->get_default_rec_dev(f);
+    drv->play_dev_idx = f->op->get_default_play_dev(f);
     for (i=0; i<dev_cnt; ++i) {
 	pjmedia_aud_dev_info info;
 
@@ -391,15 +391,8 @@ static pj_status_t init_driver(unsigned drv_idx, pj_bool_t refresh)
 	    /* Set default capture device */
 	    drv->rec_dev_idx = i;
 	}
-	if (drv->dev_idx < 0 && info.input_count &&
-	    info.output_count)
-	{
-	    /* Set default capture and playback device */
-	    drv->dev_idx = i;
-	}
 
-	if (drv->play_dev_idx >= 0 && drv->rec_dev_idx >= 0 && 
-	    drv->dev_idx >= 0) 
+	if (drv->play_dev_idx >= 0 && drv->rec_dev_idx >= 0)
 	{
 	    /* Done. */
 	    break;
@@ -432,7 +425,7 @@ static void deinit_driver(unsigned drv_idx)
     }
 
     drv->dev_cnt = 0;
-    drv->play_dev_idx = drv->rec_dev_idx = drv->dev_idx = -1;
+    drv->play_dev_idx = drv->rec_dev_idx = -1;
 }
 
 /* API: Initialize the audio subsystem. */
@@ -658,11 +651,7 @@ static pj_status_t lookup_dev(pjmedia_aud_dev_index id,
 
 	for (i=0; i<aud_subsys.drv_cnt; ++i) {
 	    struct driver *drv = &aud_subsys.drv[i];
-	    if (drv->dev_idx >= 0) {
-		id = drv->dev_idx;
-		make_global_index(i, &id);
-		break;
-	    } else if (id==PJMEDIA_AUD_DEFAULT_CAPTURE_DEV && 
+	    if (id==PJMEDIA_AUD_DEFAULT_CAPTURE_DEV && 
 		drv->rec_dev_idx >= 0) 
 	    {
 		id = drv->rec_dev_idx;
@@ -674,7 +663,7 @@ static pj_status_t lookup_dev(pjmedia_aud_dev_index id,
 		id = drv->play_dev_idx;
 		make_global_index(i, &id);
 		break;
-	    }
+            }
 	}
 
 	if (id < 0) {

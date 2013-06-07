@@ -159,6 +159,10 @@ static pj_status_t ca_factory_create_stream(pjmedia_aud_dev_factory *f,
 					    pjmedia_aud_play_cb play_cb,
 					    void *user_data,
 					    pjmedia_aud_stream **p_aud_strm);
+static void ca_factory_set_observer(pjmedia_aud_dev_factory *f,
+                                    pjmedia_aud_dev_change_callback cb);
+static int ca_factory_get_default_rec_dev(pjmedia_aud_dev_factory *f);
+static int ca_factory_get_default_play_dev(pjmedia_aud_dev_factory *f);
 
 static pj_status_t ca_stream_get_param(pjmedia_aud_stream *strm,
 				       pjmedia_aud_param *param);
@@ -193,7 +197,10 @@ static pjmedia_aud_dev_factory_op factory_op =
     &ca_factory_get_dev_info,
     &ca_factory_default_param,
     &ca_factory_create_stream,
-    &ca_factory_refresh
+    &ca_factory_refresh,
+    &ca_factory_set_observer,
+    &ca_factory_get_default_rec_dev,
+    &ca_factory_get_default_play_dev
 };
 
 static pjmedia_aud_stream_op stream_op =
@@ -432,49 +439,6 @@ static pj_status_t ca_factory_refresh(pjmedia_aud_dev_factory *f)
 	 */
 	return PJMEDIA_EAUD_INIT;
     }
-    
-    if (dev_size > 1) {
-	AudioDeviceID dev_id = kAudioObjectUnknown;
-	unsigned idx = 0;
-	
-	/* Find default audio input device */
-	addr.mSelector = kAudioHardwarePropertyDefaultInputDevice;
-	addr.mScope = kAudioObjectPropertyScopeGlobal;
-	addr.mElement = kAudioObjectPropertyElementMaster;
-	size = sizeof(dev_id);
-	
-	ostatus = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-					     &addr, 0, NULL,
-					     &size, (void *)&dev_id);
-	if (ostatus == noErr && dev_id != dev_ids[idx]) {
-	    AudioDeviceID temp_id = dev_ids[idx];
-	    
-	    for (i = idx + 1; i < dev_size; i++) {
-		if (dev_ids[i] == dev_id) {
-		    dev_ids[idx++] = dev_id;
-		    dev_ids[i] = temp_id;
-		    break;
-		}
-	    }
-	}
-
-	/* Find default audio output device */
-	addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;	
-	ostatus = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-					     &addr, 0, NULL,
-					     &size, (void *)&dev_id);
-	if (ostatus == noErr && dev_id != dev_ids[idx]) {
-	    AudioDeviceID temp_id = dev_ids[idx];
-	    
-	    for (i = idx + 1; i < dev_size; i++) {
-		if (dev_ids[i] == dev_id) {
-		    dev_ids[idx] = dev_id;
-		    dev_ids[i] = temp_id;
-		    break;
-		}
-	    }
-	}
-    }
 
     /* Build the devices' info */
     cf->dev_info = (struct coreaudio_dev_info*)
@@ -660,6 +624,169 @@ static pj_status_t ca_factory_default_param(pjmedia_aud_dev_factory *f,
     param->output_latency_ms = PJMEDIA_SND_DEFAULT_PLAY_LATENCY;
 
     return PJ_SUCCESS;
+}
+
+static OSStatus property_listener_proc(AudioObjectID objectID,
+                                       UInt32 numberAddresses,
+                                       const AudioObjectPropertyAddress inAddresses[],
+                                       void *clientData)
+{
+    pjmedia_aud_dev_change_callback cb = (pjmedia_aud_dev_change_callback)clientData;
+    pjmedia_aud_dev_change_event event;
+    UInt32 i;
+
+    for(i = 0; i < numberAddresses; i++) {
+        event = 0;
+        switch (inAddresses[i].mSelector) {
+        case kAudioHardwarePropertyDefaultInputDevice:
+            event = DEFAULT_INPUT_CHANGED;
+            break;
+        case kAudioHardwarePropertyDefaultOutputDevice:
+            event = DEFAULT_OUTPUT_CHANGED;
+            break;
+        case kAudioHardwarePropertyDevices:
+            event = DEVICE_LIST_CHANGED;
+            break;
+        default:
+            break;
+        }
+        if (event > 0) {
+            (cb)(event);
+        }
+    }
+
+    return noErr;
+}
+
+/* API: set audio device change observer */
+static void ca_factory_set_observer(pjmedia_aud_dev_factory *f,
+                                    pjmedia_aud_dev_change_callback cb)
+{
+    AudioObjectPropertyAddress addr;
+    OSStatus ostatus;
+
+    /* observer for devices list */
+    addr.mSelector = kAudioHardwarePropertyDevices;
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
+
+    if (cb) {
+        ostatus = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
+                                                &addr,
+                                                property_listener_proc,
+                                                cb);
+    } else {
+        ostatus = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                                    &addr,
+                                                    property_listener_proc,
+                                                    cb);
+    }
+    if (ostatus != noErr) {
+	PJ_LOG(5,(THIS_FILE, "Error %sregistering devices list observer", cb==NULL ? "un-" : ""));
+    }
+
+    /* observer for default input device */
+    addr.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+
+    if (cb) {
+        ostatus = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
+                                                &addr,
+                                                property_listener_proc,
+                                                cb);
+    } else {
+        ostatus = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                                    &addr,
+                                                    property_listener_proc,
+                                                    cb);
+    }
+    if (ostatus != noErr) {
+	PJ_LOG(5,(THIS_FILE, "Error %sregistering default input device observer", cb==NULL ? "un-" : ""));
+    }
+
+    /* observer for default output device */
+    addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;
+
+    if (cb) {
+        ostatus = AudioObjectAddPropertyListener(kAudioObjectSystemObject,
+                                                &addr,
+                                                property_listener_proc,
+                                                cb);
+    } else {
+        ostatus = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                                    &addr,
+                                                    property_listener_proc,
+                                                    cb);
+    }
+    if (ostatus != noErr) {
+	PJ_LOG(5,(THIS_FILE, "Error %sregistering default output device observer", cb==NULL ? "un-" : ""));
+    }
+
+}
+
+/* API: get default recording device */
+static int ca_factory_get_default_rec_dev(pjmedia_aud_dev_factory *f)
+{
+    AudioDeviceID dev_id = kAudioObjectUnknown;
+    AudioObjectPropertyAddress addr;
+    UInt32 size;
+    OSStatus ostatus;
+    int i;
+    int idx = -1;
+    struct coreaudio_factory *cf = (struct coreaudio_factory*)f;
+
+    /* Find default audio input device */
+    addr.mSelector = kAudioHardwarePropertyDefaultInputDevice;
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
+    size = sizeof(dev_id);
+
+    ostatus = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                         &addr, 0, NULL,
+                                         &size, (void *)&dev_id);
+    if (ostatus == noErr) {
+        for (i = 0; i < cf->dev_count; i++) {
+            struct coreaudio_dev_info *cdi;
+	    cdi = &cf->dev_info[i];
+            if (cdi->dev_id == dev_id) {
+                idx = i;
+                break;
+            }
+        }
+    }
+    return idx;
+}
+
+/* API: get default playback device */
+static int ca_factory_get_default_play_dev(pjmedia_aud_dev_factory *f)
+{
+    AudioDeviceID dev_id = kAudioObjectUnknown;
+    AudioObjectPropertyAddress addr;
+    UInt32 size;
+    OSStatus ostatus;
+    int i;
+    int idx = -1;
+    struct coreaudio_factory *cf = (struct coreaudio_factory*)f;
+
+    /* Find default audio output device */
+    addr.mSelector = kAudioHardwarePropertyDefaultOutputDevice;	
+    addr.mScope = kAudioObjectPropertyScopeGlobal;
+    addr.mElement = kAudioObjectPropertyElementMaster;
+    size = sizeof(dev_id);
+
+    ostatus = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                         &addr, 0, NULL,
+                                         &size, (void *)&dev_id);
+    if (ostatus == noErr) {
+        for (i = 0; i < cf->dev_count; i++) {
+            struct coreaudio_dev_info *cdi;
+	    cdi = &cf->dev_info[i];
+            if (cdi->dev_id == dev_id) {
+                idx = i;
+                break;
+            }
+        }
+    }
+    return idx;
 }
 
 OSStatus resampleProc(AudioConverterRef             inAudioConverter,

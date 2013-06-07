@@ -31,6 +31,7 @@
 #endif
 
 #include <windows.h>
+#include <dbt.h>
 #include <mmsystem.h>
 #include <mmreg.h>
 
@@ -65,6 +66,15 @@
 
 #define THIS_FILE			"wmme_dev.c"
 
+/* WMME device change observer */
+struct wmme_dev_observer
+{
+    pj_thread_t                         *thread;
+    pj_pool_t                           *pool;
+    pjmedia_aud_dev_change_callback      cb;
+    HWND                                 hWnd;
+};
+
 /* WMME device info */
 struct wmme_dev_info
 {
@@ -83,6 +93,8 @@ struct wmme_factory
 
     unsigned			 dev_count;
     struct wmme_dev_info	*dev_info;
+
+    struct wmme_dev_observer     dev_observer;
 };
 
 
@@ -147,6 +159,11 @@ static pj_status_t factory_create_stream(pjmedia_aud_dev_factory *f,
 					 pjmedia_aud_play_cb play_cb,
 					 void *user_data,
 					 pjmedia_aud_stream **p_aud_strm);
+static void factory_set_observer(pjmedia_aud_dev_factory *f,
+                                 pjmedia_aud_dev_change_callback cb);
+static int factory_get_default_rec_dev(pjmedia_aud_dev_factory *f);
+static int factory_get_default_play_dev(pjmedia_aud_dev_factory *f);
+
 
 static pj_status_t stream_get_param(pjmedia_aud_stream *strm,
 				    pjmedia_aud_param *param);
@@ -170,7 +187,10 @@ static pjmedia_aud_dev_factory_op factory_op =
     &factory_get_dev_info,
     &factory_default_param,
     &factory_create_stream,
-    &factory_refresh
+    &factory_refresh,
+    &factory_set_observer,
+    &factory_get_default_rec_dev,
+    &factory_get_default_play_dev
 };
 
 static pjmedia_aud_stream_op stream_op = 
@@ -1295,6 +1315,201 @@ static pj_status_t factory_create_stream(pjmedia_aud_dev_factory *f,
     *p_aud_strm = &strm->base;
 
     return PJ_SUCCESS;
+}
+
+/* Processes OS messages arriving at the hWnd window */
+INT_PTR WINAPI ProcessOSMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    /* wf is used in order to query the number of audio devices currently handled */
+    static struct wmme_factory *wf = NULL;
+
+    switch( message )
+    {
+        case WM_CREATE:
+            /* Initialize wf pointer on the first run */
+            if (wf == NULL)
+            {
+                CREATESTRUCT *CrtStrPtr = (CREATESTRUCT *) lParam;
+                wf = (struct wmme_factory *)(CrtStrPtr->lpCreateParams);
+            }
+            break;
+        case WM_DEVICECHANGE:
+            /* Possible insertion or removal of device. There's some issues:
+
+                - Some devices/drivers does not trigger arrival nor
+                  removecomplete events, but only devnodes_changed events.
+                  Therefore, we process all of those type of events.
+
+                - Some hardware can send many devnodes_changed events at the
+                  same time (up to ~15 of such events). These batches are
+                  detected using temporal locality, using constMaxBatchPeriod_.
+                  Once the device is detected, the rest of redundant events
+                  are discarded. In order to know if there's a new device or not,
+                  actual audio devices count is compared to stored audio devices
+                  count (via wf->dev_count).
+
+                - Hardware takes some time to settle and be recognized by
+                  drivers. A small window of time is given in order to account
+                  for this (constMaxSettleTime_);
+
+                  Settle time should be slightly lower than batch period.
+            */
+            if (wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE || wParam == DBT_DEVNODES_CHANGED) {
+                const int constMaxBatchPeriod_ = 3; /* seconds */
+                const int constMaxSettleTime_ = (constMaxBatchPeriod_ * 1000) - 500; /* milliseconds */
+
+                /* Loop that allows hardware to settle */
+                int settleTimeLeft = constMaxSettleTime_;
+                while (settleTimeLeft > 0) {
+                    /* Check if actual devices lists (I/O) sizes have actually
+                       changed before notifying upper levels. Consider input
+                       devices, output devices and a WAVE MAPPER device for each.
+                    */
+                    if(waveInGetNumDevs() + waveOutGetNumDevs() + 2 != wf->dev_count) {
+                        /* Hardware changed */
+                        if (wf->dev_observer.cb) {
+                            wf->dev_observer.cb(DEVICE_LIST_CHANGED);
+                        }
+                        break;
+                    } else {
+                        /* Hardware is settling... */
+                        Sleep(250);
+                        settleTimeLeft -= 250;
+                    }
+                }
+            }
+            break;
+        case WM_CLOSE:
+            if (!DestroyWindow(hWnd)) {
+                PJ_LOG(4,(THIS_FILE, "Couldn't destroy message window"));
+            }
+            break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
+        default:
+            break;
+    }
+
+    return 1;
+}
+
+static pj_status_t create_os_messages_window(struct wmme_factory *wf)
+{
+    pj_status_t status = PJ_EBUG;
+    WNDCLASSEX wndClass;
+    HWND hWnd;
+
+    /* Set up and register window class */
+    ZeroMemory(&wndClass, sizeof(WNDCLASSEX));
+    wndClass.cbSize = sizeof(WNDCLASSEX);
+    wndClass.style = CS_OWNDC;
+    wndClass.lpfnWndProc = (WNDPROC)(ProcessOSMessage);
+    wndClass.hInstance = (HINSTANCE)(GetModuleHandle(0));
+    wndClass.lpszClassName = "DeviceChangeMessageWindow";
+
+    if (RegisterClassEx(&wndClass)) {
+        /* Create the window that will receive OS messages */
+        hWnd = CreateWindowEx( 0, "DeviceChangeMessageWindow", NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, (LPVOID)(wf));
+        if (hWnd != NULL) {
+            wf->dev_observer.hWnd = hWnd;
+            if (UpdateWindow(hWnd) != 0) {
+                status = PJ_SUCCESS;
+            }
+        } else {
+            PJ_LOG(4,(THIS_FILE, "Error creating window to receive device change events"));
+        }
+    }
+
+    return status;
+
+}
+
+static pj_status_t dispatch_os_messages(void)
+{
+    pj_status_t status = PJ_SUCCESS;
+    MSG msg;
+    int ret;
+
+    /* Process OS messages with low cpu-usage wait loop */
+    while((ret = GetMessage(&msg, NULL, 0, 0)) != 0) {
+        if (ret == -1) {
+            PJ_LOG(4,(THIS_FILE, "Couldn't process OS message"));
+            status = PJ_EBUG;
+            break;
+        } else {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+
+    return status;
+
+}
+
+/* WMME device observer thread thread. */
+static int PJ_THREAD_FUNC wmme_dev_observer_thread(void *arg)
+{
+    struct wmme_factory *wf = (struct wmme_factory*)arg;
+    pj_status_t status;
+
+    status = create_os_messages_window(wf);
+    if (status == PJ_SUCCESS) {
+        status = dispatch_os_messages();
+        if (status != PJ_SUCCESS) {
+            PJ_LOG(4,(THIS_FILE, "Error dispatching device detection window events"));
+        }
+    } else {
+        PJ_LOG(4,(THIS_FILE, "Failed to create window for receiving device detection events"));
+    }
+
+    return status;
+}
+
+/* API: set audio device change observer */
+static void factory_set_observer(pjmedia_aud_dev_factory *f,
+                                 pjmedia_aud_dev_change_callback cb)
+{
+    struct wmme_factory *wf = (struct wmme_factory*)f;
+    pj_pool_t *pool;
+    pj_status_t status;
+
+    if (cb) {
+        pool = pj_pool_create(wf->pf, "wmme-dev-observer", 1000, 1000, NULL);
+        PJ_ASSERT_ON_FAIL(pool != NULL, {return;});
+        status = pj_thread_create(pool, "wmme_observer", &wmme_dev_observer_thread, wf, 0, 0, &wf->dev_observer.thread);
+        if (status != PJ_SUCCESS) {
+	    PJ_LOG(4,(THIS_FILE, "Failed to create WMME device detection thread"));
+            wf->dev_observer.thread = NULL;
+            return;
+        }
+        wf->dev_observer.cb = cb;
+    } else {
+        wf->dev_observer.cb = NULL;
+        if (wf->dev_observer.hWnd) {
+            CloseWindow(wf->dev_observer.hWnd);
+            wf->dev_observer.hWnd = NULL;
+        }
+	pj_thread_join(wf->dev_observer.thread);
+	pj_thread_destroy(wf->dev_observer.thread);
+        wf->dev_observer.thread = NULL;
+    }
+}
+
+/* API: get default recording device */
+static int factory_get_default_rec_dev(pjmedia_aud_dev_factory *f)
+{
+    PJ_UNUSED_ARG(f);
+    /* Let PJMEDIA pick the first one available */
+    return -1;
+}
+
+/* API: get default playback device */
+static int factory_get_default_play_dev(pjmedia_aud_dev_factory *f)
+{
+    PJ_UNUSED_ARG(f);
+    /* Let PJMEDIA pick the first one available */
+    return -1;
 }
 
 /* API: Get stream info. */
