@@ -1823,7 +1823,6 @@ static pj_status_t ca_stream_get_cap(pjmedia_aud_stream *s,
 	    {
 		strm->param.input_latency_ms = (latency + latency2) * 1000 /
 					       strm->param.clock_rate;
-		strm->param.input_latency_ms++;
 	    }
 	}
 #else
@@ -1871,7 +1870,6 @@ static pj_status_t ca_stream_get_cap(pjmedia_aud_stream *s,
 	    {
 		strm->param.output_latency_ms = (latency + latency2) * 1000 /
 						strm->param.clock_rate;
-		strm->param.output_latency_ms++;
 	    }
 	}
 #else
@@ -1890,7 +1888,7 @@ static pj_status_t ca_stream_get_cap(pjmedia_aud_stream *s,
 	    strm->param.output_latency_ms++;
 	}
 #endif
-	*(unsigned*)pval = (++strm->param.output_latency_ms * 2);
+	*(unsigned*)pval = strm->param.output_latency_ms;
 	return PJ_SUCCESS;
     } else if (cap==PJMEDIA_AUD_DEV_CAP_OUTPUT_VOLUME_SETTING &&
 	       (strm->param.dir & PJMEDIA_DIR_PLAYBACK))
