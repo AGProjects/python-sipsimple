@@ -329,6 +329,7 @@ cdef class AudioMixer:
     cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,
                                  int ec_tail_length, int revert_to_default) except -1:
         global device_name_encoding
+        cdef int idx
         cdef int input_device_i = -99
         cdef int output_device_i = -99
         cdef int sample_rate = self.sample_rate
@@ -341,6 +342,7 @@ cdef class AudioMixer:
         cdef pjmedia_aud_dev_info dev_info
         cdef pjmedia_snd_port **snd_port_address
         cdef pjmedia_aud_param aud_param
+        cdef pjmedia_snd_port_param port_param
         cdef pjsip_endpoint *endpoint
         cdef bytes snd_pool_name
         cdef char* c_snd_pool_name
@@ -413,18 +415,31 @@ cdef class AudioMixer:
                 if snd_pool == NULL:
                     raise SIPCoreError("Could not allocate memory pool")
                 self._snd_pool = snd_pool
+                pjmedia_snd_port_param_default(&port_param)
+                idx = input_device_i if input_device is not None else output_device_i
+                with nogil:
+                    status = pjmedia_aud_dev_default_param(idx, &port_param.base)
+                if status != 0:
+                    raise PJSIPError("Could not get default parameters for audio device", status)
                 if input_device is None:
-                    with nogil:
-                        status = pjmedia_snd_port_create_player(snd_pool, output_device_i, sample_rate,
-                                                                1, sample_rate / 50, 16, 0, snd_port_address)
+                    port_param.base.dir = PJMEDIA_DIR_PLAYBACK
+                    port_param.base.play_id = output_device_i
                 elif output_device is None:
-                    with nogil:
-                        status = pjmedia_snd_port_create_rec(snd_pool, input_device_i, sample_rate,
-                                                             1, sample_rate / 50, 16, 0, snd_port_address)
+                    port_param.base.dir = PJMEDIA_DIR_CAPTURE
+                    port_param.base.rec_id = input_device_i
                 else:
-                    with nogil:
-                        status = pjmedia_snd_port_create(snd_pool, input_device_i, output_device_i,
-                                                         sample_rate, 1, sample_rate / 50, 16, 0, snd_port_address)
+                    port_param.base.dir = PJMEDIA_DIR_CAPTURE_PLAYBACK
+                    port_param.base.play_id = output_device_i
+                    port_param.base.rec_id = input_device_i
+                port_param.base.channel_count = 1
+                port_param.base.clock_rate = sample_rate
+                port_param.base.samples_per_frame = sample_rate / 50
+                port_param.base.bits_per_sample = 16
+                port_param.base.flags |= (PJMEDIA_AUD_DEV_CAP_EC | PJMEDIA_AUD_DEV_CAP_EC_TAIL)
+                port_param.base.ec_enabled = 1
+                port_param.base.ec_tail_ms = ec_tail_length
+                with nogil:
+                    status = pjmedia_snd_port_create2(snd_pool, &port_param, snd_port_address)
                 if status == PJMEDIA_ENOSNDPLAY:
                     with nogil:
                         pjsip_endpt_release_pool(endpoint, snd_pool)
@@ -437,15 +452,6 @@ cdef class AudioMixer:
                     return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
                 elif status != 0:
                     raise PJSIPError("Could not create sound device", status)
-                if input_device is not None and output_device is not None:
-                    with nogil:
-                        status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, ec_tail_length, 0)
-                    if status != 0:
-                        with nogil:
-                            status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, 0, 0)
-                        if status != 0:
-                            self._stop_sound_device(ua)
-                            raise PJSIPError("Could not set echo cancellation", status)
                 with nogil:
                     status = pjmedia_snd_port_connect(snd_port_address[0], pjmedia_conf_get_master_port(conf_bridge))
                 if status != 0:

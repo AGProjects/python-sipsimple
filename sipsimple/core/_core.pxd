@@ -228,6 +228,13 @@ cdef extern from "pjmedia.h":
     enum:
         PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
         PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
+        PJMEDIA_AUD_DEV_CAP_EC
+        PJMEDIA_AUD_DEV_CAP_EC_TAIL
+
+    enum pjmedia_dir:
+        PJMEDIA_DIR_PLAYBACK
+        PJMEDIA_DIR_CAPTURE
+        PJMEDIA_DIR_CAPTURE_PLAYBACK
 
     # codec manager
     struct pjmedia_codec_mgr
@@ -258,8 +265,16 @@ cdef extern from "pjmedia.h":
         int input_count
         int output_count
     struct pjmedia_aud_param:
+        pjmedia_dir dir
         int play_id
         int rec_id
+        int clock_rate
+        int channel_count
+        int samples_per_frame
+        int bits_per_sample
+        int flags
+        int ec_enabled
+        int ec_tail_ms
     struct pjmedia_aud_stream
     int pjmedia_aud_dev_count() nogil
     int pjmedia_aud_dev_get_info(int index, pjmedia_aud_dev_info *info) nogil
@@ -271,19 +286,16 @@ cdef extern from "pjmedia.h":
         PJMEDIA_AUD_DEV_LIST_DID_REFRESH
     ctypedef void (*pjmedia_aud_dev_observer_callback)(pjmedia_aud_dev_event event)
     int pjmedia_aud_dev_set_observer_cb(pjmedia_aud_dev_observer_callback cb) nogil
+    int pjmedia_aud_dev_default_param(int index, pjmedia_aud_param *param) nogil
 
     # sound port
     struct pjmedia_port
     struct pjmedia_snd_port
-    int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, unsigned int clock_rate,
-                                unsigned int channel_count, unsigned int samples_per_frame,
-                                unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port) nogil
-    int pjmedia_snd_port_create_rec(pj_pool_t *pool, int index, unsigned int clock_rate, unsigned int channel_count,
-                                    unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int options,
-                                    pjmedia_snd_port **p_port) nogil
-    int pjmedia_snd_port_create_player(pj_pool_t *pool, unsigned int index, unsigned int clock_rate,
-                                       unsigned int channel_count, unsigned int samples_per_frame,
-                                       unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port) nogil
+    struct pjmedia_snd_port_param:
+        pjmedia_aud_param base
+    ctypedef pjmedia_snd_port_param *pjmedia_snd_port_param_ptr_const "const pjmedia_snd_port_param *"
+    int pjmedia_snd_port_create2(pj_pool_t *pool, pjmedia_snd_port_param_ptr_const prm, pjmedia_snd_port **p_port) nogil
+    void pjmedia_snd_port_param_default(pjmedia_snd_port_param *prm)
     int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port) nogil
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port) nogil
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options) nogil
