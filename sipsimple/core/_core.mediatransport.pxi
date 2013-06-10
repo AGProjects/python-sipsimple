@@ -592,13 +592,13 @@ cdef class AudioTransport:
         if codecs is None:
             codecs = global_codecs
         try:
-            ua._pjmedia_endpoint._set_codecs(codecs, self.mixer.sample_rate)
+            ua._pjmedia_endpoint._set_codecs(codecs)
             with nogil:
                 status = pjmedia_endpt_create_sdp(media_endpoint, pool, 1, &info.sock_info, &local_sdp_c)
             if status != 0:
                 raise PJSIPError("Could not generate SDP for audio session", status)
         finally:
-            ua._pjmedia_endpoint._set_codecs(global_codecs, 32000)
+            ua._pjmedia_endpoint._set_codecs(global_codecs)
         local_sdp = SDPSession_create(local_sdp_c)
         if remote_sdp is None:
             self._is_offer = 1

@@ -1152,7 +1152,7 @@ cdef class PJMEDIAEndpoint(object):
     cdef list _get_codecs(self)
     cdef list _get_all_codecs(self)
     cdef list _get_current_codecs(self)
-    cdef int _set_codecs(self, list req_codecs, int max_sample_rate) except -1
+    cdef int _set_codecs(self, list req_codecs) except -1
 
 # core.helper
 

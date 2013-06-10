@@ -381,7 +381,7 @@ cdef class PJSIPUA:
 
         def __set__(self, value):
             self._check_self()
-            self._pjmedia_endpoint._set_codecs(value, 32000)
+            self._pjmedia_endpoint._set_codecs(value)
 
     property ip_address:
 

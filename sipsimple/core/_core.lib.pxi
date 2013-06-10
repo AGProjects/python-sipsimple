@@ -269,7 +269,7 @@ cdef class PJMEDIAEndpoint:
         retval = list(set([codec_data[1] for codec_data in codecs]))
         return retval
 
-    cdef int _set_codecs(self, list req_codecs, int max_sample_rate) except -1:
+    cdef int _set_codecs(self, list req_codecs) except -1:
         cdef object new_codecs
         cdef object all_codecs
         cdef object codec_set
@@ -296,7 +296,7 @@ cdef class PJMEDIAEndpoint:
         codec_prio = list()
         for codec in req_codecs:
             for sample_rate, channel_count, codec_name, prio in codecs:
-                if codec == codec_name and channel_count == 1 and sample_rate <= max_sample_rate:
+                if codec == codec_name and channel_count == 1:
                     codec_prio.append("%s/%d/%d" % (codec_name, sample_rate, channel_count))
         for prio, codec in enumerate(reversed(codec_prio)):
             _str_to_pj_str(codec, &codec_pj)
@@ -304,7 +304,7 @@ cdef class PJMEDIAEndpoint:
             if status != 0:
                 raise PJSIPError("Could not set codec priority", status)
         for sample_rate, channel_count, codec_name, prio in codecs:
-            if codec_name not in req_codecs or channel_count == 2 or sample_rate > max_sample_rate:
+            if codec_name not in req_codecs or channel_count > 1:
                 codec = "%s/%d/%d" % (codec_name, sample_rate, channel_count)
                 _str_to_pj_str(codec, &codec_pj)
                 status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, 0)
