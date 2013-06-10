@@ -225,6 +225,10 @@ cdef extern from "pjmedia.h":
         PJMEDIA_ENOSNDREC
         PJMEDIA_ENOSNDPLAY
 
+    enum:
+        PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
+        PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
+
     # codec manager
     struct pjmedia_codec_mgr
     enum:
@@ -249,30 +253,24 @@ cdef extern from "pjmedia.h":
     int pjmedia_codec_g711_deinit() nogil
 
     # sound devices
-    struct pjmedia_snd_dev_info:
+    struct pjmedia_aud_dev_info:
         char *name
         int input_count
         int output_count
-    struct pjmedia_snd_stream_info:
+    struct pjmedia_aud_param:
         int play_id
         int rec_id
-    struct pjmedia_snd_stream
-    ctypedef pjmedia_snd_dev_info *pjmedia_snd_dev_info_ptr_const "const pjmedia_snd_dev_info *"
-    ctypedef void (*audio_change_callback) (void *user_data)
-    enum audio_change_type:
-         AUDIO_CHANGE_INPUT = 1
-         AUDIO_CHANGE_OUTPUT = 2
-    struct pjmedia_audio_change_observer:
-         audio_change_callback default_audio_change
-         audio_change_callback audio_devices_will_change
-         audio_change_callback audio_devices_did_change
-    int pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
-    int pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
-    int pjmedia_snd_get_dev_count() nogil
-    int pjmedia_snd_get_default_input_dev(int channel_count) nogil
-    int pjmedia_snd_get_default_output_dev(int channel_count) nogil
-    pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index) nogil
-    int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi) nogil
+    struct pjmedia_aud_stream
+    int pjmedia_aud_dev_count() nogil
+    int pjmedia_aud_dev_get_info(int index, pjmedia_aud_dev_info *info) nogil
+    int pjmedia_aud_stream_get_param(pjmedia_aud_stream *strm, pjmedia_aud_param *param) nogil
+    enum pjmedia_aud_dev_event:
+        PJMEDIA_AUD_DEV_DEFAULT_INPUT_CHANGED
+        PJMEDIA_AUD_DEV_DEFAULT_OUTPUT_CHANGED
+        PJMEDIA_AUD_DEV_LIST_WILL_REFRESH
+        PJMEDIA_AUD_DEV_LIST_DID_REFRESH
+    ctypedef void (*pjmedia_aud_dev_observer_callback)(pjmedia_aud_dev_event event)
+    int pjmedia_aud_dev_set_observer_cb(pjmedia_aud_dev_observer_callback cb) nogil
 
     # sound port
     struct pjmedia_port
@@ -291,7 +289,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options) nogil
     int pjmedia_snd_port_reset_ec_state(pjmedia_snd_port *snd_port) nogil
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port) nogil
-    pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port) nogil
+    pjmedia_aud_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port) nogil
     int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
                                  unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port) nogil
     int pjmedia_mixer_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
@@ -1472,7 +1470,6 @@ cdef class PJSIPUA(object):
     cdef int _fatal_error
     cdef set _incoming_events
     cdef set _incoming_requests
-    cdef pjmedia_audio_change_observer _audio_change_observer
     cdef pj_rwmutex_t *audio_change_rwlock
     cdef list old_devices
 

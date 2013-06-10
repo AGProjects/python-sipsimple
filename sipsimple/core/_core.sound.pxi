@@ -329,9 +329,8 @@ cdef class AudioMixer:
     cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,
                                  int ec_tail_length, int revert_to_default) except -1:
         global device_name_encoding
-        cdef int i
-        cdef int input_device_i = -2
-        cdef int output_device_i = -2
+        cdef int input_device_i = -99
+        cdef int output_device_i = -99
         cdef int sample_rate = self.sample_rate
         cdef int status
         cdef pj_pool_t *conf_pool
@@ -339,9 +338,9 @@ cdef class AudioMixer:
         cdef pjmedia_conf *conf_bridge
         cdef pjmedia_master_port **master_port_address
         cdef pjmedia_port **null_port_address
-        cdef pjmedia_snd_dev_info_ptr_const dev_info
+        cdef pjmedia_aud_dev_info dev_info
         cdef pjmedia_snd_port **snd_port_address
-        cdef pjmedia_snd_stream_info snd_info
+        cdef pjmedia_aud_param aud_param
         cdef pjsip_endpoint *endpoint
         cdef bytes snd_pool_name
         cdef char* c_snd_pool_name
@@ -360,31 +359,35 @@ cdef class AudioMixer:
             raise SIPCoreError('Audio change lock could not be acquired for read', status)
 
         try:
-            if pjmedia_snd_get_dev_count() == 0:
+            dev_count = pjmedia_aud_dev_count()
+            if dev_count == 0:
                 input_device = None
                 output_device = None
             if input_device == u"system_default":
-                input_device_i = -1
+                input_device_i = PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
             if output_device == u"system_default":
-                output_device_i = -1
-            if ((input_device_i == -2 and input_device is not None) or
-                (output_device_i == -2 and output_device is not None)):
-                for i from 0 <= i < pjmedia_snd_get_dev_count():
-                    dev_info = pjmedia_snd_get_dev_info(i)
-                    if (input_device is not None and input_device_i == -2 and
+                output_device_i = PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
+            if ((input_device_i == -99 and input_device is not None) or
+                (output_device_i == -99 and output_device is not None)):
+                for i in range(dev_count):
+                    with nogil:
+                        status = pjmedia_aud_dev_get_info(i, &dev_info)
+                    if status != 0:
+                        raise PJSIPError("Could not get audio device info", status)
+                    if (input_device is not None and input_device_i == -99 and
                         dev_info.input_count > 0 and dev_info.name.decode(device_name_encoding) == input_device):
                         input_device_i = i
-                    if (output_device is not None and output_device_i == -2 and
+                    if (output_device is not None and output_device_i == -99 and
                         dev_info.output_count > 0 and dev_info.name.decode(device_name_encoding) == output_device):
                         output_device_i = i
-                if input_device_i == -2 and input_device is not None:
+                if input_device_i == -99 and input_device is not None:
                     if revert_to_default:
-                        input_device_i = -1
+                        input_device_i = PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
                     else:
                         raise SIPCoreError('Audio input device "%s" not found' % input_device)
-                if output_device_i == -2 and output_device is not None:
+                if output_device_i == -99 and output_device is not None:
                     if revert_to_default:
-                        output_device_i = -1
+                        output_device_i = PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
                     else:
                         raise SIPCoreError('Audio output device "%s" not found' % output_device)
             if input_device is None and output_device is None:
@@ -448,23 +451,27 @@ cdef class AudioMixer:
                 if status != 0:
                     self._stop_sound_device(ua)
                     raise PJSIPError("Could not connect sound device", status)
-                if input_device_i == -1 or output_device_i == -1:
+                if input_device_i == PJMEDIA_AUD_DEFAULT_CAPTURE_DEV or output_device_i == PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV:
                     with nogil:
-                        status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(snd_port_address[0]), &snd_info)
+                        status = pjmedia_aud_stream_get_param(pjmedia_snd_port_get_snd_stream(snd_port_address[0]), &aud_param)
                     if status != 0:
                         self._stop_sound_device(ua)
                         raise PJSIPError("Could not get sounds device info", status)
-                    if input_device_i == -1:
+                    if input_device_i == PJMEDIA_AUD_DEFAULT_CAPTURE_DEV:
                         with nogil:
-                            dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
+                            status = pjmedia_aud_dev_get_info(aud_param.rec_id, &dev_info)
+                        if status != 0:
+                            raise PJSIPError("Could not get audio device info", status)
                         self.real_input_device = dev_info.name.decode(device_name_encoding)
-                    if output_device_i == -1:
+                    if output_device_i == PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV:
                         with nogil:
-                            dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
+                            status = pjmedia_aud_dev_get_info(aud_param.play_id, &dev_info)
+                        if status != 0:
+                            raise PJSIPError("Could not get audio device info", status)
                         self.real_output_device = dev_info.name.decode(device_name_encoding)
-            if input_device_i != -1:
+            if input_device_i != PJMEDIA_AUD_DEFAULT_CAPTURE_DEV:
                 self.real_input_device = input_device
-            if output_device_i != -1:
+            if output_device_i != PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV:
                 self.real_output_device = output_device
             self.input_device = input_device
             self.output_device = output_device
