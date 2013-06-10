@@ -141,6 +141,7 @@ cdef extern from "pjlib.h":
         long sec
         long msec
     void pj_gettimeofday(pj_time_val *tv) nogil
+    void pj_time_val_normalize(pj_time_val *tv) nogil
 
     # timers
     struct pj_timer_heap_t
@@ -199,6 +200,32 @@ cdef extern from "pjnath.h":
                                                            pj_stun_nat_detect_result_ptr_const res) with gil) nogil
 
     # ICE
+    struct pj_ice_strans
+    struct pj_ice_sess_cand:
+        int type
+        int comp_id
+        int prio
+        pj_sockaddr addr
+        pj_sockaddr rel_addr
+    struct pj_ice_sess_check:
+        pj_ice_sess_cand *lcand
+        pj_ice_sess_cand *rcand
+        int state
+        int nominated
+    ctypedef pj_ice_sess_check *pj_ice_sess_check_ptr_const "const pj_ice_sess_check *"
+    struct pj_ice_sess_comp:
+        pj_ice_sess_check *valid_check
+    struct pj_ice_sess_checklist:
+        int count
+        pj_ice_sess_check *checks
+    struct pj_ice_sess:
+        int comp_cnt
+        pj_ice_sess_comp *comp
+        int lcand_cnt
+        pj_ice_sess_cand *lcand
+        int rcand_cnt
+        pj_ice_sess_cand *rcand
+        pj_ice_sess_checklist valid_list
     struct pj_ice_strans_cfg_stun:
         pj_stun_sock_cfg cfg
         pj_str_t server
@@ -210,16 +237,31 @@ cdef extern from "pjnath.h":
     enum pj_ice_strans_op:
         PJ_ICE_STRANS_OP_INIT
         PJ_ICE_STRANS_OP_NEGOTIATION
+    enum pj_ice_strans_state:
+        PJ_ICE_STRANS_STATE_NULL
+        PJ_ICE_STRANS_STATE_INIT
+        PJ_ICE_STRANS_STATE_READY
+        PJ_ICE_STRANS_STATE_SESS_READY
+        PJ_ICE_STRANS_STATE_NEGO
+        PJ_ICE_STRANS_STATE_RUNNING
+        PJ_ICE_STRANS_STATE_FAILED
+    enum pj_ice_cand_type:
+        PJ_ICE_CAND_TYPE_HOST
+        PJ_ICE_CAND_TYPE_SRFLX
+        PJ_ICE_CAND_TYPE_PRFLX
+        PJ_ICE_CAND_TYPE_RELAYED
+    enum pj_ice_sess_check_state:
+        PJ_ICE_SESS_CHECK_STATE_FROZEN
+        PJ_ICE_SESS_CHECK_STATE_WAITING
+        PJ_ICE_SESS_CHECK_STATE_IN_PROGRESS
+        PJ_ICE_SESS_CHECK_STATE_SUCCEEDED
+        PJ_ICE_SESS_CHECK_STATE_FAILED
     void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg) nogil
-    struct pj_ice_candidate_pair:
-        char local_type[8]
-        char local_ip[64]
-        char remote_type[8]
-        char remote_ip[64]
+    pj_ice_sess* pj_ice_strans_get_session(pj_ice_strans *ice_st)
+    pj_time_val pj_ice_strans_get_start_time(pj_ice_strans *ice_st)
+    pj_ice_sess_check_ptr_const pj_ice_strans_get_valid_pair(pj_ice_strans *ice_st, unsigned comp_id)
 
 cdef extern from "pjmedia.h":
-
-
 
     enum:
         PJMEDIA_ENOSNDREC
@@ -451,11 +493,11 @@ cdef extern from "pjmedia.h":
     # ICE
     struct pjmedia_ice_cb:
         void on_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
-        void on_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil
-        void on_ice_failure(pjmedia_transport *tp, char *reason) with gil
-        void on_ice_state(pjmedia_transport *tp, char *state) with gil
+        void on_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil
+        void on_ice_stop(pjmedia_transport *tp, char *reason, int err) with gil
     int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg,
                             pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp) nogil
+    pj_ice_strans *pjmedia_ice_get_strans(pjmedia_transport *tp) with gil
 
     # stream
     enum pjmedia_dir:
@@ -2058,6 +2100,21 @@ cdef void _Invitation_transfer_in_cb_server_timeout(pjsip_evsub *sub) with gil
 
 # core.mediatransport
 
+cdef class ICECandidate(object):
+    # attributes
+    cdef readonly str component
+    cdef readonly str type
+    cdef readonly str address
+    cdef readonly int port
+    cdef readonly int priority
+    cdef readonly str rel_address
+
+cdef class ICECheck(object):
+    cdef readonly ICECandidate local_candidate
+    cdef readonly ICECandidate remote_candidate
+    cdef readonly str state
+    cdef readonly int nominated
+
 cdef class RTPTransport(object):
     # attributes
     cdef object __weakref__
@@ -2069,14 +2126,9 @@ cdef class RTPTransport(object):
     cdef pjmedia_transport *_obj
     cdef pjmedia_transport *_wrapped_transport
     cdef object _local_rtp_addr
-    cdef bytes _local_rtp_candidate_type
-    cdef bytes _remote_rtp_candidate_type
+    cdef ICECheck _rtp_valid_pair
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
-    cdef readonly object remote_rtp_port_sdp
-    cdef readonly object remote_rtp_address_sdp
-    cdef readonly object remote_rtp_port_ice
-    cdef readonly object remote_rtp_address_ice
     cdef readonly object srtp_forced
     cdef readonly object state
     cdef readonly object use_ice
@@ -2084,8 +2136,9 @@ cdef class RTPTransport(object):
 
     # private methods
     cdef PJSIPUA _check_ua(self)
-    cdef int _get_info(self, pjmedia_transport_info *info) except -1
+    cdef void _get_info(self, pjmedia_transport_info *info)
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1
+    cdef ICECheck _get_rtp_valid_pair(self)
 
 cdef class MediaCheckTimer(Timer):
     # attributes
@@ -2117,9 +2170,12 @@ cdef class AudioTransport(object):
     cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil
 
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
-cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil
-cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with gil
-cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, char *state) with gil
+cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil
+cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
+cdef ICECandidate ICECandidate_create(pj_ice_sess_cand *cand)
+cdef ICECheck ICECheck_create(pj_ice_sess_check *check)
+cdef str _ice_state_to_str(int state)
+cdef dict _extract_ice_session_data(pj_ice_sess *ice_sess)
 cdef dict _pj_math_stat_to_dict(pj_math_stat *stat)
 cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_stat)

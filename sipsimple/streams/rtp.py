@@ -54,6 +54,8 @@ class AudioStream(object):
         self._try_ice = False
         self._try_forced_srtp = False
         self._use_srtp = False
+        self._remote_rtp_address_sdp = None
+        self._remote_rtp_port_sdp = None
 
         self.bridge.add(self.device)
 
@@ -110,25 +112,19 @@ class AudioStream(object):
 
     @property
     def remote_rtp_address(self):
-        if self._ice_state == "IN_USE":
-            return self._rtp_transport.remote_rtp_address_received if self._rtp_transport else None
-        else:
-            return self._rtp_transport.remote_rtp_address_sdp if self._rtp_transport else None
+        return self._rtp_transport.remote_rtp_address if self._rtp_transport else None
 
     @property
     def remote_rtp_port(self):
-        if self._ice_state == "IN_USE":
-            return self._rtp_transport.remote_rtp_port_received if self._rtp_transport else None
-        else:
-            return self._rtp_transport.remote_rtp_port_sdp if self._rtp_transport else None
+        return self._rtp_transport.remote_rtp_port if self._rtp_transport else None
 
     @property
-    def local_rtp_candidate_type(self):
-        return self._rtp_transport.local_rtp_candidate_type if self._rtp_transport else None
+    def local_rtp_candidate(self):
+        return self._rtp_transport.local_rtp_candidate if self._rtp_transport else None
 
     @property
-    def remote_rtp_candidate_type(self):
-        return self._rtp_transport.remote_rtp_candidate_type if self._rtp_transport else None
+    def remote_rtp_candidate(self):
+        return self._rtp_transport.remote_rtp_candidate if self._rtp_transport else None
 
     @property
     def srtp_active(self):
@@ -239,6 +235,7 @@ class AudioStream(object):
             settings = SIPSimpleSettings()
             self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
                                         media_check_interval=settings.rtp.timeout)
+            self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
             self._check_hold(self._audio_transport.direction, True)
             if self._try_ice:
                 self.state = 'WAIT_ICE'
@@ -254,7 +251,7 @@ class AudioStream(object):
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
             connection = remote_sdp.media[stream_index].connection or remote_sdp.connection
-            if connection.address != self._rtp_transport.remote_rtp_address_sdp or self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
+            if connection.address != self._remote_rtp_address_sdp or self._remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
                 settings = SIPSimpleSettings()
                 if self._audio_rec is not None:
                     self.bridge.remove(self._audio_rec)
@@ -268,6 +265,7 @@ class AudioStream(object):
                     self.state = "ENDED"
                     self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
                     return
+                self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
                 self.notification_center.add_observer(self, sender=self._audio_transport)
                 self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout, media_check_interval=settings.rtp.timeout)
                 self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=True,
@@ -398,6 +396,7 @@ class AudioStream(object):
                     try:
                         audio_transport = AudioTransport(self.mixer, rtp_transport, self._incoming_remote_sdp, self._incoming_stream_index,
                                                          codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
+                        self._save_remote_sdp_rtp_info(self._incoming_remote_sdp, self._incoming_stream_index)
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
@@ -520,4 +519,9 @@ class AudioStream(object):
         finally:
             self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             self._audio_rec = None
+
+    def _save_remote_sdp_rtp_info(self, remote_sdp, index):
+        connection = remote_sdp.media[index].connection or remote_sdp.connection
+        self._remote_rtp_address_sdp = connection.address
+        self._remote_rtp_port_sdp = remote_sdp.media[index].port
 
