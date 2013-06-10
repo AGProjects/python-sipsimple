@@ -1049,7 +1049,7 @@ cdef extern from "pjsip_ua.h":
         void on_rx_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
-        void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
+        void on_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
     struct pjsip_rdata_sdp_info:
         pj_str_t body
         int sdp_err
@@ -2085,8 +2085,7 @@ cdef class Invitation(object):
 
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
-                                     pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
+cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_transfer_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil

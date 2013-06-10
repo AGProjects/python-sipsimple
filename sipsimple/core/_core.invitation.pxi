@@ -1485,8 +1485,7 @@ cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     except:
         ua._handle_exception(1)
 
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
-                                     pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
+cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil:
     cdef int status
     cdef pjsip_tx_data *answer_tdata
     cdef pjsip_rdata_sdp_info *sdp_info
