@@ -431,11 +431,10 @@ class SIPApplication(object):
                 engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
                 engine.set_tcp_port(settings.sip.tcp_port)
-            if set(('sip.tls_port', 'tls.protocol', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
+            if set(('sip.tls_port', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
                 account = account_manager.default_account
                 try:
                     engine.set_tls_options(port=settings.sip.tls_port,
-                                           protocol=settings.tls.protocol,
                                            verify_server=account.tls.verify_server if account else False,
                                            ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                            cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
