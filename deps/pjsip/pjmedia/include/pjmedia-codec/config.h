@@ -132,6 +132,14 @@
 
 
 /**
+ * Unless specified otherwise, opus codec is included by default.
+ */
+#ifndef PJMEDIA_HAS_OPUS_CODEC
+#   define PJMEDIA_HAS_OPUS_CODEC    1
+#endif
+
+
+/**
  * Enable the features provided by Intel IPP libraries, for example
  * codecs such as G.729, G.723.1, G.726, G.728, G.722.1, and AMR.
  *

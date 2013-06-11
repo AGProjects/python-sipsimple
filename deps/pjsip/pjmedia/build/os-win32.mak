@@ -21,6 +21,7 @@ AC_NO_SPEEX_CODEC=0
 AC_NO_ILBC_CODEC=0
 AC_NO_G722_CODEC=0
 AC_NO_G7221_CODEC=0
+AC_NO_OPUS_CODEC=0
 
 export CODEC_OBJS=
 
@@ -77,6 +78,11 @@ export CODEC_OBJS += g7221.o
 export G7221_CFLAGS += -I$(THIRD_PARTY)
 endif
 
+ifeq ($(AC_NO_OPUS_CODEC),1)
+export CFLAGS += -DPJMEDIA_HAS_OPUS_CODEC=0
+else
+export CODEC_OBJS += opus.o
+endif
 
 #
 # PortAudio

@@ -27,3 +27,5 @@ ifneq ($(findstring webrtc,@ac_webrtc_platform@),)
 DIRS += webrtc
 endif
 
+DIRS += opus
+

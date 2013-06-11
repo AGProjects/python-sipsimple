@@ -758,6 +758,18 @@ AC_ARG_ENABLE(ilbc-codec,
 	       fi],
 	      AC_MSG_RESULT([Checking if iLBC codec is disabled...no]))
 
+dnl # Include opus codec
+AC_SUBST(ac_no_opus_codec)
+AC_ARG_ENABLE(opus-codec,
+	      AC_HELP_STRING([--disable-opus-codec],
+			     [Exclude opus codec in the build]),
+	      [if test "$enable_opus_codec" = "no"; then
+		[ac_no_opus_codec=1]
+		AC_DEFINE(PJMEDIA_HAS_OPUS_CODEC,0)
+		AC_MSG_RESULT([Checking if opus codec is disabled...yes])
+	       fi],
+	      AC_MSG_RESULT([Checking if opus codec is disabled...no]))
+
 dnl # Include libsamplerate
 AC_ARG_ENABLE(libsamplerate,
 	      AC_HELP_STRING([--enable-libsamplerate],

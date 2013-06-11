@@ -34,6 +34,12 @@ endif
 APP_THIRD_PARTY_LIBS += -lwebrtcaec-$(TARGET_NAME)
 APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtcaec-$(LIB_SUFFIX)
 
+# Opus
+ifneq (@ac_no_opus_codec@,1)
+APP_THIRD_PARTY_LIBS += -lopuscodec-$(TARGET_NAME)
+APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libopuscodec-$(LIB_SUFFIX)
+endif
+
 ifneq (@ac_no_gsm_codec@,1)
 ifeq (@ac_external_gsm@,1)
 # External GSM library

@@ -37,6 +37,7 @@
 #include <pjmedia-codec/opencore_amr.h>
 #include <pjmedia-codec/passthrough.h>
 #include <pjmedia-codec/silk.h>
+#include <pjmedia-codec/opus.h>
 
 
 #endif	/* __PJMEDIA_CODEC_PJMEDIA_CODEC_H__ */

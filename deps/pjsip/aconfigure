@@ -650,6 +650,7 @@ ac_sdl_ldflags
 ac_sdl_cflags
 SDL_CONFIG
 ac_resample_dll
+ac_no_opus_codec
 ac_no_ilbc_codec
 ac_no_speex_codec
 ac_no_g7221_codec
@@ -767,6 +768,7 @@ enable_g722_codec
 enable_g7221_codec
 enable_speex_codec
 enable_ilbc_codec
+enable_opus_codec
 enable_libsamplerate
 enable_resample_dll
 with_sdl
@@ -1429,6 +1431,7 @@ Optional Features:
   --disable-g7221-codec   Exclude G.7221 codec in the build
   --disable-speex-codec   Exclude Speex codecs in the build
   --disable-ilbc-codec    Exclude iLBC codec in the build
+  --disable-opus-codec    Exclude opus codec in the build
   --enable-libsamplerate  Link with libsamplerate when available. Note that
                           PJMEDIA_RESAMPLE_IMP must also be configured
   --enable-resample-dll   Build libresample as shared library
@@ -5906,6 +5909,22 @@ $as_echo "Checking if iLBC codec is disabled...yes" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if iLBC codec is disabled...no" >&5
 $as_echo "Checking if iLBC codec is disabled...no" >&6; }
+fi
+
+
+
+# Check whether --enable-opus-codec was given.
+if test "${enable_opus_codec+set}" = set; then :
+  enableval=$enable_opus_codec; if test "$enable_opus_codec" = "no"; then
+		ac_no_opus_codec=1
+		$as_echo "#define PJMEDIA_HAS_OPUS_CODEC 0" >>confdefs.h
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if opus codec is disabled...yes" >&5
+$as_echo "Checking if opus codec is disabled...yes" >&6; }
+	       fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if opus codec is disabled...no" >&5
+$as_echo "Checking if opus codec is disabled...no" >&6; }
 fi
 
 

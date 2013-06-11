@@ -71,6 +71,7 @@ enum pjmedia_audio_pt
     PJMEDIA_RTP_PT_AMR,				/**< AMR (4.75 - 12.2Kbps)  */
     PJMEDIA_RTP_PT_AMRWB,			/**< AMRWB (6.6 - 23.85Kbps)*/
     PJMEDIA_RTP_PT_AMRWBE,			/**< AMRWBE		    */
+    PJMEDIA_RTP_PT_OPUS,			/**< OPUS		    */
     PJMEDIA_RTP_PT_G726_16,			/**< G726 @ 16Kbps	    */
     PJMEDIA_RTP_PT_G726_24,			/**< G726 @ 24Kbps	    */
     PJMEDIA_RTP_PT_G726_32,			/**< G726 @ 32Kbps	    */
