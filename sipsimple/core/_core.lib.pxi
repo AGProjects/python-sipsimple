@@ -200,11 +200,10 @@ cdef class PJSIPEndpoint:
 cdef class PJMEDIAEndpoint:
     def __cinit__(self, PJCachingPool caching_pool):
         cdef int status
-        cdef int speex_options = 0
         status = pjmedia_endpt_create(&caching_pool._obj.factory, NULL, 1, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create PJMEDIA endpoint", status)
-        status = pjmedia_codec_speex_init(self._obj, speex_options, -1, -1)
+        status = pjmedia_codec_speex_init(self._obj, PJMEDIA_SPEEX_NO_NB, -1, -1)
         if status != 0:
             raise PJSIPError("Could not initialize speex codec", status)
         self._has_speex = 1

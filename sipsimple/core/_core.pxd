@@ -592,6 +592,8 @@ cdef extern from "pjmedia.h":
 cdef extern from "pjmedia-codec.h":
 
     # codecs
+    enum:
+        PJMEDIA_SPEEX_NO_NB
     int pjmedia_codec_gsm_init(pjmedia_endpt *endpt) nogil
     int pjmedia_codec_gsm_deinit() nogil
     int pjmedia_codec_g722_init(pjmedia_endpt *endpt) nogil
