@@ -197,7 +197,7 @@ class PJSIPLogLevel(int):
 
 class AudioCodecList(List):
     type = str
-    available_values = set(('G722', 'speex', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
+    available_values = set(('G722', 'speex', 'PCMU', 'PCMA', 'iLBC', 'GSM', 'opus'))
     def _get_values(self):
         return self.__dict__['values']
     def _set_values(self, values):

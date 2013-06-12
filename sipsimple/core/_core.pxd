@@ -596,6 +596,8 @@ cdef extern from "pjmedia-codec.h":
     int pjmedia_codec_gsm_deinit() nogil
     int pjmedia_codec_g722_init(pjmedia_endpt *endpt) nogil
     int pjmedia_codec_g722_deinit() nogil
+    int pjmedia_codec_opus_init(pjmedia_endpt *endpt) nogil
+    int pjmedia_codec_opus_deinit() nogil
     int pjmedia_codec_ilbc_init(pjmedia_endpt *endpt, int mode) nogil
     int pjmedia_codec_ilbc_deinit() nogil
     int pjmedia_codec_speex_init(pjmedia_endpt *endpt, int options, int quality, int complexity) nogil
@@ -1147,6 +1149,7 @@ cdef class PJMEDIAEndpoint(object):
     cdef int _has_g711
     cdef int _has_ilbc
     cdef int _has_gsm
+    cdef int _has_opus
 
     # private methods
     cdef list _get_codecs(self)

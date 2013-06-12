@@ -224,8 +224,14 @@ cdef class PJMEDIAEndpoint:
         if status != 0:
             raise PJSIPError("Could not initialize GSM codec", status)
         self._has_gsm = 1
+        status = pjmedia_codec_opus_init(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not initialize opus codec", status)
+        self._has_opus = 1
 
     def __dealloc__(self):
+        if self._has_opus:
+            pjmedia_codec_opus_deinit()
         if self._has_gsm:
             pjmedia_codec_gsm_deinit()
         if self._has_ilbc:
