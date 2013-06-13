@@ -23,17 +23,17 @@ from twisted.internet import reactor
 from xcaplib import client as xcap_client
 from zope.interface import implements
 
-from sipsimple.account import Account, AccountManager
+from sipsimple.account import AccountManager
 from sipsimple.addressbook import AddressbookManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import AudioMixer, Engine, PJSIPError, SIPCoreError, SIPURI
-from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
+from sipsimple.core import AudioMixer, Engine, SIPCoreError
+from sipsimple.lookup import DNSManager
 from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
 from sipsimple.threading import ThreadManager, run_in_thread, run_in_twisted_thread
-from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.threading.green import run_in_green_thread
 
 
 
@@ -65,13 +65,10 @@ class SIPApplication(object):
     voice_audio_bridge = ApplicationAttribute(value=None)
 
     _channel = ApplicationAttribute(value=coros.queue())
-    _nat_detect_channel = ApplicationAttribute(value=coros.queue())
     _wakeup_timer = ApplicationAttribute(value=None)
     _lock = ApplicationAttribute(value=RLock())
 
     engine = Engine()
-
-    local_nat_type = ApplicationAttribute(value='unknown')
 
     running           = classproperty(lambda cls: cls.state == 'started')
     alert_audio_mixer = classproperty(lambda cls: cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None)
@@ -247,16 +244,12 @@ class SIPApplication(object):
         session_manager.start()
 
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
-        notification_center.add_observer(self, name='SIPEngineDetectedNATType')
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
-
-        self._detect_nat_type()
-        self._nat_detect_channel.send(Command('detect_nat'))
 
     @run_in_green_thread
     def _shutdown_subsystems(self):
@@ -287,49 +280,6 @@ class SIPApplication(object):
 
         # stop the reactor
         reactor.stop()
-
-    @run_in_green_thread
-    def _detect_nat_type(self):
-        account_manager = AccountManager()
-        engine = Engine()
-        lookup = DNSLookup()
-
-        serial = 0
-        while True:
-            restart_detection = False
-            command = self._nat_detect_channel.wait()
-            if command.name != 'detect_nat':
-                continue
-            continue # disable NAT detection for now as it is not used anywhere -Dan
-            stun_locators = list(account.nat_traversal.stun_server_list or account.id.domain for account in account_manager.iter_accounts() if isinstance(account, Account))
-            for stun_item in stun_locators:
-                if isinstance(stun_item, basestring):
-                    try:
-                        stun_servers = lookup.lookup_service(SIPURI(host=stun_item), 'stun').wait()
-                    except DNSLookupError:
-                        continue
-                else:
-                    stun_servers = [(server.host, server.port) for server in stun_item]
-                for stun_server, stun_port in stun_servers:
-                    serial += 1
-                    try:
-                        engine.detect_nat_type(stun_server, stun_port, user_data=serial)
-                    except PJSIPError:
-                        continue
-                    command = self._nat_detect_channel.wait()
-                    if command.name == 'process_nat_detection' and command.data.user_data == serial and command.data.succeeded:
-                        self.local_nat_type = command.data.nat_type.lower()
-                        restart_detection = True
-                        break
-                    elif command.name == 'detect_nat':
-                        self._nat_detect_channel.send(command)
-                        restart_detection = True
-                        break
-                if restart_detection:
-                    break
-            else:
-                self.local_nat_type = 'unknown'
-                reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
@@ -530,23 +480,6 @@ class SIPApplication(object):
 
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
-            self._nat_detect_channel.send(Command('detect_nat'))
             engine = Engine()
             engine.set_nameservers(notification.data.nameservers)
-
-    def _NH_SystemIPAddressDidChange(self, notification):
-        if self.running:
-            self._nat_detect_channel.send(Command('detect_nat'))
-
-    def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self.running and self._wakeup_timer is None:
-            def wakeup_action():
-                if self.running:
-                    self._nat_detect_channel.send(Command('detect_nat'))
-                self._wakeup_timer = None
-            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
-
-    def _NH_SIPEngineDetectedNATType(self, notification):
-        self._nat_detect_channel.send(Command('process_nat_detection', data=notification.data))
-
 
