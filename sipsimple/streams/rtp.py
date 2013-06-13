@@ -233,7 +233,7 @@ class AudioStream(object):
                                         media_check_interval=settings.rtp.timeout)
             self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
             self._check_hold(self._audio_transport.direction, True)
-            if self._try_ice:
+            if self._try_ice and self._ice_state == "NULL":
                 self.state = 'WAIT_ICE'
             else:
                 self.state = 'ESTABLISHED'
@@ -433,9 +433,9 @@ class AudioStream(object):
         rtp_transport = notification.sender
         self.notification_center.remove_observer(self, sender=rtp_transport)
         with self._lock:
+            self.notification_center.post_notification('AudioStreamICENegotiationDidFail', sender=self, data=notification.data)
             if self.state != "WAIT_ICE":
                 return
-            self.notification_center.post_notification('AudioStreamICENegotiationDidFail', sender=self, data=notification.data)
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
