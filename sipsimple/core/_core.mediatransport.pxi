@@ -383,6 +383,31 @@ cdef class RTPTransport:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def set_REMOTE(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index):
+        cdef int status
+        cdef pjmedia_sdp_session *pj_remote_sdp
+        cdef pj_mutex_t *lock = self._lock
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if None in [local_sdp, remote_sdp]:
+                raise SIPCoreError("SDP arguments cannot be None")
+            if self.state == "REMOTE":
+                return
+            if self.state != "INIT":
+                raise SIPCoreError('set_REMOTE can only be called in the "INIT" state, current state is "%s"' % self.state)
+            pj_remote_sdp = remote_sdp.get_sdp_session()
+            self._update_local_sdp(local_sdp, sdp_index, pj_remote_sdp)
+            self.state = "REMOTE"
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     def set_ESTABLISHED(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
@@ -405,13 +430,9 @@ cdef class RTPTransport:
             pj_remote_sdp = remote_sdp.get_sdp_session()
             if self.state == "ESTABLISHED":
                 return
-            if self.state not in ["INIT", "LOCAL"]:
+            if self.state not in ["LOCAL", "REMOTE"]:
                 raise SIPCoreError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states, ' +
                                    'current state is "%s"' % self.state)
-            if self.state == "INIT":
-                if not isinstance(local_sdp, SDPSession):
-                    raise TypeError('local_sdp argument should be of type SDPSession when going from the "INIT" to the "ESTABLISHED" state')
-                self._update_local_sdp(<SDPSession>local_sdp, sdp_index, pj_remote_sdp)
             with nogil:
                 status = pjmedia_transport_media_start(transport, self._pool, pj_local_sdp, pj_remote_sdp, sdp_index)
             if status != 0:
@@ -607,7 +628,7 @@ cdef class AudioTransport:
             self._is_offer = 0
             if sdp_index != 0:
                 local_sdp.media = (sdp_index+1) * local_sdp.media
-            self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
+            self.transport.set_REMOTE(local_sdp, remote_sdp, sdp_index)
         local_sdp_c = local_sdp.get_sdp_session()
         with nogil:
             local_media = pjmedia_sdp_media_clone(pool, local_sdp_c.media[sdp_index])
@@ -834,7 +855,7 @@ cdef class AudioTransport:
 
             if self._is_started:
                 raise SIPCoreError("This AudioTransport was already started once")
-            desired_state = ("LOCAL" if self._is_offer else "ESTABLISHED")
+            desired_state = ("LOCAL" if self._is_offer else "REMOTE")
             if self.transport.state != desired_state:
                 raise SIPCoreError('RTPTransport object provided is not in the "%s" state, but in the "%s" state' %
                                    (desired_state, self.transport.state))
@@ -850,8 +871,7 @@ cdef class AudioTransport:
                 raise ValueError("no_media_timeout value cannot be negative")
             if media_check_interval < 0:
                 raise ValueError("media_check_interval value cannot be negative")
-            if self.transport.state == "LOCAL":
-                self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
+            self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
             with nogil:
                 status = pjmedia_stream_info_from_sdp(stream_info_address, pool, media_endpoint,
                                                       pj_local_sdp, pj_remote_sdp, sdp_index)
