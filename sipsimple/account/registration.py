@@ -155,6 +155,8 @@ class Registrar(object):
                         continue
                     contact_header = ContactHeader(contact_uri)
                     contact_header.parameters['+sip.instance'] = '"<%s>"' % settings.instance_id
+                    if self.account.nat_traversal.use_ice:
+                        contact_header.parameters['+sip.ice'] = None
                     route_header = RouteHeader(route.uri)
                     try:
                         self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
@@ -297,7 +299,7 @@ class Registrar(object):
                 self.activate()
             else:
                 self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']).intersection(notification.data.modified):
+        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'nat_traversal.use_ice', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']).intersection(notification.data.modified):
             self._command_channel.send(Command('unregister'))
             self._command_channel.send(Command('register'))
 
