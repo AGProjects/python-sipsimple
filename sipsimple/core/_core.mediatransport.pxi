@@ -820,8 +820,7 @@ cdef class AudioTransport:
             with nogil:
                 pj_mutex_unlock(lock)
 
-    def start(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index,
-              int no_media_timeout=10, int media_check_interval=30):
+    def start(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index, int timeout=30):
         cdef int status
         cdef object desired_state
         cdef pj_mutex_t *lock = self._lock
@@ -863,10 +862,8 @@ cdef class AudioTransport:
                 raise ValueError("sdp_index argument cannot be negative")
             if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
                 raise SIPCoreError("Cannot start a rejected audio stream")
-            if no_media_timeout < 0:
-                raise ValueError("no_media_timeout value cannot be negative")
-            if media_check_interval < 0:
-                raise ValueError("media_check_interval value cannot be negative")
+            if timeout < 0:
+                raise ValueError("timeout value cannot be negative")
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
             with nogil:
                 status = pjmedia_stream_info_from_sdp(stream_info_address, pool, media_endpoint,
@@ -917,9 +914,9 @@ cdef class AudioTransport:
                 local_media = pjmedia_sdp_media_clone(pool, pj_local_sdp.media[sdp_index])
             self._local_media = local_media
             self._is_started = 1
-            if no_media_timeout > 0:
-                self._timer = MediaCheckTimer(media_check_interval)
-                self._timer.schedule(no_media_timeout, <timer_callback>self._cb_check_rtp, self)
+            if timeout > 0:
+                self._timer = MediaCheckTimer(timeout)
+                self._timer.schedule(timeout, <timer_callback>self._cb_check_rtp, self)
             self.mixer.reset_ec()
         finally:
             with nogil:
