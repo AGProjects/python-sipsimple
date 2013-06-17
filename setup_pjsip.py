@@ -19,12 +19,15 @@ import urllib2
 if sys.platform == "darwin":
     sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
     sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
-    old_sdk_path = "/Developer/SDKs"
-    new_sdk_path = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs"
+    sdk_dir = "MacOSX%s.sdk" % sipsimple_osx_sdk
+    old_sdk_path = os.path.join("/Developer/SDKs", sdk_dir)
+    new_sdk_path = os.path.join("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs", sdk_dir)
     if os.path.exists(new_sdk_path):
-        osx_sdk_path = os.path.join(new_sdk_path, "MacOSX%s.sdk" % sipsimple_osx_sdk)
+        osx_sdk_path = new_sdk_path
+    elif os.path.exists(old_sdk_path):
+        osx_sdk_path = old_sdk_path
     else:
-        osx_sdk_path = os.path.join(old_sdk_path, "MacOSX%s.sdk" % sipsimple_osx_sdk)
+        raise RuntimeError("The specified SDK (%s) couldn't be found" % sipsimple_osx_sdk)
     os.environ['CC'] = "gcc -isysroot %s" % osx_sdk_path
     os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
     os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot %s" % osx_sdk_path
