@@ -318,21 +318,6 @@ cdef class RTPTransport:
         def __get__(self):
             return bool(self._ice_active)
 
-    cdef ICECheck _get_rtp_valid_pair(self):
-        cdef pj_ice_strans *ice_st
-        cdef pj_ice_sess_check_ptr_const ice_check
-
-        if not self.use_ice:
-            return None
-
-        ice_st = pjmedia_ice_get_strans(self._obj)
-        if ice_st == NULL:
-            return None
-        ice_check = pj_ice_strans_get_valid_pair(ice_st, 1)
-        if ice_check == NULL:
-            return None
-        return ICECheck_create(<pj_ice_sess_check*>ice_check)
-
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
         cdef pj_pool_t *pool
@@ -1122,6 +1107,14 @@ cdef ICECheck ICECheck_create(pj_ice_sess_check *check):
 
     return ICECheck(lcand, rcand, state, bool(check.nominated))
 
+cdef ICECheck _get_rtp_valid_pair(pj_ice_strans *ice_st):
+    cdef pj_ice_sess_check_ptr_const ice_check
+
+    ice_check = pj_ice_strans_get_valid_pair(ice_st, 1)
+    if ice_check == NULL:
+        return None
+    return ICECheck_create(<pj_ice_sess_check*>ice_check)
+
 
 # helper functions
 
@@ -1240,7 +1233,7 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
                     duration = (tv.sec*1000 + tv.msec)/1000.0
                     data = _extract_ice_session_data(ice_sess)
                     rtp_transport._ice_active = 1
-                    rtp_transport._rtp_valid_pair = rtp_transport._get_rtp_valid_pair()
+                    rtp_transport._rtp_valid_pair = _get_rtp_valid_pair(ice_st)
                     _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport,
                                                                             duration=duration,
                                                                             local_candidates=data['local_candidates'],

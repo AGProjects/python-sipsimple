@@ -2133,7 +2133,6 @@ cdef class RTPTransport(object):
     cdef PJSIPUA _check_ua(self)
     cdef void _get_info(self, pjmedia_transport_info *info)
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1
-    cdef ICECheck _get_rtp_valid_pair(self)
 
 cdef class MediaCheckTimer(Timer):
     # attributes
