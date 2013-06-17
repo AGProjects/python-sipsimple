@@ -109,11 +109,15 @@ class AudioStream(object):
 
     @property
     def remote_rtp_address(self):
-        return self._rtp_transport.remote_rtp_address if self._rtp_transport else None
+        if self._ice_state == "IN_USE":
+            return self._rtp_transport.remote_rtp_address if self._rtp_transport else None
+        return self._remote_rtp_address_sdp if self._rtp_transport else None
 
     @property
     def remote_rtp_port(self):
-        return self._rtp_transport.remote_rtp_port if self._rtp_transport else None
+        if self._ice_state == "IN_USE":
+            return self._rtp_transport.remote_rtp_port if self._rtp_transport else None
+        return self._remote_rtp_port_sdp if self._rtp_transport else None
 
     @property
     def local_rtp_candidate(self):

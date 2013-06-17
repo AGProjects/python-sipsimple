@@ -217,9 +217,8 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
-                if self.use_ice:
-                    if self._rtp_valid_pair:
-                        return self._rtp_valid_pair.remote_candidate.port
+                if self._ice_active and self._rtp_valid_pair:
+                    return self._rtp_valid_pair.remote_candidate.port
                 self._get_info(&info)
                 if pj_sockaddr_has_addr(&info.src_rtp_name):
                     return pj_sockaddr_get_port(&info.src_rtp_name)
@@ -249,9 +248,8 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
-                if self.use_ice:
-                    if self._rtp_valid_pair:
-                        return self._rtp_valid_pair.remote_candidate.address
+                if self._ice_active and self._rtp_valid_pair:
+                    return self._rtp_valid_pair.remote_candidate.address
                 self._get_info(&info)
                 if pj_sockaddr_has_addr(&info.src_rtp_name):
                     return pj_sockaddr_print(&info.src_rtp_name, buf, PJ_INET6_ADDRSTRLEN, 0)
