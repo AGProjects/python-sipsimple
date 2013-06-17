@@ -350,7 +350,7 @@ cdef class AudioMixer:
         with nogil:
             status = pj_rwmutex_lock_read(ua.audio_change_rwlock)
         if status != 0:
-            raise SIPCoreError('Audio change lock could not be acquired for read', status)
+            raise PJSIPError('Audio change lock could not be acquired for read', status)
 
         try:
             dev_count = pjmedia_aud_dev_count()
