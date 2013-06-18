@@ -141,10 +141,9 @@ class XMLDocument(object):
                 xml = etree.parse(document, parser=cls.parser).getroot()
             if cls.schema is not None:
                 cls.schema.assertValid(xml)
-        except (etree.DocumentInvalid, etree.XMLSyntaxError), e:
-            raise ParserError(str(e))
-        else:
             return cls.root_element.from_element(xml, xml_document=cls)
+        except (etree.DocumentInvalid, etree.XMLSyntaxError, ValueError), e:
+            raise ParserError(str(e))
 
     @classmethod
     def build(cls, root_element, encoding=None, pretty_print=False, validate=True):
