@@ -6,6 +6,7 @@
 __all__ = ['BonjourServices']
 
 import re
+import uuid
 
 from threading import Lock
 from weakref import WeakKeyDictionary
@@ -245,6 +246,7 @@ class BonjourServices(object):
             display_name = txt['name'].decode('utf-8') if 'name' in txt else None
             host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
             contact = txt.get('contact', file.service_description.name).split(None, 1)[0].strip('<>')
+            instance_id = txt.get('instance_id') if 'instance_id' in txt else None
             if self.account.presence.enabled and 'status' in txt:
                 presence_state = BonjourPresenceState(txt.get('status'), txt.get('note', '').decode('utf-8'))
             else:
@@ -267,7 +269,7 @@ class BonjourServices(object):
                         return
                     if uri != contact_uri:
                         notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
-                        notification_data = NotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri, presence_state=presence_state)
+                        notification_data = NotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri, presence_state=presence_state, instance_id=instance_id)
                         self._neighbours[service_description] = uri
                         notification_center.post_notification(notification_name, sender=self.account, data=notification_data)
         else:
@@ -329,7 +331,8 @@ class BonjourServices(object):
             notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=NotificationData(transport=transport))
             try:
                 contact = self.account.contact[NoGRUU, transport]
-                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
+                instance_id = str(uuid.UUID(settings.instance_id))
+                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact), instance_id=instance_id)
                 state = self.account.presence_state
                 if self.account.presence.enabled and state is not None:
                     txtdata['status'] = state.status
@@ -369,7 +372,8 @@ class BonjourServices(object):
         for file in (f for f in self._files if isinstance(f, BonjourRegistrationFile)):
             try:
                 contact = self.account.contact[NoGRUU, file.transport]
-                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
+                instance_id = str(uuid.UUID(settings.instance_id))
+                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact), instance_id=instance_id)
                 state = self.account.presence_state
                 if self.account.presence.enabled and state is not None:
                     txtdata['status'] = state.status
