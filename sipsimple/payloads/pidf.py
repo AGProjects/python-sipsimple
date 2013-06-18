@@ -25,6 +25,7 @@ __all__ = ['pidf_namespace',
            'PIDF',
            # Extensions
            'ExtendedStatus',
+           'StatusType',
            'DeviceInfo']
 
 
@@ -475,7 +476,13 @@ class ExtendedStatus(XMLStringElement, StatusExtension):
     _xml_document = PIDFDocument
     _xml_value_type = ExtendedStatusValue
 
+class StatusType(XMLStringElement, StatusExtension):
+    _xml_tag = 'type'
+    _xml_namespace = agp_pidf_namespace
+    _xml_document = PIDFDocument
+
 Status.register_extension('extended', type=ExtendedStatus)
+Status.register_extension('type', type=StatusType)
 
 
 class Description(XMLStringElement):
