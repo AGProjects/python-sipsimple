@@ -891,7 +891,6 @@ cdef class AudioTransport:
                     pjmedia_stream_destroy(stream_address[0])
                 self._obj = NULL
                 raise
-            self.direction = "sendrecv"
             self.update_direction(local_sdp.media[sdp_index].direction)
             with nogil:
                 local_media = pjmedia_sdp_media_clone(pool, pj_local_sdp.media[sdp_index])
@@ -956,8 +955,6 @@ cdef class AudioTransport:
             if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
                 raise SIPCoreError("Unknown direction: %s" % direction)
             self.mixer.reset_ec()
-            if direction == self.direction:
-                return
             self.direction = direction
         finally:
             with nogil:
