@@ -4,7 +4,7 @@
 """Generic configuration management"""
 
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError',
-           'SettingsObjectID', 'SettingsObjectImmutableID', 'AbstractSetting', 'Setting', 'CorrelatedSetting',
+           'SettingsObjectID', 'SettingsObjectImmutableID', 'AbstractSetting', 'Setting', 'CorrelatedSetting', 'RuntimeSetting',
            'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'ItemCollection', 'SettingsObject', 'SettingsObjectExtension',
            'DefaultValue', 'ModifiedValue', 'ModifiedList', 'PersistentKey', 'ItemContainer', 'ItemManagement']
 
@@ -528,6 +528,32 @@ class CorrelatedSetting(Setting):
             Setting.__set__(self, obj, value)
 
 
+class RuntimeSetting(Setting):
+    """
+    Descriptor represeting a runtime setting in a configuration object.
+
+    Unlike the standard setting, the runtime setting is never written to
+    nor read from the configuration file. It resides in memory only and
+    its lifetime ends when the application exits.
+    """
+
+    def __getstate__(self, obj):
+        return DefaultValue
+
+    def __setstate__(self, obj, value):
+        pass
+
+
+class SettingsIndexer(object):
+    __slots__ = ('__object__',)
+
+    def __init__(self, object):
+        self.__object__ = object
+
+    def __getitem__(self, key):
+        return reduce(getattr, key.split('.'), self.__object__.__class__)
+
+
 class SettingsStateMeta(type):
     __established__ = WeakSet()
 
@@ -545,6 +571,10 @@ class SettingsState(object):
     """
 
     __metaclass__ = SettingsStateMeta
+
+    @property
+    def __settings__(self):
+        return SettingsIndexer(self)
 
     def get_modified(self):
         """
@@ -907,6 +937,9 @@ class SettingsObject(SettingsState):
             notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self)
             notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self)
             modified_data = None
+        elif not modified_id and all(isinstance(self.__settings__[key], RuntimeSetting) for key in modified_settings):
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            return
         else:
             if modified_id:
                 configuration.rename(oldkey, self.__key__)

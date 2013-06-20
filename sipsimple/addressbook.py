@@ -23,7 +23,7 @@ from application.python.weakref import weakobjectmap
 
 from sipsimple.account import xcap, AccountManager
 from sipsimple.configuration import ConfigurationManager, ObjectNotFoundError, DuplicateIDError, PersistentKey, ModifiedValue, ModifiedList
-from sipsimple.configuration import AbstractSetting, SettingsObjectImmutableID, SettingsGroup, SettingsGroupMeta, SettingsState, ItemCollection, ItemManagement
+from sipsimple.configuration import AbstractSetting, RuntimeSetting, SettingsObjectImmutableID, SettingsGroup, SettingsGroupMeta, SettingsState, ItemCollection, ItemManagement
 from sipsimple.payloads.addressbook import PolicyValue, ElementAttributes
 from sipsimple.payloads.datatypes import ID
 from sipsimple.payloads.resourcelists import ResourceListsDocument
@@ -492,6 +492,9 @@ class Group(SettingsState):
             modified_data = None
             notification_center.post_notification('AddressbookGroupWasActivated', sender=self)
             notification_center.post_notification('AddressbookGroupWasCreated', sender=self)
+        elif all(isinstance(self.__settings__[key], RuntimeSetting) for key in modified_settings):
+            notification_center.post_notification('AddressbookGroupDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            return
         else:
             configuration.update(self.__key__, self.__getstate__())
 
@@ -796,6 +799,9 @@ class Contact(SettingsState):
             modified_data = None
             notification_center.post_notification('AddressbookContactWasActivated', sender=self)
             notification_center.post_notification('AddressbookContactWasCreated', sender=self)
+        elif all(isinstance(self.__settings__[key], RuntimeSetting) for key in modified_settings):
+            notification_center.post_notification('AddressbookContactDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            return
         else:
             configuration.update(self.__key__, self.__getstate__())
 
@@ -1001,6 +1007,9 @@ class Policy(SettingsState):
             modified_data = None
             notification_center.post_notification('AddressbookPolicyWasActivated', sender=self)
             notification_center.post_notification('AddressbookPolicyWasCreated', sender=self)
+        elif all(isinstance(self.__settings__[key], RuntimeSetting) for key in modified_settings):
+            notification_center.post_notification('AddressbookPolicyDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            return
         else:
             configuration.update(self.__key__, self.__getstate__())
 
