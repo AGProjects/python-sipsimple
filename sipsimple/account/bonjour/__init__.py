@@ -112,6 +112,21 @@ class BonjourServiceDescription(object):
         return NotImplemented if equal is NotImplemented else not equal
 
 
+class BonjourNeighbourPresence(object):
+    def __init__(self, state, note):
+        self.state = state
+        self.note = note
+
+
+class BonjourNeighbourRecord(object):
+    def __init__(self, service_description, host, txtrecord):
+        self.id = txtrecord.get('instance_id', None)
+        self.name = txtrecord.get('name', '').decode('utf-8') or None
+        self.host = re.match(r'^(?P<host>.*?)(\.local)?\.?$', host).group('host')
+        self.uri = FrozenSIPURI.parse(txtrecord.get('contact', service_description.name))
+        self.presence = BonjourNeighbourPresence(txtrecord.get('state', txtrecord.get('status', None)), txtrecord.get('note', '').decode('utf-8') or None) # status is read for legacy (remove later) -Dan
+
+
 class BonjourServices(object):
     implements(IObserver)
 
@@ -169,7 +184,7 @@ class BonjourServices(object):
 
     def _set_presence_state(self, state):
         if state is not None and not isinstance(state, BonjourPresenceState):
-            raise ValueError("state must be a %s instance or None" % BonjourPresenceState.__name__)
+            raise ValueError("state must be a BonjourPresenceState instance or None")
         with self._lock:
             old_state = self.__dict__['presence_state']
             self.__dict__['presence_state'] = state
@@ -234,43 +249,35 @@ class BonjourServices(object):
                 resolution_file.close()
                 service_description = resolution_file.service_description
                 if service_description in self._neighbours:
-                    del self._neighbours[service_description]
-                    notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description))
+                    record = self._neighbours.pop(service_description)
+                    notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description, record=record))
 
     def _resolve_cb(self, file, flags, interface_index, error_code, fullname, host_target, port, txtrecord):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
         file = BonjourResolutionFile.find_by_file(file)
         if error_code == _bonjour.kDNSServiceErr_NoError:
-            txt = _bonjour.TXTRecord.parse(txtrecord)
-            display_name = txt['name'].decode('utf-8') if 'name' in txt else None
-            host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
-            contact = txt.get('contact', file.service_description.name).split(None, 1)[0].strip('<>')
-            instance_id = txt.get('instance_id') if 'instance_id' in txt else None
-            if self.account.presence.enabled and 'status' in txt:
-                presence_state = BonjourPresenceState(txt.get('status'), txt.get('note', '').decode('utf-8'))
-            else:
-                presence_state = None
+            service_description = file.service_description
             try:
-                uri = FrozenSIPURI.parse(contact)
+                record = BonjourNeighbourRecord(service_description, host_target, _bonjour.TXTRecord.parse(txtrecord))
             except SIPCoreError:
                 pass
             else:
-                service_description = file.service_description
-                transport = uri.transport
+                transport = record.uri.transport
                 supported_transport = transport in settings.sip.transport_list and (transport!='tls' or self.account.tls.certificate is not None)
                 if not supported_transport and service_description in self._neighbours:
-                    del self._neighbours[service_description]
-                    notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description))
+                    record = self._neighbours.pop(service_description)
+                    notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description, record=record))
                 elif supported_transport:
                     try:
-                        contact_uri = self.account.contact[NoGRUU, transport]
+                        our_contact_uri = self.account.contact[NoGRUU, transport]
                     except KeyError:
                         return
-                    if uri != contact_uri:
-                        notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
-                        notification_data = NotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri, presence_state=presence_state, instance_id=instance_id)
-                        self._neighbours[service_description] = uri
+                    if record.uri != our_contact_uri:
+                        had_neighbour = service_description in self._neighbours
+                        self._neighbours[service_description] = record
+                        notification_name = 'BonjourAccountDidUpdateNeighbour' if had_neighbour else 'BonjourAccountDidAddNeighbour'
+                        notification_data = NotificationData(neighbour=service_description, record=record)
                         notification_center.post_notification(notification_name, sender=self.account, data=notification_data)
         else:
             self._files.remove(file)
@@ -335,7 +342,7 @@ class BonjourServices(object):
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact), instance_id=instance_id)
                 state = self.account.presence_state
                 if self.account.presence.enabled and state is not None:
-                    txtdata['status'] = state.status
+                    txtdata['state'] = state.state
                     txtdata['note'] = state.note.encode('utf-8')
                 file = _bonjour.DNSServiceRegister(name=str(contact),
                                                    regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
@@ -376,7 +383,7 @@ class BonjourServices(object):
                 txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact), instance_id=instance_id)
                 state = self.account.presence_state
                 if self.account.presence.enabled and state is not None:
-                    txtdata['status'] = state.status
+                    txtdata['state'] = state.state
                     txtdata['note'] = state.note.encode('utf-8')
                 _bonjour.DNSServiceUpdateRecord(file.file, None, flags=0, rdata=_bonjour.TXTRecord(items=txtdata), ttl=0)
             except (_bonjour.BonjourError, KeyError), e:
@@ -403,9 +410,9 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
-        for service_description in [service for service, uri in self._neighbours.iteritems() if uri.transport not in supported_transports]:
-            del self._neighbours[service_description]
-            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description))
+        for service_description in [service for service, record in self._neighbours.iteritems() if record.uri.transport not in supported_transports]:
+            record = self._neighbours.pop(service_description)
+            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=service_description, record=record))
         discovered_transports = set(file.transport for file in self._files if isinstance(file, BonjourDiscoveryFile))
         missing_transports = discoverable_transports - discovered_transports
         added_transports = set()
@@ -458,8 +465,8 @@ class BonjourServices(object):
         for file in files:
             file.close()
         notification_center = NotificationCenter()
-        for neighbour in neighbours:
-            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=neighbour))
+        for neighbour, record in neighbours.iteritems():
+            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=NotificationData(neighbour=neighbour, record=record))
         for transport in set(file.transport for file in files):
             notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=NotificationData(transport=transport))
         command.signal()
@@ -485,13 +492,13 @@ class BonjourServices(object):
 
 
 class BonjourPresenceState(object):
-    def __init__(self, status, note=u''):
-        self.status = status
-        self.note = note
+    def __init__(self, state, note=None):
+        self.state = state
+        self.note = note or u''
 
     def __eq__(self, other):
         if isinstance(other, BonjourPresenceState):
-            return self.status == other.status and self.note == other.note
+            return self.state == other.state and self.note == other.note
         return NotImplemented
 
     def __ne__(self, other):
