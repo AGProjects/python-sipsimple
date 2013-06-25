@@ -284,7 +284,8 @@ class Publisher(object):
             self._publication_timer = reactor.callLater(e.retry_after, publish)
             self._publication = None
             notification_center.post_notification(self.__nickname__ + 'PublicationDidFail', sender=self, data=NotificationData(reason=e.error))
-        notification_center.post_notification(self.__nickname__ + 'PublicationDidSucceed', sender=self)
+        else:
+            notification_center.post_notification(self.__nickname__ + 'PublicationDidSucceed', sender=self)
 
     def _CH_unpublish(self, command):
         # Cancel any timer which would restart the publication process
