@@ -1,3 +1,22 @@
+python-sipsimple (0.35.0) unstable; urgency=low
+
+  * Added default URI implementation for contacts
+  * Added extension to PIDF to include the status type
+  * Added ItemCollection settings type
+  * Added RuntimeSetting to the configuration framework
+  * Publish instance id over Bonjour
+  * Refactored bonjour discovery notifications
+  * Return SIP Request headers in SIPMessageDidFail and SIPMessageDidSucceed
+    notification data
+  * Removed unnecessary end method on Message
+  * Fixed building XML schemas on all platforms
+  * Fixed parsing sip.instance from a REGISTER reply
+  * Fixed compilation with Cython 0.19
+  * Fixed posting PublicationDidSucceed after a failure
+  * Catch ValueError when parsing XML documents
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 26 Jun 2013 16:08:30 +0200
+
 python-sipsimple (0.34.0) unstable; urgency=low
 
   * Added Bonjour presence
