@@ -39,7 +39,7 @@ from Cython.Distutils import build_ext
 class PJSIP_build_ext(build_ext):
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
-                   "#define PJSIP_MAX_PKT_LEN 65536",
+                   "#define PJSIP_MAX_PKT_LEN 262144",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
                    "#define PJMEDIA_HAS_L16_CODEC 0",
                    "#define PJMEDIA_AUDIO_DEV_HAS_COREAUDIO %d" % (1 if sys.platform=="darwin" else 0),
