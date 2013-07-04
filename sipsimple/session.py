@@ -1062,14 +1062,10 @@ class Session(object):
                 self._fail(originator='local', code=480, reason=sip_status_messages[480], error=str(e))
                 return
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
-            stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
                 stream.index = index
                 media = stream.get_local_media(for_offer=True)
                 local_sdp.media.append(media)
-                stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
-            if stun_addresses:
-                local_sdp.connection.address = stun_addresses[0]
             from_header = FromHeader(self.account.uri, self.account.display_name)
             route_header = RouteHeader(self.route.uri)
             contact_header = ContactHeader(contact_uri)
@@ -1280,7 +1276,6 @@ class Session(object):
                 self._fail(originator='local', code=500, reason=sip_status_messages[500], error='could not get local IP address')
                 return
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
-            stun_addresses = []
             if self._invitation.sdp.proposed_remote:
                 stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
                 for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
@@ -1288,7 +1283,6 @@ class Session(object):
                     if stream is not None:
                         media = stream.get_local_media(for_offer=False)
                         local_sdp.media.append(media)
-                        stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
                     else:
                         media = SDPMediaStream.new(media)
                         media.port = 0
@@ -1298,9 +1292,6 @@ class Session(object):
                 for stream in self.proposed_streams:
                     media = stream.get_local_media(for_offer=True)
                     local_sdp.media.append(media)
-                    stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
-            if stun_addresses:
-                local_sdp.connection.address = stun_addresses[0]
             contact_header = ContactHeader.new(self._invitation.local_contact_header)
             try:
                 local_contact_uri = self.account.contact[PublicGRUU, self._invitation.transport]
