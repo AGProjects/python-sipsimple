@@ -2368,7 +2368,7 @@ class Session(object):
                         raise #FIXME
                     else:
                         self.state = 'connected'
-                elif notification.data.state == 'connected' and notification.data.sub_state == 'normal' and notification.data.prev_sub_state == 'received_proposal':
+                elif notification.data.prev_state == notification.data.state == 'connected' and notification.data.prev_sub_state == 'received_proposal' and notification.data.sub_state == 'normal':
                     if notification.data.originator == 'local' and notification.data.code == 487:
                         self.state = 'connected'
                         notification.center.post_notification('SIPSessionGotRejectProposal', self, NotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
