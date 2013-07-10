@@ -220,7 +220,7 @@ typedef struct pjmedia_aud_dev_info
     /** 
      * The device name 
      */
-    char name[64];
+    char name[128];
 
     /** 
      * Maximum number of input channels supported by this device. If the

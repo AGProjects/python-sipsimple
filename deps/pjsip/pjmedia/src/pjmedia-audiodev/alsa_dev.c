@@ -88,6 +88,13 @@ static pj_status_t alsa_stream_stop(pjmedia_aud_stream *strm);
 static pj_status_t alsa_stream_destroy(pjmedia_aud_stream *strm);
 
 
+/* alsa device info */
+struct alsa_dev_info
+{
+    pjmedia_aud_dev_info	 info;
+    char alsa_name[64];
+};
+
 struct alsa_factory
 {
     pjmedia_aud_dev_factory	 base;
@@ -96,7 +103,7 @@ struct alsa_factory
     pj_pool_t			*base_pool;
 
     unsigned			 dev_cnt;
-    pjmedia_aud_dev_info	 devs[MAX_DEVICES];
+    struct alsa_dev_info	 devs[MAX_DEVICES];
 };
 
 struct alsa_stream
@@ -194,9 +201,9 @@ static void alsa_error_handler (const char *file,
 }
 
 
-static pj_status_t add_dev (struct alsa_factory *af, const char *dev_name)
+static pj_status_t add_dev (struct alsa_factory *af, const char *dev_name, const char *dev_desc)
 {
-    pjmedia_aud_dev_info *adi;
+    struct alsa_dev_info *adi;
     snd_pcm_t* pcm;
     int pb_result, ca_result;
 
@@ -235,23 +242,63 @@ static pj_status_t add_dev (struct alsa_factory *af, const char *dev_name)
     pj_bzero(adi, sizeof(*adi));
 
     /* Set device name */
-    strncpy(adi->name, dev_name, sizeof(adi->name));
+    strncpy(adi->alsa_name, dev_name, sizeof(adi->alsa_name));
+
+    /* Set comprehensive device name */
+    int name_size = sizeof(adi->info.name);
+    if (dev_desc) {
+        pj_bool_t name_set = PJ_FALSE;
+	if (strncmp("sysdefault", dev_name, 10) == 0) {
+	    /* Only use first line for default device*/
+	    char *ptr = strstr(dev_desc, "\n");
+	    if (ptr) {
+	        int len = ptr - dev_desc;
+                strncpy(adi->info.name, dev_desc, (len >= name_size-1)?name_size:len);
+                name_set = PJ_TRUE;
+            }
+        } else if (strncmp("iec958", dev_name, 6) == 0) {
+            /* Mangle name for SPDIF devices*/
+	    char *ptr = strstr(dev_desc, ",");
+	    if (ptr) {
+	        int len = ptr - dev_desc;
+	        if (len + 18 < name_size) {
+                    strncpy(adi->info.name, dev_desc, len);
+                    strncpy(adi->info.name+len, ", Digital (S/PDIF)", 18);
+                    name_set = PJ_TRUE;
+                }
+            }
+        }
+
+        if (!name_set) {
+            /* Use the entire description for other device names */
+            int i = 0;
+            while (i < name_size-1 && dev_desc[i] != '\0') {
+                if (dev_desc[i] == '\n' || dev_desc[i] == '\r')
+                    adi->info.name[i] = ' ';
+                else
+                    adi->info.name[i] = dev_desc[i];
+                i++;
+            }
+        }
+    } else {
+        strncpy(adi->info.name, dev_name, name_size);
+    }
 
     /* Check the number of playback channels */
-    adi->output_count = (pb_result>=0) ? 1 : 0;
+    adi->info.output_count = (pb_result>=0) ? 1 : 0;
 
     /* Check the number of capture channels */
-    adi->input_count = (ca_result>=0) ? 1 : 0;
+    adi->info.input_count = (ca_result>=0) ? 1 : 0;
 
     /* Set the default sample rate */
-    adi->default_samples_per_sec = 8000;
+    adi->info.default_samples_per_sec = 8000;
 
     /* Driver name */
-    strcpy(adi->driver, "ALSA");
+    strcpy(adi->info.driver, "ALSA");
 
     ++af->dev_cnt;
 
-    PJ_LOG (5,(THIS_FILE, "Added sound device %s", adi->name));
+    PJ_LOG (5,(THIS_FILE, "Added sound device %s", adi->alsa_name));
 
     return PJ_SUCCESS;
 }
@@ -334,9 +381,30 @@ static pj_status_t alsa_factory_refresh(pjmedia_aud_dev_factory *f)
     n = hints;
     while (*n != NULL) {
 	char *name = snd_device_name_get_hint(*n, "NAME");
-	if (name != NULL && 0 != strcmp("null", name)) {
-	    add_dev(af, name);
+	char *desc = snd_device_name_get_hint(*n, "DESC");
+	if (name != NULL) {
+	    if (strncmp("null", name, 4) == 0 ||
+                strncmp("front", name, 5) == 0 ||
+                strncmp("rear", name, 4) == 0 ||
+                strncmp("side", name, 4) == 0 ||
+                strncmp("dmix", name, 4) == 0 ||
+                strncmp("dsnoop", name, 6) == 0 ||
+                strncmp("hw", name, 2) == 0 ||
+                strncmp("plughw", name, 6) == 0 ||
+                strncmp("center_lfe", name, 10) == 0 ||
+	        strncmp("surround40", name, 10) == 0 ||
+	        strncmp("surround41", name, 10) == 0 ||
+	        strncmp("surround50", name, 10) == 0 ||
+	        strncmp("surround51", name, 10) == 0 ||
+	        strncmp("surround71", name, 10) == 0 ||
+	        (strncmp("default", name, 7) == 0 && strstr(name, ":CARD=") != NULL)) {
+	        /* skip these devices, 'sysdefault' always contains the relevant information */
+	        ;
+	    } else {
+	        add_dev(af, name, desc);
+	    }
 	    free(name);
+	    free(desc);
 	}
 	n++;
     }
@@ -371,7 +439,7 @@ static pj_status_t alsa_factory_get_dev_info(pjmedia_aud_dev_factory *f,
 
     PJ_ASSERT_RETURN(index>=0 && index<af->dev_cnt, PJ_EINVAL);
 
-    pj_memcpy(info, &af->devs[index], sizeof(*info));
+    pj_memcpy(info, &af->devs[index].info, sizeof(*info));
     info->caps = PJMEDIA_AUD_DEV_CAP_INPUT_LATENCY |
 		 PJMEDIA_AUD_DEV_CAP_OUTPUT_LATENCY;
     return PJ_SUCCESS;
@@ -383,22 +451,22 @@ static pj_status_t alsa_factory_default_param(pjmedia_aud_dev_factory *f,
 					      pjmedia_aud_param *param)
 {
     struct alsa_factory *af = (struct alsa_factory*)f;
-    pjmedia_aud_dev_info *adi;
+    struct alsa_dev_info *adi;
 
     PJ_ASSERT_RETURN(index>=0 && index<af->dev_cnt, PJ_EINVAL);
 
     adi = &af->devs[index];
 
     pj_bzero(param, sizeof(*param));
-    if (adi->input_count && adi->output_count) {
+    if (adi->info.input_count && adi->info.output_count) {
 	param->dir = PJMEDIA_DIR_CAPTURE_PLAYBACK;
 	param->rec_id = index;
 	param->play_id = index;
-    } else if (adi->input_count) {
+    } else if (adi->info.input_count) {
 	param->dir = PJMEDIA_DIR_CAPTURE;
 	param->rec_id = index;
 	param->play_id = PJMEDIA_AUD_INVALID_DEV;
-    } else if (adi->output_count) {
+    } else if (adi->info.output_count) {
 	param->dir = PJMEDIA_DIR_PLAYBACK;
 	param->play_id = index;
 	param->rec_id = PJMEDIA_AUD_INVALID_DEV;
@@ -406,11 +474,11 @@ static pj_status_t alsa_factory_default_param(pjmedia_aud_dev_factory *f,
 	return PJMEDIA_EAUD_INVDEV;
     }
 
-    param->clock_rate = adi->default_samples_per_sec;
+    param->clock_rate = adi->info.default_samples_per_sec;
     param->channel_count = 1;
-    param->samples_per_frame = adi->default_samples_per_sec * 20 / 1000;
+    param->samples_per_frame = adi->info.default_samples_per_sec * 20 / 1000;
     param->bits_per_sample = 16;
-    param->flags = adi->caps;
+    param->flags = adi->info.caps;
     param->input_latency_ms = PJMEDIA_SND_DEFAULT_REC_LATENCY;
     param->output_latency_ms = PJMEDIA_SND_DEFAULT_PLAY_LATENCY;
 
@@ -557,9 +625,9 @@ static pj_status_t open_playback (struct alsa_stream* stream,
 
     /* Open PCM for playback */
     PJ_LOG (5,(THIS_FILE, "open_playback: Open playback device '%s'",
-	       stream->af->devs[param->play_id].name));
+	       stream->af->devs[param->play_id].alsa_name));
     result = snd_pcm_open (&stream->pb_pcm,
-			   stream->af->devs[param->play_id].name,
+			   stream->af->devs[param->play_id].alsa_name,
 			   SND_PCM_STREAM_PLAYBACK,
 			   0);
     if (result < 0)
@@ -651,7 +719,7 @@ static pj_status_t open_playback (struct alsa_stream* stream,
 
     PJ_LOG (5,(THIS_FILE, "Opened device alsa(%s) for playing, sample rate=%d"
 	       ", ch=%d, bits=%d, period size=%d frames, latency=%d ms",
-	       stream->af->devs[param->play_id].name,
+	       stream->af->devs[param->play_id].alsa_name,
 	       rate, param->channel_count,
 	       param->bits_per_sample, stream->pb_frames,
 	       (int)stream->param.output_latency_ms));
@@ -675,9 +743,9 @@ static pj_status_t open_capture (struct alsa_stream* stream,
 
     /* Open PCM for capture */
     PJ_LOG (5,(THIS_FILE, "open_capture: Open capture device '%s'",
-	       stream->af->devs[param->rec_id].name));
+	       stream->af->devs[param->rec_id].alsa_name));
     result = snd_pcm_open (&stream->ca_pcm,
-		            stream->af->devs[param->rec_id].name,
+		            stream->af->devs[param->rec_id].alsa_name,
 			   SND_PCM_STREAM_CAPTURE,
 			   0);
     if (result < 0)
@@ -769,7 +837,7 @@ static pj_status_t open_capture (struct alsa_stream* stream,
 
     PJ_LOG (5,(THIS_FILE, "Opened device alsa(%s) for capture, sample rate=%d"
 	       ", ch=%d, bits=%d, period size=%d frames, latency=%d ms",
-	       stream->af->devs[param->rec_id].name,
+	       stream->af->devs[param->rec_id].alsa_name,
 	       rate, param->channel_count,
 	       param->bits_per_sample, stream->ca_frames,
 	       (int)stream->param.input_latency_ms));
