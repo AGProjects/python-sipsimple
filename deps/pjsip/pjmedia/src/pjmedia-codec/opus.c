@@ -518,7 +518,9 @@ static pj_status_t opus_codec_open(pjmedia_codec *codec,
 	 * Set Encoder parameters
 	 * TODO : have it configurable
 	 */
-	opus_encoder_ctl(opus->psEnc, OPUS_SET_COMPLEXITY(2));
+	opus_encoder_ctl(opus->psEnc, OPUS_SET_COMPLEXITY(10));
+	opus_encoder_ctl(opus->psEnc, OPUS_SET_INBAND_FEC(1));
+	opus_encoder_ctl(opus->psEnc, OPUS_SET_PACKET_LOSS_PERC(5));
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
 
 	/* Apply fmtp params to Encoder */
