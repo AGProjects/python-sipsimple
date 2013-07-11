@@ -124,17 +124,6 @@ The software is available under either GPL or Lesser General Public License
 (LGPL).
 
 
-Portaudio
----------
-
-PortAudio is a free, cross platform, open-source, audio I/O library. It lets
-you write simple audio programs in 'C' that will compile and run on many
-platforms including Windows, Macintosh (8,9,X), Unix (OSS), SGI, and BeOS.
-PortAudio is intended to promote the exchange of audio synthesis software
-between developers on different platforms. The PortAudio licence is a plain
-MIT licence.
-
-
 Pjlib
 -----
 
