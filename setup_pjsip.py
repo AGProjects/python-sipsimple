@@ -105,7 +105,7 @@ class PJSIP_build_ext(build_ext):
     @classmethod
     def get_makefile_variables(cls, makefile):
         """Returns all variables in a makefile as a dict"""
-        stdout = cls.distutils_exec_process([cls.get_make_cmd(), "-f", makefile, "-pR", makefile], True)
+        stdout = cls.distutils_exec_process([cls.get_make_cmd(), "-f", makefile, "-pR", makefile], silent=True)
         return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
     @classmethod
@@ -143,16 +143,16 @@ class PJSIP_build_ext(build_ext):
             # TODO: add support for building with other compilers like Visual Studio. -Saul
             env['CFLAGS'] += " -Ic:/openssl/include"
             env['LDFLAGS'] = "-Lc:/openssl/lib/MinGW"
-            self.distutils_exec_process(["bash", "configure", "--disable-video", "--enable-ext-sound"], silent=False, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["bash", "configure", "--disable-video", "--enable-ext-sound"], silent=True, cwd=self.build_dir, env=env)
         else:
-            self.distutils_exec_process(["./configure", "--disable-video", "--enable-ext-sound"], silent=False, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["./configure", "--disable-video", "--enable-ext-sound"], silent=True, cwd=self.build_dir, env=env)
         if "#define PJ_HAS_SSL_SOCK 1\n" not in open(os.path.join(self.build_dir, "pjlib", "include", "pj", "compat", "os_auto.h")).readlines():
             os.remove(os.path.join(self.build_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
 
     def compile_pjsip(self):
         log.info("Compiling PJSIP")
-        self.distutils_exec_process([self.get_make_cmd()], silent=False, cwd=self.build_dir)
+        self.distutils_exec_process([self.get_make_cmd()], silent=True, cwd=self.build_dir)
 
     def clean_pjsip(self):
         log.info("Cleaning PJSIP")
