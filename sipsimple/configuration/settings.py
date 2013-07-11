@@ -46,7 +46,7 @@ class LogsSettings(SettingsGroup):
 class RTPSettings(SettingsGroup):
     port_range = Setting(type=PortRange, default=PortRange(50000, 50500))
     timeout = Setting(type=NonNegativeInteger, default=30)
-    audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('G722', 'speex', 'PCMU', 'PCMA')))
+    audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('opus', 'speex', 'G722', 'PCMU', 'PCMA')))
 
 
 def sip_port_validator(port, sibling_port):
