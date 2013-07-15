@@ -138,8 +138,7 @@ cdef class AudioMixer:
         self._output_volume = 100
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
 
-    def __init__(self, unicode input_device, unicode output_device, int sample_rate,
-                 int ec_tail_length=200, int slot_count=254):
+    def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
         global _dealloc_handler_queue
         cdef int status
         cdef pj_pool_t *pool
@@ -318,8 +317,7 @@ cdef class AudioMixer:
 
     # private methods
 
-    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,
-                                 int ec_tail_length, int revert_to_default) except -1:
+    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length, int revert_to_default) except -1:
         global device_name_encoding
         cdef int idx
         cdef int input_device_i = -99
