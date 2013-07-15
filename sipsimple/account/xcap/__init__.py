@@ -939,12 +939,12 @@ class XCAPManager(object):
         else:
             try:
                 lookup = DNSLookup()
-                uri = random.choice(lookup.lookup_xcap_server(self.account.uri).wait())
+                xcap_root = random.choice(lookup.lookup_xcap_server(self.account.uri).wait())
             except DNSLookupError:
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return
             else:
-                self.client = XCAPClient(uri, self.account.id, password=self.account.auth.password)
+                self.client = XCAPClient(xcap_root, self.account.id, password=self.account.auth.password)
 
         try:
             self.server_caps.fetch()
