@@ -279,7 +279,7 @@ cdef class PJSIPUA:
         with nogil:
             status = pj_rwmutex_lock_read(self.audio_change_rwlock)
         if status != 0:
-            raise SIPCoreError('Could not acquire audio_change_rwlock', status)
+            raise PJSIPError('Could not acquire audio_change_rwlock', status)
         try:
             for i in range(pjmedia_aud_dev_count()):
                 with nogil:
