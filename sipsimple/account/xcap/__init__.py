@@ -550,6 +550,8 @@ class Icon(object):
         self.data = data
         self.mime_type = mime_type
         self.description = description
+        self.url = None
+        self.etag = None
 
     def __eq__(self, other):
         if isinstance(other, Icon):
@@ -1722,6 +1724,8 @@ class XCAPManager(object):
 
         if self.status_icon.supported and self.status_icon.content:
             status_icon = Icon.from_payload(self.status_icon.content)
+            status_icon.url = self.status_icon.uri
+            status_icon.etag = self.status_icon.etag
         else:
             status_icon = None
 
