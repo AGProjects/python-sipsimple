@@ -93,10 +93,7 @@ class Document(object):
 
     @property
     def relative_uri(self):
-        uri = self.uri[len(self.manager.xcap_root):]
-        if uri.startswith('/'):
-            uri = uri[1:]
-        return uri
+        return self.uri[len(self.manager.xcap_root):].lstrip('/')
 
     @property
     def uri(self):
