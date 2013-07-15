@@ -92,11 +92,11 @@ class Document(object):
     del _get_dirty, _set_dirty
 
     @property
-    def relative_uri(self):
-        return self.uri[len(self.manager.xcap_root):].lstrip('/')
+    def relative_url(self):
+        return self.url[len(self.manager.xcap_root):].lstrip('/')
 
     @property
-    def uri(self):
+    def url(self):
         return self.manager.client.get_url(self.application, None, globaltree=self.global_tree, filename=self.filename)
 
     def load_from_cache(self):
@@ -685,7 +685,7 @@ class XCAPSubscriber(Subscriber):
     def content(self):
         rlist = resourcelists.List()
         for document in (doc for doc in self.account.xcap_manager.documents if doc.supported):
-            rlist.add(resourcelists.Entry(document.relative_uri))
+            rlist.add(resourcelists.Entry(document.relative_url))
         return Content(resourcelists.ResourceLists([rlist]).toxml(), resourcelists.ResourceListsDocument.content_type)
 
 
@@ -1105,9 +1105,9 @@ class XCAPManager(object):
             oma_allcontacts = resource_lists['oma_allcontacts']
         except KeyError:
             oma_allcontacts = resourcelists.List(name='oma_allcontacts')
-            oma_allcontacts.add(resourcelists.External(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(oma_buddylist)))
-            oma_allcontacts.add(resourcelists.External(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(oma_grantedcontacts)))
-            oma_allcontacts.add(resourcelists.External(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(oma_blockedcontacts)))
+            oma_allcontacts.add(resourcelists.External(self.resource_lists.url + '/~~' + resource_lists.get_xpath(oma_buddylist)))
+            oma_allcontacts.add(resourcelists.External(self.resource_lists.url + '/~~' + resource_lists.get_xpath(oma_grantedcontacts)))
+            oma_allcontacts.add(resourcelists.External(self.resource_lists.url + '/~~' + resource_lists.get_xpath(oma_blockedcontacts)))
             resource_lists.add(oma_allcontacts)
 
         try:
@@ -1211,8 +1211,8 @@ class XCAPManager(object):
 
         rls_presence_uri = 'sip:' + self.rls_presence_uri
         rls_dialog_uri   = 'sip:' + self.rls_dialog_uri
-        rls_presence_list = rlsservices.ResourceList(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(sipsimple_presence_rls))
-        rls_dialog_list = rlsservices.ResourceList(self.resource_lists.uri + '/~~' + resource_lists.get_xpath(sipsimple_dialog_rls))
+        rls_presence_list = rlsservices.ResourceList(self.resource_lists.url + '/~~' + resource_lists.get_xpath(sipsimple_presence_rls))
+        rls_dialog_list = rlsservices.ResourceList(self.resource_lists.url + '/~~' + resource_lists.get_xpath(sipsimple_dialog_rls))
 
         try:
             rls_presence_service = rls_services[rls_presence_uri]
@@ -1253,8 +1253,8 @@ class XCAPManager(object):
 
         pres_rules = self.pres_rules.content
 
-        oma_grantedcontacts_ref = omapolicy.ExternalList([self.resource_lists.uri + '/~~' + resource_lists.get_xpath(oma_grantedcontacts)])
-        oma_blockedcontacts_ref = omapolicy.ExternalList([self.resource_lists.uri + '/~~' + resource_lists.get_xpath(oma_blockedcontacts)])
+        oma_grantedcontacts_ref = omapolicy.ExternalList([self.resource_lists.url + '/~~' + resource_lists.get_xpath(oma_grantedcontacts)])
+        oma_blockedcontacts_ref = omapolicy.ExternalList([self.resource_lists.url + '/~~' + resource_lists.get_xpath(oma_blockedcontacts)])
 
         try:
             wp_prs_grantedcontacts = pres_rules['wp_prs_grantedcontacts']
@@ -1357,8 +1357,8 @@ class XCAPManager(object):
 
             dialog_rules = self.dialog_rules.content
 
-            dialog_grantedcontacts_ref = omapolicy.ExternalList([self.resource_lists.uri + '/~~' + resource_lists.get_xpath(dialog_grantedcontacts)])
-            dialog_blockedcontacts_ref = omapolicy.ExternalList([self.resource_lists.uri + '/~~' + resource_lists.get_xpath(dialog_blockedcontacts)])
+            dialog_grantedcontacts_ref = omapolicy.ExternalList([self.resource_lists.url + '/~~' + resource_lists.get_xpath(dialog_grantedcontacts)])
+            dialog_blockedcontacts_ref = omapolicy.ExternalList([self.resource_lists.url + '/~~' + resource_lists.get_xpath(dialog_blockedcontacts)])
 
             try:
                 wp_dlg_grantedcontacts = dialog_rules['wp_dlg_grantedcontacts']
@@ -1724,7 +1724,7 @@ class XCAPManager(object):
 
         if self.status_icon.supported and self.status_icon.content:
             status_icon = Icon.from_payload(self.status_icon.content)
-            status_icon.url = self.status_icon.uri
+            status_icon.url = self.status_icon.url
             status_icon.etag = self.status_icon.etag
         else:
             status_icon = None
