@@ -36,25 +36,127 @@
     #define PJMEDIA_WEBRTC_NS_POLICY 0
 #endif
 
-#define WEBRTC_SAMPLES_PER_FRAME   160    // WebRTC AEC only allows max 160 samples/frame
-
 #define THIS_FILE    "echo_webrtc_aec.c"
 
+#include <third_party/webrtc/src/common_audio/signal_processing_library/main/interface/signal_processing_library.h>
 #include <third_party/webrtc/src/modules/audio_processing/aec/main/interface/echo_cancellation.h>
 #include <third_party/webrtc/src/modules/audio_processing/ns/main/interface/noise_suppression.h>
 
 #include "echo_internal.h"
 
+
+/*
+ * This file contains the implementation of an echo canceller and noise suppressor for PJSIP which uses components
+ * from the WebRTC project. Things to take into account:
+ *
+ * - The WebRTC engine works with 10ms frames, while in PJSIP we use 20ms frames mostly, all data fed to WebRTC elements needs
+ *   to be chunked in 10ms chunks.
+ * - When a 32kHz sampling rate is used, the WebRTC engine needs frames to be passed split into low and high frequencies. PJSIP
+ *   will give us a frame with all frequencies, so the signal processing library in WebRTC must be used to split frames into low
+ *   and high frequencies, and combine them later.
+ */
+
+
+typedef struct AudioBuffer
+{
+    int samples_per_channel;
+    pj_bool_t is_split;
+
+    WebRtc_Word16* data;
+    WebRtc_Word16 low_pass_data[160];
+    WebRtc_Word16 high_pass_data[160];
+
+    WebRtc_Word32 analysis_filter_state1[6];
+    WebRtc_Word32 analysis_filter_state2[6];
+    WebRtc_Word32 synthesis_filter_state1[6];
+    WebRtc_Word32 synthesis_filter_state2[6];
+} AudioBuffer;
+
+static WebRtc_Word16* AudioBuffer_GetData(AudioBuffer *ab);
+static WebRtc_Word16* AudioBuffer_GetLowPassData(AudioBuffer *ab);
+static WebRtc_Word16* AudioBuffer_GetHighPassData(AudioBuffer *ab);
+static void AudioBuffer_SetData(AudioBuffer *ab, WebRtc_Word16 *data);
+static void AudioBuffer_Initialize(AudioBuffer *ab, int sample_rate);
+static int AudioBuffer_SamplesPerChannel(AudioBuffer *ab);
+
+
+static WebRtc_Word16* AudioBuffer_GetData(AudioBuffer *ab)
+{
+    if (ab->is_split) {
+        WebRtcSpl_SynthesisQMF(ab->low_pass_data,
+                               ab->high_pass_data,
+                               ab->data,
+                               ab->synthesis_filter_state1,
+                               ab->synthesis_filter_state2);
+    }
+    return ab->data;
+}
+
+
+static WebRtc_Word16* AudioBuffer_GetLowPassData(AudioBuffer *ab)
+{
+    if (!ab->is_split) {
+        return ab->data;
+    } else {
+        return ab->low_pass_data;
+    }
+}
+
+
+static WebRtc_Word16* AudioBuffer_GetHighPassData(AudioBuffer *ab)
+{
+    if (!ab->is_split) {
+        return ab->data;
+    } else {
+        return ab->high_pass_data;
+    }
+}
+
+
+static void AudioBuffer_Initialize(AudioBuffer *ab, int sample_rate)
+{
+    pj_bzero(ab, sizeof(AudioBuffer));
+    if (sample_rate == 32000) {
+        ab->is_split = PJ_TRUE;
+        ab->samples_per_channel = 160;
+    } else {
+        ab->is_split = PJ_FALSE;
+        ab->samples_per_channel = sample_rate / 100;
+    }
+}
+
+
+static void AudioBuffer_SetData(AudioBuffer *ab, WebRtc_Word16 *data)
+{
+    ab->data = data;
+    if (ab->is_split) {
+        /* split data into low and high bands */
+        WebRtcSpl_AnalysisQMF(ab->data,                      /* input data */
+                              ab->low_pass_data,             /* pointer to low pass data storage*/
+                              ab->high_pass_data,            /* pointer to high pass data storage*/
+                              ab->analysis_filter_state1,
+                              ab->analysis_filter_state2);
+    }
+}
+
+
+static int AudioBuffer_SamplesPerChannel(AudioBuffer *ab)
+{
+    return ab->samples_per_channel;
+}
+
+
 typedef struct webrtc_ec
 {
     void        *AEC_inst;
     NsHandle    *NS_inst;
-    unsigned    samples_per_frame;
-    unsigned	echo_tail;
     unsigned    clock_rate;
-    pj_int16_t	*dummy_frame;
+    unsigned	echo_tail;
+    unsigned    samples_per_frame;
+    unsigned    samples_per_10ms_frame;
+    AudioBuffer capture_audio_buffer;
+    AudioBuffer playback_audio_buffer;
     pj_int16_t	*tmp_frame;
-    pj_int16_t	*tmp_frame2;
 } webrtc_ec;
 
 
@@ -127,17 +229,18 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
         PJ_LOG(4, (THIS_FILE, "Failed to set WebRTC NS policy"));
     }
 
-    echo->samples_per_frame = samples_per_frame;
-    echo->echo_tail = tail_ms;
     echo->clock_rate = clock_rate;
+    echo->samples_per_frame = samples_per_frame;
+    echo->samples_per_10ms_frame = clock_rate / 100;    /* the WebRTC engine works with 10ms frames */
+    echo->echo_tail = tail_ms;
 
     /* Allocate temporary frames for echo cancellation */
-    echo->dummy_frame = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
-    PJ_ASSERT_RETURN(echo->dummy_frame != NULL, PJ_ENOMEM);
     echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
-    PJ_ASSERT_RETURN(echo->tmp_frame != NULL, PJ_ENOMEM);
-    echo->tmp_frame2 = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
-    PJ_ASSERT_RETURN(echo->tmp_frame2 != NULL, PJ_ENOMEM);
+    PJ_ASSERT_RETURN(echo->tmp_frame, PJ_ENOMEM);
+
+    /* Initialize audio buffers */
+    AudioBuffer_Initialize(&echo->capture_audio_buffer, clock_rate);
+    AudioBuffer_Initialize(&echo->playback_audio_buffer, clock_rate);
 
     PJ_LOG(4, (THIS_FILE, "WebRTC AEC and NS initialized"));
     *p_echo = echo;
@@ -201,34 +304,42 @@ PJ_DEF(void) webrtc_aec_reset(void *state )
 /*
  * Perform echo cancellation.
  */
-PJ_DEF(pj_status_t) webrtc_aec_cancel_echo( void *state,
+PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
 					    pj_int16_t *rec_frm,
 					    const pj_int16_t *play_frm,
 					    unsigned options,
-					    void *reserved )
+					    void *reserved)
 {
     webrtc_ec *echo = (webrtc_ec*) state;
-    int i;
-    int status;
+    int i, status;
 
     /* Sanity checks */
     PJ_ASSERT_RETURN(echo && echo->AEC_inst && echo->NS_inst, PJ_EINVAL);
     PJ_ASSERT_RETURN(rec_frm && play_frm && options==0 && reserved==NULL, PJ_EINVAL);
 
-    for(i=0; i < echo->samples_per_frame; i+= WEBRTC_SAMPLES_PER_FRAME) {
+    /* Copy record frame to a temporary buffer, in case things go wrong audio will be returned unchanged  */
+    pjmedia_copy_samples(echo->tmp_frame, rec_frm, echo->samples_per_frame);
+
+    for(i=0; i < echo->samples_per_frame; i+= echo->samples_per_10ms_frame) {
+        /* feed a 10ms frame into the audio buffers */
+        AudioBuffer_SetData(&echo->capture_audio_buffer, (WebRtc_Word16 *) (&echo->tmp_frame[i]));
+        AudioBuffer_SetData(&echo->playback_audio_buffer, (WebRtc_Word16 *) (&play_frm[i]));
+
         /* Noise suppression */
         status = WebRtcNs_Process(echo->NS_inst,
-                                  (WebRtc_Word16 *) (&rec_frm[i]),
-                                  (WebRtc_Word16 *) (&rec_frm[i]),
-                                  (WebRtc_Word16 *) (&echo->tmp_frame[i]),
-                                  (WebRtc_Word16 *) (&echo->dummy_frame[i]));
+                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer));
         if (status != 0) {
             PJ_LOG(4, (THIS_FILE, "Error suppressing noise"));
             return PJ_EBUG;
         }
 
         /* Feed farend buffer */
-	status = WebRtcAec_BufferFarend(echo->AEC_inst, &play_frm[i], WEBRTC_SAMPLES_PER_FRAME);
+	status = WebRtcAec_BufferFarend(echo->AEC_inst,
+                                        AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
+	                                AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
 	if(status != 0) {
             WEBRTC_AEC_ERROR(echo->AEC_inst, "farend buffering");
 	    return PJ_EBUG;
@@ -236,22 +347,24 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo( void *state,
 
 	/* Process echo cancellation */
         status = WebRtcAec_Process(echo->AEC_inst,
-                                   (WebRtc_Word16 *) (&echo->tmp_frame[i]),
-                                   (WebRtc_Word16 *) (&echo->tmp_frame[i]),
-                                   (WebRtc_Word16 *) (&echo->tmp_frame2[i]),
-                                   (WebRtc_Word16 *) (&echo->dummy_frame[i]),
-                                   WEBRTC_SAMPLES_PER_FRAME,
+                                   AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                   AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
+                                   AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                   AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
+                                   AudioBuffer_SamplesPerChannel(&echo->capture_audio_buffer),
                                    echo->echo_tail,
                                    0);
         if(status != 0) {
             WEBRTC_AEC_ERROR(echo->AEC_inst, "echo processing");
 	    return PJ_EBUG;
         }
+
+        /* finish frame processing, in case we are working at 32kHz low and high bands will be combined */
+        AudioBuffer_GetData(&echo->capture_audio_buffer);
     }
 
-
     /* Copy temporary buffer back to original rec_frm */
-    pjmedia_copy_samples(rec_frm, echo->tmp_frame2, echo->samples_per_frame);
+    pjmedia_copy_samples(rec_frm, echo->tmp_frame, echo->samples_per_frame);
 
     return PJ_SUCCESS;
 
