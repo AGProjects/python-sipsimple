@@ -357,8 +357,8 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
 
     /* Check if a reset is needed */
     if (echo->needs_reset) {
-        echo->needs_reset = PJ_FALSE;
         aec_reset(echo);
+        echo->needs_reset = PJ_FALSE;
     }
 
     /* Copy record frame to a temporary buffer, in case things go wrong audio will be returned unchanged  */
