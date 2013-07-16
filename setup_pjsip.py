@@ -58,10 +58,11 @@ class PJSIP_build_ext(build_ext):
     user_options = build_ext.user_options
     user_options.extend([
         ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation"),
-        ("pjsip-disable-assertions", None, "Disable assertion checks within PJSIP")
+        ("pjsip-disable-assertions", None, "Disable assertion checks within PJSIP"),
+        ("pjsip-verbose-build", None, "Print output of PJSIP compilation process")
         ])
     boolean_options = build_ext.boolean_options
-    boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions"])
+    boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions", "pjsip-verbose-build"])
     cython_version_required = (0, 13)
 
     @staticmethod
@@ -121,6 +122,7 @@ class PJSIP_build_ext(build_ext):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
         self.pjsip_disable_assertions = 0
+        self.pjsip_verbose_build = 0
         self.pjsip_dir = os.path.join(os.path.dirname(__file__), "deps", "pjsip")
 
     def configure_pjsip(self):
@@ -143,16 +145,16 @@ class PJSIP_build_ext(build_ext):
             # TODO: add support for building with other compilers like Visual Studio. -Saul
             env['CFLAGS'] += " -Ic:/openssl/include"
             env['LDFLAGS'] = "-Lc:/openssl/lib/MinGW"
-            self.distutils_exec_process(["bash", "configure", "--disable-video", "--enable-ext-sound"], silent=True, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["bash", "configure", "--disable-video", "--enable-ext-sound"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         else:
-            self.distutils_exec_process(["./configure", "--disable-video", "--enable-ext-sound"], silent=True, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["./configure", "--disable-video", "--enable-ext-sound"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         if "#define PJ_HAS_SSL_SOCK 1\n" not in open(os.path.join(self.build_dir, "pjlib", "include", "pj", "compat", "os_auto.h")).readlines():
             os.remove(os.path.join(self.build_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
 
     def compile_pjsip(self):
         log.info("Compiling PJSIP")
-        self.distutils_exec_process([self.get_make_cmd()], silent=True, cwd=self.build_dir)
+        self.distutils_exec_process([self.get_make_cmd()], silent=not self.pjsip_verbose_build, cwd=self.build_dir)
 
     def clean_pjsip(self):
         log.info("Cleaning PJSIP")
