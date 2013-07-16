@@ -82,6 +82,8 @@ static int AudioBuffer_SamplesPerChannel(AudioBuffer *ab);
 
 static WebRtc_Word16* AudioBuffer_GetData(AudioBuffer *ab)
 {
+    pj_assert(ab->data);
+
     if (ab->is_split) {
         WebRtcSpl_SynthesisQMF(ab->low_pass_data,
                                ab->high_pass_data,
@@ -150,6 +152,7 @@ typedef struct webrtc_ec
 {
     void        *AEC_inst;
     NsHandle    *NS_inst;
+    pj_bool_t   need_reset;
     unsigned    clock_rate;
     unsigned	echo_tail;
     unsigned    samples_per_frame;
@@ -164,6 +167,12 @@ typedef struct webrtc_ec
     do {                                                                  \
         unsigned status = WebRtcAec_get_error_code(aec_inst);             \
         PJ_LOG(4, (THIS_FILE, "WebRTC AEC ERROR (%s) %d", tag, status));  \
+    } while (0)                                                           \
+
+
+#define WEBRTC_NS_ERROR(ns_inst, text)                                    \
+    do {                                                                  \
+        PJ_LOG(4, (THIS_FILE, "WebRTC NS ERROR (%s)", text));             \
     } while (0)                                                           \
 
 
@@ -233,6 +242,7 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     echo->samples_per_frame = samples_per_frame;
     echo->samples_per_10ms_frame = clock_rate / 100;    /* the WebRTC engine works with 10ms frames */
     echo->echo_tail = tail_ms;
+    echo->need_reset = PJ_FALSE;
 
     /* Allocate temporary frames for echo cancellation */
     echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
@@ -276,27 +286,55 @@ PJ_DEF(pj_status_t) webrtc_aec_destroy(void *state )
 PJ_DEF(void) webrtc_aec_reset(void *state )
 {
     webrtc_ec *echo = (webrtc_ec*) state;
+
+    /* Mark the need for a reset to avoid race conditions */
+    echo->need_reset = PJ_TRUE;
+}
+
+static void do_reset(webrtc_ec *echo)
+{
     PJ_ASSERT_ON_FAIL(echo && echo->AEC_inst && echo->NS_inst, {return;});
 
-    int status;
+    int status = 0;
+
+    /* re-initialize the NS */
+    status = WebRtcNs_Init(echo->NS_inst, echo->clock_rate);
+    if(status != 0) {
+        WEBRTC_NS_ERROR(echo->NS_inst, "re-initialization");
+    	return;
+    }
+
+    status = WebRtcNs_set_policy(echo->NS_inst, PJMEDIA_WEBRTC_NS_POLICY);
+    if (status != 0) {
+        WEBRTC_NS_ERROR(echo->NS_inst, "configuration re-initialization");
+        return;
+    }
 
     /* re-initialize the EC */
     status = WebRtcAec_Init(echo->AEC_inst, echo->clock_rate, echo->clock_rate);
     if(status != 0) {
-        WEBRTC_AEC_ERROR(echo->AEC_inst, "re-initialization");
+        WEBRTC_AEC_ERROR(echo->AEC_inst, "AEC re-initialization");
         return;
-    } else {
-        AecConfig aec_config;
-        aec_config.nlpMode = PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS;
-        aec_config.skewMode = kAecTrue;
-        aec_config.metricsMode = kAecFalse;
-
-        status = WebRtcAec_set_config(echo->AEC_inst, aec_config);
-        if(status != 0) {
-            WEBRTC_AEC_ERROR(echo->AEC_inst, "configuration re-initialization");
-            return;
-        }
     }
+
+    AecConfig aec_config;
+    aec_config.nlpMode = PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS;
+    aec_config.skewMode = kAecTrue;
+    aec_config.metricsMode = kAecFalse;
+
+    status = WebRtcAec_set_config(echo->AEC_inst, aec_config);
+    if(status != 0) {
+        WEBRTC_AEC_ERROR(echo->AEC_inst, "AEC configuration re-initialization");
+        return;
+    }
+
+    /* cleanup temporary buffer */
+    pj_bzero(echo->tmp_frame, 2*echo->samples_per_frame);
+
+    /* re-initialize audio buffers */
+    AudioBuffer_Initialize(&echo->capture_audio_buffer, echo->clock_rate);
+    AudioBuffer_Initialize(&echo->playback_audio_buffer, echo->clock_rate);
+
     PJ_LOG(4, (THIS_FILE, "WebRTC AEC reset succeeded"));
 }
 
@@ -316,6 +354,12 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
     /* Sanity checks */
     PJ_ASSERT_RETURN(echo && echo->AEC_inst && echo->NS_inst, PJ_EINVAL);
     PJ_ASSERT_RETURN(rec_frm && play_frm && options==0 && reserved==NULL, PJ_EINVAL);
+
+    /* Check if a reset is needed */
+    if (echo->need_reset) {
+        echo->need_reset = PJ_FALSE;
+        do_reset(echo);
+    }
 
     /* Copy record frame to a temporary buffer, in case things go wrong audio will be returned unchanged  */
     pjmedia_copy_samples(echo->tmp_frame, rec_frm, echo->samples_per_frame);
