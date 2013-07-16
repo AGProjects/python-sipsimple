@@ -229,8 +229,7 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     status = WebRtcNs_Init(echo->NS_inst, clock_rate);
     if(status != 0) {
         WEBRTC_NS_ERROR(echo->NS_inst, "initialization");
-    	WebRtcNs_Free(echo->NS_inst);
-    	return PJ_EBUG;
+        goto error;
     }
 
     status = WebRtcNs_set_policy(echo->NS_inst, PJMEDIA_WEBRTC_NS_POLICY);
