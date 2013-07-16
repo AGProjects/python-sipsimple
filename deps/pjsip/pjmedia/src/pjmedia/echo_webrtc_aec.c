@@ -282,12 +282,10 @@ PJ_DEF(pj_status_t) webrtc_aec_destroy(void *state )
 }
 
 
-PJ_DEF(void) webrtc_aec_reset(void *state )
+PJ_DEF(void) webrtc_aec_reset(void *state)
 {
-    webrtc_ec *echo = (webrtc_ec*) state;
-
     /* Synchronously reset later, before processing the next frame, to avoid race conditions */
-    echo->needs_reset = PJ_TRUE;
+    ((webrtc_ec*)state)->needs_reset = PJ_TRUE;
 }
 
 
