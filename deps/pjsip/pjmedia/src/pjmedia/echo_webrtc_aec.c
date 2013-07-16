@@ -228,14 +228,14 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
 
     status = WebRtcNs_Init(echo->NS_inst, clock_rate);
     if(status != 0) {
-        PJ_LOG(4, (THIS_FILE, "Could not initialize WebRTC NS"));
+        WEBRTC_NS_ERROR(echo->NS_inst, "initialization");
     	WebRtcNs_Free(echo->NS_inst);
     	return PJ_EBUG;
     }
 
     status = WebRtcNs_set_policy(echo->NS_inst, PJMEDIA_WEBRTC_NS_POLICY);
     if (status != 0) {
-        PJ_LOG(4, (THIS_FILE, "Failed to set WebRTC NS policy"));
+        WEBRTC_NS_ERROR(echo->NS_inst, "failed to set policy");
     }
 
     echo->clock_rate = clock_rate;
@@ -313,7 +313,7 @@ static void do_reset(webrtc_ec *echo)
     /* re-initialize the EC */
     status = WebRtcAec_Init(echo->AEC_inst, echo->clock_rate, echo->clock_rate);
     if(status != 0) {
-        WEBRTC_AEC_ERROR(echo->AEC_inst, "AEC re-initialization");
+        WEBRTC_AEC_ERROR(echo->AEC_inst, "re-initialization");
         return;
     }
 
@@ -324,7 +324,7 @@ static void do_reset(webrtc_ec *echo)
 
     status = WebRtcAec_set_config(echo->AEC_inst, aec_config);
     if(status != 0) {
-        WEBRTC_AEC_ERROR(echo->AEC_inst, "AEC configuration re-initialization");
+        WEBRTC_AEC_ERROR(echo->AEC_inst, "configuration re-initialization");
         return;
     }
 
@@ -376,7 +376,7 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
                                   AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
                                   AudioBuffer_GetHighPassData(&echo->capture_audio_buffer));
         if (status != 0) {
-            PJ_LOG(4, (THIS_FILE, "Error suppressing noise"));
+            WEBRTC_NS_ERROR(echo->NS_inst, "ns processing");
             return PJ_EBUG;
         }
 
