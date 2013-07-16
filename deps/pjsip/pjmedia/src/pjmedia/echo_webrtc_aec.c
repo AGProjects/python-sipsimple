@@ -152,7 +152,7 @@ typedef struct webrtc_ec
 {
     void        *AEC_inst;
     NsHandle    *NS_inst;
-    pj_bool_t   need_reset;
+    pj_bool_t   needs_reset;
     unsigned    clock_rate;
     unsigned	echo_tail;
     unsigned    samples_per_frame;
@@ -241,7 +241,7 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     echo->samples_per_frame = samples_per_frame;
     echo->samples_per_10ms_frame = clock_rate / 100;    /* the WebRTC engine works with 10ms frames */
     echo->echo_tail = tail_ms;
-    echo->need_reset = PJ_FALSE;
+    echo->needs_reset = PJ_FALSE;
 
     /* Allocate temporary frames for echo cancellation */
     echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
@@ -286,11 +286,12 @@ PJ_DEF(void) webrtc_aec_reset(void *state )
 {
     webrtc_ec *echo = (webrtc_ec*) state;
 
-    /* Mark the need for a reset to avoid race conditions */
-    echo->need_reset = PJ_TRUE;
+    /* Synchronously reset later, before processing the next frame, to avoid race conditions */
+    echo->needs_reset = PJ_TRUE;
 }
 
-static void do_reset(webrtc_ec *echo)
+
+static void aec_reset(webrtc_ec *echo)
 {
     PJ_ASSERT_ON_FAIL(echo && echo->AEC_inst && echo->NS_inst, {return;});
 
@@ -355,9 +356,9 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
     PJ_ASSERT_RETURN(rec_frm && play_frm && options==0 && reserved==NULL, PJ_EINVAL);
 
     /* Check if a reset is needed */
-    if (echo->need_reset) {
-        echo->need_reset = PJ_FALSE;
-        do_reset(echo);
+    if (echo->needs_reset) {
+        echo->needs_reset = PJ_FALSE;
+        aec_reset(echo);
     }
 
     /* Copy record frame to a temporary buffer, in case things go wrong audio will be returned unchanged  */
