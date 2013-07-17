@@ -33,6 +33,7 @@ WEBRTCAEC_INCS := \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/common_audio/signal_processing_library/main/interface \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/modules/audio_processing/aec/main/interface \
+		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/modules/audio_processing/agc/main/interface \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/modules/audio_processing/ns/main/interface \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/modules/audio_processing/utility \
 		   $(CC_INC)$(WEBRTC_SRC_BASE)/src/system_wrappers/source/spreadsortlib \
@@ -55,6 +56,9 @@ AEC_OBJS := modules/audio_processing/aec/main/source/echo_cancellation.o \
 	    modules/audio_processing/aec/main/source/aec_rdft.o \
 	    modules/audio_processing/aec/main/source/aec_rdft_sse2.o \
 	    modules/audio_processing/aec/main/source/resampler.o
+
+AGC_OBJS := modules/audio_processing/agc/main/source/analog_agc.o \
+	    modules/audio_processing/agc/main/source/digital_agc.o
 
 APM_OBJS := modules/audio_processing/utility/ring_buffer.o \
 	    modules/audio_processing/utility/fft4g.o
@@ -115,11 +119,11 @@ SWR_OBJS := system_wrappers/source/aligned_malloc.o \
             system_wrappers/source/thread.o \
             system_wrappers/source/trace_impl.o
 
-NSX_OBJS := modules/audio_processing/ns/main/source/noise_suppression.o \
-	    modules/audio_processing/ns/main/source/ns_core.o
+NS_OBJS := modules/audio_processing/ns/main/source/noise_suppression.o \
+	   modules/audio_processing/ns/main/source/ns_core.o
 
 export WEBRTCAEC_SRCDIR = $(WEBRTC_SRC_BASE)/src
-export WEBRTCAEC_OBJS = $(AEC_OBJS) $(NSX_OBJS) $(APM_OBJS) $(SWR_OBJS) $(SPL_OBJS)
+export WEBRTCAEC_OBJS = $(AEC_OBJS) $(AGC_OBJS) $(NS_OBJS) $(APM_OBJS) $(SWR_OBJS) $(SPL_OBJS)
 export WEBRTCAEC_CFLAGS = $(_CFLAGS)
 export WEBRTCAEC_CXXFLAGS = $(_CXXFLAGS)
 
