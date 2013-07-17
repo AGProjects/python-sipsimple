@@ -104,8 +104,7 @@ class BonjourServiceDescription(object):
     def __eq__(self, other):
         if isinstance(other, BonjourServiceDescription):
             return self.name==other.name and self.type==other.type and self.domain==other.domain
-        else:
-            return object.__eq__(self, other)
+        return NotImplemented
 
     def __ne__(self, other):
         equal = self.__eq__(other)
