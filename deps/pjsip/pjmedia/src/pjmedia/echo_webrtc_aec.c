@@ -367,7 +367,18 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
         AudioBuffer_SetData(&echo->capture_audio_buffer, (WebRtc_Word16 *) (&echo->tmp_frame[i]));
         AudioBuffer_SetData(&echo->playback_audio_buffer, (WebRtc_Word16 *) (&play_frm[i]));
 
-        /* Feed farend buffer to AEC */
+        /* Noise suppression */
+        status = WebRtcNs_Process(echo->NS_inst,
+                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer));
+        if (status != 0) {
+            WEBRTC_NS_ERROR(echo->NS_inst, "ns processing");
+            return PJ_EBUG;
+        }
+
+        /* Feed farend buffer */
 	status = WebRtcAec_BufferFarend(echo->AEC_inst,
                                         AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
 	                                AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
@@ -388,17 +399,6 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
         if(status != 0) {
             WEBRTC_AEC_ERROR(echo->AEC_inst, "echo processing");
 	    return PJ_EBUG;
-        }
-
-        /* Noise suppression */
-        status = WebRtcNs_Process(echo->NS_inst,
-                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
-                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
-                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
-                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer));
-        if (status != 0) {
-            WEBRTC_NS_ERROR(echo->NS_inst, "ns processing");
-            return PJ_EBUG;
         }
 
         /* finish frame processing, in case we are working at 32kHz low and high bands will be combined */
