@@ -471,9 +471,6 @@ static void aec_reset(webrtc_ec *echo)
         return;
     }
 
-    /* cleanup temporary buffer */
-    pj_bzero(echo->tmp_frame, sizeof(pj_int16_t)*echo->samples_per_frame);
-
     /* re-initialize audio buffers */
     AudioBuffer_Initialize(&echo->capture_audio_buffer, echo->clock_rate);
     AudioBuffer_Initialize(&echo->playback_audio_buffer, echo->clock_rate);
