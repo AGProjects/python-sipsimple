@@ -362,7 +362,7 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     echo->mic_capture_level = 255;    /* initial mic capture level, maximum */
 
     /* Allocate temporary frames for echo cancellation */
-    echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, 2*samples_per_frame);
+    echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, sizeof(pj_int16_t)*samples_per_frame);
     PJ_ASSERT_RETURN(echo->tmp_frame, PJ_ENOMEM);
 
     /* Initialize audio buffers */
@@ -472,7 +472,7 @@ static void aec_reset(webrtc_ec *echo)
     }
 
     /* cleanup temporary buffer */
-    pj_bzero(echo->tmp_frame, 2*echo->samples_per_frame);
+    pj_bzero(echo->tmp_frame, sizeof(pj_int16_t)*echo->samples_per_frame);
 
     /* re-initialize audio buffers */
     AudioBuffer_Initialize(&echo->capture_audio_buffer, echo->clock_rate);
