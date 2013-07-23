@@ -507,8 +507,7 @@ static pj_status_t opus_codec_open(pjmedia_codec *codec,
 	/* Create Encoder */
 	structSizeBytes = opus_encoder_get_size(attr->info.channel_cnt);
 	opus->psEnc = pj_pool_zalloc(opus->pool, structSizeBytes);
-	ret = opus_encoder_init(opus->psEnc, opus->externalFs,
-			attr->info.channel_cnt, OPUS_APPLICATION_VOIP);
+	ret = opus_encoder_init(opus->psEnc, opus->externalFs, attr->info.channel_cnt, OPUS_APPLICATION_AUDIO);
 	if (ret) {
 		PJ_LOG(1, (THIS_FILE, "Unable to init encoder : %d", ret));
 		return PJ_EINVAL;
@@ -521,7 +520,7 @@ static pj_status_t opus_codec_open(pjmedia_codec *codec,
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_COMPLEXITY(10));
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_INBAND_FEC(1));
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_PACKET_LOSS_PERC(5));
-	opus_encoder_ctl(opus->psEnc, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
+	opus_encoder_ctl(opus->psEnc, OPUS_SET_SIGNAL(OPUS_AUTO));
 
 	/* Apply fmtp params to Encoder */
 	for (i = 0; i < attr->setting.enc_fmtp.cnt; ++i) {
