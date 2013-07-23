@@ -235,7 +235,7 @@ typedef struct webrtc_ec
     pj_bool_t   needs_reset;
 
     unsigned    clock_rate;
-    unsigned	echo_tail;
+    unsigned    echo_tail;
     unsigned    samples_per_frame;
     unsigned    samples_per_10ms_frame;
 
@@ -247,7 +247,7 @@ typedef struct webrtc_ec
     AudioBuffer capture_audio_buffer;
     AudioBuffer playback_audio_buffer;
 
-    pj_int16_t	*tmp_frame;
+    pj_int16_t  *tmp_frame;
 } webrtc_ec;
 
 
@@ -515,40 +515,40 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
         AudioBuffer_SetData(&echo->capture_audio_buffer, (WebRtc_Word16 *) (&echo->tmp_frame[i]));
         AudioBuffer_SetData(&echo->playback_audio_buffer, (WebRtc_Word16 *) (&play_frm[i]));
 
-         /* Apply high pass filer */
-         HighPassFilter_Process(&echo->hpf,
-                                AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
-                                AudioBuffer_SamplesPerChannel(&echo->capture_audio_buffer));
+        /* Apply high pass filer */
+        HighPassFilter_Process(&echo->hpf,
+                               AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                               AudioBuffer_SamplesPerChannel(&echo->capture_audio_buffer));
 
-         /* Analyze capture data gain
-          * NOTE: if we used kAgcModeAdaptiveDigital we'd use WebRtcAgc_VirtualMic instead
-          */
-         status = WebRtcAgc_AddMic(echo->AGC_inst,
-                                   AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
-                                   AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
-                                   AudioBuffer_SamplesPerChannel(&echo->capture_audio_buffer));
- 	if(status != 0) {
-             WEBRTC_AGC_ERROR(echo->AGC_inst, "gain analysis");
- 	    return PJ_EBUG;
- 	}
+        /* Analyze capture data gain
+         * NOTE: if we used kAgcModeAdaptiveDigital we'd use WebRtcAgc_VirtualMic instead
+         */
+        status = WebRtcAgc_AddMic(echo->AGC_inst,
+                                  AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
+                                  AudioBuffer_SamplesPerChannel(&echo->capture_audio_buffer));
+        if(status != 0) {
+            WEBRTC_AGC_ERROR(echo->AGC_inst, "gain analysis");
+            return PJ_EBUG;
+        }
 
         /* Feed farend buffer to AEC  */
-	status = WebRtcAec_BufferFarend(echo->AEC_inst,
+        status = WebRtcAec_BufferFarend(echo->AEC_inst,
                                         AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
-	                                AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
-	if(status != 0) {
+                                        AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
+        if(status != 0) {
             WEBRTC_AEC_ERROR(echo->AEC_inst, "farend buffering");
-	    return PJ_EBUG;
-	}
+            return PJ_EBUG;
+        }
 
         /* Feed farend buffer to AGC */
-	status = WebRtcAgc_AddFarend(echo->AGC_inst,
+        status = WebRtcAgc_AddFarend(echo->AGC_inst,
                                      AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
-	                             AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
-	if(status != 0) {
+                                     AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
+        if(status != 0) {
             WEBRTC_AGC_ERROR(echo->AGC_inst, "farend buffering");
-	    return PJ_EBUG;
-	}
+            return PJ_EBUG;
+        }
 
         /* Noise suppression */
         status = WebRtcNs_Process(echo->NS_inst,
@@ -561,7 +561,7 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
             return PJ_EBUG;
         }
 
-	/* Process echo cancellation */
+        /* Process echo cancellation */
         status = WebRtcAec_Process(echo->AEC_inst,
                                    AudioBuffer_GetLowPassData(&echo->capture_audio_buffer),
                                    AudioBuffer_GetHighPassData(&echo->capture_audio_buffer),
@@ -572,7 +572,7 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
                                    0);
         if(status != 0) {
             WEBRTC_AEC_ERROR(echo->AEC_inst, "echo processing");
-	    return PJ_EBUG;
+            return PJ_EBUG;
         }
 
         WebRtcAec_get_echo_status(echo->AEC_inst, &echo->has_echo);
