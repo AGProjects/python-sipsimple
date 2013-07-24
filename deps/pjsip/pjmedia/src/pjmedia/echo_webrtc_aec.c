@@ -232,7 +232,10 @@ typedef struct webrtc_ec
     void        *AEC_inst;
     void        *AGC_inst;
     NsHandle    *NS_inst;
+
     pj_bool_t   needs_reset;
+    unsigned    skip_frames;
+    unsigned    silence_frames;
 
     unsigned    clock_rate;
     unsigned    echo_tail;
@@ -248,6 +251,7 @@ typedef struct webrtc_ec
     AudioBuffer playback_audio_buffer;
 
     pj_int16_t  *tmp_frame;
+    pj_int16_t  *empty_frame;
 } webrtc_ec;
 
 
@@ -358,12 +362,17 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     echo->samples_per_frame = samples_per_frame;
     echo->samples_per_10ms_frame = clock_rate / 100;    /* the WebRTC engine works with 10ms frames */
     echo->echo_tail = tail_ms;
-    echo->needs_reset = PJ_FALSE;
+    echo->needs_reset = PJ_TRUE;
+    echo->skip_frames = 0;
+    echo->silence_frames = 0;
     echo->mic_capture_level = 255;    /* initial mic capture level, maximum */
 
     /* Allocate temporary frames for echo cancellation */
     echo->tmp_frame = (pj_int16_t*) pj_pool_zalloc(pool, sizeof(pj_int16_t)*samples_per_frame);
     PJ_ASSERT_RETURN(echo->tmp_frame, PJ_ENOMEM);
+
+    echo->empty_frame = (pj_int16_t*) pj_pool_zalloc(pool, sizeof(pj_int16_t)*samples_per_frame);
+    PJ_ASSERT_RETURN(echo->empty_frame, PJ_ENOMEM);
 
     /* Initialize audio buffers */
     AudioBuffer_Initialize(&echo->capture_audio_buffer, clock_rate);
@@ -495,6 +504,7 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
 					    void *reserved)
 {
     webrtc_ec *echo = (webrtc_ec*) state;
+    pj_int16_t *capture_frame, *result_frame;
     int i, status;
 
     /* Sanity checks */
@@ -505,10 +515,25 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
     if (echo->needs_reset) {
         aec_reset(echo);
         echo->needs_reset = PJ_FALSE;
+        echo->skip_frames = 15;
+        echo->silence_frames = 10;
+    }
+
+    if (echo->skip_frames) {
+        echo->skip_frames--;
+        capture_frame = echo->empty_frame;
+        result_frame = echo->empty_frame;
+    } else if (echo->silence_frames) {
+        echo->silence_frames--;
+        capture_frame = rec_frm;
+        result_frame = echo->empty_frame;
+    } else {
+        capture_frame = rec_frm;
+        result_frame = echo->tmp_frame;
     }
 
     /* Copy record frame to a temporary buffer, in case things go wrong audio will be returned unchanged  */
-    pjmedia_copy_samples(echo->tmp_frame, rec_frm, echo->samples_per_frame);
+    pjmedia_copy_samples(echo->tmp_frame, capture_frame, echo->samples_per_frame);
 
     for(i=0; i < echo->samples_per_frame; i+= echo->samples_per_10ms_frame) {
         /* feed a 10ms frame into the audio buffers */
@@ -608,7 +633,7 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
     }
 
     /* Copy temporary buffer back to original rec_frm */
-    pjmedia_copy_samples(rec_frm, echo->tmp_frame, echo->samples_per_frame);
+    pjmedia_copy_samples(rec_frm, result_frame, echo->samples_per_frame);
 
     return PJ_SUCCESS;
 
