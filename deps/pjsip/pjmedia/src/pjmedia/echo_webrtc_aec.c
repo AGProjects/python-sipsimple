@@ -28,7 +28,7 @@
 
 /* 0: conservative, 1: moderate, 2: aggresive */
 #ifndef PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS
-    #define PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS 1
+    #define PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS 2
 #endif
 
 /* 0: mild, 1: mediumn, 2: aggressive */
