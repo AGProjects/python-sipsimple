@@ -20,7 +20,7 @@ __all__ = ['SIPSimpleSettings']
 
 class EchoCancellerSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    tail_length = Setting(type=NonNegativeInteger, default=15)
+    tail_length = Setting(type=NonNegativeInteger, default=2)
 
 
 class AudioSettings(SettingsGroup):
