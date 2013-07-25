@@ -331,9 +331,9 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
     }
 
     WebRtcAgc_config_t agc_config;
-    agc_config.targetLevelDbfs = 9;
+    agc_config.targetLevelDbfs = 7;
     agc_config.compressionGaindB = 0;
-    agc_config.limiterEnable = kAgcTrue;
+    agc_config.limiterEnable = kAgcFalse;
 
     status = WebRtcAgc_set_config(echo->AGC_inst, agc_config);
     if(status != 0) {
@@ -457,9 +457,9 @@ static void aec_reset(webrtc_ec *echo)
     }
 
     WebRtcAgc_config_t agc_config;
-    agc_config.targetLevelDbfs = 9;
+    agc_config.targetLevelDbfs = 7;
     agc_config.compressionGaindB = 0;
-    agc_config.limiterEnable = kAgcTrue;
+    agc_config.limiterEnable = kAgcFalse;
 
     status = WebRtcAgc_set_config(echo->AGC_inst, agc_config);
     if(status != 0) {
