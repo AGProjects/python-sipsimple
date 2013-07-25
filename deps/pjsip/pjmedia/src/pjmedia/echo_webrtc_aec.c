@@ -309,7 +309,7 @@ PJ_DEF(pj_status_t) webrtc_aec_create(pj_pool_t *pool,
 
     AecConfig aec_config;
     aec_config.nlpMode = PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS;
-    aec_config.skewMode = kAecTrue;
+    aec_config.skewMode = kAecFalse;
     aec_config.metricsMode = kAecFalse;
 
     status = WebRtcAec_set_config(echo->AEC_inst, aec_config);
@@ -440,7 +440,7 @@ static void aec_reset(webrtc_ec *echo)
 
     AecConfig aec_config;
     aec_config.nlpMode = PJMEDIA_WEBRTC_AEC_AGGRESSIVENESS;
-    aec_config.skewMode = kAecTrue;
+    aec_config.skewMode = kAecFalse;
     aec_config.metricsMode = kAecFalse;
 
     status = WebRtcAec_set_config(echo->AEC_inst, aec_config);
