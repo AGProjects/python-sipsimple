@@ -557,21 +557,21 @@ PJ_DEF(pj_status_t) webrtc_aec_cancel_echo(void *state,
             return PJ_EBUG;
         }
 
-        /* Feed farend buffer to AEC  */
-        status = WebRtcAec_BufferFarend(echo->AEC_inst,
-                                        AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
-                                        AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
-        if(status != 0) {
-            WEBRTC_AEC_ERROR(echo->AEC_inst, "farend buffering");
-            return PJ_EBUG;
-        }
-
         /* Feed farend buffer to AGC */
         status = WebRtcAgc_AddFarend(echo->AGC_inst,
                                      AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
                                      AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
         if(status != 0) {
             WEBRTC_AGC_ERROR(echo->AGC_inst, "farend buffering");
+            return PJ_EBUG;
+        }
+
+        /* Feed farend buffer to AEC  */
+        status = WebRtcAec_BufferFarend(echo->AEC_inst,
+                                        AudioBuffer_GetLowPassData(&echo->playback_audio_buffer),
+                                        AudioBuffer_SamplesPerChannel(&echo->playback_audio_buffer));
+        if(status != 0) {
+            WEBRTC_AEC_ERROR(echo->AEC_inst, "farend buffering");
             return PJ_EBUG;
         }
 
