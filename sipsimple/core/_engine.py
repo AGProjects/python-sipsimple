@@ -19,6 +19,7 @@ from threading import Thread, RLock
 from sipsimple.core._core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
 from sipsimple import __version__
 
+
 class Engine(Thread):
     __metaclass__ = Singleton
     default_start_options = {"ip_address": None,
@@ -77,7 +78,7 @@ class Engine(Thread):
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs)
-        self._post_notification('SIPEngineWillStart')
+        self.notification_center.post_notification('SIPEngineWillStart', sender=self)
         with self._lock:
             try:
                 self._thread_started = True
@@ -88,10 +89,10 @@ class Engine(Thread):
                 if hasattr(self, "_ua"):
                     self._ua.dealloc()
                     del self._ua
-                self._post_notification('SIPEngineDidFail')
+                self.notification_center.post_notification('SIPEngineDidFail', sender=self)
                 raise
             else:
-                self._post_notification('SIPEngineDidStart')
+                self.notification_center.post_notification('SIPEngineDidStart', sender=self)
 
     def stop(self):
         if self._thread_stopping:
@@ -108,31 +109,20 @@ class Engine(Thread):
                 failed = self._ua.poll()
             except:
                 exc_type, exc_val, exc_tb = sys.exc_info()
-                self._post_notification('SIPEngineGotException', type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
+                self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
                 failed = True
             if failed:
-                self._post_notification('SIPEngineDidFail')
+                self.notification_center.post_notification('SIPEngineDidFail', sender=self)
                 break
         if not failed:
-            self._post_notification('SIPEngineWillEnd')
+            self.notification_center.post_notification('SIPEngineWillEnd', sender=self)
         self._ua.dealloc()
         del self._ua
-        self._post_notification('SIPEngineDidEnd')
+        self.notification_center.post_notification('SIPEngineDidEnd', sender=self)
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)
         if sender is None:
             sender = self
-        if self.notification_center is not None:
-            self.notification_center.post_notification(event_name, sender, NotificationData(**kwargs))
-
-    def _post_notification(self, name, **kwargs):
-        if self.notification_center is not None:
-            self.notification_center.post_notification(name, self, NotificationData(**kwargs))
-
-
-def setdefault(where, **what):
-    for k, x in what.iteritems():
-        where.setdefault(k, x)
-
+        self.notification_center.post_notification(event_name, sender, NotificationData(**kwargs))
 
