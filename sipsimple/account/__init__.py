@@ -771,7 +771,7 @@ class AccountManager(object):
         handler(notification)
 
     def _NH_CFGSettingsObjectWasActivated(self, notification):
-        if isinstance(notification.sender, (Account, BonjourAccount)):
+        if isinstance(notification.sender, Account) or (isinstance(notification.sender, BonjourAccount) and _bonjour.available):
             account = notification.sender
             self.accounts[account.id] = account
             notification.center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
