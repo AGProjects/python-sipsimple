@@ -223,7 +223,7 @@ PJ_DEF(pj_status_t) pjsua_enum_buddies( pjsua_buddy_id ids[],
 PJ_DEF(pj_status_t) pjsua_buddy_get_info( pjsua_buddy_id buddy_id,
 					  pjsua_buddy_info *info)
 {
-    unsigned total=0;
+    pj_size_t total=0;
     struct buddy_lock lck;
     pjsua_buddy *buddy;
     pj_status_t status;
@@ -1065,7 +1065,7 @@ PJ_DEF(pj_status_t) pjsua_pres_notify( pjsua_acc_id acc_id,
     PJ_ASSERT_RETURN(pjsua_var.acc[acc_id].valid, PJ_EINVALIDOP);
 
     PJ_LOG(4,(THIS_FILE, "Acc %d: sending NOTIFY for srv_pres=0x%p..",
-	      acc_id, (int)(long)srv_pres));
+	      acc_id, (int)(pj_ssize_t)srv_pres));
     pj_log_push_indent();
 
     PJSUA_LOCK();
@@ -2094,7 +2094,7 @@ pj_status_t pjsua_start_mwi(pjsua_acc_id acc_id, pj_bool_t force_renew)
 
     acc = &pjsua_var.acc[acc_id];
 
-    if (!acc->cfg.mwi_enabled) {
+    if (!acc->cfg.mwi_enabled || !acc->regc) {
 	if (acc->mwi_sub) {
 	    /* Terminate MWI subscription */
 	    pjsip_evsub *sub = acc->mwi_sub;

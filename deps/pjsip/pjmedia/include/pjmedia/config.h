@@ -668,6 +668,19 @@
 #   define PJMEDIA_SDP_NEG_PREFER_REMOTE_CODEC_ORDER	1
 #endif
 
+/**
+ * This specifies the behavior of the SDP negotiator when responding to an
+ * offer, whether it should answer with multiple formats or not.
+ *
+ * Note that this behavior can be changed during run-time by calling
+ * pjmedia_sdp_neg_set_allow_multiple_codecs().
+ *
+ * Default is 0 (to maintain backward compatibility)
+ */
+#ifndef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
+#   define PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS	0
+#endif
+
 
 /**
  * This specifies the maximum number of the customized SDP format
@@ -1213,6 +1226,46 @@
  */
 #ifndef PJMEDIA_MAX_VID_PAYLOAD_SIZE			
 #  define PJMEDIA_MAX_VID_PAYLOAD_SIZE		(PJMEDIA_MAX_MTU - 100)
+#endif
+
+
+/**
+ * Specify target value for socket receive buffer size. It will be
+ * applied to RTP socket of media transport using setsockopt(). When
+ * transport failed to set the specified size, it will try with lower
+ * value until the highest possible is successfully set.
+ *
+ * Setting this to zero will leave the socket receive buffer size to
+ * OS default (e.g: usually 8 KB on desktop platforms).
+ *
+ * Default: 64 KB when video is enabled, otherwise zero (OS default)
+ */
+#ifndef PJMEDIA_TRANSPORT_SO_RCVBUF_SIZE
+#   if PJMEDIA_HAS_VIDEO
+#	define PJMEDIA_TRANSPORT_SO_RCVBUF_SIZE	(64*1024)
+#   else
+#	define PJMEDIA_TRANSPORT_SO_RCVBUF_SIZE	0
+#   endif
+#endif
+
+
+/**
+ * Specify target value for socket send buffer size. It will be
+ * applied to RTP socket of media transport using setsockopt(). When
+ * transport failed to set the specified size, it will try with lower
+ * value until the highest possible is successfully set.
+ *
+ * Setting this to zero will leave the socket send buffer size to
+ * OS default (e.g: usually 8 KB on desktop platforms).
+ *
+ * Default: 64 KB when video is enabled, otherwise zero (OS default)
+ */
+#ifndef PJMEDIA_TRANSPORT_SO_SNDBUF_SIZE
+#   if PJMEDIA_HAS_VIDEO
+#	define PJMEDIA_TRANSPORT_SO_SNDBUF_SIZE	(64*1024)
+#   else
+#	define PJMEDIA_TRANSPORT_SO_SNDBUF_SIZE	0
+#   endif
 #endif
 
 

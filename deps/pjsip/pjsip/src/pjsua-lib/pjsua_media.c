@@ -29,9 +29,6 @@
 #   define PJSUA_REQUIRE_CONSECUTIVE_RTCP_PORT	0
 #endif
 
-/* Next RTP port to be used */
-static pj_uint16_t next_rtp_port;
-
 static void pjsua_media_config_dup(pj_pool_t *pool,
 				   pjsua_media_config *dst,
 				   const pjsua_media_config *src)
@@ -219,9 +216,6 @@ pj_status_t pjsua_media_subsys_destroy(unsigned flags)
 	//pjmedia_snd_deinit();
     }
 
-    /* Reset RTP port */
-    next_rtp_port = 0;
-
     pj_log_pop_indent();
 
     return PJ_SUCCESS;
@@ -245,10 +239,10 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
     pj_sockaddr mapped_addr[2];
     pj_status_t status = PJ_SUCCESS;
     char addr_buf[PJ_INET6_ADDRSTRLEN+10];
+    pjsua_acc *acc = &pjsua_var.acc[call_med->call->acc_id];
     pj_sock_t sock[2];
 
-    use_ipv6 = (pjsua_var.acc[call_med->call->acc_id].cfg.ipv6_media_use !=
-		PJSUA_IPV6_DISABLED);
+    use_ipv6 = (acc->cfg.ipv6_media_use != PJSUA_IPV6_DISABLED);
     af = use_ipv6 ? pj_AF_INET6() : pj_AF_INET();
 
     /* Make sure STUN server resolution has completed */
@@ -260,11 +254,11 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 	}
     }
 
-    if (next_rtp_port == 0)
-	next_rtp_port = (pj_uint16_t)cfg->port;
+    if (acc->next_rtp_port == 0)
+	acc->next_rtp_port = (pj_uint16_t)cfg->port;
 
-    if (next_rtp_port == 0)
-	next_rtp_port = (pj_uint16_t)40000;
+    if (acc->next_rtp_port == 0)
+	acc->next_rtp_port = (pj_uint16_t)DEFAULT_RTP_PORT;
 
     for (i=0; i<2; ++i)
 	sock[i] = PJ_INVALID_SOCKET;
@@ -280,7 +274,14 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
     }
 
     /* Loop retry to bind RTP and RTCP sockets. */
-    for (i=0; i<RTP_RETRY; ++i, next_rtp_port += 2) {
+    for (i=0; i<RTP_RETRY; ++i, acc->next_rtp_port += 2) {
+
+        if (cfg->port > 0 && cfg->port_range > 0 &&
+            (acc->next_rtp_port > cfg->port + cfg->port_range ||
+             acc->next_rtp_port < cfg->port))
+        {
+            acc->next_rtp_port = (pj_uint16_t)cfg->port;
+        }
 
 	/* Create RTP socket. */
 	status = pj_sock_socket(af, pj_SOCK_DGRAM(), 0, &sock[0]);
@@ -295,7 +296,7 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 				    2, THIS_FILE, "RTP socket");
 
 	/* Bind RTP socket */
-	pj_sockaddr_set_port(&bound_addr, next_rtp_port);
+	pj_sockaddr_set_port(&bound_addr, acc->next_rtp_port);
 	status=pj_sock_bind(sock[0], &bound_addr,
 	                    pj_sockaddr_get_len(&bound_addr));
 	if (status != PJ_SUCCESS) {
@@ -318,7 +319,7 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 				    2, THIS_FILE, "RTCP socket");
 
 	/* Bind RTCP socket */
-	pj_sockaddr_set_port(&bound_addr, (pj_uint16_t)(next_rtp_port+1));
+	pj_sockaddr_set_port(&bound_addr, (pj_uint16_t)(acc->next_rtp_port+1));
 	status=pj_sock_bind(sock[1], &bound_addr,
 	                    pj_sockaddr_get_len(&bound_addr));
 	if (status != PJ_SUCCESS) {
@@ -410,18 +411,31 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 	} else if (cfg->public_addr.slen) {
 
 	    status = pj_sockaddr_init(af, &mapped_addr[0], &cfg->public_addr,
-				      (pj_uint16_t)next_rtp_port);
+				      (pj_uint16_t)acc->next_rtp_port);
 	    if (status != PJ_SUCCESS)
 		goto on_error;
 
 	    status = pj_sockaddr_init(af, &mapped_addr[1], &cfg->public_addr,
-				      (pj_uint16_t)(next_rtp_port+1));
+				      (pj_uint16_t)(acc->next_rtp_port+1));
 	    if (status != PJ_SUCCESS)
 		goto on_error;
 
 	    break;
 
 	} else {
+	    if (acc->cfg.allow_sdp_nat_rewrite && acc->reg_mapped_addr.slen) {
+		pj_status_t status;
+
+		/* Take the address from mapped addr as seen by registrar */
+		status = pj_sockaddr_set_str_addr(af, &bound_addr,
+		                                  &acc->reg_mapped_addr);
+		if (status != PJ_SUCCESS) {
+		    /* just leave bound_addr with whatever it was
+		    pj_bzero(pj_sockaddr_get_addr(&bound_addr),
+		             pj_sockaddr_get_addr_len(&bound_addr));
+		     */
+		}
+	    }
 
 	    if (!pj_sockaddr_has_addr(&bound_addr)) {
 		pj_sockaddr addr;
@@ -438,7 +452,7 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 		pj_sockaddr_init(af, &mapped_addr[i], NULL, 0);
 		pj_sockaddr_copy_addr(&mapped_addr[i], &bound_addr);
 		pj_sockaddr_set_port(&mapped_addr[i],
-		                     (pj_uint16_t)(next_rtp_port+i));
+		                     (pj_uint16_t)(acc->next_rtp_port+i));
 	    }
 
 	    break;
@@ -465,7 +479,7 @@ static pj_status_t create_rtp_rtcp_sock(pjsua_call_media *call_med,
 	      pj_sockaddr_print(&skinfo->rtcp_addr_name, addr_buf,
 				sizeof(addr_buf), 3)));
 
-    next_rtp_port += 2;
+    acc->next_rtp_port += 2;
     return PJ_SUCCESS;
 
 on_error:
@@ -592,7 +606,7 @@ static void ice_init_complete_cb(void *user_data)
 /* Deferred callback to notify ICE negotiation failure */
 static void ice_failed_nego_cb(void *user_data)
 {
-    int call_id = (int)(long)user_data;
+    int call_id = (int)(pj_ssize_t)user_data;
     pjsua_call *call = NULL;
     pjsip_dialog *dlg = NULL;
 
@@ -641,7 +655,7 @@ static void on_ice_complete(pjmedia_transport *tp,
 	    if (call && pjsua_var.ua_cfg.cb.on_call_media_state) {
 		/* Defer the callback to a timer */
 		pjsua_schedule_timer2(&ice_failed_nego_cb,
-				      (void*)(long)call->index, 1);
+				      (void*)(pj_ssize_t)call->index, 1);
 	    }
         }
 	/* Check if default ICE transport address is changed */

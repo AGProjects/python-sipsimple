@@ -299,7 +299,7 @@ static pj_status_t initialize_acc(unsigned acc_id)
      */
 #if PJSUA_ADD_ICE_TAGS
     if (acc_cfg->ice_cfg.enable_ice) {
-	unsigned new_len;
+	pj_ssize_t new_len;
 	pj_str_t new_prm;
 
 	new_len = acc_cfg->contact_params.slen + 10;
@@ -320,12 +320,13 @@ static pj_status_t initialize_acc(unsigned acc_id)
     if (acc_cfg->use_rfc5626) {
 	if (acc_cfg->rfc5626_instance_id.slen==0) {
 	    const pj_str_t *hostname;
-	    pj_uint32_t hval, pos;
+	    pj_uint32_t hval;
+	    pj_size_t pos;
 	    char instprm[] = ";+sip.instance=\"<urn:uuid:00000000-0000-0000-0000-0000CCDDEEFF>\"";
 
 	    hostname = pj_gethostname();
 	    pos = pj_ansi_strlen(instprm) - 10;
-	    hval = pj_hash_calc(0, hostname->ptr, hostname->slen);
+	    hval = pj_hash_calc(0, hostname->ptr, (unsigned)hostname->slen);
 	    pj_val_to_hex_digit( ((char*)&hval)[0], instprm+pos+0);
 	    pj_val_to_hex_digit( ((char*)&hval)[1], instprm+pos+2);
 	    pj_val_to_hex_digit( ((char*)&hval)[2], instprm+pos+4);
@@ -334,7 +335,7 @@ static pj_status_t initialize_acc(unsigned acc_id)
 	    pj_strdup2(acc->pool, &acc->rfc5626_instprm, instprm);
 	} else {
 	    const char *prmname = ";+sip.instance=\"";
-	    unsigned len;
+	    pj_size_t len;
 
 	    len = pj_ansi_strlen(prmname) + acc_cfg->rfc5626_instance_id.slen + 1;
 	    acc->rfc5626_instprm.ptr = (char*)pj_pool_alloc(acc->pool, len+1);
@@ -350,7 +351,7 @@ static pj_status_t initialize_acc(unsigned acc_id)
 	    acc->rfc5626_regprm = pj_str(";reg-id=1");
 	} else {
 	    const char *prmname = ";reg-id=";
-	    unsigned len;
+	    pj_size_t len;
 
 	    len = pj_ansi_strlen(prmname) + acc_cfg->rfc5626_reg_id.slen;
 	    acc->rfc5626_regprm.ptr = (char*)pj_pool_alloc(acc->pool, len+1);
@@ -649,8 +650,10 @@ PJ_DEF(pj_status_t) pjsua_acc_del(pjsua_acc_id acc_id)
     /* Invalidate */
     acc->valid = PJ_FALSE;
     acc->contact.slen = 0;
+    acc->reg_mapped_addr.slen = 0;
     pj_bzero(&acc->via_addr, sizeof(acc->via_addr));
     acc->via_tp = NULL;
+    acc->next_rtp_port = 0;
 
     /* Remove from array */
     for (i=0; i<pjsua_var.acc_cnt; ++i) {
@@ -997,7 +1000,8 @@ PJ_DEF(pj_status_t) pjsua_acc_modify( pjsua_acc_id acc_id,
 
     /* Global outbound proxy */
     if (global_route_crc != acc->global_route_crc) {
-	unsigned i, rcnt;
+	unsigned i;
+	pj_size_t rcnt;
 
 	/* Remove the outbound proxies from the route set */
 	rcnt = pj_list_size(&acc->route_set);
@@ -1252,6 +1256,7 @@ PJ_DEF(pj_status_t) pjsua_acc_modify( pjsua_acc_id acc_id,
 	    pjsip_regc_destroy(acc->regc);
 	    acc->regc = NULL;
 	    acc->contact.slen = 0;
+	    acc->reg_mapped_addr.slen = 0;
 	}
     }
 
@@ -1362,7 +1367,7 @@ done:
 	/* Need to use outbound, append the contact with +sip.instance and
 	 * reg-id parameters.
 	 */
-	unsigned len;
+	pj_ssize_t len;
 	pj_str_t reg_contact;
 
 	acc->rfc5626_status = OUTBOUND_WANTED;
@@ -1446,10 +1451,17 @@ static pj_bool_t acc_check_nat_addr(pjsua_acc *acc,
         via_addr = &via->sent_by.host;
 
     /* If allow_via_rewrite is enabled, we save the Via "received" address
-     * from the response.
+     * from the response, if either of the following condition is met:
+     *  - the Via "received" address differs from saved one (or we haven't
+     *    saved any yet)
+     *  - transport is different
+     *  - only the port has changed, AND either the received address is
+     *    public IP or allow_contact_rewrite is 2
      */
     if (acc->cfg.allow_via_rewrite &&
-        (acc->via_addr.host.slen == 0 || acc->via_tp != tp))
+        (pj_strcmp(&acc->via_addr.host, via_addr) || acc->via_tp != tp ||
+         (acc->via_addr.port != rport &&
+           (!is_private_ip(via_addr) || acc->cfg.allow_contact_rewrite == 2))))
     {
         if (pj_strcmp(&acc->via_addr.host, via_addr))
             pj_strdup(acc->pool, &acc->via_addr.host, via_addr);
@@ -1460,6 +1472,13 @@ static pj_bool_t acc_check_nat_addr(pjsua_acc *acc,
                 pjsip_publishc_set_via_sent_by(acc->publish_sess,
                                                &acc->via_addr, acc->via_tp);
         }
+    }
+
+    /* Save mapped address if needed */
+    if (acc->cfg.allow_sdp_nat_rewrite &&
+	pj_strcmp(&acc->reg_mapped_addr, via_addr))
+    {
+	pj_strdup(acc->pool, &acc->reg_mapped_addr, via_addr);
     }
 
     /* Only update if account is configured to auto-update */
@@ -1682,7 +1701,8 @@ void update_service_route(pjsua_acc *acc, pjsip_rx_data *rdata)
     const pj_str_t HNAME = { "Service-Route", 13 };
     const pj_str_t HROUTE = { "Route", 5 };
     pjsip_uri *uri[PJSUA_ACC_MAX_PROXIES];
-    unsigned i, uri_cnt = 0, rcnt;
+    unsigned i, uri_cnt = 0;
+    pj_size_t rcnt;
 
     /* Find and parse Service-Route headers */
     for (;;) {
@@ -1985,6 +2005,7 @@ static void regc_cb(struct pjsip_regc_cbparam *param)
 	pjsip_regc_destroy(acc->regc);
 	acc->regc = NULL;
 	acc->contact.slen = 0;
+	acc->reg_mapped_addr.slen = 0;
 	
 	/* Stop keep-alive timer if any. */
 	update_keep_alive(acc, PJ_FALSE, NULL);
@@ -1996,6 +2017,7 @@ static void regc_cb(struct pjsip_regc_cbparam *param)
 	pjsip_regc_destroy(acc->regc);
 	acc->regc = NULL;
 	acc->contact.slen = 0;
+	acc->reg_mapped_addr.slen = 0;
 
 	/* Stop keep-alive timer if any. */
 	update_keep_alive(acc, PJ_FALSE, NULL);
@@ -2010,6 +2032,7 @@ static void regc_cb(struct pjsip_regc_cbparam *param)
 	    pjsip_regc_destroy(acc->regc);
 	    acc->regc = NULL;
 	    acc->contact.slen = 0;
+	    acc->reg_mapped_addr.slen = 0;
 
 	    /* Stop keep-alive timer if any. */
 	    update_keep_alive(acc, PJ_FALSE, NULL);
@@ -2115,6 +2138,7 @@ static pj_status_t pjsua_regc_init(int acc_id)
 	pjsip_regc_destroy(acc->regc);
 	acc->regc = NULL;
 	acc->contact.slen = 0;
+	acc->reg_mapped_addr.slen = 0;
     }
 
     /* initialize SIP registration if registrar is configured */
@@ -2163,6 +2187,7 @@ static pj_status_t pjsua_regc_init(int acc_id)
 	pj_pool_release(pool);
 	acc->regc = NULL;
 	acc->contact.slen = 0;
+	acc->reg_mapped_addr.slen = 0;
 	return status;
     }
 
@@ -2617,6 +2642,7 @@ PJ_DEF(pjsua_acc_id) pjsua_acc_find_for_incoming(pjsip_rx_data *rdata)
 {
     pjsip_uri *uri;
     pjsip_sip_uri *sip_uri;
+    pjsua_acc_id id = PJSUA_INVALID_ID;
     unsigned i;
 
     /* Check that there's at least one account configured */
@@ -2645,8 +2671,8 @@ PJ_DEF(pjsua_acc_id) pjsua_acc_find_for_incoming(pjsip_rx_data *rdata)
 	    pj_stricmp(&acc->srv_domain, &sip_uri->host)==0) 
 	{
 	    /* Match ! */
-	    PJSUA_UNLOCK();
-	    return acc_id;
+	    id = acc_id;
+	    goto on_return;
 	}
     }
 
@@ -2657,8 +2683,8 @@ PJ_DEF(pjsua_acc_id) pjsua_acc_find_for_incoming(pjsip_rx_data *rdata)
 
 	if (acc->valid && pj_stricmp(&acc->srv_domain, &sip_uri->host)==0) {
 	    /* Match ! */
-	    PJSUA_UNLOCK();
-	    return acc_id;
+	    id = acc_id;
+	    goto on_return;
 	}
     }
 
@@ -2680,14 +2706,27 @@ PJ_DEF(pjsua_acc_id) pjsua_acc_find_for_incoming(pjsip_rx_data *rdata)
 	    }
 
 	    /* Match ! */
-	    PJSUA_UNLOCK();
-	    return acc_id;
+	    id = acc_id;
+	    goto on_return;
 	}
     }
 
-    /* Still no match, use default account */
+on_return:
     PJSUA_UNLOCK();
-    return pjsua_var.default_acc;
+
+    /* Still no match, use default account */
+    if (id == PJSUA_INVALID_ID)
+	id = pjsua_var.default_acc;
+
+    /* Invoke account find callback */
+    if (pjsua_var.ua_cfg.cb.on_acc_find_for_incoming)
+	(*pjsua_var.ua_cfg.cb.on_acc_find_for_incoming)(rdata, &id);
+
+    /* Verify if the specified account id is valid */
+    if (!pjsua_acc_is_valid(id))
+	id = pjsua_var.default_acc;
+
+    return id;
 }
 
 

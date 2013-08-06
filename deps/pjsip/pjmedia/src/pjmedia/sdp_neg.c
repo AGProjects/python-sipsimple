@@ -33,6 +33,7 @@ struct pjmedia_sdp_neg
 {
     pjmedia_sdp_neg_state state;	    /**< Negotiator state.	     */
     pj_bool_t		  prefer_remote_codec_order;
+    pj_bool_t             answer_with_multiple_codecs;
     pj_bool_t		  has_remote_answer;
     pj_bool_t		  answer_was_remote;
 
@@ -114,6 +115,7 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_create_w_local_offer( pj_pool_t *pool,
 
     neg->state = PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER;
     neg->prefer_remote_codec_order = PJMEDIA_SDP_NEG_PREFER_REMOTE_CODEC_ORDER;
+    neg->answer_with_multiple_codecs = PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS;
     neg->initial_sdp = pjmedia_sdp_session_clone(pool, local);
     neg->neg_local_sdp = pjmedia_sdp_session_clone(pool, local);
 
@@ -178,6 +180,19 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_set_prefer_remote_codec_order(
 {
     PJ_ASSERT_RETURN(neg, PJ_EINVAL);
     neg->prefer_remote_codec_order = prefer_remote;
+    return PJ_SUCCESS;
+}
+
+
+/*
+ * Set multiple codec answering.
+ */
+PJ_DEF(pj_status_t) pjmedia_sdp_neg_set_answer_multiple_codecs(
+                        pjmedia_sdp_neg *neg,
+                        pj_bool_t answer_multiple)
+{
+    PJ_ASSERT_RETURN(neg, PJ_EINVAL);
+    neg->answer_with_multiple_codecs = answer_multiple;
     return PJ_SUCCESS;
 }
 
@@ -276,6 +291,15 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_modify_local_offer( pj_pool_t *pool,
 				    pjmedia_sdp_neg *neg,
 				    const pjmedia_sdp_session *local)
 {
+    return pjmedia_sdp_neg_modify_local_offer2(pool, neg, 0, local);
+}
+
+PJ_DEF(pj_status_t) pjmedia_sdp_neg_modify_local_offer2(
+                                    pj_pool_t *pool,
+				    pjmedia_sdp_neg *neg,
+                                    unsigned flags,
+				    const pjmedia_sdp_session *local)
+{
     pjmedia_sdp_session *new_offer;
     pjmedia_sdp_session *old_offer;
     char media_used[PJMEDIA_MAX_SDP_MEDIA];
@@ -314,45 +338,63 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_modify_local_offer( pj_pool_t *pool,
     pj_strdup(pool, &new_offer->origin.addr_type,&old_offer->origin.addr_type);
     pj_strdup(pool, &new_offer->origin.addr, &old_offer->origin.addr);
 
-    /* Generating the new offer, in the case media lines doesn't match the
-     * active SDP (e.g. current/active SDP's have m=audio and m=video lines, 
-     * and the new offer only has m=audio line), the negotiator will fix 
-     * the new offer by reordering and adding the missing media line with 
-     * port number set to zero.
-     */
-    for (oi = 0; oi < old_offer->media_count; ++oi) {
-	pjmedia_sdp_media *om;
-	pjmedia_sdp_media *nm;
-	unsigned ni; /* new offer media index */
-	pj_bool_t found = PJ_FALSE;
+    if ((flags & PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE) == 0) {
+       /* Generating the new offer, in the case media lines doesn't match the
+        * active SDP (e.g. current/active SDP's have m=audio and m=video lines,
+        * and the new offer only has m=audio line), the negotiator will fix 
+        * the new offer by reordering and adding the missing media line with 
+        * port number set to zero.
+        */
+        for (oi = 0; oi < old_offer->media_count; ++oi) {
+	    pjmedia_sdp_media *om;
+	    pjmedia_sdp_media *nm;
+	    unsigned ni; /* new offer media index */
+	    pj_bool_t found = PJ_FALSE;
 
-	om = old_offer->media[oi];
-	for (ni = oi; ni < new_offer->media_count; ++ni) {
-	    nm = new_offer->media[ni];
-	    if (pj_strcmp(&nm->desc.media, &om->desc.media) == 0) {
-		if (ni != oi) {
-		    /* The same media found but the position unmatched to the 
-		     * old offer, so let's put this media in the right place, 
-		     * and keep the order of the rest.
-		     */
-		    pj_array_insert(new_offer->media,		 /* array    */
-				    sizeof(new_offer->media[0]), /* elmt size*/
-				    ni,				 /* count    */
-				    oi,				 /* pos      */
-				    &nm);			 /* new elmt */
-		}
-		found = PJ_TRUE;
-		break;
+	    om = old_offer->media[oi];
+	    for (ni = oi; ni < new_offer->media_count; ++ni) {
+	        nm = new_offer->media[ni];
+	        if (pj_strcmp(&nm->desc.media, &om->desc.media) == 0) {
+		    if (ni != oi) {
+		        /* The same media found but the position unmatched to
+                         * the old offer, so let's put this media in the right
+                         * place, and keep the order of the rest.
+		         */
+		        pj_array_insert(
+                            new_offer->media,		 /* array    */
+			    sizeof(new_offer->media[0]), /* elmt size*/
+			    ni,				 /* count    */
+		            oi,				 /* pos      */
+			    &nm);			 /* new elmt */
+		    }
+		    found = PJ_TRUE;
+		    break;
+	        }
 	    }
-	}
-	if (!found) {
-	    pjmedia_sdp_media *m;
+	    if (!found) {
+	        pjmedia_sdp_media *m;
 
-	    m = sdp_media_clone_deactivate(pool, om, om, local);
+	        m = sdp_media_clone_deactivate(pool, om, om, local);
+
+	        pj_array_insert(new_offer->media, sizeof(new_offer->media[0]),
+			        new_offer->media_count++, oi, &m);
+	    }
+        }
+    } else {
+        /* If media type change is allowed, the negotiator only needs to fix 
+         * the new offer by adding the missing media line(s) with port number
+         * set to zero.
+         */
+        for (oi = new_offer->media_count; oi < old_offer->media_count; ++oi) {
+            pjmedia_sdp_media *m;
+
+	    m = sdp_media_clone_deactivate(pool, old_offer->media[oi],
+                                           old_offer->media[oi], local);
 
 	    pj_array_insert(new_offer->media, sizeof(new_offer->media[0]),
-			    new_offer->media_count++, oi, &m);
-	}
+	                    new_offer->media_count++, oi, &m);
+
+        }
     }
 
     /* New_offer fixed */
@@ -909,7 +951,7 @@ static pj_status_t process_answer(pj_pool_t *pool,
 PJ_INLINE(void) rewrite_pt(pj_pool_t *pool, pj_str_t *attr_val,
 			   const pj_str_t *old_pt, const pj_str_t *new_pt)
 {
-    int len_diff = new_pt->slen - old_pt->slen;
+    int len_diff = (int)(new_pt->slen - old_pt->slen);
 
     /* Note that attribute value should be null-terminated. */
     if (len_diff > 0) {
@@ -982,6 +1024,7 @@ static void apply_answer_symmetric_pt(pj_pool_t *pool,
 /* Try to match offer with answer. */
 static pj_status_t match_offer(pj_pool_t *pool,
 			       pj_bool_t prefer_remote_codec_order,
+                               pj_bool_t answer_with_multiple_codecs,
 			       const pjmedia_sdp_media *offer,
 			       const pjmedia_sdp_media *preanswer,
 			       const pjmedia_sdp_session *preanswer_sdp,
@@ -1047,11 +1090,11 @@ static pj_status_t match_offer(pj_pool_t *pool,
 
 		master_has_codec = 1;
 
-		/* We just need to select one codec. 
+		/* We just need to select one codec if not allowing multiple.
 		 * Continue if we have selected matching codec for previous 
 		 * payload.
 		 */
-		if (found_matching_codec)
+		if (!answer_with_multiple_codecs && found_matching_codec)
 		    continue;
 
 		/* Find matching codec in local descriptor. */
@@ -1091,7 +1134,7 @@ static pj_status_t match_offer(pj_pool_t *pool,
 		    is_codec = 0;
 		} else {
 		    master_has_codec = 1;
-		    if (found_matching_codec)
+		    if (!answer_with_multiple_codecs && found_matching_codec)
 			continue;
 		    is_codec = 1;
 		}
@@ -1249,6 +1292,7 @@ static pj_status_t match_offer(pj_pool_t *pool,
 /* Create complete answer for remote's offer. */
 static pj_status_t create_answer( pj_pool_t *pool,
 				  pj_bool_t prefer_remote_codec_order,
+                                  pj_bool_t answer_with_multiple_codecs,
 				  const pjmedia_sdp_session *initial,
 				  const pjmedia_sdp_session *offer,
 				  pjmedia_sdp_session **p_answer)
@@ -1298,7 +1342,8 @@ static pj_status_t create_answer( pj_pool_t *pool,
                 pj_status_t status2;
 
 		/* See if it has matching codec. */
-		status2 = match_offer(pool, prefer_remote_codec_order, 
+		status2 = match_offer(pool, prefer_remote_codec_order,
+                                      answer_with_multiple_codecs,
 				      om, im, initial, &am);
 		if (status2 == PJ_SUCCESS) {
 		    /* Mark media as used. */
@@ -1396,7 +1441,8 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_negotiate( pj_pool_t *pool,
     } else {
 	pjmedia_sdp_session *answer = NULL;
 
-	status = create_answer(pool, neg->prefer_remote_codec_order, 
+	status = create_answer(pool, neg->prefer_remote_codec_order,
+                               neg->answer_with_multiple_codecs,
 			       neg->neg_local_sdp, neg->neg_remote_sdp,
 			       &answer);
 	if (status == PJ_SUCCESS) {

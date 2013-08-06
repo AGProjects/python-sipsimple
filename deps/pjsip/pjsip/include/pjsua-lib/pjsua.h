@@ -1276,6 +1276,27 @@ typedef struct pjsua_callback
                                                     pjmedia_transport *base_tp,
                                                     unsigned flags);
 
+    /**
+     * This callback can be used by application to override the account
+     * to be used to handle an incoming message. Initially, the account to
+     * be used will be calculated automatically by the library. This initial
+     * account will be used if application does not implement this callback,
+     * or application sets an invalid account upon returning from this
+     * callback.
+     *
+     * Note that currently the incoming messages requiring account assignment
+     * are INVITE, MESSAGE, SUBSCRIBE, and unsolicited NOTIFY. This callback
+     * may be called before the callback of the SIP event itself, i.e:
+     * incoming call, pager, subscription, or unsolicited-event.
+     *
+     * @param rdata	The incoming message.
+     * @param acc_id 	On input, initial account ID calculated automatically
+     *			by the library. On output, the account ID prefered
+     *			by application to handle the incoming message.
+     */
+    void (*on_acc_find_for_incoming)(const pjsip_rx_data *rdata,
+				     pjsua_acc_id* acc_id);
+
 } pjsua_callback;
 
 
@@ -1663,6 +1684,13 @@ PJ_DECL(void) pjsua_config_dup(pj_pool_t *pool,
  */
 struct pjsua_msg_data
 {
+    /**
+     * Optional remote target URI (i.e. Target header). If NULL, the target
+     * will be set to the remote URI (To header). At the moment this field
+     * is only used by #pjsua_call_make_call() and #pjsua_im_send().
+     */
+    pj_str_t    target_uri;
+
     /**
      * Additional message headers as linked list. Application can add
      * headers to the list by creating the header, either from the heap/pool
@@ -3008,6 +3036,18 @@ typedef struct pjsua_acc_config
      * Default: 1 (yes)
      */
     pj_bool_t        allow_via_rewrite;
+
+    /**
+     * This option controls whether the IP address in SDP should be replaced
+     * with the IP address found in Via header of the REGISTER response, ONLY
+     * when STUN and ICE are not used. If the value is FALSE (the original
+     * behavior), then the local IP address will be used. If TRUE, and when
+     * STUN and ICE are disabled, then the IP address found in registration
+     * response will be used.
+     *
+     * Default: PJ_FALSE (no)
+     */
+    pj_bool_t        allow_sdp_nat_rewrite;
 
     /**
      * Control the use of SIP outbound feature. SIP outbound is described in

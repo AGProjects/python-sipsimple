@@ -386,7 +386,7 @@ on_make_call_med_tp_complete(pjsua_call_id call_id,
 
     if (status != PJ_SUCCESS) {
 	pj_str_t err_str;
-	int title_len;
+	pj_ssize_t title_len;
 
 	call->last_code = PJSIP_SC_TEMPORARILY_UNAVAILABLE;
 	pj_strcpy2(&call->last_text, "Media init error: ");
@@ -722,7 +722,10 @@ PJ_DEF(pj_status_t) pjsua_call_make_call(pjsua_acc_id acc_id,
     /* Create outgoing dialog: */
     status = pjsip_dlg_create_uac( pjsip_ua_instance(), 
 				   &acc->cfg.id, &contact,
-				   dest_uri, dest_uri, &dlg);
+				   dest_uri,
+                                   (msg_data && msg_data->target_uri.slen?
+                                    &msg_data->target_uri: dest_uri),
+                                   &dlg);
     if (status != PJ_SUCCESS) {
 	pjsua_perror(THIS_FILE, "Dialog creation failed", status);
 	goto on_error;
