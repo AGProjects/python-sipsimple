@@ -1875,6 +1875,7 @@ class Session(object):
         notification_center = NotificationCenter()
         if self._invitation is None or self._invitation.state is None:
             # The invitation was not yet constructed
+            self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
             return
         invitation_state = self._invitation.state
