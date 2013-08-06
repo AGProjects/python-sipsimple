@@ -1485,10 +1485,9 @@ cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     except:
         ua._handle_exception(1)
 
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil:
+cdef int _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
     cdef int status
     cdef pjsip_tx_data *answer_tdata
-    cdef pjsip_rdata_sdp_info *sdp_info
     cdef object rdata_dict = None
     cdef Invitation invitation
     cdef PJSIPUA ua
@@ -1496,12 +1495,12 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdat
     try:
         ua = _get_ua()
     except:
-        return
+        return 1
     try:
         if inv.mod_data[ua._module.id] != NULL:
             invitation = (<object> inv.mod_data[ua._module.id])()
             if invitation is None:
-                return
+                return 1
             if invitation.peer_address is None:
                 invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
             else:
@@ -1515,9 +1514,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdat
                 raise PJSIPError("Could not create initial (unused) response to re-INVITE", status)
             with nogil:
                 pjsip_tx_data_dec_ref(answer_tdata)
-            with nogil:
-                sdp_info = pjsip_rdata_get_sdp_info(rdata)
-            if sdp_info.sdp != NULL:
+            if offer != NULL:
                 sub_state = "received_proposal"
             else:
                 sub_state = "received_proposal_request"
@@ -1526,8 +1523,11 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdat
                 timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
             except:
                 invitation._fail(ua)
+                return 1
+            return 0
     except:
         ua._handle_exception(1)
+        return 1
 
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
     cdef pjsip_rx_data *rdata = NULL

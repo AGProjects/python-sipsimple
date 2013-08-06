@@ -1044,14 +1044,8 @@ cdef extern from "pjsip_ua.h":
         void on_state_changed(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_new_session(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
-        void on_rx_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil
         void on_media_update(pjsip_inv_session *inv, int status) with gil
-        #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
-        void on_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
-    struct pjsip_rdata_sdp_info:
-        pj_str_t body
-        int sdp_err
-        pjmedia_sdp_session *sdp
+        int on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
     int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb) nogil
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify) nogil
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata) nogil
@@ -1072,7 +1066,6 @@ cdef extern from "pjsip_ua.h":
     int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact,
                            pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata) nogil
     int pjsip_create_sdp_body(pj_pool_t *pool, pjmedia_sdp_session *sdp, pjsip_msg_body **p_body) nogil
-    pjsip_rdata_sdp_info *pjsip_rdata_get_sdp_info(pjsip_rx_data *rdata) nogil
 
     # Replaces
     struct pjsip_replaces_hdr:
@@ -2080,7 +2073,7 @@ cdef class Invitation(object):
 
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjsip_rx_data *rdata) with gil
+cdef int _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_transfer_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
