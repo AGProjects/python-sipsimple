@@ -53,7 +53,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJ_DNS_RESOLVER_MAX_TTL 0",
                    "#define PJ_DNS_RESOLVER_INVALID_TTL 0",
                    "#define PJSIP_TRANSPORT_IDLE_TIME 7200",
-                   "#define PJ_ENABLE_EXTRA_CHECK 1"]
+                   "#define PJ_ENABLE_EXTRA_CHECK 1",
+                   "#define PJSIP_DONT_SWITCH_TO_TCP 1"]
 
     user_options = build_ext.user_options
     user_options.extend([
