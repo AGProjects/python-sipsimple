@@ -11,7 +11,9 @@ import cPickle
 import os
 import random
 import weakref
+
 from cStringIO import StringIO
+from collections import OrderedDict
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter
@@ -21,7 +23,6 @@ from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.decorator import execute_once
-from backports.collections import OrderedDict
 from eventlib import api, coros, proc
 from eventlib.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost

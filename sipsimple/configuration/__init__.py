@@ -12,13 +12,13 @@ from abc import ABCMeta, abstractmethod
 from itertools import chain
 from operator import attrgetter
 from threading import Lock
+from weakref import WeakSet
 
 from application import log
 from application.notification import NotificationCenter, NotificationData
 from application.python.descriptor import isdescriptor
 from application.python.types import Singleton
 from application.python.weakref import weakobjectmap
-from backports.weakref import WeakSet
 
 from sipsimple.threading import run_in_thread
 
@@ -772,8 +772,7 @@ class ItemCollection(SettingsGroup):
         with self._lock:
             super(ItemCollection, self).__setstate__(state)
             setting_names = set(name for name in dir(self.__class__) if isinstance(getattr(self.__class__, name, None), (SettingsGroupMeta, AbstractSetting)))
-            kwdict = lambda dct: dict((str(key), value) for key, value in dct.iteritems()) # in python < 2.6.5 keyword arg names must be strings. To be removed later -Dan
-            self._item_map = ItemMap((id, self._item_type(id, **kwdict(item_state))) for id, item_state in state.iteritems() if id not in setting_names)
+            self._item_map = ItemMap((id, self._item_type(id, **item_state)) for id, item_state in state.iteritems() if id not in setting_names)
 
     def get_modified(self):
         with self._lock:
