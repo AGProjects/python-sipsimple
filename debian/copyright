@@ -9,7 +9,7 @@ Authors:
   Lucian Stanescu
   Saúl Ibarra
 
-Copyright (C) 2008-2012 AG Projects
+Copyright (C) 2008-2013 AG Projects
 
 License:
 
@@ -30,5 +30,4 @@ License:
 On Debian systems, the complete text of the GNU General Public License can
 be found in `/usr/share/common-licenses/GPL-3'.
 
-The Debian packaging is (C) 2008, Luci Stanescu <luci@ag-projects.com> and
-is licensed under the GPL-3, see above.
+The Debian packaging is (C) 2008 AG Projects and is licensed under the GPL-3.
