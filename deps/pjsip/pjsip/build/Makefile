@@ -17,7 +17,6 @@ PJMEDIA_CODEC_LIB:=../../pjmedia/lib/libpjmedia-codec-$(TARGET_NAME)$(LIBEXT)
 export PJSIP_LIB:=../lib/libpjsip-$(TARGET_NAME)$(LIBEXT)
 export PJSIP_UA_LIB:=../lib/libpjsip-ua-$(TARGET_NAME)$(LIBEXT)
 export PJSIP_SIMPLE_LIB:=../lib/libpjsip-simple-$(TARGET_NAME)$(LIBEXT)
-export PJSUA_LIB_LIB=../lib/libpjsua-$(TARGET_NAME)$(LIBEXT)
 
 
 ###############################################################################
@@ -70,17 +69,6 @@ export PJSIP_SIMPLE_OBJS += $(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
 export PJSIP_SIMPLE_CFLAGS += $(_CFLAGS)
 
 
-###############################################################################
-# Defines for building PJSUA-LIB library
-#
-export PJSUA_LIB_SRCDIR = ../src/pjsua-lib
-export PJSUA_LIB_OBJS += $(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
-			pjsua_acc.o pjsua_call.o pjsua_core.o \
-			pjsua_im.o pjsua_media.o pjsua_pres.o \
-			pjsua_dump.o pjsua_aud.o pjsua_vid.o
-export PJSUA_LIB_CFLAGS += $(_CFLAGS) $(PJ_VIDEO_CFLAGS)
-
-
 export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT 
 
 ###############################################################################
@@ -124,7 +112,7 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: dep depend pjsip pjsip-ua pjsua-lib clean realclean distclean
+.PHONY: dep depend pjsip pjsip-ua clean realclean distclean
 
 pjsip:
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP app=pjsip $(PJSIP_LIB)
@@ -134,9 +122,6 @@ pjsip-ua:
 
 pjsip-simple:
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $(PJSIP_SIMPLE_LIB)
-
-pjsua-lib: 
-	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $(PJSUA_LIB_LIB)
 
 pjsip-test: pjsip
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjsip-test $(TEST_EXE)
@@ -156,36 +141,27 @@ pjsip-test: pjsip
 	echo Making $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $@
 
-.PHONY: ../lib/pjsua-lib.ko
-../lib/pjsua-lib.ko:
-	echo Making $@
-	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $@
-
 clean:
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP app=pjsip $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_UA app=pjsip-ua $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $@
-	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $@
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjsip-test $@
 
 depend:
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP app=pjsip $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_UA app=pjsip-ua $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $@
-	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $@
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjsip-test $@
-	echo '$(TEST_EXE): $(PJMEDIA_LIB) $(PJSUA_LIB_LIB) $(PJSIP_SIMPLE_LIB) $(PJSIP_UA_LIB) $(PJSIP_LIB) $(PJNATH_LIB) $(PJLIB_UTIL_LIB) $(PJLIB_LIB)' >> .pjsip-test-$(TARGET_NAME).depend
+	echo '$(TEST_EXE): $(PJMEDIA_LIB) $(PJSIP_SIMPLE_LIB) $(PJSIP_UA_LIB) $(PJSIP_LIB) $(PJNATH_LIB) $(PJLIB_UTIL_LIB) $(PJLIB_LIB)' >> .pjsip-test-$(TARGET_NAME).depend
 
 realclean:
 	$(subst @@,$(subst /,$(HOST_PSEP),.pjsip-$(TARGET_NAME).depend),$(HOST_RMR))
 	$(subst @@,$(subst /,$(HOST_PSEP),.pjsip-ua-$(TARGET_NAME).depend),$(HOST_RMR))
 	$(subst @@,$(subst /,$(HOST_PSEP),.pjsip-simple-$(TARGET_NAME).depend),$(HOST_RMR))
-	$(subst @@,$(subst /,$(HOST_PSEP),.pjsua-lib-$(TARGET_NAME).depend),$(HOST_RMR))
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP app=pjsip $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_UA app=pjsip-ua $@
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $@
 	$(MAKE) -f $(RULES_MAK) APP=TEST app=pjsip-test $@
-	$(MAKE) -f $(RULES_MAK) APP=PJSUA_LIB app=pjsua-lib $@
 
 
 
