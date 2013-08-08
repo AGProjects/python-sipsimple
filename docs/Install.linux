@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Linux
 -------------------------------------------
 
-Copyright (c) 2008-2012 AG Projects
+Copyright (c) 2008-2013 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
@@ -15,14 +15,14 @@ Step 1. Prerequisites
 ---------------------
 
 Both i386 or amd64 architectures are supported. Install the C compiling
-environment, Python 2.6 or 2.7 and the development version for the following
+environment, Python 2.7 and the development version for the following
 packages:
 
  * openssl
  * gnutls >=2.4.1
  * libxml2 >=2.6.32
  * libxslt >=1.1.24
- * python-setuptools =>0.6c9
+ * python-setuptools >=0.6c9
  * darcs version control tool
 
 
@@ -47,7 +47,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-backports
+ 1. python-eventlib
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -60,18 +60,6 @@ if [ -d python-eventlib ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlib
         cd python-eventlib
-        sudo python setup.py install
-fi
-cd ..
-
-# Backports
-if [ -d python-backports ]; then
-        cd python-backports
-        darcs pull -a
-        sudo python setup.py install
-else
-        darcs get http://devel.ag-projects.com/repositories/python-backports
-        cd python-backports
         sudo python setup.py install
 fi
 cd ..

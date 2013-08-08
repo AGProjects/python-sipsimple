@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Microsoft Windows
 -------------------------------------------------------
 
-Copyright (c) 2008-2012 AG Projects
+Copyright (c) 2008-2013 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
@@ -15,12 +15,12 @@ Step 1. Prerequisites
 ---------------------
 	
 The building process is designed to work with MinGW compiler. A proper
-MSYS/MinGW setup is necessary along with Python (>= 2.6).  The development
+MSYS/MinGW setup is necessary along with Python 2.7.  The development
 version of the following packages are also needed:
 
  * openssl
  * gnutls >=2.4.1
- * python-setuptools =>0.6c9
+ * python-setuptools >=0.6c9
  * darcs version control tool
 
 Required MSYS and MinGW packages:
@@ -76,7 +76,7 @@ The installer includes the following components:
  * MinGW compiler
  * Darcs and subversion version control tools
  * Python (2.6.5)
- * python-srtuptools (0.6c11)
+ * python-setuptools (0.6c11)
  * GNUTLS (2.8.6)
  * OpenSSL (1.0.0a)
  * Apple Bonjour SDK
@@ -86,7 +86,7 @@ When using the installer select the default options proposed by the installer.
 
 After the above dependencies have been installed, the distutils Python
 package needs to be configured to use MinGW as the compiler. Create the file
-C:\Python26\Lib\distutils\distutils.cfg with the following content:
+C:\Python27\Lib\distutils\distutils.cfg with the following content:
 
 -- BEGIN distutils.cfg --
 [build]
@@ -155,7 +155,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-backports
+ 1. python-eventlib
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -172,18 +172,6 @@ else
         cd python-eventlib
 fi
 python setup.py install
-cd ..
-
-# Backports
-if [ -d python-backports ]; then
-        cd python-backports
-        darcs pull -a
-        sudo python setup.py install
-else
-        darcs get http://devel.ag-projects.com/repositories/python-backports
-        cd python-backports
-        sudo python setup.py install
-fi
 cd ..
 
 # XCAP library
@@ -221,5 +209,5 @@ python setup.py install
 cd ..
 
 
-The software has been installed in C:\Python26\Lib\site-packages
+The software has been installed in C:\Python27\Lib\site-packages
 

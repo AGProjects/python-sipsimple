@@ -2,7 +2,7 @@
 Installation procedure for SIP SIMPLE client SDK on MacOSX Lion
 ---------------------------------------------------------------
 
-Copyright (c) 2008-2012 AG Projects
+Copyright (c) 2008-2013 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
@@ -24,7 +24,7 @@ Step 1. Prerequisites
  * Apple Developer tools (XCode 4.4)
  * darcs version control tool from http://www.darcs.net
 
-The procedure below relies on Python interpreter 2.6 that comes with MacOSX
+The procedure below relies on Python interpreter 2.7 that comes with MacOSX
 Lion and Xcode version 4.4.  Make sure that during the building process you
 are not involving external tools or libraries like the ones provided by Fink
 or Darwin Ports distributions.
@@ -86,7 +86,7 @@ cd ..
 
 
 B. Build and install the Python dependencies by using the easy_install tool.
-The software will be installed in /Library/Python/2.6/site-packages folder.
+The software will be installed in /Library/Python/2.7/site-packages folder.
 
 You must become root first. The export the following environment variables
 before starting the build process:
@@ -110,7 +110,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-backports
+ 1. python-eventlib
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -123,18 +123,6 @@ if [ -d python-eventlib ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlib
         cd python-eventlib
-        sudo python setup.py install
-fi
-cd ..
-
-# Backports
-if [ -d python-backports ]; then
-        cd python-backports
-        darcs pull -a
-        sudo python setup.py install
-else
-        darcs get http://devel.ag-projects.com/repositories/python-backports
-        cd python-backports
         sudo python setup.py install
 fi
 cd ..

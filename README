@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK
 ---------------------
 
-Copyright (c) 2008-2012 AG Projects
+Copyright (c) 2008-2013 AG Projects
 http://ag-projects.com
 
 
@@ -103,7 +103,7 @@ NAT Traversal
    (draft-ietf-mmusic-ice-19)
  * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay
    extension (RFC 4976)
-  
+
 Voice over IP
 
  * RTP, A Transport Protocol for Real-Time Applications (RFC 3550)

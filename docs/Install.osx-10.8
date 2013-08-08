@@ -111,7 +111,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. python-eventlib, python-backports
+ 1. python-eventlib
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -124,18 +124,6 @@ if [ -d python-eventlib ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlib
         cd python-eventlib
-        sudo python setup.py install
-fi
-cd ..
-
-# Backports
-if [ -d python-backports ]; then
-        cd python-backports
-        darcs pull -a
-        sudo python setup.py install
-else
-        darcs get http://devel.ag-projects.com/repositories/python-backports
-        cd python-backports
         sudo python setup.py install
 fi
 cd ..
