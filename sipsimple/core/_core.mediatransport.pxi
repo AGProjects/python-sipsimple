@@ -1038,7 +1038,7 @@ cdef class ICECandidate:
                                                      self.port,
                                                      ' rel_addr=%s' % self.rel_address if self.rel_address else '',
                                                      self.priority,
-                                                     self.type)
+                                                     self.type.lower())
 
 cdef ICECandidate ICECandidate_create(pj_ice_sess_cand *cand):
     cdef char buf[PJ_INET6_ADDRSTRLEN]
@@ -1079,7 +1079,7 @@ cdef class ICECheck:
     def __str__(self):
         return '%s:%d -> %s:%d (%s, %s)' % (self.local_candidate.address, self.local_candidate.port,
                                             self.remote_candidate.address, self.remote_candidate.port,
-                                            self.state, 'nominated' if self.nominated else 'not nominated')
+                                            self.state.lower(), 'nominated' if self.nominated else 'not nominated')
 
 cdef ICECheck ICECheck_create(pj_ice_sess_check *check):
     cdef str state
