@@ -5,7 +5,6 @@ recursive-include debian  pycompat pyversions *.lintian-overrides
 recursive-include debian  dirs docs
 recursive-include debian/source format
 recursive-include docs    *.txt Install*
-recursive-include patches *.patch
-recursive-include pjsip   *.tar.gz
+recursive-include deps    *
 prune debian/tmp
 prune debian/python-sipsimple
