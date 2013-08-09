@@ -1,3 +1,27 @@
+python-sipsimple (1.0.0) unstable; urgency=low
+
+  * Updated core to PJSIP 2
+  * Added gain control and high pass filter to audio processing
+  * Added Opus codec support
+  * Added support for RFC5768 (ICE option tag)
+  * Added enabled setting for echo canceller and echo_canceller settings group
+  * Fixed echo cancelling when using 32kHz sample rate
+  * Always disable sound device when idle
+  * Removed unused ignore_missing_ack feature
+  * Removed engine shutdown workaround
+  * Removed TLS protocol setting
+  * Removed NAT detector from SIPApplication
+  * Don't cap codecs based on sample rate, let PJSIP resample
+  * Disabled narrowband speex
+  * Fixed starting media stream if ICE fails early
+  * Don't reset stream statistics, always report absolute values
+  * Don't add BonjourAccount to AccountManager if there is no bonjour support
+  * Set session state to terminated when ended before starting
+  * Prevent PJSIP from switching transports automagically
+  * Dropped support for Python 2.6
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 09 Aug 2013 11:17:47 +0200
+
 python-sipsimple (0.35.0) unstable; urgency=low
 
   * Added default URI implementation for contacts
