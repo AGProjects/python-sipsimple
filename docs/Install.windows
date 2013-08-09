@@ -201,7 +201,7 @@ if [ -d python-sipsimple ]; then
 	cd python-sipsimple
 	darcs pull -a
 else 
-	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+	darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
         cd python-sipsimple
 fi
 python setup.py build_ext --pjsip-clean-compile

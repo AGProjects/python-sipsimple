@@ -157,7 +157,7 @@ if [ -d python-sipsimple ]; then
     cd python-sipsimple
     darcs pull -a
 else 
-    darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+    darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
     cd python-sipsimple
 fi
 
@@ -187,7 +187,7 @@ if [ -d sipclients ]; then
     cd sipclients
     darcs pull -a
 else 
-    darcs get http://devel.ag-projects.com/repositories/sipclients
+    darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/sipclients
     cd sipclients
 fi
 sudo python setup.py install
