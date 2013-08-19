@@ -1065,6 +1065,7 @@ class Session(object):
             for index, stream in enumerate(self.proposed_streams):
                 stream.index = index
                 media = stream.get_local_media(for_offer=True)
+                media.connection = None
                 local_sdp.media.append(media)
             from_header = FromHeader(self.account.uri, self.account.display_name)
             route_header = RouteHeader(self.route.uri)
@@ -1282,6 +1283,7 @@ class Session(object):
                     stream = stream_map.get(index, None)
                     if stream is not None:
                         media = stream.get_local_media(for_offer=False)
+                        media.connection = None
                         local_sdp.media.append(media)
                     else:
                         media = SDPMediaStream.new(media)
