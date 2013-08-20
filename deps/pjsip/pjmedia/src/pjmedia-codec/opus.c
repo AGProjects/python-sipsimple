@@ -168,11 +168,13 @@ int opus_to_pjsip_error_code(int opus_error) {
  */
 void apply_opus_codec_params(pj_pool_t* pool, pjmedia_codec_param *attr) {
 	attr->setting.dec_fmtp.cnt = 0;
+	attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].name = pj_str("useinbandfec");
 	if (attr->setting.plc == 0) {
-		attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].name = pj_str("useinbandfec");
-		attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].val = pj_str("0");
-		attr->setting.dec_fmtp.cnt++;
+	    attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].val = pj_str("0");
+	} else {
+	    attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].val = pj_str("1");
 	}
+	attr->setting.dec_fmtp.cnt++;
 	if (attr->setting.vad == 1) {
 		attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].name = pj_str("usedtx");
 		attr->setting.dec_fmtp.param[attr->setting.dec_fmtp.cnt].val = pj_str("1");
@@ -501,7 +503,7 @@ static pj_status_t opus_codec_open(pjmedia_codec *codec, pjmedia_codec_param *at
 	 * TODO : have it configurable
 	 */
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_COMPLEXITY(10));
-	opus_encoder_ctl(opus->psEnc, OPUS_SET_INBAND_FEC(1)); /* SAGHUL: remove */
+	opus_encoder_ctl(opus->psEnc, OPUS_SET_INBAND_FEC(1)); /* on by default */
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_PACKET_LOSS_PERC(5));
 	opus_encoder_ctl(opus->psEnc, OPUS_SET_SIGNAL(OPUS_AUTO));
 
