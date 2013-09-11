@@ -67,11 +67,16 @@ cdef class Invitation:
     expire_warning_time = 30
 
     def __cinit__(self, *args, **kwargs):
+        cdef int status
+
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
 
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "invitation_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         pj_list_init(<pj_list *> &self._route_set)
-        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "invitation_lock", &self._lock)
         self._invite_session = NULL
         self._dialog = NULL
         self._reinvite_transaction = NULL
@@ -820,7 +825,8 @@ cdef class Invitation:
         cdef Timer timer
 
         self._do_dealloc()
-        pj_mutex_destroy(self._lock)
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
         timer = Timer()
         try:

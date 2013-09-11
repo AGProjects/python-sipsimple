@@ -133,10 +133,15 @@ cdef class AudioMixer:
     # public methods
 
     def __cinit__(self, *args, **kwargs):
+        cdef int status
+
         self._connected_slots = list()
         self._input_volume = 100
         self._output_volume = 100
-        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
+
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
 
     def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
         global _dealloc_handler_queue
@@ -207,8 +212,8 @@ cdef class AudioMixer:
             with nogil:
                 pjsip_endpt_release_pool(endpoint, pool)
             self._conf_pool = NULL
-
-        pj_mutex_destroy(self._lock)
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
     def set_sound_devices(self, unicode input_device, unicode output_device, int ec_tail_length):
         cdef int status
@@ -669,6 +674,7 @@ cdef class ToneGenerator:
     # public methods
 
     def __cinit__(self, *args, **kwargs):
+        cdef int status
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
@@ -678,7 +684,10 @@ cdef class ToneGenerator:
         ua = _get_ua()
         endpoint = ua._pjsip_endpoint._obj
 
-        pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "tone_generator_lock", &self._lock)
+        status = pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "tone_generator_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         pool_name = b"ToneGenerator_%d" % id(self)
         c_pool_name = pool_name
         with nogil:
@@ -777,8 +786,8 @@ cdef class ToneGenerator:
             with nogil:
                 pjsip_endpt_release_pool(endpoint, pool)
             self._pool = NULL
-
-        pj_mutex_destroy(self._lock)
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
     def play_tones(self, object tones):
         cdef unsigned int count = 0
@@ -914,7 +923,12 @@ cdef class ToneGenerator:
 
 cdef class RecordingWaveFile:
     def __cinit__(self, *args, **kwargs):
-        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "recording_wave_file_lock", &self._lock)
+        cdef int status
+
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "recording_wave_file_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         self._slot = -1
 
     def __init__(self, AudioMixer mixer, filename):
@@ -1052,17 +1066,23 @@ cdef class RecordingWaveFile:
             ua = _get_ua()
         except:
             return
-
         self._stop(ua)
-        pj_mutex_destroy(self._lock)
+
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
 
 cdef class WaveFile:
     def __cinit__(self, *args, **kwargs):
+        cdef int status
+
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
 
-        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "wave_file_lock", &self._lock)
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "wave_file_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         self._slot = -1
         self._volume = 100
 
@@ -1256,8 +1276,8 @@ cdef class WaveFile:
             timer.schedule(60, deallocate_weakref, self.weakref)
         except SIPCoreError:
             pass
-
-        pj_mutex_destroy(self._lock)
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
     cdef int _cb_eof(self, timer) except -1:
         cdef int status
@@ -1281,7 +1301,12 @@ cdef class WaveFile:
 
 cdef class MixerPort:
     def __cinit__(self, *args, **kwargs):
-        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "mixer_port_lock", &self._lock)
+        cdef int status
+
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "mixer_port_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         self._slot = -1
 
     def __init__(self, AudioMixer mixer):
@@ -1409,9 +1434,9 @@ cdef class MixerPort:
             ua = _get_ua()
         except:
             return
-
         self._stop(ua)
-        pj_mutex_destroy(self._lock)
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
 
 # callback functions

@@ -10,6 +10,7 @@ from errno import EADDRINUSE
 
 cdef class RTPTransport:
     def __cinit__(self, *args, **kwargs):
+        cdef int status
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
@@ -25,7 +26,11 @@ cdef class RTPTransport:
         Py_INCREF(self.weakref)
 
         self._af = pj_AF_INET()
-        pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "rtp_transport_lock", &self._lock)
+
+        status = pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "rtp_transport_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         with nogil:
             pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
         if pool == NULL:
@@ -87,7 +92,8 @@ cdef class RTPTransport:
         if self._pool != NULL:
             with nogil:
                 pjsip_endpt_release_pool(endpoint, pool)
-
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
         timer = Timer()
         try:
             timer.schedule(60, deallocate_weakref, self.weakref)
@@ -537,6 +543,7 @@ cdef class MediaCheckTimer(Timer):
 
 cdef class AudioTransport:
     def __cinit__(self, *args, **kwargs):
+        cdef int status
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
@@ -551,7 +558,10 @@ cdef class AudioTransport:
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
 
-        pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "audio_transport_lock", &self._lock)
+        status = pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "audio_transport_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
         with nogil:
             pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
         if pool == NULL:
@@ -631,7 +641,8 @@ cdef class AudioTransport:
         if self._pool != NULL:
             with nogil:
                 pjsip_endpt_release_pool(endpoint, pool)
-
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
         timer = Timer()
         try:
             timer.schedule(60, deallocate_weakref, self.weakref)

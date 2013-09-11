@@ -608,7 +608,8 @@ cdef class PJSIPUA:
             return
         self._check_thread()
         pjmedia_aud_dev_set_observer_cb(NULL)
-        pj_rwmutex_destroy(self.audio_change_rwlock)
+        if self.audio_change_rwlock != NULL:
+            pj_rwmutex_destroy(self.audio_change_rwlock)
         _process_handler_queue(self, &_dealloc_handler_queue)
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
