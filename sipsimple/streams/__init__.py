@@ -104,10 +104,10 @@ class MediaStreamRegistry(object):
             raise UnknownStreamError("unknown stream type: %s" % type)
 
 
-class MediaStreamRegistrar(type):
+class MediaStreamType(type):
     """Metaclass for adding a MediaStream to the media stream's class registry"""
     def __init__(cls, name, bases, dic):
-        super(MediaStreamRegistrar, cls).__init__(name, bases, dic)
+        super(MediaStreamType, cls).__init__(name, bases, dic)
         MediaStreamRegistry().add(cls)
 
 
@@ -117,5 +117,5 @@ from sipsimple.streams import rtp, msrp
 from sipsimple.streams.rtp import *
 from sipsimple.streams.msrp import *
 
-__all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamRegistrar'] + rtp.__all__ + msrp.__all__
+__all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamType'] + rtp.__all__ + msrp.__all__
 

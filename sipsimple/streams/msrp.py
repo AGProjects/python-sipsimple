@@ -42,7 +42,7 @@ from msrplib.transport import make_response, make_report
 from sipsimple.account import Account, BonjourAccount
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
-from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
+from sipsimple.streams import IMediaStream, MediaStreamType, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import run_in_green_thread
@@ -53,7 +53,7 @@ class ChatStreamError(MSRPStreamError): pass
 
 
 class MSRPStreamBase(object):
-    __metaclass__ = MediaStreamRegistrar
+    __metaclass__ = MediaStreamType
 
     implements(IMediaStream, IObserver)
 

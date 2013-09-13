@@ -19,11 +19,11 @@ from sipsimple.audio import AudioBridge, AudioDevice, IAudioPort, WaveRecorder
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
-from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamRegistrar, UnknownStreamError
+from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
 
 
 class AudioStream(object):
-    __metaclass__ = MediaStreamRegistrar
+    __metaclass__ = MediaStreamType
     implements(IMediaStream, IAudioPort, IObserver)
 
     type = 'audio'
