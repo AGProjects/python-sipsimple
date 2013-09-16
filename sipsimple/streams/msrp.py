@@ -717,7 +717,7 @@ class FileTransferStream(MSRPStreamBase):
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
             self.msrp_session.send_report(chunk, 415, 'Invalid Content-Type')
             e = MSRPStreamError("CPIM wrapper is not supported")
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(failure=Failure(e), reason=str(e)))
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(e), reason=str(e)))
             return
         self.msrp_session.send_report(chunk, 200, 'OK')
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
