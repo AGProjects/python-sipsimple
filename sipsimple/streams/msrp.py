@@ -152,11 +152,11 @@ class MSRPStreamBase(object):
                             relay_host = self.session.account.nat_traversal.msrp_relay.host
                             relay_port = self.session.account.nat_traversal.msrp_relay.port
                         relay = MSRPRelaySettings(domain=self.session.account.uri.host,
-                                                    username=self.session.account.uri.user,
-                                                    password=self.session.account.credentials.password,
-                                                    host=relay_host,
-                                                    port=relay_port,
-                                                    use_tls=self.transport=='tls')
+                                                  username=self.session.account.uri.user,
+                                                  password=self.session.account.credentials.password,
+                                                  host=relay_host,
+                                                  port=relay_port,
+                                                  use_tls=self.transport=='tls')
                         self.msrp_connector = RelayConnection(relay, 'passive', logger=logger, use_sessmatch=True)
                         self.local_role = 'actpass' if outgoing else 'passive'
                 else:
