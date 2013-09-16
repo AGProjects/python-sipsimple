@@ -1008,11 +1008,6 @@ class ScreenSharingStream(MSRPStreamBase):
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         return stream
 
-    def initialize(self, session, direction):
-        NotificationCenter().add_observer(self, sender=self.handler)
-        self.handler.initialize(self)
-        MSRPStreamBase.initialize(self, session, direction)
-
     def _create_local_media(self, uri_path):
         local_media = MSRPStreamBase._create_local_media(self, uri_path)
         local_media.attributes.append(SDPAttribute('rfbsetup', self.handler.type))
@@ -1067,6 +1062,10 @@ class ScreenSharingStream(MSRPStreamBase):
                     break
                 NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
                 break
+
+    def _NH_MediaStreamDidInitialize(self, notification):
+        notification.center.add_observer(self, sender=self.handler)
+        self.handler.initialize(self)
 
     def _NH_MediaStreamDidStart(self, notification):
         self.msrp_reader_thread = spawn(self._msrp_reader)
