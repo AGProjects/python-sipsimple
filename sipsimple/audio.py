@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import
 
-__all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WavePlayer', 'WavePlayerError', 'WaveRecorder']
+__all__ = ['IAudioPort', 'AudioDevice', 'AudioConference', 'AudioBridge', 'RootAudioBridge', 'WavePlayer', 'WavePlayerError', 'WaveRecorder']
 
 import os
 import weakref
@@ -500,4 +500,44 @@ class WaveRecorder(object):
         notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
                                                                                                             old_consumer_slot=old_slot, new_consumer_slot=None))
 
+
+class AudioConference(object):
+    def __init__(self):
+        from sipsimple.application import SIPApplication
+        mixer = SIPApplication.voice_audio_mixer
+        self.bridge = RootAudioBridge(mixer)
+        self.device = AudioDevice(mixer)
+        self.on_hold = False
+        self.streams = []
+        self._lock = RLock()
+
+        self.bridge.add(self.device)
+
+    def add(self, stream):
+        with self._lock:
+            if stream in self.streams:
+                return
+            stream.bridge.remove(stream.device)
+            self.bridge.add(stream.bridge)
+            self.streams.append(stream)
+
+    def remove(self, stream):
+        with self._lock:
+            self.streams.remove(stream)
+            self.bridge.remove(stream.bridge)
+            stream.bridge.add(stream.device)
+
+    def hold(self):
+        with self._lock:
+            if self.on_hold:
+                return
+            self.bridge.remove(self.device)
+            self.on_hold = True
+
+    def unhold(self):
+        with self._lock:
+            if not self.on_hold:
+                return
+            self.bridge.add(self.device)
+            self.on_hold = False
 
