@@ -240,7 +240,7 @@ cdef class AudioMixer:
             if src_slot < 0:
                 raise ValueError("src_slot argument cannot be negative")
             if dst_slot < 0:
-                raise ValueError("d_slot argument cannot be negative")
+                raise ValueError("dst_slot argument cannot be negative")
             connection = (src_slot, dst_slot)
             if connection in self._connected_slots:
                 return
@@ -272,7 +272,7 @@ cdef class AudioMixer:
             if src_slot < 0:
                 raise ValueError("src_slot argument cannot be negative")
             if dst_slot < 0:
-                raise ValueError("d_slot argument cannot be negative")
+                raise ValueError("dst_slot argument cannot be negative")
             connection = (src_slot, dst_slot)
             if connection not in self._connected_slots:
                 return
