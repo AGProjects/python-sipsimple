@@ -291,6 +291,11 @@ cdef class PJSIPUA:
             with nogil:
                 pjsip_endpt_release_pool(endpoint, pool)
 
+    cdef void reset_memory_pool(self, pj_pool_t* pool):
+        if pool != NULL:
+            with nogil:
+                pj_pool_reset(pool)
+
     cdef object _get_sound_devices(self, int is_output):
         global device_name_encoding
         cdef int count

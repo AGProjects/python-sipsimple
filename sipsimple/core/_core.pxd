@@ -76,6 +76,7 @@ cdef extern from "pjlib.h":
     void pj_caching_pool_init(pj_caching_pool *ch_pool, pj_pool_factory_policy *policy, int max_capacity) nogil
     void pj_caching_pool_destroy(pj_caching_pool *ch_pool) nogil
     void *pj_pool_alloc(pj_pool_t *pool, int size) nogil
+    void pj_pool_reset(pj_pool_t *pool) nogil
     pj_pool_t *pj_pool_create_on_buf(char *name, void *buf, int size) nogil
     pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src) nogil
 
@@ -1519,6 +1520,7 @@ cdef class PJSIPUA(object):
 
     cdef pj_pool_t* create_memory_pool(self, bytes name, int initial_size, int resize_size)
     cdef void release_memory_pool(self, pj_pool_t* pool)
+    cdef void reset_memory_pool(self, pj_pool_t* pool)
 
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil

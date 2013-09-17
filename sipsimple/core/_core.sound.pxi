@@ -146,9 +146,9 @@ cdef class AudioMixer:
     def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
         global _dealloc_handler_queue
         cdef int status
-        cdef pj_pool_t *pool
+        cdef pj_pool_t *conf_pool, *snd_pool
         cdef pjmedia_conf **conf_bridge_address
-        cdef bytes conf_pool_name
+        cdef bytes conf_pool_name, snd_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -164,11 +164,15 @@ cdef class AudioMixer:
             raise ValueError("sample_rate argument should be dividable by 50")
         self.sample_rate = sample_rate
         self.slot_count = slot_count
+
         conf_pool_name = b"AudioMixer_%d" % id(self)
-        pool = ua.create_memory_pool(conf_pool_name, 4096, 4096)
-        self._conf_pool = pool
+        conf_pool = ua.create_memory_pool(conf_pool_name, 4096, 4096)
+        self._conf_pool = conf_pool
+        snd_pool_name = b"AudioMixer_snd_%d" % id(self)
+        snd_pool = ua.create_memory_pool(snd_pool_name, 4096, 4096)
+        self._snd_pool = snd_pool
         with nogil:
-            status = pjmedia_conf_create(pool, slot_count+1, sample_rate, 1,
+            status = pjmedia_conf_create(conf_pool, slot_count+1, sample_rate, 1,
                                          sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, conf_bridge_address)
         if status != 0:
             raise PJSIPError("Could not create audio mixer", status)
@@ -196,6 +200,8 @@ cdef class AudioMixer:
             self._obj = NULL
         ua.release_memory_pool(self._conf_pool)
         self._conf_pool = NULL
+        ua.release_memory_pool(self._snd_pool)
+        self._snd_pool = NULL
         if self._lock != NULL:
             pj_mutex_destroy(self._lock)
 
@@ -323,10 +329,10 @@ cdef class AudioMixer:
         cdef pjmedia_snd_port **snd_port_address
         cdef pjmedia_aud_param aud_param
         cdef pjmedia_snd_port_param port_param
-        cdef bytes snd_pool_name
 
         conf_bridge = self._obj
         conf_pool = self._conf_pool
+        snd_pool = self._snd_pool
         master_port_address = &self._master_port
         null_port_address = &self._null_port
         sample_rate = self.sample_rate
@@ -385,9 +391,6 @@ cdef class AudioMixer:
                 if status != 0:
                     raise PJSIPError("Could not start master port for dummy sound device", status)
             else:
-                snd_pool_name = b"AudioMixer_snd_%d" % id(self)
-                snd_pool = ua.create_memory_pool(snd_pool_name, 4096, 4096)
-                self._snd_pool = snd_pool
                 pjmedia_snd_port_param_default(&port_param)
                 idx = input_device_i if input_device is not None else output_device_i
                 with nogil:
@@ -414,12 +417,10 @@ cdef class AudioMixer:
                 with nogil:
                     status = pjmedia_snd_port_create2(snd_pool, &port_param, snd_port_address)
                 if status == PJMEDIA_ENOSNDPLAY:
-                    ua.release_memory_pool(snd_pool)
-                    self._snd_pool = NULL
+                    ua.reset_memory_pool(snd_pool)
                     return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
                 elif status == PJMEDIA_ENOSNDREC:
-                    ua.release_memory_pool(snd_pool)
-                    self._snd_pool = NULL
+                    ua.reset_memory_pool(snd_pool)
                     return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
                 elif status != 0:
                     raise PJSIPError("Could not create sound device", status)
@@ -459,7 +460,6 @@ cdef class AudioMixer:
                 pj_rwmutex_unlock_read(ua.audio_change_rwlock)
 
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
-        cdef pj_pool_t *snd_pool
         cdef pjmedia_master_port *master_port
         cdef pjmedia_port *null_port
         cdef pjmedia_snd_port *snd_port
@@ -472,8 +472,7 @@ cdef class AudioMixer:
             with nogil:
                 pjmedia_snd_port_destroy(snd_port)
             self._snd = NULL
-        ua.release_memory_pool(self._snd_pool)
-        self._snd_pool = NULL
+        ua.reset_memory_pool(self._snd_pool)
         if self._master_port != NULL:
             with nogil:
                 pjmedia_master_port_destroy(master_port, 0)
