@@ -156,8 +156,6 @@ cdef class AudioMixer:
 
         if self._obj != NULL:
             raise SIPCoreError("AudioMixer.__init__() was already called")
-        if sample_rate <= 0:
-            raise ValueError("sample_rate argument should be a non-negative integer")
         if ec_tail_length < 0:
             raise ValueError("ec_tail_length argument cannot be negative")
         if sample_rate <= 0:
