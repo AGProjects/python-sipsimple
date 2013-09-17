@@ -297,9 +297,10 @@ cdef class AudioMixer:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            if self._snd != NULL:
-                with nogil:
-                    pjmedia_snd_port_reset_ec_state(self._snd)
+            if self._snd == NULL:
+                return
+            with nogil:
+                pjmedia_snd_port_reset_ec_state(self._snd)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
