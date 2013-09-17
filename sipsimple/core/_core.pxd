@@ -8,31 +8,16 @@ cdef extern from *:
 
 # system imports
 
-cdef extern from "stdlib.h":
-    void *malloc(int size)
-    void free(void *ptr)
+from libc.stdlib cimport malloc, free
+from libc.string cimport memcpy
 
-cdef extern from "string.h":
-    void *memcpy(void *s1, void *s2, int n)
 
 # Python C imports
 
-cdef extern from "Python.h":
-    void Py_INCREF(object obj)
-    void Py_DECREF(object obj)
-    object PyString_FromString(char *v)
-    object PyString_FromStringAndSize(char *v, int len)
-    char* PyString_AsString(object string) except NULL
-    int PyString_Size(object string) except 0
-    void* PyLong_AsVoidPtr(object)
-    object PyLong_FromVoidPtr(void*)
-    double PyFloat_AsDouble(object)
-    void PyEval_InitThreads()
+from cpython.float cimport PyFloat_AsDouble
+from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.string cimport PyString_FromString, PyString_FromStringAndSize, PyString_AsString, PyString_Size
 
-# TODO: this needs to remain because of a bug in Cython 0.14
-cdef extern from "listobject.h":
-    ctypedef class __builtin__.list [object PyListObject]:
-        pass
 
 # PJSIP imports
 

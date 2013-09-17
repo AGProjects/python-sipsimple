@@ -172,7 +172,8 @@ class PJSIP_build_ext(build_ext):
         extension.library_dirs = self.get_opts_from_string(build_mak_vars["PJ_LDFLAGS"], "-L")
         extension.libraries = self.get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-l")
         extension.define_macros = [tuple(define.split("=", 1)) for define in self.get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-D")]
-        extension.define_macros.append((("PJ_SVN_REVISION"), open(os.path.join(self.build_dir, "base_rev"), "r").read().strip()))
+        extension.define_macros.append(("PJ_SVN_REVISION", open(os.path.join(self.build_dir, "base_rev"), "r").read().strip()))
+        extension.define_macros.append(("__PYX_FORCE_INIT_THREADS", 1))
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in self.get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
 
         if sys.platform == "darwin":

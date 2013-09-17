@@ -54,13 +54,3 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "RTPTransport", "AudioTransport"]
 
 
-# Initialize the GIL in the PyMODINIT function of the module.
-# This is a hack because Cython does not support #ifdefs.
-cdef extern from *:
-    cdef void emit_ifdef_with_thread "#ifdef WITH_THREAD //" ()
-    cdef void emit_endif "#endif //" ()
-
-emit_ifdef_with_thread()
-PyEval_InitThreads()
-emit_endif()
-
