@@ -148,14 +148,11 @@ cdef class AudioMixer:
         cdef int status
         cdef pj_pool_t *pool
         cdef pjmedia_conf **conf_bridge_address
-        cdef pjsip_endpoint *endpoint
         cdef bytes conf_pool_name
-        cdef char* c_conf_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
         conf_bridge_address = &self._obj
-        endpoint = ua._pjsip_endpoint._obj
 
         if self._obj != NULL:
             raise SIPCoreError("AudioMixer.__init__() was already called")
@@ -170,11 +167,7 @@ cdef class AudioMixer:
         self.sample_rate = sample_rate
         self.slot_count = slot_count
         conf_pool_name = b"AudioMixer_%d" % id(self)
-        c_conf_pool_name = conf_pool_name
-        with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, c_conf_pool_name, 4096, 4096)
-        if pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        pool = ua.create_memory_pool(conf_pool_name, 4096, 4096)
         self._conf_pool = pool
         with nogil:
             status = pjmedia_conf_create(pool, slot_count+1, sample_rate, 1,
@@ -189,9 +182,7 @@ cdef class AudioMixer:
     def __dealloc__(self):
         global _dealloc_handler_queue
         cdef PJSIPUA ua
-        cdef pjmedia_conf *conf_bridge
-        cdef pjsip_endpoint *endpoint
-        cdef pj_pool_t *pool
+        cdef pjmedia_conf *conf_bridge = self._obj
 
         _remove_handler(self, &_dealloc_handler_queue)
 
@@ -199,19 +190,14 @@ cdef class AudioMixer:
             ua = _get_ua()
         except:
             return
-        conf_bridge = self._obj
-        endpoint = ua._pjsip_endpoint._obj
-        pool = self._conf_pool
 
         self._stop_sound_device(ua)
         if self._obj != NULL:
             with nogil:
                 pjmedia_conf_destroy(conf_bridge)
             self._obj = NULL
-        if self._conf_pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
-            self._conf_pool = NULL
+        ua.release_memory_pool(self._conf_pool)
+        self._conf_pool = NULL
         if self._lock != NULL:
             pj_mutex_destroy(self._lock)
 
@@ -338,13 +324,10 @@ cdef class AudioMixer:
         cdef pjmedia_snd_port **snd_port_address
         cdef pjmedia_aud_param aud_param
         cdef pjmedia_snd_port_param port_param
-        cdef pjsip_endpoint *endpoint
         cdef bytes snd_pool_name
-        cdef char* c_snd_pool_name
 
         conf_bridge = self._obj
         conf_pool = self._conf_pool
-        endpoint = ua._pjsip_endpoint._obj
         master_port_address = &self._master_port
         null_port_address = &self._null_port
         sample_rate = self.sample_rate
@@ -404,11 +387,7 @@ cdef class AudioMixer:
                     raise PJSIPError("Could not start master port for dummy sound device", status)
             else:
                 snd_pool_name = b"AudioMixer_snd_%d" % id(self)
-                c_snd_pool_name = snd_pool_name
-                with nogil:
-                    snd_pool = pjsip_endpt_create_pool(endpoint, c_snd_pool_name, 4096, 4096)
-                if snd_pool == NULL:
-                    raise SIPCoreError("Could not allocate memory pool")
+                snd_pool = ua.create_memory_pool(snd_pool_name, 4096, 4096)
                 self._snd_pool = snd_pool
                 pjmedia_snd_port_param_default(&port_param)
                 idx = input_device_i if input_device is not None else output_device_i
@@ -436,13 +415,11 @@ cdef class AudioMixer:
                 with nogil:
                     status = pjmedia_snd_port_create2(snd_pool, &port_param, snd_port_address)
                 if status == PJMEDIA_ENOSNDPLAY:
-                    with nogil:
-                        pjsip_endpt_release_pool(endpoint, snd_pool)
+                    ua.release_memory_pool(snd_pool)
                     self._snd_pool = NULL
                     return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
                 elif status == PJMEDIA_ENOSNDREC:
-                    with nogil:
-                        pjsip_endpt_release_pool(endpoint, snd_pool)
+                    ua.release_memory_pool(snd_pool)
                     self._snd_pool = NULL
                     return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
                 elif status != 0:
@@ -487,22 +464,17 @@ cdef class AudioMixer:
         cdef pjmedia_master_port *master_port
         cdef pjmedia_port *null_port
         cdef pjmedia_snd_port *snd_port
-        cdef pjsip_endpoint *endpoint
 
-        endpoint = ua._pjsip_endpoint._obj
         master_port = self._master_port
         null_port = self._null_port
-        snd_pool = self._snd_pool
         snd_port = self._snd
 
         if self._snd != NULL:
             with nogil:
                 pjmedia_snd_port_destroy(snd_port)
             self._snd = NULL
-        if self._snd_pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, snd_pool)
-            self._snd_pool = NULL
+        ua.release_memory_pool(self._snd_pool)
+        self._snd_pool = NULL
         if self._master_port != NULL:
             with nogil:
                 pjmedia_master_port_destroy(master_port, 0)
@@ -676,24 +648,17 @@ cdef class ToneGenerator:
     def __cinit__(self, *args, **kwargs):
         cdef int status
         cdef pj_pool_t *pool
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
-        cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
-        endpoint = ua._pjsip_endpoint._obj
 
         status = pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "tone_generator_lock", &self._lock)
         if status != 0:
             raise PJSIPError("failed to create lock", status)
 
         pool_name = b"ToneGenerator_%d" % id(self)
-        c_pool_name = pool_name
-        with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-        if pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        pool = ua.create_memory_pool(pool_name, 4096, 4096)
         self._pool = pool
         self._slot = -1
         self._timer = None
@@ -765,27 +730,20 @@ cdef class ToneGenerator:
                 pj_mutex_unlock(lock)
 
     def __dealloc__(self):
-        cdef pj_pool_t *pool
-        cdef pjmedia_port *port
-        cdef pjsip_endpoint *endpoint
+        cdef pjmedia_port *port = self._obj
         cdef PJSIPUA ua
 
         ua = self._get_ua(0)
         if ua is None:
             return
-        endpoint = ua._pjsip_endpoint._obj
-        pool = self._pool
-        port = self._obj
 
         self._stop(ua)
         if self._obj != NULL:
             with nogil:
                 pjmedia_tonegen_stop(port)
             self._obj = NULL
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
-            self._pool = NULL
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         if self._lock != NULL:
             pj_mutex_destroy(self._lock)
 
@@ -978,7 +936,6 @@ cdef class RecordingWaveFile:
         cdef pj_mutex_t *lock = self._lock
         cdef pj_pool_t *pool
         cdef pjmedia_port **port_address
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
         cdef char* c_pool_name
         cdef PJSIPUA ua
@@ -990,19 +947,14 @@ cdef class RecordingWaveFile:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            endpoint = ua._pjsip_endpoint._obj
             filename = PyString_AsString(self.filename)
             pool_name = b"RecordingWaveFile_%d" % id(self)
-            c_pool_name = pool_name
             port_address = &self._port
             sample_rate = self.mixer.sample_rate
 
             if self._was_started:
                 raise SIPCoreError("This RecordingWaveFile was already started once")
-            with nogil:
-                pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-            if pool == NULL:
-                raise SIPCoreError("Could not allocate memory pool")
+            pool = ua.create_memory_pool(pool_name, 4096, 4096)
             self._pool = pool
             try:
                 with nogil:
@@ -1039,13 +991,7 @@ cdef class RecordingWaveFile:
                 pj_mutex_unlock(lock)
 
     cdef int _stop(self, PJSIPUA ua) except -1:
-        cdef pj_pool_t *pool
-        cdef pjmedia_port *port
-        cdef pjsip_endpoint *endpoint
-
-        endpoint = ua._pjsip_endpoint._obj if ua is not None else NULL
-        pool = self._pool
-        port = self._port
+        cdef pjmedia_port *port = self._port
 
         if self._slot != -1:
             self.mixer._remove_port(ua, self._slot)
@@ -1054,10 +1000,8 @@ cdef class RecordingWaveFile:
             with nogil:
                 pjmedia_port_destroy(port)
             self._port = NULL
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
-            self._pool = NULL
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         return 0
 
     def __dealloc__(self):
@@ -1171,7 +1115,6 @@ cdef class WaveFile:
         cdef pj_pool_t *pool
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_port **port_address
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
         cdef char* c_pool_name
         cdef PJSIPUA ua
@@ -1183,7 +1126,6 @@ cdef class WaveFile:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            endpoint = ua._pjsip_endpoint._obj
             filename = PyString_AsString(self.filename)
             port_address = &self._port
             weakref = <void *> self.weakref
@@ -1191,11 +1133,7 @@ cdef class WaveFile:
             if self._port != NULL:
                 raise SIPCoreError("WAV file is already playing")
             pool_name = b"WaveFile_%d" % id(self)
-            c_pool_name = pool_name
-            with nogil:
-                pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-            if pool == NULL:
-                raise SIPCoreError("Could not allocate memory pool")
+            pool = ua.create_memory_pool(pool_name, 4096, 4096)
             self._pool = pool
             try:
                 with nogil:
@@ -1221,10 +1159,7 @@ cdef class WaveFile:
         cdef int was_active
         cdef pj_pool_t *pool
         cdef pjmedia_port *port
-        cdef pjsip_endpoint *endpoint
 
-        endpoint = ua._pjsip_endpoint._obj
-        pool = self._pool
         port = self._port
         was_active = 0
 
@@ -1237,10 +1172,8 @@ cdef class WaveFile:
                 pjmedia_port_destroy(port)
             self._port = NULL
             was_active = 1
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
-            self._pool = NULL
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         if notify and was_active:
             _add_event("WaveFileDidFinishPlaying", dict(obj=self))
 
@@ -1348,9 +1281,7 @@ cdef class MixerPort:
         cdef pj_mutex_t *lock = self._lock
         cdef pj_pool_t *pool
         cdef pjmedia_port **port_address
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
-        cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -1360,18 +1291,13 @@ cdef class MixerPort:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            endpoint = ua._pjsip_endpoint._obj
             pool_name = b"MixerPort_%d" % id(self)
-            c_pool_name = pool_name
             port_address = &self._port
             sample_rate = self.mixer.sample_rate
 
             if self._was_started:
                 raise SIPCoreError("This MixerPort was already started once")
-            with nogil:
-                pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-            if pool == NULL:
-                raise SIPCoreError("Could not allocate memory pool")
+            pool = ua.create_memory_pool(pool_name, 4096, 4096)
             self._pool = pool
             try:
                 with nogil:
@@ -1409,9 +1335,7 @@ cdef class MixerPort:
     cdef int _stop(self, PJSIPUA ua) except -1:
         cdef pj_pool_t *pool
         cdef pjmedia_port *port
-        cdef pjsip_endpoint *endpoint
 
-        endpoint = ua._pjsip_endpoint._obj if ua is not None else NULL
         pool = self._pool
         port = self._port
 
@@ -1422,10 +1346,8 @@ cdef class MixerPort:
             with nogil:
                 pjmedia_port_destroy(port)
             self._port = NULL
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
-            self._pool = NULL
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         return 0
 
     def __dealloc__(self):
@@ -1468,3 +1390,4 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
         timer.schedule(0, <timer_callback>wav_file._cb_eof, wav_file)
     # do not return PJ_SUCCESS because if you do pjsip will access the just deallocated port
     return 1
+

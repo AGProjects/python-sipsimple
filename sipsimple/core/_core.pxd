@@ -1517,6 +1517,9 @@ cdef class PJSIPUA(object):
     cdef int _remove_timer(self, Timer timer) except -1
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0
 
+    cdef pj_pool_t* create_memory_pool(self, bytes name, int initial_size, int resize_size)
+    cdef void release_memory_pool(self, pj_pool_t* pool)
+
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil

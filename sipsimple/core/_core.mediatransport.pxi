@@ -12,15 +12,12 @@ cdef class RTPTransport:
     def __cinit__(self, *args, **kwargs):
         cdef int status
         cdef pj_pool_t *pool
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
         cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
-        endpoint = ua._pjsip_endpoint._obj
         pool_name = b"RTPTransport_%d" % id(self)
-        c_pool_name = pool_name
 
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
@@ -31,10 +28,7 @@ cdef class RTPTransport:
         if status != 0:
             raise PJSIPError("failed to create lock", status)
 
-        with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-        if pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        pool = ua.create_memory_pool(pool_name, 4096, 4096)
         self._pool = pool
         self.state = "NULL"
 
@@ -56,18 +50,14 @@ cdef class RTPTransport:
 
     def __dealloc__(self):
         cdef PJSIPUA ua
-        cdef pjsip_endpoint *endpoint
         cdef pjmedia_transport *transport
         cdef pjmedia_transport *wrapped_transport
-        cdef pj_pool_t *pool
         cdef Timer timer
 
         try:
             ua = _get_ua()
-        except SIPCoreError:
+        except:
             return
-        endpoint = ua._pjsip_endpoint._obj
-        pool = self._pool
         transport = self._obj
         wrapped_transport = self._wrapped_transport
 
@@ -89,9 +79,8 @@ cdef class RTPTransport:
                 (<void **> (self._obj.name + 1))[0] = NULL
             with nogil:
                 pjmedia_transport_close(wrapped_transport)
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         if self._lock != NULL:
             pj_mutex_destroy(self._lock)
         timer = Timer()
@@ -545,15 +534,12 @@ cdef class AudioTransport:
     def __cinit__(self, *args, **kwargs):
         cdef int status
         cdef pj_pool_t *pool
-        cdef pjsip_endpoint *endpoint
         cdef bytes pool_name
         cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
-        endpoint = ua._pjsip_endpoint._obj
         pool_name = b"AudioTransport_%d" % id(self)
-        c_pool_name = pool_name
 
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
@@ -562,10 +548,7 @@ cdef class AudioTransport:
         if status != 0:
             raise PJSIPError("failed to create lock", status)
 
-        with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-        if pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        pool = ua.create_memory_pool(pool_name, 4096, 4096)
         self._pool = pool
         self._slot = -1
         self._timer = None
@@ -632,15 +615,12 @@ cdef class AudioTransport:
         cdef Timer timer
         try:
             ua = _get_ua()
-        except SIPCoreError:
+        except:
             return
-        cdef pjsip_endpoint *endpoint = ua._pjsip_endpoint._obj
-        cdef pj_pool_t *pool = self._pool
         if self._obj != NULL:
             self.stop()
-        if self._pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
         if self._lock != NULL:
             pj_mutex_destroy(self._lock)
         timer = Timer()

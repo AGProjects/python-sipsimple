@@ -269,6 +269,28 @@ cdef class PJSIPUA:
             raise ValueError('Handling incoming "%s" requests is not allowed' % method)
         self._incoming_requests.discard(method)
 
+    cdef pj_pool_t* create_memory_pool(self, bytes name, int initial_size, int resize_size):
+        cdef pj_pool_t *pool
+        cdef char *c_pool_name
+        cdef pjsip_endpoint *endpoint
+
+        c_pool_name = name
+        endpoint = self._pjsip_endpoint._obj
+
+        with nogil:
+            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, initial_size, resize_size)
+        if pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+        return pool
+
+    cdef void release_memory_pool(self, pj_pool_t* pool):
+        cdef pjsip_endpoint *endpoint
+        endpoint = self._pjsip_endpoint._obj
+
+        if pool != NULL:
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
+
     cdef object _get_sound_devices(self, int is_output):
         global device_name_encoding
         cdef int count

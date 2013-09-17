@@ -892,37 +892,24 @@ cdef class SDPNegotiator:
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef bytes pool_name
-        cdef char* c_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
-        endpoint = ua._pjsip_endpoint._obj
         pool_name = b"SDPNegotiator_%d" % id(self)
-        c_pool_name = pool_name
 
-        with nogil:
-            pool = pjsip_endpt_create_pool(endpoint, c_pool_name, 4096, 4096)
-        if pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        pool = ua.create_memory_pool(pool_name, 4096, 4096)
         self._pool = pool
         self._neg = NULL
 
     def __dealloc__(self):
         cdef PJSIPUA ua
-        cdef pjsip_endpoint *endpoint
-        cdef pj_pool_t *pool
-
         try:
             ua = _get_ua()
-        except SIPCoreError:
+        except:
             return
 
-        endpoint = ua._pjsip_endpoint._obj
-        pool = self._pool
-
-        if pool != NULL:
-            with nogil:
-                pjsip_endpt_release_pool(endpoint, pool)
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
 
     @classmethod
     def create_with_local_offer(cls, BaseSDPSession sdp_session):
