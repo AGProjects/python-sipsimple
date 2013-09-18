@@ -169,8 +169,8 @@ class SIPApplication(object):
                        # audio
                        codecs=list(settings.rtp.audio_codec_list),
                        # logging
-                       log_level=settings.logs.pjsip_level,
-                       trace_sip=True,
+                       log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
+                       trace_sip=settings.logs.trace_sip,
                       )
         try:
             engine.start(**options)
@@ -364,8 +364,10 @@ class SIPApplication(object):
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codec_list' in notification.data.modified:
                 engine.codecs = list(settings.rtp.audio_codec_list)
-            if 'logs.pjsip_level' in notification.data.modified:
-                engine.log_level = settings.logs.pjsip_level
+            if 'logs.trace_sip' in notification.data.modified:
+                engine.trace_sip = settings.logs.trace_sip
+            if set(('logs.trace_pjsip', 'logs.pjsip_level')).intersection(notification.data.modified):
+                engine.log_level = settings.logs.pjsip_level if settings.logs.trace_pjsip else 0
         elif notification.sender is account_manager.default_account:
             if set(('tls.verify_server', 'tls.certificate')).intersection(notification.data.modified):
                 account = account_manager.default_account

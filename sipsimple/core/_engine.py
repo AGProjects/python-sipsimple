@@ -32,7 +32,7 @@ class Engine(Thread):
                              "tls_privkey_file": None,
                              "tls_timeout": 3000,
                              "user_agent": "sipsimple-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
-                             "log_level": 5,
+                             "log_level": 0,
                              "trace_sip": False,
                              "detect_sip_loops": True,
                              "rtp_port_range": (50000, 50500),
