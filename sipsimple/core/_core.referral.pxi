@@ -691,8 +691,6 @@ cdef class IncomingReferral:
         with nogil:
             status = pjsip_evsub_send_request(self._obj, tdata)
         if status != 0:
-            with nogil:
-                pjsip_tx_data_dec_ref(tdata)
             raise PJSIPError("Could not send NOTIFY request", status)
         event_dict = dict(obj=self)
         _pjsip_msg_to_dict(tdata.msg, event_dict)
