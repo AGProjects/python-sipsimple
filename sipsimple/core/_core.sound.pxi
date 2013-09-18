@@ -148,11 +148,13 @@ cdef class AudioMixer:
         cdef int status
         cdef pj_pool_t *conf_pool, *snd_pool
         cdef pjmedia_conf **conf_bridge_address
+        cdef pjmedia_port **null_port_address
         cdef bytes conf_pool_name, snd_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
         conf_bridge_address = &self._obj
+        null_port_address = &self._null_port
 
         if self._obj != NULL:
             raise SIPCoreError("AudioMixer.__init__() was already called")
@@ -176,6 +178,11 @@ cdef class AudioMixer:
                                          sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, conf_bridge_address)
         if status != 0:
             raise PJSIPError("Could not create audio mixer", status)
+        with nogil:
+            status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
+                                              sample_rate / 50, 16, null_port_address)
+        if status != 0:
+            raise PJSIPError("Could not create null audio port", status)
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
         if not (input_device is None and output_device is None):
             self._stop_sound_device(ua)
@@ -185,6 +192,7 @@ cdef class AudioMixer:
         global _dealloc_handler_queue
         cdef PJSIPUA ua
         cdef pjmedia_conf *conf_bridge = self._obj
+        cdef pjmedia_port *null_port = self._null_port
 
         _remove_handler(self, &_dealloc_handler_queue)
 
@@ -194,6 +202,10 @@ cdef class AudioMixer:
             return
 
         self._stop_sound_device(ua)
+        if self._null_port != NULL:
+            with nogil:
+                pjmedia_port_destroy(null_port)
+            self._null_port = NULL
         if self._obj != NULL:
             with nogil:
                 pjmedia_conf_destroy(conf_bridge)
@@ -324,7 +336,7 @@ cdef class AudioMixer:
         cdef pj_pool_t *snd_pool
         cdef pjmedia_conf *conf_bridge
         cdef pjmedia_master_port **master_port_address
-        cdef pjmedia_port **null_port_address
+        cdef pjmedia_port *null_port
         cdef pjmedia_aud_dev_info dev_info
         cdef pjmedia_snd_port **snd_port_address
         cdef pjmedia_aud_param aud_param
@@ -334,7 +346,7 @@ cdef class AudioMixer:
         conf_pool = self._conf_pool
         snd_pool = self._snd_pool
         master_port_address = &self._master_port
-        null_port_address = &self._null_port
+        null_port = self._null_port
         sample_rate = self.sample_rate
         snd_port_address = &self._snd
 
@@ -377,13 +389,7 @@ cdef class AudioMixer:
                         raise SIPCoreError('Audio output device "%s" not found' % output_device)
             if input_device is None and output_device is None:
                 with nogil:
-                    status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
-                                                      sample_rate / 50, 16, null_port_address)
-                if status != 0:
-                    raise PJSIPError("Could not create dummy audio port", status)
-                with nogil:
-                    status = pjmedia_master_port_create(conf_pool, null_port_address[0],
-                                                        pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
+                    status = pjmedia_master_port_create(conf_pool, null_port, pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
                 if status != 0:
                     raise PJSIPError("Could not create master port for dummy sound device", status)
                 with nogil:
@@ -461,11 +467,9 @@ cdef class AudioMixer:
 
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
         cdef pjmedia_master_port *master_port
-        cdef pjmedia_port *null_port
         cdef pjmedia_snd_port *snd_port
 
         master_port = self._master_port
-        null_port = self._null_port
         snd_port = self._snd
 
         if self._snd != NULL:
@@ -477,10 +481,6 @@ cdef class AudioMixer:
             with nogil:
                 pjmedia_master_port_destroy(master_port, 0)
             self._master_port = NULL
-        if self._null_port != NULL:
-            with nogil:
-                pjmedia_port_destroy(null_port)
-            self._null_port = NULL
         return 0
 
     cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil:
