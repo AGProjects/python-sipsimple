@@ -205,23 +205,11 @@ class SIPApplication(object):
         if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
             output_device = u'system_default'
         tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
-        try:
-            voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
-        except SIPCoreError:
-            try:
-                voice_mixer = AudioMixer(u'system_default', u'system_default', settings.audio.sample_rate, tail_length)
-            except SIPCoreError:
-                voice_mixer = AudioMixer(None, None, settings.audio.sample_rate, tail_length)
+        voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
         self.voice_audio_device = AudioDevice(voice_mixer)
         self.voice_audio_bridge = RootAudioBridge(voice_mixer)
         self.voice_audio_bridge.add(self.voice_audio_device)
-        try:
-            alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
-        except SIPCoreError:
-            try:
-                alert_mixer = AudioMixer(None, u'system_default', settings.audio.sample_rate, 0)
-            except SIPCoreError:
-                alert_mixer = AudioMixer(None, None, settings.audio.sample_rate, 0)
+        alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
         if settings.audio.silent:
             alert_mixer.output_volume = 0
         self.alert_audio_device = AudioDevice(alert_mixer)
@@ -314,23 +302,11 @@ class SIPApplication(object):
                 if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
                     output_device = u'system_default'
                 tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
-                try:
-                    voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
-                except SIPCoreError:
-                    try:
-                        voice_mixer = AudioMixer(u'system_default', u'system_default', settings.audio.sample_rate, tail_length)
-                    except SIPCoreError:
-                        voice_mixer = AudioMixer(None, None, settings.audio.sample_rate, tail_length)
+                voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
                 self.voice_audio_device = AudioDevice(voice_mixer)
                 self.voice_audio_bridge = RootAudioBridge(voice_mixer)
                 self.voice_audio_bridge.add(self.voice_audio_device)
-                try:
-                    alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
-                except SIPCoreError:
-                    try:
-                        alert_mixer = AudioMixer(None, u'system_default', settings.audio.sample_rate, 0)
-                    except SIPCoreError:
-                        alert_mixer = AudioMixer(None, None, settings.audio.sample_rate, 0)
+                alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
                 self.alert_audio_device = AudioDevice(alert_mixer)
                 self.alert_audio_bridge = RootAudioBridge(alert_mixer)
                 self.alert_audio_bridge.add(self.alert_audio_device)
@@ -350,13 +326,7 @@ class SIPApplication(object):
                         output_device = u'system_default'
                     tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                     if (input_device, output_device, tail_length) != attrgetter('input_device', 'output_device', 'ec_tail_length')(self.voice_audio_bridge.mixer):
-                        try:
-                            self.voice_audio_bridge.mixer.set_sound_devices(input_device, output_device, tail_length)
-                        except SIPCoreError:
-                            try:
-                                self.voice_audio_bridge.mixer.set_sound_devices(u'system_default', u'system_default', tail_length)
-                            except SIPCoreError:
-                                self.voice_audio_bridge.mixer.set_sound_devices(None, None, tail_length)
+                        self.voice_audio_bridge.mixer.set_sound_devices(input_device, output_device, tail_length)
                         settings.audio.input_device = self.voice_audio_bridge.mixer.input_device
                         settings.audio.output_device = self.voice_audio_bridge.mixer.output_device
                         settings.save()
@@ -364,13 +334,7 @@ class SIPApplication(object):
                     if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
                         alert_device = u'system_default'
                     if alert_device != self.alert_audio_bridge.mixer.output_device:
-                        try:
-                            self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
-                        except SIPCoreError:
-                            try:
-                                self.alert_audio_bridge.mixer.set_sound_devices(None, u'system_default', 0)
-                            except SIPCoreError:
-                                self.alert_audio_bridge.mixer.set_sound_devices(None, None, 0)
+                        self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
                         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
                         settings.save()
                 if 'audio.silent' in notification.data.modified:

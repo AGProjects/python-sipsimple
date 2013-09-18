@@ -1556,8 +1556,8 @@ cdef class AudioMixer(object):
     cdef readonly unicode real_output_device
 
     # private methods
-    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length, int revert_to_default) except -1
-    cdef int _stop_sound_device(self, PJSIPUA ua) except -1
+    cdef void _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length)
+    cdef void _stop_sound_device(self, PJSIPUA ua)
     cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil
     cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1 with gil
     cdef int _cb_postpoll_stop_sound(self, timer) except -1

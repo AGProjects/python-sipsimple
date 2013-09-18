@@ -183,7 +183,7 @@ cdef class AudioMixer:
                                               sample_rate / 50, 16, null_port_address)
         if status != 0:
             raise PJSIPError("Could not create null audio port", status)
-        self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
+        self._start_sound_device(ua, input_device, output_device, ec_tail_length)
         if not (input_device is None and output_device is None):
             self._stop_sound_device(ua)
         _add_handler(_AudioMixer_dealloc_handler, self, &_dealloc_handler_queue)
@@ -232,7 +232,7 @@ cdef class AudioMixer:
             if ec_tail_length < 0:
                 raise ValueError("ec_tail_length argument cannot be negative")
             self._stop_sound_device(ua)
-            self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
+            self._start_sound_device(ua, input_device, output_device, ec_tail_length)
             if self.used_slot_count == 0 and not (input_device is None and output_device is None):
                 self._stop_sound_device(ua)
         finally:
@@ -325,7 +325,7 @@ cdef class AudioMixer:
 
     # private methods
 
-    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length, int revert_to_default) except -1:
+    cdef void _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length):
         global device_name_encoding
         cdef int idx
         cdef int input_device_i = -99
@@ -378,15 +378,9 @@ cdef class AudioMixer:
                         dev_info.output_count > 0 and dev_info.name.decode(device_name_encoding) == output_device):
                         output_device_i = i
                 if input_device_i == -99 and input_device is not None:
-                    if revert_to_default:
-                        input_device_i = PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
-                    else:
-                        raise SIPCoreError('Audio input device "%s" not found' % input_device)
+                    input_device_i = PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
                 if output_device_i == -99 and output_device is not None:
-                    if revert_to_default:
-                        output_device_i = PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
-                    else:
-                        raise SIPCoreError('Audio output device "%s" not found' % output_device)
+                    output_device_i = PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV
             if input_device is None and output_device is None:
                 with nogil:
                     status = pjmedia_master_port_create(conf_pool, null_port, pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
@@ -424,10 +418,12 @@ cdef class AudioMixer:
                     status = pjmedia_snd_port_create2(snd_pool, &port_param, snd_port_address)
                 if status == PJMEDIA_ENOSNDPLAY:
                     ua.reset_memory_pool(snd_pool)
-                    return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
+                    self._start_sound_device(ua, input_device, None, ec_tail_length)
+                    return
                 elif status == PJMEDIA_ENOSNDREC:
                     ua.reset_memory_pool(snd_pool)
-                    return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
+                    self._start_sound_device(ua, None, output_device, ec_tail_length)
+                    return
                 elif status != 0:
                     raise PJSIPError("Could not create sound device", status)
                 with nogil:
@@ -460,12 +456,11 @@ cdef class AudioMixer:
             self.input_device = input_device
             self.output_device = output_device
             self.ec_tail_length = ec_tail_length
-            return 0
         finally:
             with nogil:
                 pj_rwmutex_unlock_read(ua.audio_change_rwlock)
 
-    cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
+    cdef void _stop_sound_device(self, PJSIPUA ua):
         cdef pjmedia_master_port *master_port
         cdef pjmedia_snd_port *snd_port
 
@@ -481,7 +476,6 @@ cdef class AudioMixer:
             with nogil:
                 pjmedia_master_port_destroy(master_port, 0)
             self._master_port = NULL
-        return 0
 
     cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil:
         cdef int input_device_i
@@ -504,7 +498,7 @@ cdef class AudioMixer:
                 raise PJSIPError("Could not add audio object to audio mixer", status)
             self.used_slot_count += 1
             if self.used_slot_count == 1 and not (self.input_device is None and self.output_device is None) and self._snd == NULL:
-                self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length, 1)
+                self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length)
             return slot
         finally:
             with nogil:
