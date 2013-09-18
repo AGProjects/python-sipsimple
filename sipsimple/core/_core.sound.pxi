@@ -7,6 +7,63 @@ import sys
 # classes
 
 cdef class AudioMixer:
+
+    def __cinit__(self, *args, **kwargs):
+        cdef int status
+
+        self._connected_slots = list()
+        self._input_volume = 100
+        self._output_volume = 100
+
+        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
+    def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
+        global _dealloc_handler_queue
+        cdef int status
+        cdef pj_pool_t *conf_pool, *snd_pool
+        cdef pjmedia_conf **conf_bridge_address
+        cdef pjmedia_port **null_port_address
+        cdef bytes conf_pool_name, snd_pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        conf_bridge_address = &self._obj
+        null_port_address = &self._null_port
+
+        if self._obj != NULL:
+            raise SIPCoreError("AudioMixer.__init__() was already called")
+        if ec_tail_length < 0:
+            raise ValueError("ec_tail_length argument cannot be negative")
+        if sample_rate <= 0:
+            raise ValueError("sample_rate argument should be a non-negative integer")
+        if sample_rate % 50:
+            raise ValueError("sample_rate argument should be dividable by 50")
+        self.sample_rate = sample_rate
+        self.slot_count = slot_count
+
+        conf_pool_name = b"AudioMixer_%d" % id(self)
+        conf_pool = ua.create_memory_pool(conf_pool_name, 4096, 4096)
+        self._conf_pool = conf_pool
+        snd_pool_name = b"AudioMixer_snd_%d" % id(self)
+        snd_pool = ua.create_memory_pool(snd_pool_name, 4096, 4096)
+        self._snd_pool = snd_pool
+        with nogil:
+            status = pjmedia_conf_create(conf_pool, slot_count+1, sample_rate, 1,
+                                         sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, conf_bridge_address)
+        if status != 0:
+            raise PJSIPError("Could not create audio mixer", status)
+        with nogil:
+            status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
+                                              sample_rate / 50, 16, null_port_address)
+        if status != 0:
+            raise PJSIPError("Could not create null audio port", status)
+        self._start_sound_device(ua, input_device, output_device, ec_tail_length)
+        if not (input_device is None and output_device is None):
+            self._stop_sound_device(ua)
+        _add_handler(_AudioMixer_dealloc_handler, self, &_dealloc_handler_queue)
+
     # properties
 
     property input_volume:
@@ -131,91 +188,6 @@ cdef class AudioMixer:
             return sorted(self._connected_slots)
 
     # public methods
-
-    def __cinit__(self, *args, **kwargs):
-        cdef int status
-
-        self._connected_slots = list()
-        self._input_volume = 100
-        self._output_volume = 100
-
-        status = pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
-        if status != 0:
-            raise PJSIPError("failed to create lock", status)
-
-    def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
-        global _dealloc_handler_queue
-        cdef int status
-        cdef pj_pool_t *conf_pool, *snd_pool
-        cdef pjmedia_conf **conf_bridge_address
-        cdef pjmedia_port **null_port_address
-        cdef bytes conf_pool_name, snd_pool_name
-        cdef PJSIPUA ua
-
-        ua = _get_ua()
-        conf_bridge_address = &self._obj
-        null_port_address = &self._null_port
-
-        if self._obj != NULL:
-            raise SIPCoreError("AudioMixer.__init__() was already called")
-        if ec_tail_length < 0:
-            raise ValueError("ec_tail_length argument cannot be negative")
-        if sample_rate <= 0:
-            raise ValueError("sample_rate argument should be a non-negative integer")
-        if sample_rate % 50:
-            raise ValueError("sample_rate argument should be dividable by 50")
-        self.sample_rate = sample_rate
-        self.slot_count = slot_count
-
-        conf_pool_name = b"AudioMixer_%d" % id(self)
-        conf_pool = ua.create_memory_pool(conf_pool_name, 4096, 4096)
-        self._conf_pool = conf_pool
-        snd_pool_name = b"AudioMixer_snd_%d" % id(self)
-        snd_pool = ua.create_memory_pool(snd_pool_name, 4096, 4096)
-        self._snd_pool = snd_pool
-        with nogil:
-            status = pjmedia_conf_create(conf_pool, slot_count+1, sample_rate, 1,
-                                         sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, conf_bridge_address)
-        if status != 0:
-            raise PJSIPError("Could not create audio mixer", status)
-        with nogil:
-            status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
-                                              sample_rate / 50, 16, null_port_address)
-        if status != 0:
-            raise PJSIPError("Could not create null audio port", status)
-        self._start_sound_device(ua, input_device, output_device, ec_tail_length)
-        if not (input_device is None and output_device is None):
-            self._stop_sound_device(ua)
-        _add_handler(_AudioMixer_dealloc_handler, self, &_dealloc_handler_queue)
-
-    def __dealloc__(self):
-        global _dealloc_handler_queue
-        cdef PJSIPUA ua
-        cdef pjmedia_conf *conf_bridge = self._obj
-        cdef pjmedia_port *null_port = self._null_port
-
-        _remove_handler(self, &_dealloc_handler_queue)
-
-        try:
-            ua = _get_ua()
-        except:
-            return
-
-        self._stop_sound_device(ua)
-        if self._null_port != NULL:
-            with nogil:
-                pjmedia_port_destroy(null_port)
-            self._null_port = NULL
-        if self._obj != NULL:
-            with nogil:
-                pjmedia_conf_destroy(conf_bridge)
-            self._obj = NULL
-        ua.release_memory_pool(self._conf_pool)
-        self._conf_pool = NULL
-        ua.release_memory_pool(self._snd_pool)
-        self._snd_pool = NULL
-        if self._lock != NULL:
-            pj_mutex_destroy(self._lock)
 
     def set_sound_devices(self, unicode input_device, unicode output_device, int ec_tail_length):
         cdef int status
@@ -549,6 +521,35 @@ cdef class AudioMixer:
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+
+    def __dealloc__(self):
+        global _dealloc_handler_queue
+        cdef PJSIPUA ua
+        cdef pjmedia_conf *conf_bridge = self._obj
+        cdef pjmedia_port *null_port = self._null_port
+
+        _remove_handler(self, &_dealloc_handler_queue)
+
+        try:
+            ua = _get_ua()
+        except:
+            return
+
+        self._stop_sound_device(ua)
+        if self._null_port != NULL:
+            with nogil:
+                pjmedia_port_destroy(null_port)
+            self._null_port = NULL
+        if self._obj != NULL:
+            with nogil:
+                pjmedia_conf_destroy(conf_bridge)
+            self._obj = NULL
+        ua.release_memory_pool(self._conf_pool)
+        self._conf_pool = NULL
+        ua.release_memory_pool(self._snd_pool)
+        self._snd_pool = NULL
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
 
 
 cdef class ToneGenerator:
