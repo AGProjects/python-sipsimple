@@ -21,6 +21,7 @@ import mimetypes
 from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
+from application.python import Null
 from application.system import host
 from dateutil.tz import tzlocal
 from functools import partial
@@ -40,6 +41,7 @@ from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account, BonjourAccount
+from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamType, StreamError, InvalidStreamError, UnknownStreamError
@@ -1084,15 +1086,17 @@ class ScreenSharingStream(MSRPStreamBase):
         notification.center.post_notification('MediaStreamDidFail', sender=self, data=notification.data)
 
 
-
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
 class NotificationProxyLogger(object):
+
     def __init__(self):
         from application import log
         self.level = log.level
         self.stripped_data_transactions = set()
         self.text_transactions = set()
         self.transaction_data = {}
+        self.notification_center = NotificationCenter()
+        self.log_settings = SIPSimpleSettings().logs
 
     def report_out(self, data, transport, new_chunk=True):
         pass
@@ -1117,7 +1121,8 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='incoming', data=chunk))
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='incoming', data=chunk))
 
     def sent_new_chunk(self, data, transport, chunk):
         content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
@@ -1136,23 +1141,27 @@ class NotificationProxyLogger(object):
         chunk = self.transaction_data.pop(transaction_id) + data
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='outgoing', data=chunk))
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='outgoing', data=chunk))
 
     def debug(self, message, **context):
         pass
 
     def info(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.INFO))
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.INFO))
     msg = info
 
     def warn(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.WARNING))
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.WARNING))
 
     def error(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.ERROR))
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.ERROR))
     err = error
 
     def fatal(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.CRITICAL))
-
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.CRITICAL))
 

@@ -45,6 +45,7 @@ class FileTransferSettings(SettingsGroup):
 
 
 class LogsSettings(SettingsGroup):
+    trace_msrp = Setting(type=bool, default=False)
     trace_sip = Setting(type=bool, default=False)
     trace_pjsip = Setting(type=bool, default=False)
     pjsip_level = Setting(type=PJSIPLogLevel, default=5)
