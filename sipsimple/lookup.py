@@ -39,8 +39,9 @@ import dns.name
 import dns.resolver
 import dns.query
 dns.resolver.socket = socket
-dns.query.select = select
 dns.query.socket = socket
+dns.query.select = select
+dns.query._set_polling_backend(dns.query._select_for)
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null, limit
