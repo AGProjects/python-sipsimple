@@ -1647,7 +1647,7 @@ class Session(object):
             stream.index = len(local_sdp.media)
             local_sdp.media.append(stream.get_local_media(for_offer=True))
             self._invitation.send_reinvite(sdp=local_sdp)
-            notification_center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='local', streams=self.proposed_streams))
+            notification_center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='local', proposed_streams=self.proposed_streams))
 
             received_invitation_state = False
             received_sdp_update = False
@@ -2253,7 +2253,7 @@ class Session(object):
                                             break
                             if self.proposed_streams:
                                 self._invitation.send_response(100)
-                                notification.center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='remote', streams=self.proposed_streams))
+                                notification.center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='remote', proposed_streams=self.proposed_streams))
                                 return
                             else:
                                 self._invitation.send_response(488)
