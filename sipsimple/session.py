@@ -2183,7 +2183,7 @@ class Session(object):
                 pass
             else:
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received='unknown'))
-        notification_center.post_notification('SIPSessionHadProposalFailure', self, NotificationData(originator=originator, failure_reason=error, streams=self.proposed_streams))
+        notification_center.post_notification('SIPSessionHadProposalFailure', self, NotificationData(originator=originator, failure_reason=error, proposed_streams=self.proposed_streams))
         self.state = 'connected'
         self.proposed_streams = None
         self.greenlet = None
