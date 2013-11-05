@@ -1184,7 +1184,7 @@ class Session(object):
                 stream.deactivate()
                 stream.end()
             self.state = 'terminated'
-            # As it weird as it may sound, PJSIP accepts a BYE even without receiving a final response to the INVITE
+            # As weird as it may sound, PJSIP accepts a BYE even without receiving a final response to the INVITE
             if e.data.prev_state in ('connecting', 'connected') or getattr(e.data, 'method', None) == 'BYE':
                 notification_center.post_notification('SIPSessionWillEnd', self, NotificationData(originator=e.data.originator))
                 if e.data.originator == 'remote':
