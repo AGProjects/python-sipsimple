@@ -8,7 +8,7 @@ Definition of general (non-account related) settings.
 """
 
 from sipsimple import __version__
-from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject
+from sipsimple.configuration import CorrelatedSetting, RuntimeSetting, Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList
@@ -28,6 +28,7 @@ class AudioSettings(SettingsGroup):
     input_device = Setting(type=unicode, default=u'system_default', nillable=True)
     output_device = Setting(type=unicode, default=u'system_default', nillable=True)
     sample_rate = Setting(type=SampleRate, default=44100)
+    muted = RuntimeSetting(type=bool, default=False)
     silent = Setting(type=bool, default=False)
     echo_canceller = EchoCancellerSettings
 

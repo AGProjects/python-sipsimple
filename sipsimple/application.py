@@ -206,6 +206,7 @@ class SIPApplication(object):
             output_device = u'system_default'
         tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
         voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
+        voice_mixer.muted = settings.audio.muted
         self.voice_audio_device = AudioDevice(voice_mixer)
         self.voice_audio_bridge = RootAudioBridge(voice_mixer)
         self.voice_audio_bridge.add(self.voice_audio_device)
@@ -303,6 +304,7 @@ class SIPApplication(object):
                     output_device = u'system_default'
                 tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                 voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
+                voice_mixer.muted = settings.audio.muted
                 self.voice_audio_device = AudioDevice(voice_mixer)
                 self.voice_audio_bridge = RootAudioBridge(voice_mixer)
                 self.voice_audio_bridge.add(self.voice_audio_device)
@@ -337,6 +339,8 @@ class SIPApplication(object):
                         self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
                         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
                         settings.save()
+                if 'audio.muted' in notification.data.modified:
+                    self.voice_audio_bridge.mixer.muted = settings.audio.muted
                 if 'audio.silent' in notification.data.modified:
                     if settings.audio.silent:
                         self.alert_audio_bridge.mixer.output_volume = 0
