@@ -16,6 +16,7 @@ from threading import RLock
 from application.notification import IObserver, NotificationCenter, NotificationData, ObserverWeakrefProxy
 from application.system import makedirs
 from eventlib import coros
+from twisted.internet import reactor
 from zope.interface import Attribute, Interface, implements
 
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
@@ -398,10 +399,10 @@ class WavePlayer(object):
 
     implements(IAudioPort, IObserver)
 
-    def __init__(self, mixer, filename, volume=100, loop_count=1, pause_time=0, initial_play=True):
+    def __init__(self, mixer, filename, volume=100, loop_count=1, pause_time=0, initial_delay=0):
         self.mixer = mixer
         self.filename = filename
-        self.initial_play = initial_play
+        self.initial_delay = initial_delay
         self.loop_count = loop_count
         self.pause_time = pause_time
         self.volume = volume
@@ -438,11 +439,10 @@ class WavePlayer(object):
         self._state = 'started'
         self._channel = coros.queue()
         self._current_loop = 0
-        if self.initial_play:
-            self._channel.send(Command('play'))
+        if self.initial_delay:
+            reactor.callLater(self.initial_delay, self._channel.send, Command('play'))
         else:
-            from twisted.internet import reactor
-            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+            self._channel.send(Command('play'))
         self._run().wait()
 
     @run_in_waitable_green_thread
@@ -472,7 +472,6 @@ class WavePlayer(object):
                     notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
                                                                                                                         old_producer_slot=None, new_producer_slot=None))
                     if self.loop_count == 0 or self._current_loop < self.loop_count:
-                        from twisted.internet import reactor
                         reactor.callLater(self.pause_time, self._channel.send, Command('play'))
                     else:
                         notification_center.post_notification('WavePlayerDidEnd', sender=self)
