@@ -283,6 +283,7 @@ class SIPApplication(object):
         if not self.running:
             return
         self.end_reason = 'engine failed'
+        notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
 
     @run_in_thread('device-io')
