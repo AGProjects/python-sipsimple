@@ -520,6 +520,8 @@ class ChatStream(MSRPStreamBase):
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             if courtesy_recipients or subject or timestamp or required or additional_headers:
                 raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
+            if isinstance(content, unicode):
+                content = content.encode('utf-8')
             self._enqueue_message(message_id, content, content_type, failure_report='yes', success_report='yes', notify_progress=True)
         return message_id
 
