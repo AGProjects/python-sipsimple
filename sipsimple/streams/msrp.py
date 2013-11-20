@@ -410,7 +410,7 @@ class ChatStream(MSRPStreamBase):
                     message.sender = self.remote_identity
                 private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self.remote_identity
         else:
-            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
+            message = ChatMessage(chunk.data.decode('utf-8'), chunk.content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
             private = False
         # TODO: check wrapped content-type and issue a report if it's invalid
         self.msrp_session.send_report(chunk, 200, 'OK')
