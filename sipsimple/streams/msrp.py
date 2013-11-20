@@ -18,12 +18,9 @@ import re
 import random
 import hashlib
 import mimetypes
-from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
-from application.python import Null
 from application.system import host
-from dateutil.tz import tzlocal
 from functools import partial
 from itertools import chain
 from twisted.internet.error import ConnectionDone
@@ -48,6 +45,7 @@ from sipsimple.streams import IMediaStream, MediaStreamType, StreamError, Invali
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import run_in_green_thread
+from sipsimple.util import ISOTimestamp
 
 
 class MSRPStreamError(StreamError): pass
@@ -407,12 +405,12 @@ class ChatStream(MSRPStreamBase):
                 return
             else:
                 if message.timestamp is None:
-                    message.timestamp = datetime.now(tzlocal())
+                    message.timestamp = ISOTimestamp.now()
                 if message.sender is None:
                     message.sender = self.remote_identity
                 private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self.remote_identity
         else:
-            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
+            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
             private = False
         # TODO: check wrapped content-type and issue a report if it's invalid
         self.msrp_session.send_report(chunk, 200, 'OK')
@@ -511,7 +509,7 @@ class ChatStream(MSRPStreamBase):
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
             if timestamp is None:
-                timestamp = datetime.now()
+                timestamp = ISOTimestamp.now()
             msg = CPIMMessage(content, content_type, sender=self.local_identity, recipients=recipients, courtesy_recipients=courtesy_recipients,
                               subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers)
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='yes', success_report='yes', notify_progress=True)
@@ -531,13 +529,14 @@ class ChatStream(MSRPStreamBase):
         if state not in ('active', 'idle'):
             raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
-        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text'))
+        timestamp = ISOTimestamp.now()
+        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or timestamp), content_type=ContentType('text'))
         if self.cpim_enabled:
             if recipients is None:
                 recipients = [self.remote_identity]
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
-            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=datetime.now())
+            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=timestamp)
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
         else:
             if recipients is not None and recipients != [self.remote_identity]:
