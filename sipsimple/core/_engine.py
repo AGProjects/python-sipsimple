@@ -89,6 +89,8 @@ class Engine(Thread):
                 if hasattr(self, "_ua"):
                     self._ua.dealloc()
                     del self._ua
+                exc_type, exc_val, exc_tb = sys.exc_info()
+                self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
                 self.notification_center.post_notification('SIPEngineDidFail', sender=self)
                 raise
             else:
