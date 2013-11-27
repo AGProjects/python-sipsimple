@@ -531,14 +531,13 @@ class ChatStream(MSRPStreamBase):
         if state not in ('active', 'idle'):
             raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
-        timestamp = ISOTimestamp.now()
-        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active or timestamp), content_type=ContentType('text'))
+        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
         if self.cpim_enabled:
             if recipients is None:
                 recipients = [self.remote_identity]
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
-            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=timestamp)
+            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=ISOTimestamp.now())
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
         else:
             if recipients is not None and recipients != [self.remote_identity]:
