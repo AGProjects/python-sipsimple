@@ -525,14 +525,14 @@ class ChatStream(MSRPStreamBase):
             self._enqueue_message(message_id, content, content_type, failure_report='yes', success_report='yes', notify_progress=True)
         return message_id
 
-    def send_composing_indication(self, state, refresh, last_active=None, recipients=None):
+    def send_composing_indication(self, state, refresh=None, last_active=None, recipients=None):
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
         if state not in ('active', 'idle'):
             raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
         timestamp = ISOTimestamp.now()
-        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or timestamp), content_type=ContentType('text'))
+        content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active or timestamp), content_type=ContentType('text'))
         if self.cpim_enabled:
             if recipients is None:
                 recipients = [self.remote_identity]
