@@ -1582,10 +1582,10 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='remote', accepted_streams=streams[:], proposed_streams=self.proposed_streams[:]))
+            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='remote', accepted_streams=streams, proposed_streams=self.proposed_streams[:]))
             self.streams = self.streams + streams
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='remote', added_streams=streams[:], removed_streams=[]))
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='remote', added_streams=streams, removed_streams=[]))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
             if self._hold_in_progress:
@@ -1728,11 +1728,11 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='local', accepted_streams=self.proposed_streams[:], proposed_streams=self.proposed_streams[:]))
+            proposed_streams = self.proposed_streams[:]
+            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='local', accepted_streams=proposed_streams, proposed_streams=proposed_streams))
             self.streams = self.streams + self.proposed_streams
-            proposed_streams = self.proposed_streams
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=proposed_streams[:], removed_streams=[]))
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=proposed_streams, removed_streams=[]))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
             if self._hold_in_progress:
