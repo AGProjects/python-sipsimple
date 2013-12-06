@@ -1730,7 +1730,7 @@ class Session(object):
             self.state = 'connected'
             proposed_streams = self.proposed_streams[:]
             notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='local', accepted_streams=proposed_streams, proposed_streams=proposed_streams))
-            self.streams = self.streams + self.proposed_streams
+            self.streams += self.proposed_streams
             self.proposed_streams = None
             notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=proposed_streams, removed_streams=[]))
             for notification in unhandled_notifications:
