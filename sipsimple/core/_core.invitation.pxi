@@ -918,8 +918,9 @@ cdef class Invitation:
             tdata = timer.tdata
             originator = timer.originator
 
-            if state == self.state and sub_state == self.sub_state:
+            if state != "early" and state == self.state and sub_state == self.sub_state:
                 return 0
+
             if state == "connected":
                 if self.state == "connecting" and self._sdp_neg_status != 0:
                     self.end()
