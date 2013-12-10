@@ -394,6 +394,26 @@ cdef class PJSIPUA:
             finally:
                 pj_rwmutex_unlock_read(self.audio_change_rwlock)
 
+    def refresh_sound_devices(self):
+        self._check_self()
+        cdef int status
+        cdef dict event_dict
+
+        self.old_devices = self.sound_devices
+        with nogil:
+            status = pj_rwmutex_lock_write(self.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not acquire audio_change_rwlock', status)
+        with nogil:
+            pjmedia_aud_dev_refresh()
+            status = pj_rwmutex_unlock_write(self.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not release audio_change_rwlock', status)
+        event_dict = dict()
+        event_dict["old_devices"] = self.old_devices
+        event_dict["new_devices"] = self.sound_devices
+        _add_event("AudioDevicesDidChange", event_dict)
+
     property available_codecs:
 
         def __get__(self):

@@ -316,6 +316,7 @@ cdef extern from "pjmedia.h":
     ctypedef void (*pjmedia_aud_dev_observer_callback)(pjmedia_aud_dev_event event)
     int pjmedia_aud_dev_set_observer_cb(pjmedia_aud_dev_observer_callback cb) nogil
     int pjmedia_aud_dev_default_param(int index, pjmedia_aud_param *param) nogil
+    int pjmedia_aud_dev_refresh() nogil
 
     # sound port
     struct pjmedia_port
