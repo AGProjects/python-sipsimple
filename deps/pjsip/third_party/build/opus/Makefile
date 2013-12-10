@@ -32,8 +32,11 @@ export _CXXFLAGS:= $(_CFLAGS) $(CC_CXXFLAGS) $(OS_CXXFLAGS) $(M_CXXFLAGS) \
 export _LDFLAGS := $(CC_LDFLAGS) $(OS_LDFLAGS) $(M_LDFLAGS) $(HOST_LDFLAGS) \
 		   $(LDFLAGS)
 
-CELT_OBJS = celt/bands.o \
+CELT_OBJS = \
+	    celt/bands.o \
 	    celt/celt.o \
+	    celt/celt_encoder.o \
+	    celt/celt_decoder.o \
 	    celt/cwrs.o \
 	    celt/entcode.o \
 	    celt/entdec.o \
@@ -54,7 +57,14 @@ OPUS_OPUS_OBJS = \
 	    src/opus_decoder.o \
 	    src/opus_encoder.o \
 	    src/opus_multistream.o \
+	    src/opus_multistream_encoder.o \
+	    src/opus_multistream_decoder.o \
 	    src/repacketizer.o
+
+OPUS_OPUS_OBJS_FLOAT = \
+	    src/analysis.o \
+	    src/mlp.o \
+	    src/mlp_data.o
 
 SILK_OBJS = \
 	    silk/CNG.o \
@@ -167,8 +177,9 @@ SILK_OBJS_FLOAT = \
 	    silk/float/schur_FLP.o \
 	    silk/float/sort_FLP.o
 
+
 export OPUS_SRCDIR = $(OPUS_SRC_BASE)
-export OPUS_OBJS = $(SILK_OBJS) $(SILK_OBJS_FLOAT) $(CELT_OBJS) $(OPUS_OPUS_OBJS)
+export OPUS_OBJS = $(SILK_OBJS) $(SILK_OBJS_FLOAT) $(CELT_OBJS) $(OPUS_OPUS_OBJS) $(OPUS_OPUS_OBJS_FLOAT)
 export OPUS_CFLAGS = $(_CFLAGS)
 export OPUS_CXXFLAGS = $(_CXXFLAGS)
 
