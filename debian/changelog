@@ -1,3 +1,46 @@
+python-sipsimple (1.1.0) UNRELEASED; urgency=medium
+
+  * Updated opus codec to version 1.1
+  * Cleanup opus.c and fix compilation warnings
+  * Always put useinbandfec in SDP for opus codec
+  * Relax codec matching when doing SDP negotiation
+  * Use single global c line when creating SDP
+  * Added function to manually refresh sound devices
+  * Added trace_msrp setting
+  * Fixed SIP and PJSIP logging
+  * Fixed not posting state change notifications for different provisional
+    responses
+  * Changed notification API for renegotiating streams
+  * Renamed streams to proposed_streams on SIPSessionNewProposal
+  * Renamed streams to proposed_streams on SIPSessionHadProposalFailure
+  * Added audio.muted runtime setting to SIPSimpleSettings
+  * Post SIPApplicationWillEnd even if Engine failed
+  * Renamed MediaStreamRegistrar to MediaStreamType
+  * Properly handle mutex creation failures
+  * Added missing context attribute to MediaStreamDidFail notification
+  * Fixed memory leak by initializing the handler after the stream initialized
+  * Moved AudioConference to audio module
+  * Added helper functions to allocate and release memory pools
+  * Create null sound port only once and reuse it
+  * Simplified audio device fallback code
+  * Fixed crash when in-dialog request fails to be sent within a subscription
+  * Properly patch dnspython to make it nonblocking
+  * Added initial_delay to WavePlayer, replacing initial_play
+  * Always use timezone aware timestamps in MSRP streams
+  * Make sure MSRPlib always gets bytes, not unicode
+  * Always return unicode as the received chat message body
+  * Post SIPEngineGotException also if Engine fails to start
+  * Make send_composing_indication refresh argument optional
+  * Return default refresh value in ChatStreamGotComposingIndication if not
+    specified
+  * Don't set last active timestamp automatically
+  * Always pass copies of stream lists in Session notifications
+  * Don't compile WebRTC AEC if machine is not x86 or x86_64
+  * Raised Cython version dependency to 0.19.0
+  * Cleanup Cython imports and remove no longer needed workarounds
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 12 Dec 2013 15:03:01 +0100
+
 python-sipsimple (1.0.0) unstable; urgency=low
 
   * Updated core to PJSIP 2
