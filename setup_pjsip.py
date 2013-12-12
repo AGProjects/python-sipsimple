@@ -46,7 +46,7 @@ class PJSIP_build_ext(build_ext):
                    "#define PJMEDIA_AUDIO_DEV_HAS_ALSA %d" % (1 if sys.platform.startswith("linux") else 0),
                    "#define PJMEDIA_AUDIO_DEV_HAS_WMME %d" % (1 if sys.platform=="win32" else 0),
                    "#define PJMEDIA_HAS_SPEEX_AEC 0",
-                   "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if re.match('i\d86|x86_64', platform.machine()) else 0),
+                   "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if re.match('i\d86|x86|x86_64', platform.machine()) else 0),
                    "#define PJ_ICE_MAX_CHECKS 256",
                    "#define PJ_LOG_MAX_LEVEL 6",
                    "#define PJ_IOQUEUE_MAX_HANDLES 1024",
