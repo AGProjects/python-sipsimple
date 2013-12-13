@@ -1,4 +1,4 @@
-python-sipsimple (1.1.0) UNRELEASED; urgency=medium
+python-sipsimple (1.1.0) unstable; urgency=medium
 
   * Updated opus codec to version 1.1
   * Cleanup opus.c and fix compilation warnings
@@ -39,7 +39,7 @@ python-sipsimple (1.1.0) UNRELEASED; urgency=medium
   * Raised Cython version dependency to 0.19.0
   * Cleanup Cython imports and remove no longer needed workarounds
 
- -- Saul Ibarra <saul@ag-projects.com>  Thu, 12 Dec 2013 15:03:01 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 13 Dec 2013 13:45:31 +0100
 
 python-sipsimple (1.0.0) unstable; urgency=low
 
