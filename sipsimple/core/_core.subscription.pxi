@@ -568,7 +568,12 @@ cdef class IncomingSubscription:
             if self.state not in ("pending", "active"):
                 raise SIPCoreInvalidStateError('Can only end an incoming SUBSCRIBE session in the "pending" or '+
                                         '"active" state, object is currently in the "%s" state' % self.state)
-            self._terminate(ua, reason, 1)
+            try:
+                self._terminate(ua, reason, 1)
+            except PJSIPError:
+                if self._obj != NULL:
+                    pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+                    self._obj = NULL
         finally:
             with nogil:
                 pjsip_dlg_dec_lock(self._dlg)
