@@ -41,21 +41,15 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_LANG_C
 
-dnl #
-dnl # Setup CROSS_COMPILE variable
-dnl #
-if test -z "$CROSS_COMPILE"; then 
-    CROSS_COMPILE=`echo ${CC} | sed 's/gcc//'`
-fi
+AC_PROG_RANLIB
+AC_CHECK_TOOLS([AR], [ar gar], :)
 
-if test "$AR" = ""; then AR="${CROSS_COMPILE}ar rv"; fi
-AC_SUBST(AR)
+if test "$AR_FLAGS" = ""; then AR_FLAGS="rv"; fi
+AC_SUBST(AR_FLAGS)
 if test "$LD" = ""; then LD="$CC"; fi
 AC_SUBST(LD)
 if test "$LDOUT" = ""; then LDOUT="-o "; fi
 AC_SUBST(LDOUT)
-if test "$RANLIB" = ""; then RANLIB="${CROSS_COMPILE}ranlib"; fi
-AC_SUBST(RANLIB)
 if test "$OBJEXT" = ""; then OBJEXT='o'; fi
 AC_SUBST(OBJEXT)
 if test "$LIBEXT" = ""; then LIBEXT='a'; fi
@@ -120,6 +114,7 @@ AC_CHECK_LIB(winmm,puts)
 AC_CHECK_LIB(socket,puts)
 AC_CHECK_LIB(rt,puts)
 AC_CHECK_LIB(nsl,puts)
+AC_CHECK_LIB(m,sin)
 AC_CHECK_LIB(uuid,uuid_generate)
 AC_CHECK_LIB(uuid,uuid_generate,[ac_has_uuid_lib=1])
 
@@ -195,7 +190,6 @@ AC_ARG_ENABLE(floating-point,
 	      [
 		AC_DEFINE(PJ_HAS_FLOATING_POINT,1)
 	        AC_MSG_RESULT([Checking if floating point is disabled... no]) 
-		AC_CHECK_LIB(m,fmod)
 	      ])
 
 
@@ -429,6 +423,18 @@ AC_ARG_ENABLE(epoll,
 	        AC_MSG_RESULT([select()]) 
 	      ])
 
+AC_SUBST(ac_shared_libraries)
+AC_ARG_ENABLE(shared,
+	      AC_HELP_STRING([--enable-shared],
+			     [Build shared libraries]),
+	      [if test "$enable_shared" = "yes"; then
+		[ac_shared_libraries=1]
+		CFLAGS="$CFLAGS -fPIC"
+		AC_MSG_RESULT([Building shared libraries... yes])
+	       fi],
+	      AC_MSG_RESULT([Building shared libraries... no])
+	      )
+
 
 dnl ######################
 dnl # OS specific files
@@ -537,6 +543,7 @@ AC_ARG_ENABLE(sound,
 if test "$enable_sound" = "no"; then
   true;
 else
+ AC_SUBST(ac_pjmedia_audiodev_objs)
  case $target in
   *android*)
 	LIBS="$LIBS -lOpenSLES"
@@ -544,10 +551,12 @@ else
 	;;
   arm-apple-darwin*)
 	LIBS="$LIBS -framework CoreAudio -framework CoreFoundation -framework AudioToolbox -framework CFNetwork -framework UIKit"
+ 	ac_pjmedia_audiodev_objs="coreaudio_dev.o"
 	AC_MSG_RESULT([Checking sound device backend... AudioUnit])
 	;;
   *darwin*)
 	LIBS="$LIBS -framework CoreAudio -framework CoreServices -framework AudioUnit -framework AudioToolbox"
+ 	ac_pjmedia_audiodev_objs="coreaudio_dev.o"
 	AC_MSG_RESULT([Checking sound device backend... CoreAudio])
 	;;
   *cygwin* | *mingw*)
@@ -778,7 +787,6 @@ AC_ARG_ENABLE(libsamplerate,
 	      AC_MSG_RESULT([Skipping libsamplerate detection])
 	     )
 
-dnl # Include libsamplerate
 AC_SUBST(ac_resample_dll)
 AC_ARG_ENABLE(resample_dll,
 	      AC_HELP_STRING([--enable-resample-dll],
