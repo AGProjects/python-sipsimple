@@ -568,12 +568,7 @@ cdef class IncomingSubscription:
             if self.state not in ("pending", "active"):
                 raise SIPCoreInvalidStateError('Can only end an incoming SUBSCRIBE session in the "pending" or '+
                                         '"active" state, object is currently in the "%s" state' % self.state)
-            try:
-                self._terminate(ua, reason, 1)
-            except PJSIPError:
-                if self._obj != NULL:
-                    pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
-                    self._obj = NULL
+            self._terminate(ua, reason, 1)
         finally:
             with nogil:
                 pjsip_dlg_dec_lock(self._dlg)
@@ -662,7 +657,10 @@ cdef class IncomingSubscription:
     cdef int _terminate(self, PJSIPUA ua, str reason, int do_cleanup) except -1:
         cdef int status
         self._set_state("terminated")
-        self._send_notify(reason)
+        try:
+            self._send_notify(reason)
+        except SIPCoreError:
+            pass
         if do_cleanup:
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
             self._obj = NULL
