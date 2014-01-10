@@ -608,7 +608,7 @@ class FileSelector(object):
 
     @classmethod
     def for_file(cls, path, type=None, hash=ComputeHash):
-        fd = open(path, 'r')
+        fd = open(path, 'rb')
         name = os.path.basename(path)
         size = os.fstat(fd.fileno()).st_size
         if type is None:
