@@ -235,8 +235,6 @@ class SIPApplication(object):
 
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
         notification_center.add_observer(self, name='DNSNameserversDidChange')
-        notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
