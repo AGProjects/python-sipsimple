@@ -90,6 +90,7 @@ class MSRPStreamBase(object):
         self.shutting_down = False
         self.local_role = None
         self.remote_role = None
+        self.transport = None
 
     @property
     def local_uri(self):
