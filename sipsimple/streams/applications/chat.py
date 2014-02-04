@@ -117,7 +117,7 @@ class CPIMIdentity(ChatIdentity):
         groupdict =  match.groupdict()
         display_name = groupdict['display_name']
         uri = groupdict['uri']
-        uri = SIPURI.parse(str(uri)) # FIXME: SIPURI is not unicode friendly and expects a str. -Luci
+        uri = SIPURI.parse(uri)
         return cls(uri, display_name)
 
 
