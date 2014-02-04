@@ -776,7 +776,8 @@ cdef class PJSIPUA:
         cdef dict event_dict
         cdef dict message_params
         cdef pj_str_t tsx_key
-        cdef pjsip_via_hdr *top_via, *via
+        cdef pjsip_via_hdr *top_via
+        cdef pjsip_via_hdr *via
         cdef pjsip_transaction *tsx = NULL
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
         cdef pjsip_event_hdr *event_hdr

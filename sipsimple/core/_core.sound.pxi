@@ -22,7 +22,8 @@ cdef class AudioMixer:
     def __init__(self, unicode input_device, unicode output_device, int sample_rate, int ec_tail_length, int slot_count=254):
         global _dealloc_handler_queue
         cdef int status
-        cdef pj_pool_t *conf_pool, *snd_pool
+        cdef pj_pool_t *conf_pool
+        cdef pj_pool_t *snd_pool
         cdef pjmedia_conf **conf_bridge_address
         cdef pjmedia_port **null_port_address
         cdef bytes conf_pool_name, snd_pool_name

@@ -81,7 +81,8 @@ cdef int _event_queue_append(_core_event *event):
 cdef list _get_clear_event_queue():
     global _re_log, _event_queue_head, _event_queue_tail, _event_queue_lock
     cdef object events = []
-    cdef _core_event *event, *event_free
+    cdef _core_event *event
+    cdef _core_event *event_free
     cdef object event_tup
     cdef object event_params, log_msg, log_match
     cdef int locked = 0
@@ -127,7 +128,8 @@ cdef int _add_handler(int func(object obj) except -1, object obj, _handler_queue
     return 0
 
 cdef int _remove_handler(object obj, _handler_queue *queue) except -1:
-    cdef _handler *handler, *handler_free
+    cdef _handler *handler
+    cdef _handler *handler_free
     handler = queue.head
     while handler != NULL:
         if handler.obj == <void *> obj:
@@ -147,7 +149,8 @@ cdef int _remove_handler(object obj, _handler_queue *queue) except -1:
     return 0
 
 cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1:
-    cdef _handler *handler, *handler_free
+    cdef _handler *handler
+    cdef _handler *handler_free
     handler = queue.head
     queue.head = queue.tail = NULL
     while handler != NULL:
