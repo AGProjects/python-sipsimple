@@ -1165,20 +1165,20 @@ cdef class BaseSIPURI(object):
 
 cdef class SIPURI(BaseSIPURI):
     # attributes
-    cdef public str user
-    cdef public str password
-    cdef str _host
+    cdef public object user
+    cdef public object password
+    cdef public object host
+    cdef public bint secure
+    cdef public dict parameters
+    cdef public dict headers
     cdef object _port
-    cdef bint _secure
-    cdef dict _parameters
-    cdef dict _headers
 
 cdef class FrozenSIPURI(BaseSIPURI):
     # attributes
     cdef int initialized
-    cdef readonly str user
-    cdef readonly str password
-    cdef readonly str host
+    cdef readonly object user
+    cdef readonly object password
+    cdef readonly object host
     cdef readonly object port
     cdef readonly bint secure
     cdef readonly frozendict parameters

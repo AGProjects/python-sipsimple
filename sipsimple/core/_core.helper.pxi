@@ -182,8 +182,10 @@ cdef class BaseSIPURI:
 def SIPURI_new(cls, BaseSIPURI sipuri):
     return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=dict(sipuri.parameters), headers=dict(sipuri.headers))
 
-def SIPURI_parse(cls, str uri_str):
-    cdef bytes uri_bytes = uri_str.encode()
+def SIPURI_parse(cls, object uri_str):
+    if not isinstance(uri_str, basestring):
+        raise TypeError('a string or unicode is required')
+    cdef bytes uri_bytes = str(uri_str)
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
     cdef pj_str_t tmp
@@ -198,7 +200,7 @@ def SIPURI_parse(cls, str uri_str):
     return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class SIPURI(BaseSIPURI):
-    def __init__(self, str host not None, str user=None, str password=None, object port=None,
+    def __init__(self, object host not None, object user=None, object password=None, object port=None,
                  bint secure=False, dict parameters=None, dict headers=None):
         self.host = host
         self.user = user
@@ -207,14 +209,6 @@ cdef class SIPURI(BaseSIPURI):
         self.secure = secure
         self.parameters = parameters if parameters is not None else {}
         self.headers = headers if headers is not None else {}
-
-    property host:
-
-        def __get__(self):
-            return self._host
-
-        def __set__(self, str host not None):
-            self._host = host
 
     property port:
 
@@ -228,30 +222,6 @@ cdef class SIPURI(BaseSIPURI):
                     raise ValueError("Invalid port: %d" % port)
             self._port = port
 
-    property parameters:
-
-        def __get__(self):
-            return self._parameters
-
-        def __set__(self, dict parameters not None):
-            self._parameters = parameters
-
-    property headers:
-
-        def __get__(self):
-            return self._headers
-
-        def __set__(self, dict headers not None):
-            self._headers = headers
-
-    property secure:
-
-        def __get__(self):
-            return self._secure
-
-        def __set__(self, bint value):
-            self._secure = value
-
     new = classmethod(SIPURI_new)
     parse = classmethod(SIPURI_parse)
 
@@ -264,8 +234,10 @@ def FrozenSIPURI_new(cls, BaseSIPURI sipuri):
         return sipuri
     return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=frozendict(sipuri.parameters), headers=frozendict(sipuri.headers))
 
-def FrozenSIPURI_parse(cls, str uri_str):
-    cdef bytes uri_bytes = uri_str.encode()
+def FrozenSIPURI_parse(cls, object uri_str):
+    if not isinstance(uri_str, basestring):
+        raise TypeError('a string or unicode is required')
+    cdef bytes uri_bytes = str(uri_str)
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
     cdef pj_str_t tmp
@@ -280,7 +252,7 @@ def FrozenSIPURI_parse(cls, str uri_str):
     return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class FrozenSIPURI(BaseSIPURI):
-    def __init__(self, str host not None, str user=None, str password=None, object port=None,
+    def __init__(self, object host not None, object user=None, object password=None, object port=None,
                  bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
         if not self.initialized:
             if port is not None:
