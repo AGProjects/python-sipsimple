@@ -1545,7 +1545,7 @@ static pj_status_t transport_get_info(pjmedia_transport *tp,
     if (status != PJ_SUCCESS)
 	return status;
 
-    pj_sockaddr_cp(&info->sock_info.rtp_addr_name, &cand.addr);
+    pj_sockaddr_cp(&info->sock_info.rtp_addr_name, &cand.base_addr);
 
     /* Get RTCP default address */
     if (tp_ice->comp_cnt > 1) {
@@ -1553,7 +1553,7 @@ static pj_status_t transport_get_info(pjmedia_transport *tp,
 	if (status != PJ_SUCCESS)
 	    return status;
 
-	pj_sockaddr_cp(&info->sock_info.rtcp_addr_name, &cand.addr);
+	pj_sockaddr_cp(&info->sock_info.rtcp_addr_name, &cand.base_addr);
     }
 
     /* Set remote address originating RTP & RTCP if this transport has 
