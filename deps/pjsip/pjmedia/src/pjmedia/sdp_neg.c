@@ -1029,7 +1029,6 @@ static pj_status_t match_offer(pj_pool_t *pool,
 {
     unsigned i;
     pj_bool_t master_has_codec = 0,
-	      master_has_telephone_event = 0,
 	      master_has_other = 0,
 	      found_matching_codec = 0,
 	      found_matching_telephone_event = 0,
@@ -1125,7 +1124,6 @@ static pj_status_t match_offer(pj_pool_t *pool,
 		pjmedia_sdp_attr_get_rtpmap(a, &or_);
 
 		if (!pj_stricmp2(&or_.enc_name, "telephone-event")) {
-		    master_has_telephone_event = 1;
 		    if (found_matching_telephone_event)
 			continue;
 		    is_codec = 0;

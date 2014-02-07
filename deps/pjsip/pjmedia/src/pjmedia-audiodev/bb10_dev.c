@@ -454,7 +454,6 @@ static int pb_thread_func (void *arg)
     if ((result = snd_pcm_plugin_prepare(stream->pb_pcm,
                                          SND_PCM_CHANNEL_PLAYBACK)) < 0)
     {
-        close_play_pcm(stream);
         TRACE_((THIS_FILE, "pb_thread_func failed prepare = %d", result));
         return PJ_SUCCESS;
     }
@@ -500,7 +499,7 @@ static int pb_thread_func (void *arg)
             		  status.status));
 		if (status.status == SND_PCM_STATUS_READY ||
 		    status.status == SND_PCM_STATUS_UNDERRUN ||
-		    status.status == SND_PCM_STATUS_ERROR ) 
+		    status.status == SND_PCM_STATUS_ERROR )
 		{
 		    if (snd_pcm_plugin_prepare (stream->pb_pcm,
 						SND_PCM_CHANNEL_PLAYBACK) < 0)
@@ -515,7 +514,6 @@ static int pb_thread_func (void *arg)
     }
 
     flush_play(stream);
-    close_play_pcm(stream);
     TRACE_((THIS_FILE, "pb_thread_func: Stopped"));
 
     return PJ_SUCCESS;
@@ -550,7 +548,6 @@ static int ca_thread_func (void *arg)
     if ((result = snd_pcm_plugin_prepare (stream->ca_pcm,
                                           SND_PCM_CHANNEL_CAPTURE)) < 0)
     {
-        close_capture_pcm(stream);
         TRACE_((THIS_FILE, "ca_thread_func failed prepare = %d", result));
         return PJ_SUCCESS;
     }
@@ -616,7 +613,6 @@ static int ca_thread_func (void *arg)
     }
 
     flush_capture(stream);
-    close_capture_pcm(stream);
     TRACE_((THIS_FILE, "ca_thread_func: Stopped"));
 
     return PJ_SUCCESS;
@@ -657,6 +653,7 @@ static pj_status_t bb10_initialize_playback_ctrl(struct bb10_stream *stream,
     }
 
     if (ret != 0) {
+        TRACE_((THIS_FILE, "audio_manager_set_handle_type error ret = %d",ret));
         return PJMEDIA_EAUD_SYSERR;
     }else{
         return PJ_SUCCESS;
@@ -776,7 +773,7 @@ static pj_status_t bb10_open_playback (struct bb10_stream *stream,
 
     TRACE_((THIS_FILE, "bb10_open_playback: pb_frames = %d clock = %d",
                        stream->pb_frames, param->clock_rate));
-    
+
     return PJ_SUCCESS;
 }
 
@@ -862,6 +859,7 @@ static pj_status_t bb10_open_capture (struct bb10_stream *stream,
     }
 
     frame_size = setup.buf.block.frag_size;
+    PJ_UNUSED_ARG(frame_size); /* Warning about unused var */
 
     /* Set clock rate */
     rate = param->clock_rate;
@@ -960,7 +958,7 @@ static pj_status_t bb10_factory_create_stream(pjmedia_aud_dev_factory *f,
 }
 
 
-/* 
+/*
  * API: get running parameter
  * based on ALSA template
  */
@@ -979,7 +977,7 @@ static pj_status_t bb10_stream_get_param(pjmedia_aud_stream *s,
 
 /*
  * API: get capability
- * based on ALSA template 
+ * based on ALSA template
 */
 static pj_status_t bb10_stream_get_cap(pjmedia_aud_stream *s,
                                        pjmedia_aud_dev_cap cap,
@@ -1030,19 +1028,42 @@ static pj_status_t bb10_stream_set_cap(pjmedia_aud_stream *strm,
         (stream->param.dir & PJMEDIA_DIR_PLAYBACK))
     {
 	pjmedia_aud_dev_route route;
+	pj_bool_t need_restart;
 	pj_status_t ret;
 
 	PJ_ASSERT_RETURN(value, PJ_EINVAL);
 
+	/* OS 10.2.1 requires pausing audio stream */
+	need_restart = (stream->pb_thread != NULL);
+	if (need_restart) {
+	    PJ_LOG(4,(THIS_FILE, "pausing audio stream.."));
+	    ret = bb10_stream_stop(strm);
+	    if (ret != PJ_SUCCESS) {
+		PJ_PERROR(1,(THIS_FILE, ret, "Error pausing stream"));
+		return ret;
+	    }
+	}
+
     	route = *((pjmedia_aud_dev_route*)value);
+    	PJ_LOG(4,(THIS_FILE, "setting audio route to %d..", route));
+
         /* Use the initialization function which lazy-inits the
          * handle for routing
          */
     	if (route == PJMEDIA_AUD_DEV_ROUTE_LOUDSPEAKER) {
             ret = bb10_initialize_playback_ctrl(stream,true);
         } else {
-            ret = bb10_initialize_playback_ctrl(stream,false);        	
+            ret = bb10_initialize_playback_ctrl(stream,false);
         }
+
+    	if (need_restart) {
+	    PJ_LOG(4,(THIS_FILE, "resuming audio stream.."));
+	    ret = bb10_stream_start(strm);
+	    if (ret != PJ_SUCCESS) {
+		PJ_PERROR(1,(THIS_FILE, ret, "Error resuming stream"));
+	    }
+    	}
+
     	return ret;
 
     } else if (cap==PJMEDIA_AUD_DEV_CAP_EC &&
@@ -1126,6 +1147,9 @@ static pj_status_t bb10_stream_destroy (pjmedia_aud_stream *s)
     TRACE_((THIS_FILE,"bb10_stream_destroy()"));
 
     bb10_stream_stop (s);
+
+    close_play_pcm(stream);
+    close_capture_pcm(stream);
 
     pj_pool_release (stream->pool);
 

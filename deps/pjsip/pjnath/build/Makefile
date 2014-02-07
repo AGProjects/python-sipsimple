@@ -90,6 +90,8 @@ TARGETS := $(PJNATH_LIB) $(PJNATH_SONAME) $(PJTURN_CLIENT_EXE) $(PJTURN_SRV_EXE)
 
 all: $(TARGETS)
 
+lib: $(TARGETS)
+
 doc:
 	cd .. && rm -rf docs/$(PJ_VERSION) && doxygen docs/doxygen.cfg
 	@if [ -n "$(WWWDIR)" ] && ! [ -d "$(WWWDIR)/docs/$(PJ_VERSION)/pjnath/docs/html" ] ; then \

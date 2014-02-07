@@ -21,6 +21,7 @@ export PJSIP_LIB:=libpjsip-$(TARGET_NAME)$(LIBEXT)
 export PJSIP_UA_LIB:=libpjsip-ua-$(TARGET_NAME)$(LIBEXT)
 export PJSIP_SIMPLE_LIB:=libpjsip-simple-$(TARGET_NAME)$(LIBEXT)
 export PJSUA_LIB_LIB:=libpjsua-$(TARGET_NAME)$(LIBEXT)
+export PJSUA2_LIB_LIB=../lib/libpjsua2-$(TARGET_NAME)$(LIBEXT)
 
 ifeq ($(PJ_SHARED_LIBRARIES),)
 else
@@ -32,6 +33,8 @@ export PJSIP_SIMPLE_SONAME := libpjsip-simple.$(SHLIB_SUFFIX)
 export PJSIP_SIMPLE_SHLIB := $(PJSIP_SIMPLE_SONAME).$(PJ_VERSION_MAJOR)
 export PJSUA_LIB_SONAME := libpjsua.$(SHLIB_SUFFIX)
 export PJSUA_LIB_SHLIB := $(PJSUA_LIB_SONAME).$(PJ_VERSION_MAJOR)
+export PJSUA2_LIB_SONAME := ../lib/libpjsua2.$(SHLIB_SUFFIX)
+export PJSUA2_LIB_SHLIB := $(PJSUA2_LIB_SONAME).$(PJ_VERSION_MAJOR)
 endif
 
 
@@ -119,6 +122,8 @@ TARGETS := $(PJSIP_LIB) $(PJSIP_SONAME) \
 
 all: $(TARGETS)
 
+lib: $(TARGETS)
+
 doc:
 	cd .. && rm -rf docs/$(PJ_VERSION) && doxygen docs/doxygen.cfg
 	@if [ -n "$(WWWDIR)" ] && ! [ -d "$(WWWDIR)/docs/$(PJ_VERSION)/pjsip/docs/html" ] ; then \
@@ -153,6 +158,14 @@ pjsip-simple: $(PJSIP_SIMPLE_LIB)
 $(PJSIP_SIMPLE_SONAME): $(PJSIP_SIMPLE_LIB)
 $(PJSIP_SIMPLE_LIB) $(PJSIP_SIMPLE_SONAME): $(PJSIP_LIB) $(PJSIP_SONAME)
 	$(MAKE) -f $(RULES_MAK) APP=PJSIP_SIMPLE app=pjsip-simple $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+
+pjsua2-test: $(PJSUA2_TEST_EXE)
+$(PJSUA2_TEST_EXE): $(PJSIP_LIB) $(PJSIP_SONAME)
+$(PJSUA2_TEST_EXE): $(PJSIP_UA_LIB) $(PJSIP_UA_SONAME)
+$(PJSUA2_TEST_EXE): $(PJSIP_SIMPLE_LIB) $(PJSIP_SIMPLE_SONAME)
+$(PJSUA2_TEST_EXE): $(PJSUA_LIB_LIB) $(PJSUA_LIB_SONAME)
+$(PJSUA2_TEST_EXE): $(PJSUA2_LIB_LIB) $(PJSUA2_LIB_SONAME)
+	$(MAKE) -f $(RULES_MAK) APP=PJSUA2_TEST app=pjsua2-test $(subst /,$(HOST_PSEP),$(BINDIR)/$@)
 
 .PHONY: pjsip.ko
 pjsip.ko:

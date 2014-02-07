@@ -192,8 +192,8 @@ static pj_status_t mod_inv_unload(void)
 /*
  * Set session state.
  */
-void inv_set_state(pjsip_inv_session *inv, pjsip_inv_state state,
-		   pjsip_event *e)
+static void inv_set_state(pjsip_inv_session *inv, pjsip_inv_state state,
+			  pjsip_event *e)
 {
     pjsip_inv_state prev_state = inv->state;
     pj_bool_t dont_notify = PJ_FALSE;
@@ -283,8 +283,8 @@ void inv_set_state(pjsip_inv_session *inv, pjsip_inv_state state,
 /*
  * Set cause code.
  */
-void inv_set_cause(pjsip_inv_session *inv, int cause_code,
-		   const pj_str_t *cause_text)
+static void inv_set_cause(pjsip_inv_session *inv, int cause_code,
+			  const pj_str_t *cause_text)
 {
     if (cause_code > inv->cause) {
 	inv->cause = (pjsip_status_code) cause_code;
@@ -397,6 +397,11 @@ static pj_status_t inv_send_ack(pjsip_inv_session *inv, pjsip_event *e)
 	pj_assert(!"Unsupported event type");
 	return PJ_EBUG;
     }
+
+    /* Note that with https://trac.pjsip.org/repos/ticket/1725, this
+     * function can be called to send ACK for previous INVITE 200/OK
+     * retransmission
+     */
 
     PJ_LOG(5,(inv->obj_name, "Received %s, sending ACK",
 	      pjsip_rx_data_get_info(rdata)));
@@ -618,15 +623,23 @@ static pj_bool_t mod_inv_on_rx_response(pjsip_rx_data *rdata)
      * If it is, we need to send ACK.
      */
     if (msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code/100==2 &&
-	rdata->msg_info.cseq->method.id == PJSIP_INVITE_METHOD &&
-	inv->invite_tsx == NULL) 
+	rdata->msg_info.cseq->method.id == PJSIP_INVITE_METHOD)
     {
-	pjsip_event e;
+	/* The code inside "if" is called the second time 200/OK
+	 * retransmission is received. Also handle the situation
+	 * when we have another re-INVITE on going and 200/OK
+	 * retransmission is received. See:
+	 * https://trac.pjsip.org/repos/ticket/1725
+	 */
+	if (inv->invite_tsx == NULL ||
+	    (inv->last_ack && inv->last_ack_cseq==rdata->msg_info.cseq->cseq))
+	{
+	    pjsip_event e;
 
-	PJSIP_EVENT_INIT_RX_MSG(e, rdata);
-	inv_send_ack(inv, &e);
-	return PJ_TRUE;
-
+	    PJSIP_EVENT_INIT_RX_MSG(e, rdata);
+	    inv_send_ack(inv, &e);
+	    return PJ_TRUE;
+	}
     }
 
     /* No other processing needs to be done here. */
@@ -655,6 +668,19 @@ static void mod_inv_on_tsx_state(pjsip_transaction *tsx, pjsip_event *e)
     /* Call state handler for the invite session. */
     (*inv_state_handler[inv->state])(inv, e);
 
+    /* Clear invite transaction when tsx is terminated. 
+     * Necessary for app that wants to send a new re-INVITE request immediately
+     * after the transaction is terminated. 
+     */
+    if (tsx->state==PJSIP_TSX_STATE_TERMINATED  && tsx == inv->invite_tsx) {
+	inv->invite_tsx = NULL;    
+
+	if (inv->last_answer) {
+		pjsip_tx_data_dec_ref(inv->last_answer);
+		inv->last_answer = NULL;
+	}
+    }
+
     /* Call on_tsx_state. CANCEL request is a special case and has been
      * reported earlier in inv_respond_incoming_cancel()
      */
@@ -670,8 +696,9 @@ static void mod_inv_on_tsx_state(pjsip_transaction *tsx, pjsip_event *e)
      * terminated, but this didn't work when ACK has the same Via branch
      * value as the INVITE (see http://www.pjsip.org/trac/ticket/113)
      */
-    if (tsx->state>=PJSIP_TSX_STATE_CONFIRMED && tsx == inv->invite_tsx) {
-        inv->invite_tsx = NULL;
+    if (tsx->state>=PJSIP_TSX_STATE_CONFIRMED && tsx == inv->invite_tsx) {	
+	inv->invite_tsx = NULL;
+
 	if (inv->last_answer) {
 		pjsip_tx_data_dec_ref(inv->last_answer);
 		inv->last_answer = NULL;
@@ -3333,6 +3360,15 @@ static pj_bool_t inv_handle_update_response( pjsip_inv_session *inv,
 					     e->body.tsx_state.src.rdata);
 	handled = PJ_TRUE;
     }
+
+    /* Process 502/503 error */
+    else if ((tsx->state == PJSIP_TSX_STATE_TERMINATED) &&
+	     (tsx->status_code == 503 || tsx->status_code == 502))
+    {
+	status = pjsip_timer_handle_refresh_error(inv, e);
+
+	handled = PJ_TRUE;
+    }
     
     /* Get/attach invite session's transaction data */
     else 
@@ -3606,7 +3642,16 @@ static pj_bool_t handle_uac_tsx_response(pjsip_inv_session *inv,
 
 	return PJ_TRUE;	/* Handled */
 
-    } else {
+    } 
+    /* Process 502/503 error */
+    else if ((tsx->state == PJSIP_TSX_STATE_TERMINATED) &&
+	     (tsx->status_code == 503 || tsx->status_code == 502))
+    {
+	pjsip_timer_handle_refresh_error(inv, e);
+
+	return PJ_TRUE;
+    }    
+    else {
 	return PJ_FALSE; /* Unhandled */
     }
 }
