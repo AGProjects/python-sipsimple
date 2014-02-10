@@ -285,13 +285,13 @@ class SIPApplication(object):
                 if self.running:
                     if self._timer.restart_transports:
                         engine = Engine()
-                        notification_center = NotificationCenter()
                         settings = SIPSimpleSettings()
                         if 'tcp' in settings.sip.transport_list:
                             engine.set_tcp_port(None)
                             engine.set_tcp_port(settings.sip.tcp_port)
                         if 'tls' in settings.sip.transport_list:
                             self._initialize_tls()
+                    notification_center = NotificationCenter()
                     notification_center.post_notification('NetworkConditionsDidChange', sender=self)
                 self._timer = None
             self._timer = reactor.callLater(5, notify)
