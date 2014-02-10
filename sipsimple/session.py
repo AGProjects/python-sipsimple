@@ -159,7 +159,6 @@ class ReferralHandler(object):
         self.route = None
         self._channel = coros.queue()
         self._referral = None
-        self._wakeup_timer = None
 
     def start(self):
         notification_center = NotificationCenter()
@@ -171,9 +170,7 @@ class ReferralHandler(object):
             self.session = None
             return
         notification_center.add_observer(self, sender=self.session)
-        notification_center.add_observer(self, name='DNSNameserversDidChange')
-        notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        notification_center.add_observer(self, name='NetworkConditionsDidChange')
         proc.spawn(self._run)
 
     def _run(self):
@@ -299,13 +296,8 @@ class ReferralHandler(object):
             else:
                 notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=NotificationData(participant=self.participant_uri, code=e.code, reason=e.error))
         finally:
-            if self._wakeup_timer is not None and self._wakeup_timer.active():
-                self._wakeup_timer.cancel()
-            self._wakeup_timer = None
             notification_center.remove_observer(self, sender=self.session)
-            notification_center.remove_observer(self, name='DNSNameserversDidChange')
-            notification_center.remove_observer(self, name='SystemIPAddressDidChange')
-            notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+            notification_center.remove_observer(self, name='NetworkConditionsDidChange')
             self.session = None
             self._referral = None
 
@@ -338,32 +330,14 @@ class ReferralHandler(object):
         self._channel.send(notification)
 
     def _NH_SIPSessionDidFail(self, notification):
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
         self._channel.send_exception(TerminateReferral())
 
     def _NH_SIPSessionWillEnd(self, notification):
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
         self._channel.send_exception(TerminateReferral())
 
-    def _NH_DNSNameserversDidChange(self, notification):
+    def _NH_NetworkConditionsDidChange(self, notification):
         if self.active:
             self._refresh()
-
-    def _NH_SystemIPAddressDidChange(self, notification):
-        if self.active:
-            self._refresh()
-
-    def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self._wakeup_timer is None:
-            def wakeup_action():
-                if self.active:
-                    self._refresh()
-                self._wakeup_timer = None
-            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class ConferenceHandler(object):
@@ -379,12 +353,9 @@ class ConferenceHandler(object):
         self._subscription = None
         self._subscription_proc = None
         self._subscription_timer = None
-        self._wakeup_timer = None
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.session)
-        notification_center.add_observer(self, name='DNSNameserversDidChange')
-        notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        notification_center.add_observer(self, name='NetworkConditionsDidChange')
         self._command_proc = proc.spawn(self._run)
 
     @run_in_green_thread
@@ -423,9 +394,7 @@ class ConferenceHandler(object):
     def _terminate(self):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=self.session)
-        notification_center.remove_observer(self, name='DNSNameserversDidChange')
-        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
-        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        notification_center.remove_observer(self, name='NetworkConditionsDidChange')
         self._deactivate()
         command = Command('terminate')
         self._command_channel.send(command)
@@ -447,9 +416,6 @@ class ConferenceHandler(object):
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
         self._subscription_timer = None
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
         if self._subscription_proc is not None:
             subscription_proc = self._subscription_proc
             subscription_proc.kill(TerminateSubscription)
@@ -635,21 +601,9 @@ class ConferenceHandler(object):
         elif not self.session.remote_focus and self.active:
             self._deactivate()
 
-    def _NH_DNSNameserversDidChange(self, notification):
+    def _NH_NetworkConditionsDidChange(self, notification):
         if self.active:
             self._resubscribe()
-
-    def _NH_SystemIPAddressDidChange(self, notification):
-        if self.active:
-            self._resubscribe()
-
-    def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self._wakeup_timer is None:
-            def wakeup_action():
-                if self.active:
-                    self._resubscribe()
-                self._wakeup_timer = None
-            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class TransferInfo(object):

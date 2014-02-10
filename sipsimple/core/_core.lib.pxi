@@ -38,16 +38,21 @@ cdef class PJCachingPool:
 cdef class PJSIPEndpoint:
     def __cinit__(self, PJCachingPool caching_pool, ip_address, udp_port, tcp_port, tls_port,
                   tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
+        cdef pjsip_tpmgr *tpmgr
         cdef pj_dns_resolver *resolver
         cdef int status
+
         if ip_address is not None and not _is_valid_ip(pj_AF_INET(), ip_address):
             raise ValueError("Not a valid IPv4 address: %s" % ip_address)
+        self._local_ip_used = ip_address
+
         status = pjsip_endpt_create(&caching_pool._obj.factory, "core",  &self._obj)
         if status != 0:
             raise PJSIPError("Could not initialize PJSIP endpoint", status)
         self._pool = pjsip_endpt_create_pool(self._obj, "PJSIPEndpoint", 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
+
         status = pjsip_tsx_layer_init_module(self._obj)
         if status != 0:
             raise PJSIPError("Could not initialize transaction layer module", status)
@@ -72,7 +77,13 @@ cdef class PJSIPEndpoint:
         status = pjsip_endpt_set_resolver(self._obj, resolver)
         if status != 0:
             raise PJSIPError("Could not set fake DNS resolver on endpoint", status)
-        self._local_ip_used = ip_address
+
+        tpmgr = pjsip_endpt_get_tpmgr(self._obj)
+        if tpmgr == NULL:
+            raise SIPCoreError("Could not get the transport manager")
+        status = pjsip_tpmgr_set_state_cb(tpmgr, _transport_state_cb)
+        if status != 0:
+            raise PJSIPError("Could not set transport state callback", status)
         if udp_port is not None:
             self._start_udp_transport(udp_port)
         if tcp_port is not None:
@@ -185,6 +196,10 @@ cdef class PJSIPEndpoint:
         return 0
 
     def __dealloc__(self):
+        cdef pjsip_tpmgr *tpmgr
+        tpmgr = pjsip_endpt_get_tpmgr(self._obj)
+        if tpmgr != NULL:
+            pjsip_tpmgr_set_state_cb(tpmgr, NULL)
         if self._udp_transport != NULL:
             self._stop_udp_transport()
         if self._tcp_transport != NULL:
@@ -316,4 +331,14 @@ cdef class PJMEDIAEndpoint:
                 if status != 0:
                     raise PJSIPError("Could not set codec priority", status)
         return 0
+
+
+cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil:
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    if state == PJSIP_TP_STATE_DISCONNECTED and info.status != 0:
+        _add_event("SIPEngineTransportDidDisconnect", dict(transport=tp.type_name.lower(), reason=_pj_status_to_str(info.status)))
 

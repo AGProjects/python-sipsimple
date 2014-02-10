@@ -82,7 +82,6 @@ class Publisher(object):
         self._dns_wait = 1
         self._publish_wait = 1
         self._publication_timer = None
-        self._wakeup_timer = None
         self.__dict__['state'] = None
 
     @abstractproperty
@@ -122,9 +121,7 @@ class Publisher(object):
         notification_center.post_notification(self.__class__.__name__ + 'WillStart', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.add_observer(self, name='DNSNameserversDidChange')
-        notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        notification_center.add_observer(self, name='NetworkConditionsDidChange')
         self._command_proc = proc.spawn(self._run)
         notification_center.post_notification(self.__class__.__name__ + 'DidStart', sender=self)
         notification_center.remove_observer(self, sender=self)
@@ -139,9 +136,7 @@ class Publisher(object):
         notification_center.post_notification(self.__class__.__name__ + 'WillEnd', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self.account)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.remove_observer(self, name='DNSNameserversDidChange')
-        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
-        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        notification_center.remove_observer(self, name='NetworkConditionsDidChange')
         command = Command('terminate')
         self._command_channel.send(command)
         command.wait()
@@ -292,9 +287,6 @@ class Publisher(object):
         if self._publication_timer is not None and self._publication_timer.active():
             self._publication_timer.cancel()
         self._publication_timer = None
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
         publishing = self.publishing
         self.publishing = False
         if self._publication is not None:
@@ -357,22 +349,9 @@ class Publisher(object):
             self._command_channel.send(Command('unpublish'))
             self._command_channel.send(Command('publish', state=self.state))
 
-    def _NH_DNSNameserversDidChange(self, notification):
+    def _NH_NetworkConditionsDidChange(self, notification):
         if self.active:
             self._command_channel.send(Command('publish', state=self.state))
-
-    def _NH_SystemIPAddressDidChange(self, notification):
-        if self.active:
-            self._command_channel.send(Command('publish', state=self.state))
-
-    def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self._wakeup_timer is None:
-            def wakeup_action():
-                if self.active:
-                    self._command_channel.send(Command('unpublish'))
-                    self._command_channel.send(Command('publish', state=self.state))
-                self._wakeup_timer = None
-            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class PresencePublisher(Publisher):

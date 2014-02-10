@@ -65,8 +65,8 @@ class SIPApplication(object):
     voice_audio_bridge = ApplicationAttribute(value=None)
 
     _channel = ApplicationAttribute(value=coros.queue())
-    _wakeup_timer = ApplicationAttribute(value=None)
     _lock = ApplicationAttribute(value=RLock())
+    _timer = ApplicationAttribute(value=None)
 
     engine = Engine()
 
@@ -130,6 +130,22 @@ class SIPApplication(object):
         self.state = 'stopped'
         notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
 
+    def _initialize_tls(self):
+        engine = Engine()
+        settings = SIPSimpleSettings()
+        account_manager = AccountManager()
+        account = account_manager.default_account
+        try:
+            engine.set_tls_options(port=settings.sip.tls_port,
+                                   verify_server=account.tls.verify_server,
+                                   ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                                   cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                   privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                   timeout=settings.tls.timeout)
+        except Exception, e:
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+
     @run_in_green_thread
     def _initialize_subsystems(self):
         account_manager = AccountManager()
@@ -146,8 +162,6 @@ class SIPApplication(object):
         if self.state == 'stopping':
             reactor.stop()
             return
-
-        account = account_manager.default_account
 
         # initialize core
         notification_center.add_observer(self, sender=engine)
@@ -180,16 +194,7 @@ class SIPApplication(object):
             return
 
         # initialize TLS
-        try:
-            engine.set_tls_options(port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
-                                   verify_server=account.tls.verify_server if account else False,
-                                   ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                   cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                                   privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                                   timeout=settings.tls.timeout)
-        except Exception, e:
-            notification_center = NotificationCenter()
-            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+        self._initialize_tls()
 
         # initialize PJSIP internal resolver
         engine.set_nameservers(dns_manager.nameservers)
@@ -235,6 +240,8 @@ class SIPApplication(object):
 
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
         notification_center.add_observer(self, name='DNSNameserversDidChange')
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
@@ -242,9 +249,9 @@ class SIPApplication(object):
     @run_in_green_thread
     def _shutdown_subsystems(self):
         # cleanup internals
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
+        if self._timer is not None and self._timer.active():
+            self._timer.cancel()
+        self._timer = None
 
         # shutdown middleware components
         dns_manager = DNSManager()
@@ -269,6 +276,27 @@ class SIPApplication(object):
         # stop the reactor
         reactor.stop()
 
+    def _network_conditions_changed(self, restart_transports=False):
+        if self._timer is not None:
+            self._timer.restart_transports = self._timer.restart_transports or restart_transports
+            return
+        if self.running and self._timer is None:
+            def notify():
+                if self.running:
+                    if self._timer.restart_transports:
+                        engine = Engine()
+                        notification_center = NotificationCenter()
+                        settings = SIPSimpleSettings()
+                        if 'tcp' in settings.sip.transport_list:
+                            engine.set_tcp_port(None)
+                            engine.set_tcp_port(settings.sip.tcp_port)
+                        if 'tls' in settings.sip.transport_list:
+                            self._initialize_tls()
+                    notification_center.post_notification('NetworkConditionsDidChange', sender=self)
+                self._timer = None
+            self._timer = reactor.callLater(5, notify)
+            self._timer.restart_transports = restart_transports
+
     @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -283,6 +311,9 @@ class SIPApplication(object):
         self.end_reason = 'engine failed'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
+
+    def _NH_SIPEngineTransportDidDisconnect(self, notification):
+        self._network_conditions_changed(restart_transports=False)
 
     @run_in_thread('device-io')
     def _NH_CFGSettingsObjectDidChange(self, notification):
@@ -352,17 +383,7 @@ class SIPApplication(object):
             if 'sip.tcp_port' in notification.data.modified:
                 engine.set_tcp_port(settings.sip.tcp_port)
             if set(('sip.tls_port', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
-                account = account_manager.default_account
-                try:
-                    engine.set_tls_options(port=settings.sip.tls_port,
-                                           verify_server=account.tls.verify_server if account else False,
-                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                           cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                                           privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                                           timeout=settings.tls.timeout)
-                except Exception, e:
-                    notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+                self._initialize_tls()
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codec_list' in notification.data.modified:
@@ -373,17 +394,7 @@ class SIPApplication(object):
                 engine.log_level = settings.logs.pjsip_level if settings.logs.trace_pjsip else 0
         elif notification.sender is account_manager.default_account:
             if set(('tls.verify_server', 'tls.certificate')).intersection(notification.data.modified):
-                account = account_manager.default_account
-                try:
-                    engine.set_tls_options(port=settings.sip.tls_port,
-                                           verify_server=account.tls.verify_server,
-                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                           cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                           privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                           timeout=settings.tls.timeout)
-                except Exception, e:
-                    notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+                self._initialize_tls()
 
     @run_in_thread('device-io')
     def _NH_DefaultAudioDeviceDidChange(self, notification):
@@ -433,4 +444,11 @@ class SIPApplication(object):
         if self.running:
             engine = Engine()
             engine.set_nameservers(notification.data.nameservers)
+            notification.center.post_notification('NetworkConditionsDidChange', sender=self)
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        self._network_conditions_changed(restart_transports=True)
+
+    def _NH_SystemDidWakeupFromSleep(self, notification):
+        self._network_conditions_changed(restart_transports=True)
 
