@@ -428,6 +428,8 @@ cdef class RTPTransport:
         cdef int port
         cdef pj_caching_pool *caching_pool
         cdef pj_ice_strans_cfg ice_cfg
+        cdef pj_ice_strans *ice_st
+        cdef pj_ice_strans_state ice_state
         cdef pj_mutex_t *lock = self._lock
         cdef pj_str_t local_ip
         cdef pj_str_t *local_ip_address
@@ -517,6 +519,13 @@ cdef class RTPTransport:
                     _add_event("RTPTransportDidInitialize", dict(obj=self))
                 else:
                     self.state = "WAIT_STUN"
+                if self.use_ice:
+                    _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=self, prev_state="NULL", state="GATHERING"))
+                    ice_st = pjmedia_ice_get_strans(transport_address[0])
+                    if ice_st != NULL:
+                        ice_state = pj_ice_strans_get_state(ice_st)
+                        if ice_state == PJ_ICE_STRANS_STATE_READY:
+                            _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=self, prev_state="GATHERING", state="GATHERING_COMPLETE"))
             else:
                 raise SIPCoreError('set_INIT can only be called in the "NULL", "LOCAL" and "ESTABLISHED" states, ' +
                                    'current state is "%s"' % self.state)

@@ -246,6 +246,7 @@ cdef extern from "pjnath.h":
     void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg) nogil
     pj_ice_sess* pj_ice_strans_get_session(pj_ice_strans *ice_st)
     pj_time_val pj_ice_strans_get_start_time(pj_ice_strans *ice_st)
+    pj_ice_strans_state pj_ice_strans_get_state(pj_ice_strans *ice_st)
     pj_ice_sess_check_ptr_const pj_ice_strans_get_valid_pair(pj_ice_strans *ice_st, unsigned comp_id)
 
 cdef extern from "pjmedia.h":
