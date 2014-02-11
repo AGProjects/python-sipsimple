@@ -632,7 +632,7 @@ class BonjourAccount(SettingsObject):
 
     @property
     def uri(self):
-        return SIPURI(user=self.contact.username, host=Host.default_ip)
+        return SIPURI(user=self.contact.username, host=Host.default_ip or '127.0.0.1')
 
     def _get_presence_state(self):
         return self._bonjour_services.presence_state
