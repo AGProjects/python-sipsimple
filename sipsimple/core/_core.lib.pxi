@@ -335,10 +335,30 @@ cdef class PJMEDIAEndpoint:
 
 cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil:
     cdef PJSIPUA ua
+    cdef str direction
+    cdef str local_address
+    cdef str remote_address
+    cdef char buf[PJ_INET6_ADDRSTRLEN]
     try:
         ua = _get_ua()
     except:
         return
     if state == PJSIP_TP_STATE_DISCONNECTED and info.status != 0:
-        _add_event("SIPEngineTransportDidDisconnect", dict(transport=tp.type_name.lower(), reason=_pj_status_to_str(info.status)))
+        if tp.dir == PJSIP_TP_DIR_OUTGOING:
+            direction = 'outgoing'
+        elif tp.dir == PJSIP_TP_DIR_INCOMING:
+            direction = 'incoming'
+        else:
+            direction = None
+        if pj_sockaddr_has_addr(&tp.local_addr):
+            pj_sockaddr_print(&tp.local_addr, buf, PJ_INET6_ADDRSTRLEN, 0)
+            local_address = '%s:%d' % (PyString_FromString(buf), pj_sockaddr_get_port(&tp.local_addr))
+        else:
+            local_address = None
+        remote_address = '%s:%d' % (_pj_str_to_str(tp.remote_name.host), tp.remote_name.port)
+        _add_event("SIPEngineTransportDidDisconnect", dict(transport=tp.type_name.lower(),
+                                                           direction=direction,
+                                                           local_address=local_address,
+                                                           remote_address=remote_address,
+                                                           reason=_pj_status_to_str(info.status)))
 

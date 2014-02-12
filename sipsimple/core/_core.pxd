@@ -605,7 +605,6 @@ cdef extern from "pjsip.h":
         PJSIP_TLS_EKEYFILE
         PJSIP_TLS_ECIPHER
         PJSIP_TLS_ECTX
-    struct pjsip_transport
     enum pjsip_uri_context_e:
         PJSIP_URI_IN_CONTACT_HDR
     struct pjsip_param:
@@ -837,9 +836,15 @@ cdef extern from "pjsip.h":
     # transports
     enum pjsip_ssl_method:
         PJSIP_TLSV1_METHOD
+    enum pjsip_transport_dir:
+        PJSIP_TP_DIR_OUTGOING
+        PJSIP_TP_DIR_INCOMING
     struct pjsip_transport:
         char *type_name
+        pjsip_transport_dir dir
+        pj_sockaddr local_addr
         pjsip_host_port local_name
+        pjsip_host_port remote_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
         int destroy(pjsip_tpfactory *factory) nogil
