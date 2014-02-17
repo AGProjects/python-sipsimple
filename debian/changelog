@@ -1,3 +1,20 @@
+python-sipsimple (1.2.0) UNRELEASED; urgency=medium
+
+  * pjsip: updated bundled version to revision 4738
+  * pjsip: return base address as ICE transport address
+  * Use 101 as the telephone-event payload type
+  * Always open file in binary mode for file transfers
+  * Accept unicode in SIPURI objects
+  * Avoid exceptions in IncomingSubscription.end
+  * Initialize transport to None in MSRPStreamBase.__init__
+  * Fixed compile warnings with Cython 0.20
+  * Post NetowrkConditionsDidChange if system IP address changes or the DNS
+    Manager changes the resolvers
+  * Fake ICE gathering states since we might get them too early
+  * Use 127.0.0.1 for bonjour when the default IP address is not available
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 17 Feb 2014 16:52:01 +0100
+
 python-sipsimple (1.1.0) unstable; urgency=medium
 
   * Updated opus codec to version 1.1
