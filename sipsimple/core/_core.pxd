@@ -605,6 +605,7 @@ cdef extern from "pjsip.h":
         PJSIP_TLS_EKEYFILE
         PJSIP_TLS_ECIPHER
         PJSIP_TLS_ECTX
+    struct pjsip_transport
     enum pjsip_uri_context_e:
         PJSIP_URI_IN_CONTACT_HDR
     struct pjsip_param:
@@ -790,17 +791,6 @@ cdef extern from "pjsip.h":
         int on_tx_response(pjsip_tx_data *tdata) with gil
         void on_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 
-    # transport manager
-    struct pjsip_tpmgr
-    struct pjsip_transport_state_info:
-        int status
-    enum pjsip_transport_state:
-        PJSIP_TP_STATE_CONNECTED
-        PJSIP_TP_STATE_DISCONNECTED
-    ctypedef pjsip_transport_state_info *pjsip_transport_state_info_ptr_const "const pjsip_transport_state_info *"
-    ctypedef void (*pjsip_tp_state_callback)(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil
-    int pjsip_tpmgr_set_state_cb(pjsip_tpmgr *mgr, pjsip_tp_state_callback cb)
-
     # endpoint
     struct pjsip_endpoint
     int pjsip_endpt_create(pj_pool_factory *pf, char *name, pjsip_endpoint **endpt) nogil
@@ -831,20 +821,13 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv) nogil
     int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv) nogil
     pj_dns_resolver* pjsip_endpt_get_resolver(pjsip_endpoint *endpt) nogil
-    pjsip_tpmgr* pjsip_endpt_get_tpmgr(pjsip_endpoint *endpt)
 
     # transports
     enum pjsip_ssl_method:
         PJSIP_TLSV1_METHOD
-    enum pjsip_transport_dir:
-        PJSIP_TP_DIR_OUTGOING
-        PJSIP_TP_DIR_INCOMING
     struct pjsip_transport:
         char *type_name
-        pjsip_transport_dir dir
-        pj_sockaddr local_addr
         pjsip_host_port local_name
-        pjsip_host_port remote_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
         int destroy(pjsip_tpfactory *factory) nogil

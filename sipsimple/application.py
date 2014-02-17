@@ -276,26 +276,14 @@ class SIPApplication(object):
         # stop the reactor
         reactor.stop()
 
-    def _network_conditions_changed(self, restart_transports=False):
-        if self._timer is not None:
-            self._timer.restart_transports = self._timer.restart_transports or restart_transports
-            return
+    def _network_conditions_changed(self):
         if self.running and self._timer is None:
             def notify():
                 if self.running:
-                    if self._timer.restart_transports:
-                        engine = Engine()
-                        settings = SIPSimpleSettings()
-                        if 'tcp' in settings.sip.transport_list:
-                            engine.set_tcp_port(None)
-                            engine.set_tcp_port(settings.sip.tcp_port)
-                        if 'tls' in settings.sip.transport_list:
-                            self._initialize_tls()
                     notification_center = NotificationCenter()
                     notification_center.post_notification('NetworkConditionsDidChange', sender=self)
                 self._timer = None
             self._timer = reactor.callLater(5, notify)
-            self._timer.restart_transports = restart_transports
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
@@ -311,9 +299,6 @@ class SIPApplication(object):
         self.end_reason = 'engine failed'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
-
-    def _NH_SIPEngineTransportDidDisconnect(self, notification):
-        self._network_conditions_changed(restart_transports=False)
 
     @run_in_thread('device-io')
     def _NH_CFGSettingsObjectDidChange(self, notification):
@@ -447,8 +432,8 @@ class SIPApplication(object):
             notification.center.post_notification('NetworkConditionsDidChange', sender=self)
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        self._network_conditions_changed(restart_transports=True)
+        self._network_conditions_changed()
 
     def _NH_SystemDidWakeupFromSleep(self, notification):
-        self._network_conditions_changed(restart_transports=True)
+        self._network_conditions_changed()
 

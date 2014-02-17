@@ -38,7 +38,6 @@ cdef class PJCachingPool:
 cdef class PJSIPEndpoint:
     def __cinit__(self, PJCachingPool caching_pool, ip_address, udp_port, tcp_port, tls_port,
                   tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
-        cdef pjsip_tpmgr *tpmgr
         cdef pj_dns_resolver *resolver
         cdef int status
 
@@ -78,12 +77,6 @@ cdef class PJSIPEndpoint:
         if status != 0:
             raise PJSIPError("Could not set fake DNS resolver on endpoint", status)
 
-        tpmgr = pjsip_endpt_get_tpmgr(self._obj)
-        if tpmgr == NULL:
-            raise SIPCoreError("Could not get the transport manager")
-        status = pjsip_tpmgr_set_state_cb(tpmgr, _transport_state_cb)
-        if status != 0:
-            raise PJSIPError("Could not set transport state callback", status)
         if udp_port is not None:
             self._start_udp_transport(udp_port)
         if tcp_port is not None:
@@ -196,10 +189,6 @@ cdef class PJSIPEndpoint:
         return 0
 
     def __dealloc__(self):
-        cdef pjsip_tpmgr *tpmgr
-        tpmgr = pjsip_endpt_get_tpmgr(self._obj)
-        if tpmgr != NULL:
-            pjsip_tpmgr_set_state_cb(tpmgr, NULL)
         if self._udp_transport != NULL:
             self._stop_udp_transport()
         if self._tcp_transport != NULL:
@@ -331,34 +320,4 @@ cdef class PJMEDIAEndpoint:
                 if status != 0:
                     raise PJSIPError("Could not set codec priority", status)
         return 0
-
-
-cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil:
-    cdef PJSIPUA ua
-    cdef str direction
-    cdef str local_address
-    cdef str remote_address
-    cdef char buf[PJ_INET6_ADDRSTRLEN]
-    try:
-        ua = _get_ua()
-    except:
-        return
-    if state == PJSIP_TP_STATE_DISCONNECTED and info.status != 0:
-        if tp.dir == PJSIP_TP_DIR_OUTGOING:
-            direction = 'outgoing'
-        elif tp.dir == PJSIP_TP_DIR_INCOMING:
-            direction = 'incoming'
-        else:
-            direction = None
-        if pj_sockaddr_has_addr(&tp.local_addr):
-            pj_sockaddr_print(&tp.local_addr, buf, PJ_INET6_ADDRSTRLEN, 0)
-            local_address = '%s:%d' % (PyString_FromString(buf), pj_sockaddr_get_port(&tp.local_addr))
-        else:
-            local_address = None
-        remote_address = '%s:%d' % (_pj_str_to_str(tp.remote_name.host), tp.remote_name.port)
-        _add_event("SIPEngineTransportDidDisconnect", dict(transport=tp.type_name.lower(),
-                                                           direction=direction,
-                                                           local_address=local_address,
-                                                           remote_address=remote_address,
-                                                           reason=_pj_status_to_str(info.status)))
 
