@@ -278,12 +278,24 @@ cdef extern from "pjmedia.h":
                                       pjmedia_codec_info *info, unsigned int *prio) nogil
     int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio) nogil
 
+    # transport manager
+    struct pjsip_tpmgr
+    struct pjsip_transport_state_info:
+        int status
+    enum pjsip_transport_state:
+        PJSIP_TP_STATE_CONNECTED
+        PJSIP_TP_STATE_DISCONNECTED
+    ctypedef pjsip_transport_state_info *pjsip_transport_state_info_ptr_const "const pjsip_transport_state_info *"
+    ctypedef void (*pjsip_tp_state_callback)(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil
+    int pjsip_tpmgr_set_state_cb(pjsip_tpmgr *mgr, pjsip_tp_state_callback cb)
+
     # endpoint
     struct pjmedia_endpt
     int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt) nogil
     int pjmedia_endpt_destroy(pjmedia_endpt *endpt) nogil
     pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt) nogil
     pjmedia_codec_mgr *pjmedia_endpt_get_codec_mgr(pjmedia_endpt *endpt) nogil
+    pjsip_tpmgr* pjsip_endpt_get_tpmgr(pjsip_endpoint *endpt)
 
     # codecs
     int pjmedia_codec_g711_init(pjmedia_endpt *endpt) nogil
@@ -605,7 +617,6 @@ cdef extern from "pjsip.h":
         PJSIP_TLS_EKEYFILE
         PJSIP_TLS_ECIPHER
         PJSIP_TLS_ECTX
-    struct pjsip_transport
     enum pjsip_uri_context_e:
         PJSIP_URI_IN_CONTACT_HDR
     struct pjsip_param:
@@ -827,7 +838,9 @@ cdef extern from "pjsip.h":
         PJSIP_TLSV1_METHOD
     struct pjsip_transport:
         char *type_name
+        pj_sockaddr local_addr
         pjsip_host_port local_name
+        pjsip_host_port remote_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
         int destroy(pjsip_tpfactory *factory) nogil
