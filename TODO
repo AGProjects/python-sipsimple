@@ -35,7 +35,6 @@
   when it stops
 
 - End a session while in accepting state (requires session serialization)
-  http://sipsimpleclient.com/ticket/107
 
 - Model file transfer after desktop sharing (use handlers on termination)
   have internal/external handlers (notifications based or file bridges)
