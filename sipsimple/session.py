@@ -1716,25 +1716,28 @@ class Session(object):
 
             received_invitation_state = False
             received_sdp_update = False
-            while not received_invitation_state or not received_sdp_update:
-                notification = self._channel.wait()
-                if notification.name == 'SIPInvitationGotSDPUpdate':
-                    received_sdp_update = True
-                elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
-                        received_invitation_state = True
-                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
-                        if not (200 <= notification.data.code < 300):
-                            break
-                    elif notification.data.state == 'disconnected':
-                        raise InvitationDisconnectedError(notification.sender, notification.data)
+
+            with api.timeout(self.media_stream_timeout):
+                while not received_invitation_state or not received_sdp_update:
+                    notification = self._channel.wait()
+                    if notification.name == 'SIPInvitationGotSDPUpdate':
+                        received_sdp_update = True
+                    elif notification.name == 'SIPInvitationChangedState':
+                        if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                            received_invitation_state = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                            if not (200 <= notification.data.code < 300):
+                                break
+                        elif notification.data.state == 'disconnected':
+                            raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
             self.greenlet = None
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
             notification.center = notification_center
             self.handle_notification(notification)
-        except SIPCoreError:
-            raise #FIXME
+        except (api.TimeoutError, MediaStreamDidFailError, SIPCoreError):
+            self.greenlet = None
+            self.end()
         else:
             stream.end()
             self.greenlet = None
