@@ -1,4 +1,4 @@
-python-sipsimple (1.2.0) UNRELEASED; urgency=medium
+python-sipsimple (1.2.0) unstable; urgency=medium
 
   * pjsip: updated bundled version to revision 4738
   * pjsip: return base address as ICE transport address
@@ -6,6 +6,7 @@ python-sipsimple (1.2.0) UNRELEASED; urgency=medium
   * Always open file in binary mode for file transfers
   * Accept unicode in SIPURI objects
   * Avoid exceptions in IncomingSubscription.end
+  * End session if an unrecoverable error happens in remove_stream
   * Initialize transport to None in MSRPStreamBase.__init__
   * Fixed compile warnings with Cython 0.20
   * Post NetowrkConditionsDidChange if system IP address changes or the DNS
@@ -13,7 +14,7 @@ python-sipsimple (1.2.0) UNRELEASED; urgency=medium
   * Fake ICE gathering states since we might get them too early
   * Use 127.0.0.1 for bonjour when the default IP address is not available
 
- -- Saul Ibarra <saul@ag-projects.com>  Mon, 17 Feb 2014 16:52:01 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 19 Feb 2014 13:22:57 +0100
 
 python-sipsimple (1.1.0) unstable; urgency=medium
 
