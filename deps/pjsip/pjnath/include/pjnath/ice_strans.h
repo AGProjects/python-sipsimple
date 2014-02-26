@@ -132,6 +132,52 @@ typedef enum pj_ice_strans_op
 
 } pj_ice_strans_op;
 
+
+/**
+ * ICE stream transport's state.
+ */
+typedef enum pj_ice_strans_state
+{
+    /**
+     * ICE stream transport is not created.
+     */
+    PJ_ICE_STRANS_STATE_NULL,
+
+    /**
+     * ICE candidate gathering process is in progress.
+     */
+    PJ_ICE_STRANS_STATE_INIT,
+
+    /**
+     * ICE stream transport initialization/candidate gathering process is
+     * complete, ICE session may be created on this stream transport.
+     */
+    PJ_ICE_STRANS_STATE_READY,
+
+    /**
+     * New session has been created and the session is ready.
+     */
+    PJ_ICE_STRANS_STATE_SESS_READY,
+
+    /**
+     * ICE negotiation is in progress.
+     */
+    PJ_ICE_STRANS_STATE_NEGO,
+
+    /**
+     * ICE negotiation has completed successfully and media is ready
+     * to be used.
+     */
+    PJ_ICE_STRANS_STATE_RUNNING,
+
+    /**
+     * ICE negotiation has completed with failure.
+     */
+    PJ_ICE_STRANS_STATE_FAILED
+
+} pj_ice_strans_state;
+
+
 /** 
  * This structure contains callbacks that will be called by the 
  * ICE stream transport.
@@ -175,8 +221,8 @@ typedef struct pj_ice_strans_cb
      * @param curr	    Current state.
      */
     void    (*on_ice_state)(pj_ice_strans *ice_st,
-			    int prev,
-			    int curr);
+			    pj_ice_strans_state prev,
+			    pj_ice_strans_state curr);
 
 } pj_ice_strans_cb;
 
@@ -418,51 +464,6 @@ typedef struct pj_ice_strans_cfg
     } comp[PJ_ICE_MAX_COMP];
 
 } pj_ice_strans_cfg;
-
-
-/**
- * ICE stream transport's state.
- */
-typedef enum pj_ice_strans_state
-{
-    /**
-     * ICE stream transport is not created.
-     */
-    PJ_ICE_STRANS_STATE_NULL,
-
-    /**
-     * ICE candidate gathering process is in progress.
-     */
-    PJ_ICE_STRANS_STATE_INIT,
-
-    /**
-     * ICE stream transport initialization/candidate gathering process is
-     * complete, ICE session may be created on this stream transport.
-     */
-    PJ_ICE_STRANS_STATE_READY,
-
-    /**
-     * New session has been created and the session is ready.
-     */
-    PJ_ICE_STRANS_STATE_SESS_READY,
-
-    /**
-     * ICE negotiation is in progress.
-     */
-    PJ_ICE_STRANS_STATE_NEGO,
-
-    /**
-     * ICE negotiation has completed successfully and media is ready
-     * to be used.
-     */
-    PJ_ICE_STRANS_STATE_RUNNING,
-
-    /**
-     * ICE negotiation has completed with failure.
-     */
-    PJ_ICE_STRANS_STATE_FAILED
-
-} pj_ice_strans_state;
 
 
 /** 
