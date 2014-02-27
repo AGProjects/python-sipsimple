@@ -297,7 +297,8 @@ class AudioStream(object):
             self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
     def deactivate(self):
-        pass
+        with self._lock:
+            self.bridge.stop()
 
     def end(self):
         with self._lock:
@@ -314,7 +315,6 @@ class AudioStream(object):
                     self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
                 else:
                     self.state = "ENDED"
-                self.bridge.stop()
             self.session = None
 
     def reset(self, stream_index):
