@@ -29,8 +29,10 @@ cdef class StateCallbackTimer(Timer):
 
 
 cdef class SDPCallbackTimer(Timer):
-    def __init__(self, int status):
+    def __init__(self, int status, active_local, active_remote):
         self.status = status
+        self.active_local = active_local
+        self.active_remote = active_remote
 
 
 cdef class TransferStateCallbackTimer(Timer):
@@ -1047,7 +1049,6 @@ cdef class Invitation:
     cdef int _cb_sdp_done(self, SDPCallbackTimer timer) except -1:
         cdef int status
         cdef pj_mutex_t *lock = self._lock
-        cdef pjmedia_sdp_session_ptr_const sdp
 
         with nogil:
             status = pj_mutex_lock(lock)
@@ -1060,22 +1061,8 @@ cdef class Invitation:
             self.sdp.proposed_local = None
             self.sdp.proposed_remote = None
             if timer.status == 0:
-                pjmedia_sdp_neg_get_active_local(self._invite_session.neg, &sdp)
-                local_sdp = SDPSession_create(sdp)
-                pjmedia_sdp_neg_get_active_remote(self._invite_session.neg, &sdp)
-                remote_sdp = SDPSession_create(sdp)
-                if len(local_sdp.media) > len(remote_sdp.media):
-                    local_sdp.media = local_sdp.media[:len(remote_sdp.media)]
-                if len(remote_sdp.media) > len(local_sdp.media):
-                    remote_sdp.media = remote_sdp.media[:len(local_sdp.media)]
-                for index, local_media in enumerate(local_sdp.media):
-                    remote_media = remote_sdp.media[index]
-                    if not local_media.port and remote_media.port:
-                        remote_media.port = 0
-                    if not remote_media.port and local_media.port:
-                        local_media.port = 0
-                self.sdp.active_local = FrozenSDPSession.new(local_sdp)
-                self.sdp.active_remote = FrozenSDPSession.new(remote_sdp)
+                self.sdp.active_local = timer.active_local
+                self.sdp.active_remote = timer.active_remote
             if self.state in ["disconnecting", "disconnected"]:
                 return 0
             event_dict = dict(obj=self, succeeded=timer.status == 0)
@@ -1473,6 +1460,7 @@ cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef SDPCallbackTimer timer
+    cdef pjmedia_sdp_session_ptr_const sdp
     try:
         ua = _get_ua()
     except:
@@ -1482,8 +1470,36 @@ cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
             invitation = (<object> inv.mod_data[ua._module.id])()
             if invitation is None:
                 return
+            if status == 0:
+                if pjmedia_sdp_neg_get_active_local(invitation._invite_session.neg, &sdp) == 0:
+                    local_sdp = SDPSession_create(sdp)
+                else:
+                    local_sdp = None
+                if pjmedia_sdp_neg_get_active_remote(invitation._invite_session.neg, &sdp) == 0:
+                    remote_sdp = SDPSession_create(sdp)
+                else:
+                    remote_sdp = None
+                if local_sdp is None or remote_sdp is None:
+                    active_local = None
+                    active_remote = None
+                else:
+                    if len(local_sdp.media) > len(remote_sdp.media):
+                        local_sdp.media = local_sdp.media[:len(remote_sdp.media)]
+                    if len(remote_sdp.media) > len(local_sdp.media):
+                        remote_sdp.media = remote_sdp.media[:len(local_sdp.media)]
+                    for index, local_media in enumerate(local_sdp.media):
+                        remote_media = remote_sdp.media[index]
+                        if not local_media.port and remote_media.port:
+                            remote_media.port = 0
+                        if not remote_media.port and local_media.port:
+                            local_media.port = 0
+                    active_local = FrozenSDPSession.new(local_sdp)
+                    active_remote = FrozenSDPSession.new(remote_sdp)
+            else:
+                active_local = None
+                active_remote = None
             try:
-                timer = SDPCallbackTimer(status)
+                timer = SDPCallbackTimer(status, active_local, active_remote)
                 timer.schedule(0, <timer_callback>invitation._cb_sdp_done, invitation)
             except:
                 invitation._fail(ua)

@@ -2002,6 +2002,8 @@ cdef class StateCallbackTimer(Timer):
 
 cdef class SDPCallbackTimer(Timer):
     cdef int status
+    cdef object active_local
+    cdef object active_remote
 
 cdef class TransferStateCallbackTimer(Timer):
     cdef object state
