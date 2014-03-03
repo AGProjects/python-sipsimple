@@ -879,7 +879,7 @@ cdef class Invitation:
             _add_event("SIPInvitationTransferDidFail", dict(obj=self, code=0, reason="internal error"))
         self._invite_session.mod_data[ua._module.id] = NULL
         if self.state != "disconnected":
-            event_dict = dict(obj=self, prev_state=self.state, state="disconnected", originator="local", disconnect_reason="internal error")
+            event_dict = dict(obj=self, prev_state=self.state, state="disconnected", originator="local", code=0, reason="internal error", disconnect_reason="internal error")
             if self.state == "connected":
                 event_dict["prev_sub_state"] = self.sub_state
             self.state = "disconnected"
@@ -996,6 +996,11 @@ cdef class Invitation:
                     self._reinvite_transaction = NULL
             if state == "disconnected":
                 event_dict["disconnect_reason"] = "user request" if not pjsip_error else "internal error"
+                event_dict["code"] = self._invite_session.cause
+                if self._invite_session.cause > 0:
+                    event_dict["reason"] = _pj_str_to_str(self._invite_session.cause_text)
+                else:
+                    event_dict["reason"] = ""
                 if not self._invite_session.cancelling and rdata is None and self._invite_session.cause > 0:
                     # pjsip internally generates 408 and 503
                     if self._invite_session.cause == 408:
@@ -1007,8 +1012,7 @@ cdef class Invitation:
                         event_dict["disconnect_reason"] = _pj_str_to_str(self._invite_session.cause_text)
                 elif self._invite_session.cancelling and rdata is None and self._invite_session.cause == 408 and self.state == "disconnecting":
                     # silly pjsip sets cancelling field when we call pjsip_inv_end_session in end even if we send a BYE
-                    event_dict['code'] = 408
-                    event_dict['reason'] = 'Request Timeout'
+                    event_dict["disconnect_reason"] = "timeout"
                 elif rdata is not None and 'Reason' in event_dict['headers']:
                     try:
                         reason = event_dict['headers']['Reason'].text
