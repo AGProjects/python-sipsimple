@@ -5,7 +5,7 @@ export LIBDIR := ../../lib
 
 RULES_MAK := $(PJDIR)/build/rules.mak
 
-export WEBRTCAEC_LIB := libwebrtcaec-$(TARGET_NAME)$(LIBEXT)
+export WEBRTCAEC_LIB := ../../lib/libwebrtcaec-$(TARGET_NAME)$(LIBEXT)
 
 WEBRTC_DEFS := \
 	-D__STDC_FORMAT_MACROS \
@@ -135,7 +135,7 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 # $(TARGET) is defined in os-$(OS_NAME).mak file in current directory.
 #
-TARGETS := $(WEBRTCAEC_LIB)
+TARGETS := libwebrtcaec
 
 all: $(TARGETS)
 
@@ -145,13 +145,10 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: all dep depend clean realclean distclean
-.PHONY: $(TARGETS)
-.PHONY: $(WEBRTCAEC_LIB)
+.PHONY: dep depend libwebrtcaec clean realclean distclean
 
-libwebrtcaec: $(WEBRTCAEC_LIB)
-$(WEBRTCAEC_LIB):
-	$(MAKE) -f $(RULES_MAK) APP=WEBRTCAEC app=libwebrtcaec $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+libwebrtcaec:
+	$(MAKE) -f $(RULES_MAK) APP=WEBRTCAEC app=libwebrtcaec $(WEBRTCAEC_LIB)
 
 clean print_lib:
 	$(MAKE) -f $(RULES_MAK) APP=WEBRTCAEC app=libwebrtcaec $@

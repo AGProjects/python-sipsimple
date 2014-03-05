@@ -5,7 +5,7 @@ export LIBDIR := ../../lib
 
 RULES_MAK := $(PJDIR)/build/rules.mak
 
-export OPUS_LIB := libopuscodec-$(TARGET_NAME)$(LIBEXT)
+export OPUS_LIB := ../../lib/libopuscodec-$(TARGET_NAME)$(LIBEXT)
 
 ###############################################################################
 # Gather all flags.
@@ -190,7 +190,7 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 # $(TARGET) is defined in os-$(OS_NAME).mak file in current directory.
 #
-TARGETS := $(OPUS_LIB)
+TARGETS := libopuscodec
 
 all: $(TARGETS)
 
@@ -200,13 +200,10 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: all dep depend clean realclean distclean
-.PHONY: $(TARGETS)
-.PHONY: $(OPUS_LIB)
+.PHONY: dep depend libopuscodec clean realclean distclean
 
-libopuscodec: $(OPUS_LIB)
-$(OPUS_LIB):
-	$(MAKE) -f $(RULES_MAK) APP=OPUS app=libopuscodec $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+libopuscodec:
+	$(MAKE) -f $(RULES_MAK) APP=OPUS app=libopuscodec $(OPUS_LIB)
 
 clean print_lib:
 	$(MAKE) -f $(RULES_MAK) APP=OPUS app=libopuscodec $@

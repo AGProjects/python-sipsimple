@@ -21,7 +21,7 @@ all clean dep depend distclean print realclean:
 
 lib:
 	for dir in $(LIB_DIRS); do \
-		if $(MAKE) $(MAKE_FLAGS) -C $$dir lib; then \
+		if $(MAKE) $(MAKE_FLAGS) -C $$dir all; then \
 		    true; \
 		else \
 		    exit 1; \
@@ -105,29 +105,17 @@ pjsip-test: pjsip/bin/pjsip-test-$(TARGET_NAME)
 pjsua-test:
 	cd tests/pjsua && python runall.py
 
+prefix = $(ac_prefix)
+
 install:
-	mkdir -p $(DESTDIR)$(libdir)/
-	cp -af $(APP_LIB_FILES) $(DESTDIR)$(libdir)/
-	mkdir -p $(DESTDIR)$(includedir)/
+	mkdir -p $(DESTDIR)$(prefix)/lib
+	cp -f $(APP_LIB_FILES) $(DESTDIR)$(prefix)/lib/
+	mkdir -p $(DESTDIR)$(prefix)/include
 	for d in pjlib pjlib-util pjnath pjmedia pjsip; do \
-		cp -RLf $$d/include/* $(DESTDIR)$(includedir)/; \
+		cp -RLf $$d/include/* $(DESTDIR)$(prefix)/include/; \
 	done
-	mkdir -p $(DESTDIR)$(libdir)/pkgconfig
-	sed -e "s!@PREFIX@!$(prefix)!" libpjproject.pc.in | \
-		sed -e "s!@INCLUDEDIR@!$(includedir)!" | \
-		sed -e "s!@LIBDIR@!$(libdir)!" | \
+	mkdir -p $(DESTDIR)$(prefix)/lib/pkgconfig
+	sed -e "s!@PREFIX@!$(DESTDIR)$(prefix)!" libpjproject.pc.in | \
 		sed -e "s/@PJ_VERSION@/$(PJ_VERSION)/" | \
 		sed -e "s!@PJ_LDLIBS@!$(PJ_LDLIBS)!" | \
-		sed -e "s!@PJ_INSTALL_CFLAGS@!$(PJ_INSTALL_CFLAGS)!" > $(DESTDIR)/$(libdir)/pkgconfig/libpjproject.pc
-
-uninstall:
-	$(RM) $(DESTDIR)$(libdir)/pkgconfig/libpjproject.pc
-	-rmdir $(DESTDIR)$(libdir)/pkgconfig 2> /dev/null
-	for d in pjlib pjlib-util pjnath pjmedia pjsip; do \
-		for f in $$d/include/*; do \
-			$(RM) -r "$(DESTDIR)$(includedir)/`basename $$f`"; \
-		done; \
-	done
-	-rmdir $(DESTDIR)$(includedir) 2> /dev/null
-	$(RM) $(addprefix $(DESTDIR)$(libdir)/,$(notdir $(APP_LIB_FILES)))
-	-rmdir $(DESTDIR)$(libdir) 2> /dev/null
+		sed -e "s!@PJ_INSTALL_CFLAGS@!$(PJ_INSTALL_CFLAGS)!" > $(DESTDIR)/$(prefix)/lib/pkgconfig/libpjproject.pc

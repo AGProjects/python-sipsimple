@@ -6,22 +6,17 @@ BINDIR = ../bin
 endif
 
 #
-# The name(s) of output lib file(s) (e.g. libapp.a).
+# The full path of output lib file (e.g. ../lib/libapp.a).
 #
-LIB := $($(APP)_LIB)
+LIB = $($(APP)_LIB)
+
+#
+# The full path of output lib file (e.g. ../lib/libapp.a).
+#
 SHLIB = $($(APP)_SHLIB)
-SONAME = $($(APP)_SONAME)
-
-ifeq ($(SHLIB_SUFFIX),so)
-SHLIB_OPT := -shared -Wl,-soname,$(SHLIB)
-else ifeq ($(SHLIB_SUFFIX),dylib)
-SHLIB_OPT := -dynamiclib -undefined dynamic_lookup -flat_namespace
-else
-SHLIB_OPT := 
-endif
 
 #
-# The name of output executable file (e.g. app.exe).
+# The full path of output executable file (e.g. ../bin/app.exe).
 #
 EXE = $($(APP)_EXE)
 
@@ -81,46 +76,27 @@ print_common:
 	@echo RANLIB=$(RANLIB)
 
 print_bin: print_common
-	@echo EXE=$(subst /,$(HOST_PSEP),$(BINDIR)/$(EXE))
+	@echo EXE=$(EXE)
 	@echo BINDIR=$(BINDIR)
- 
+
 print_lib: print_common
-ifneq ($(LIB),)
-	@echo LIB=$(subst /,$(HOST_PSEP),$(LIBDIR)/$(LIB))
-endif
-ifneq ($(SHLIB),)
-	@echo SHLIB=$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SHLIB))
-endif
-ifneq ($(SONAME),)
-	@echo SONAME=$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SONAME))
-endif
+	@echo LIB=$(LIB)
 	@echo LIBDIR=$(LIBDIR)
 
-ifneq ($(LIB),)
-$(subst /,$(HOST_PSEP),$(LIBDIR)/$(LIB)): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
+$(LIB): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
 	if test ! -d $(LIBDIR); then $(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)),$(HOST_MKDIR)); fi
-	$(AR) $(AR_FLAGS) $@ $(OBJS)
-	$(RANLIB) $@
-endif
+	$(AR) $(AR_FLAGS) $(LIB) $(OBJS)
+	$(RANLIB) $(LIB)
 
-ifneq ($(SHLIB),)
-$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SHLIB)): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
+$(SHLIB): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
 	if test ! -d $(LIBDIR); then $(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)),$(HOST_MKDIR)); fi
-	$(LD) $(LDOUT)$(subst /,$(HOST_PSEP),$@) \
-	    $(subst /,$(HOST_PSEP),$(OBJS)) $($(APP)_LDFLAGS) $(SHLIB_OPT)
-endif
- 
-ifneq ($(SONAME),)
-$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SONAME)): $(subst /,$(HOST_PSEP),$(LIBDIR)/$(SHLIB))
-	ln -sf $(SHLIB) $@
-endif
-
-ifneq ($(EXE),)
-$(subst /,$(HOST_PSEP),$(BINDIR)/$(EXE)): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
-	if test ! -d $(BINDIR); then $(subst @@,$(subst /,$(HOST_PSEP),$(BINDIR)),$(HOST_MKDIR)); fi
-	$(LD) $(LDOUT)$(subst /,$(HOST_PSEP),$(BINDIR)/$(EXE)) \
+	$(LD) $(LDOUT)$(subst /,$(HOST_PSEP),$(SHLIB)) \
 	    $(subst /,$(HOST_PSEP),$(OBJS)) $($(APP)_LDFLAGS)
-endif
+
+$(EXE): $(OBJDIRS) $(OBJS) $($(APP)_EXTRA_DEP)
+	if test ! -d $(BINDIR); then $(subst @@,$(subst /,$(HOST_PSEP),$(BINDIR)),$(HOST_MKDIR)); fi
+	$(LD) $(LDOUT)$(subst /,$(HOST_PSEP),$(EXE)) \
+	    $(subst /,$(HOST_PSEP),$(OBJS)) $($(APP)_LDFLAGS)
 
 $(OBJDIR)/$(app).o: $(OBJDIRS) $(OBJS)
 	$(CROSS_COMPILE)ld -r -o $@ $(OBJS)
@@ -166,7 +142,7 @@ $(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.S
 		$(subst /,$(HOST_PSEP),$<) 
 
 $(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cpp
-	$(CXX) $($(APP)_CXXFLAGS) \
+	$(CC) $($(APP)_CXXFLAGS) \
 		$(CC_OUT)$(subst /,$(HOST_PSEP),$@) \
 		$(subst /,$(HOST_PSEP),$<)
 
@@ -176,13 +152,13 @@ $(OBJDIR)/%$(OBJEXT): $(SRCDIR)/%.cc
 		$(subst /,$(HOST_PSEP),$<)
 
 $(OBJDIRS):
-	$(subst @@,$(subst /,$(HOST_PSEP),$@),$(HOST_MKDIR))
+	$(subst @@,$(subst /,$(HOST_PSEP),$@),$(HOST_MKDIR)) 
 
 $(LIBDIR):
-	$(subst @@,$(subst /,$(HOST_PSEP),$@),$(HOST_MKDIR))
+	$(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)),$(HOST_MKDIR))
 
 $(BINDIR):
-	$(subst @@,$(subst /,$(HOST_PSEP),$@),$(HOST_MKDIR))
+	$(subst @@,$(subst /,$(HOST_PSEP),$(BINDIR)),$(HOST_MKDIR))
 
 clean:
 	$(subst @@,$(subst /,$(HOST_PSEP),$(OBJDIR)/*),$(HOST_RMR))
@@ -197,18 +173,7 @@ gcov-report:
 	done
 
 realclean: clean
-ifneq ($(LIB),)
-	$(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)/$(LIB)),$(HOST_RM))
-endif
-ifneq ($(SHLIB),)
-	$(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SHLIB)),$(HOST_RM))
-endif
-ifneq ($(SONAME),)
-	$(subst @@,$(subst /,$(HOST_PSEP),$(LIBDIR)/$(SONAME)),$(HOST_RM))
-endif
-ifneq ($(EXE),)
-	$(subst @@,$(subst /,$(HOST_PSEP),$(BINDIR)/$(EXE)),$(HOST_RM))
-endif
+	$(subst @@,$(subst /,$(HOST_PSEP),$(LIB)) $(subst /,$(HOST_PSEP),$(EXE)),$(HOST_RM))
 	$(subst @@,$(DEP_FILE),$(HOST_RM))
 ifeq ($(OS_NAME),linux-kernel)
 	rm -f ../lib/$(app).ko

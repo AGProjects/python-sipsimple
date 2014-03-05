@@ -5,13 +5,7 @@ export LIBDIR := ../../lib
 
 RULES_MAK := $(PJDIR)/build/rules.mak
 
-export SRTP_LIB := libsrtp-$(TARGET_NAME)$(LIBEXT)
-
-ifeq ($(PJ_SHARED_LIBRARIES),)
-else
-export SRTP_SONAME := libsrtp.$(SHLIB_SUFFIX)
-export SRTP_SHLIB := $(SRTP_SONAME).$(PJ_VERSION_MAJOR)
-endif
+export SRTP_LIB := ../../lib/libsrtp-$(TARGET_NAME)$(LIBEXT)
 
 ###############################################################################
 # Gather all flags.
@@ -63,7 +57,7 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 # $(TARGET) is defined in os-$(OS_NAME).mak file in current directory.
 #
-TARGETS := $(SRTP_LIB) $(SRTP_SONAME)
+TARGETS := libsrtp
 
 all: $(TARGETS)
 
@@ -73,14 +67,10 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: all dep depend clean realclean distclean
-.PHONY: $(TARGETS)
-.PHONY: $(SRTP_LIB) $(SRTP_SONAME)
+.PHONY: dep depend libsrtp clean realclean distclean
 
-libsrtp: $(SRTP_LIB)
-$(SRTP_SONAME): $(SRTP_LIB)
-$(SRTP_LIB) $(SRTP_SONAME):
-	$(MAKE) -f $(RULES_MAK) APP=SRTP app=libsrtp $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+libsrtp:
+	$(MAKE) -f $(RULES_MAK) APP=SRTP app=libsrtp $(SRTP_LIB)
 
 clean print_lib:
 	$(MAKE) -f $(RULES_MAK) APP=SRTP app=libsrtp $@

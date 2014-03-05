@@ -23,13 +23,13 @@ export TEST_OBJS +=	@ac_main_obj@
 #
 # Additional LDFLAGS for pjlib-test
 #
-#export TEST_LDFLAGS += @LDFLAGS@ @LIBS@
+export TEST_LDFLAGS += @LDFLAGS@ @LIBS@
 
 #
 # TARGETS are make targets in the Makefile, to be executed for this given
 # operating system.
 #
-export TARGETS	    =	$(PJLIB_LIB) $(PJLIB_SONAME)
+export TARGETS	    =	pjlib
 
 
 

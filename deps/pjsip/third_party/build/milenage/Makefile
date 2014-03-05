@@ -5,13 +5,7 @@ export LIBDIR := ../../lib
 
 RULES_MAK := $(PJDIR)/build/rules.mak
 
-export MILENAGE_LIB := libmilenage-$(TARGET_NAME)$(LIBEXT)
-
-ifeq ($(PJ_SHARED_LIBRARIES),)
-else
-export MILENAGE_SONAME := libmilenage.$(SHLIB_SUFFIX)
-export MILENAGE_SHLIB := $(MILENAGE_SONAME).$(PJ_VERSION_MAJOR)
-endif
+export MILENAGE_LIB := ../../lib/libmilenage-$(TARGET_NAME)$(LIBEXT)
 
 ###############################################################################
 # Gather all flags.
@@ -35,7 +29,7 @@ export CC_OUT CC AR RANLIB HOST_MV HOST_RM HOST_RMDIR HOST_MKDIR OBJEXT LD LDOUT
 #
 # $(TARGET) is defined in os-$(OS_NAME).mak file in current directory.
 #
-TARGETS := $(MILENAGE_LIB) $(MILENAGE_SONAME)
+TARGETS := libmilenage
 
 all: $(TARGETS)
 
@@ -45,14 +39,10 @@ doc:
 dep: depend
 distclean: realclean
 
-.PHONY: all dep depend clean realclean distclean
-.PHONY: $(TARGETS)
-.PHONY: $(MILENAGE_LIB) $(MILENAGE_SONAME)
+.PHONY: dep depend libmilenage clean realclean distclean
 
-libmilenage: $(MILENAGE_LIB)
-$(MILENAGE_SONAME): $(MILENAGE_LIB)
-$(MILENAGE_LIB) $(MILENAGE_SONAME):
-	$(MAKE) -f $(RULES_MAK) APP=MILENAGE app=libmilenage $(subst /,$(HOST_PSEP),$(LIBDIR)/$@)
+libmilenage:
+	$(MAKE) -f $(RULES_MAK) APP=MILENAGE app=libmilenage $(MILENAGE_LIB)
 
 clean print_lib:
 	$(MAKE) -f $(RULES_MAK) APP=MILENAGE app=libmilenage $@
