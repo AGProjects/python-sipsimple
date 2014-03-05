@@ -1,3 +1,14 @@
+python-sipsimple (1.2.1) unstable; urgency=medium
+
+  * Handle errors when sending hold/unhold requests
+  * Fix crash if sdp_done callback is processed too late
+  * Make sure code and reason are always set when state is disconnected
+  * Stop AudioStream bridge when deactivating stream
+  * pjsip: fixed compilation warning
+  * pjsip: fix build on Windows
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 05 Mar 2014 15:03:20 +0100
+
 python-sipsimple (1.2.0) unstable; urgency=medium
 
   * pjsip: updated bundled version to revision 4738
