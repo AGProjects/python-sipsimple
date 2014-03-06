@@ -338,12 +338,13 @@ class AudioStream(object):
 
     def start_recording(self, filename):
         with self._lock:
-            if self.state != "ESTABLISHED":
-                raise RuntimeError("AudioStream.start_recording() may only be called in the ESTABLISHED state")
+            if self.state == "ENDED":
+                raise RuntimeError("AudioStream.start_recording() may not be called in the ENDED state")
             if self._audio_rec is not None:
                 raise RuntimeError("Already recording audio to a file")
             self._audio_rec = WaveRecorder(self.mixer, filename)
-            self._check_recording()
+            if self.state == "ESTABLISHED":
+                self._check_recording()
 
     def stop_recording(self):
         with self._lock:
