@@ -144,13 +144,8 @@ class AudioStream(object):
         return self.on_hold_by_local or self.on_hold_by_remote
 
     @property
-    def recording_active(self):
-        return bool(self._audio_rec and self._audio_rec.is_active)
-
-    @property
-    def recording_filename(self):
-        recording = self._audio_rec
-        return recording.filename if recording else None
+    def recorder(self):
+        return self._audio_rec
 
 
     # Public methods
