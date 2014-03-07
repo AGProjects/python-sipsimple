@@ -1766,21 +1766,23 @@ class Session(object):
                     if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=notification.data.code, reason=notification.data.reason))
                         if notification.data.code == 487:
-                            for stream in self.proposed_streams:
+                            proposed_streams = self.proposed_streams or []
+                            for stream in proposed_streams:
                                 stream.deactivate()
                                 stream.end()
-                            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, proposed_streams=self.proposed_streams[:]))
+                            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, proposed_streams=proposed_streams[:]))
                         elif notification.data.code == 200:
                             self.end()
                     elif notification.data.state == 'disconnected':
                         raise InvitationDisconnectedError(notification.sender, notification.data)
                     break
         except SIPCoreError, e:
-            for stream in self.proposed_streams:
+            proposed_streams = self.proposed_streams or []
+            for stream in proposed_streams:
                 stream.deactivate()
                 stream.end()
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
-            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=0, reason='SIP core error: %s' % str(e), proposed_streams=self.proposed_streams[:]))
+            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=0, reason='SIP core error: %s' % str(e), proposed_streams=proposed_streams[:]))
             self.proposed_streams = None
             self.greenlet = None
             self.state = 'connected'
