@@ -1805,7 +1805,7 @@ class Session(object):
         if self.on_hold or self._hold_in_progress:
             return
         self._hold_in_progress = True
-        streams = self.streams if self.streams is not None else self.proposed_streams
+        streams = (self.streams or []) + (self.proposed_streams or [])
         if not streams:
             return
         for stream in streams:
@@ -1818,7 +1818,7 @@ class Session(object):
         if not self.on_hold and not self._hold_in_progress:
             return
         self._hold_in_progress = False
-        streams = self.streams if self.streams is not None else self.proposed_streams
+        streams = (self.streams or []) + (self.proposed_streams or [])
         if not streams:
             return
         for stream in streams:
