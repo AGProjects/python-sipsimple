@@ -1770,7 +1770,7 @@ class Session(object):
                             for stream in proposed_streams:
                                 stream.deactivate()
                                 stream.end()
-                            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, proposed_streams=proposed_streams[:]))
+                            notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, proposed_streams=proposed_streams[:]))
                         elif notification.data.code == 200:
                             self.end()
                     elif notification.data.state == 'disconnected':
