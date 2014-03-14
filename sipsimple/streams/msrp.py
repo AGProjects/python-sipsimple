@@ -385,11 +385,12 @@ class ChatStream(MSRPStreamBase):
                 notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _handle_SEND(self, chunk):
+        if chunk.size == 0:
+            # keep-alive
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            return
         if self.direction=='sendonly':
             self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
-            return
-        if not chunk.data:
-            self.msrp_session.send_report(chunk, 200, 'OK')
             return
         if chunk.segment is not None:
             self.incoming_queue.setdefault(chunk.message_id, []).append(chunk.data)
@@ -710,11 +711,12 @@ class FileTransferStream(MSRPStreamBase):
 
     def _handle_SEND(self, chunk):
         notification_center = NotificationCenter()
+        if chunk.size == 0:
+            # keep-alive
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            return
         if self.direction=='sendonly':
             self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
-            return
-        if not chunk.data:
-            self.msrp_session.send_report(chunk, 200, 'OK')
             return
         if chunk.content_type.lower() == 'message/cpim':
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
