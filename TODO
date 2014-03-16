@@ -1,9 +1,5 @@
-- After ICE negotiation completed we do not save stae and later re-INVITEs
+- After ICE negotiation completed we do not save state and later re-INVITEs
   can fail, we must send re-INVITE or UPDATE with chosen candidate
-
-+ Implement Timeout for hold requests
-
-- Fallback to alternative routes in case of 408 for session.connect
 
 + Allow resume of failed file transfers (a=file-range SDP attribute)
 
