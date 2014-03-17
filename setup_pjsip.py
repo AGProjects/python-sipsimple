@@ -148,9 +148,9 @@ class PJSIP_build_ext(build_ext):
             # TODO: add support for building with other compilers like Visual Studio. -Saul
             env['CFLAGS'] += " -Ic:/openssl/include"
             env['LDFLAGS'] = "-Lc:/openssl/lib/MinGW"
-            self.distutils_exec_process(["bash", "configure", "--disable-video", "--enable-ext-sound"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["bash", "configure", "--disable-video"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         else:
-            self.distutils_exec_process(["./configure", "--disable-video", "--enable-ext-sound"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
+            self.distutils_exec_process(["./configure", "--disable-video"], silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         if "#define PJ_HAS_SSL_SOCK 1\n" not in open(os.path.join(self.build_dir, "pjlib", "include", "pj", "compat", "os_auto.h")).readlines():
             os.remove(os.path.join(self.build_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
