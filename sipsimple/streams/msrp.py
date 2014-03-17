@@ -179,8 +179,6 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidInitialize', sender=self)
         finally:
-            if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
-                notification_center.remove_observer(self, sender=self)
             self.greenlet = None
 
     @run_in_green_thread
@@ -232,8 +230,7 @@ class MSRPStreamBase(object):
 
     @run_in_green_thread
     def end(self):
-        if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
-            self.session = None
+        if self.session is None:
             return
         notification_center = NotificationCenter()
         notification_center.post_notification('MediaStreamWillEnd', sender=self)
