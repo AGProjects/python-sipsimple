@@ -1968,6 +1968,30 @@ class Session(object):
     def subject(self):
         return self.__dict__['subject']
 
+    def _cancel_hold(self):
+        notification_center = NotificationCenter()
+        try:
+            self._invitation.cancel_reinvite()
+            while True:
+                try:
+                    notification = self._channel.wait()
+                except MediaStreamDidFailError:
+                    continue
+                if notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                        if notification.data.code == 200:
+                            self.end()
+                            return False
+                    elif notification.data.state == 'disconnected':
+                        self.greenlet = None
+                        self.handle_notification(notification)
+                        return False
+                    break
+        except SIPCoreError, e:
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
+        return True
+
     def _send_hold(self):
         self.state = 'sending_proposal'
         self.greenlet = api.getcurrent()
@@ -2009,10 +2033,8 @@ class Session(object):
             self.handle_notification(notification)
             return
         except api.TimeoutError:
-            prev_hold_in_progress = self._hold_in_progress
-            self._hold_in_progress = False
-            self.cancel_proposal()
-            self._hold_in_progress = prev_hold_in_progress
+            if not self._cancel_hold():
+                return
         except SIPCoreError:
             pass
 
@@ -2023,12 +2045,12 @@ class Session(object):
         notification_center.post_notification('SIPSessionDidChangeHoldState', self, NotificationData(originator='local', on_hold=True, partial=any(not stream.on_hold_by_local for stream in hold_supported_streams)))
         for notification in unhandled_notifications:
             self.handle_notification(notification)
-        if not self._hold_in_progress:
+        if self._hold_in_progress:
+            self._hold_in_progress = False
+        else:
             for stream in self.streams:
                 stream.unhold()
             self._send_unhold()
-        else:
-            self._hold_in_progress = False
 
     def _send_unhold(self):
         self.state = 'sending_proposal'
@@ -2071,10 +2093,8 @@ class Session(object):
             notification.center = notification_center
             self.handle_notification(notification)
         except api.TimeoutError:
-            prev_hold_in_progress = self._hold_in_progress
-            self._hold_in_progress = False
-            self.cancel_proposal()
-            self._hold_in_progress = prev_hold_in_progress
+            if not self._cancel_hold():
+                return
         except SIPCoreError:
             pass
 
