@@ -1069,7 +1069,6 @@ class Session(object):
                             elif notification.data.state == 'disconnected':
                                 raise InvitationDisconnectedError(notification.sender, notification.data)
             except api.TimeoutError:
-                self.greenlet = None
                 self.end()
                 return
 
@@ -1638,7 +1637,6 @@ class Session(object):
                             elif notification.data.state == 'disconnected':
                                 raise InvitationDisconnectedError(notification.sender, notification.data)
             except api.TimeoutError:
-                self.greenlet = None
                 self.cancel_proposal()
                 return
 
@@ -1736,7 +1734,6 @@ class Session(object):
             notification.center = notification_center
             self.handle_notification(notification)
         except (api.TimeoutError, MediaStreamDidFailError, SIPCoreError):
-            self.greenlet = None
             self.end()
         else:
             stream.end()
@@ -2012,7 +2009,6 @@ class Session(object):
             self.handle_notification(notification)
             return
         except api.TimeoutError:
-            self.greenlet = None
             prev_hold_in_progress = self._hold_in_progress
             self._hold_in_progress = False
             self.cancel_proposal()
@@ -2075,7 +2071,6 @@ class Session(object):
             notification.center = notification_center
             self.handle_notification(notification)
         except api.TimeoutError:
-            self.greenlet = None
             prev_hold_in_progress = self._hold_in_progress
             self._hold_in_progress = False
             self.cancel_proposal()
