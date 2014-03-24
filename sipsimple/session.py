@@ -1984,12 +1984,16 @@ class Session(object):
                             self.end()
                             return False
                     elif notification.data.state == 'disconnected':
-                        self.greenlet = None
-                        self.handle_notification(notification)
-                        return False
+                        raise InvitationDisconnectedError(notification.sender, notification.data)
                     break
         except SIPCoreError, e:
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
+        except InvitationDisconnectedError, e:
+            self.greenlet = None
+            notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
+            notification.center = notification_center
+            self.handle_notification(notification)
+            return False
         return True
 
     def _send_hold(self):
