@@ -45,7 +45,7 @@ cdef class frozenlist:
             self.initialized = 1
             self.hash = hash(tuple(self.list))
     def __reduce__(self):
-        return (self.__class__.__name__, (self.list,), None)
+        return (self.__class__, (self.list,), None)
     def __repr__(self):
         return "frozenlist(%r)" % self.list
     def __len__(self):
@@ -107,7 +107,7 @@ cdef class frozendict:
             self.initialized = 1
             self.hash = hash(tuple(self.dict.iteritems()))
     def __reduce__(self):
-        return (self.__class__.__name__, (self.dict,), None)
+        return (self.__class__, (self.dict,), None)
     def __repr__(self):
         return "frozendict(%r)" % self.dict
     def __len__(self):

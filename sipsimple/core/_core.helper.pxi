@@ -110,7 +110,7 @@ cdef class BaseSIPURI:
         raise TypeError("BaseSIPURI cannot be instantiated directly")
 
     def __reduce__(self):
-        return (self.__class__.__name__, (self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers), None)
+        return (self.__class__, (self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers), None)
 
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers)
