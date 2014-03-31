@@ -102,7 +102,7 @@ class PJSIP_build_ext(build_ext):
     @classmethod
     def check_cython_version(cls):
         from Cython.Compiler.Version import version as cython_version
-        if tuple(int(x) for x in cython_version.split(".")) < cls.cython_version_required:
+        if tuple(int(x) for x in cython_version.split(".")[:2]) < cls.cython_version_required:
             raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in cls.cython_version_required))
 
     @classmethod
