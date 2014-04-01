@@ -9,6 +9,9 @@ import shutil
 import subprocess
 import sys
 
+from application.version import Version
+
+
 # Hack to set environment variables before importing distutils
 # modules that will fetch them and set the compiler and linker
 # to be used. -Saul
@@ -65,7 +68,7 @@ class PJSIP_build_ext(build_ext):
         ])
     boolean_options = build_ext.boolean_options
     boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions", "pjsip-verbose-build"])
-    cython_version_required = (0, 13)
+    cython_version_required = Version.parse('0.19')
 
     @staticmethod
     def distutils_exec_process(cmdline, silent=True, input=None, **kwargs):
@@ -102,8 +105,8 @@ class PJSIP_build_ext(build_ext):
     @classmethod
     def check_cython_version(cls):
         from Cython.Compiler.Version import version as cython_version
-        if tuple(int(x) for x in cython_version.split(".")[:2]) < cls.cython_version_required:
-            raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in cls.cython_version_required))
+        if Version.parse(cython_version) < cls.cython_version_required:
+            raise DistutilsError("Cython version %s or higher needed" % cls.cython_version_required)
 
     @classmethod
     def get_makefile_variables(cls, makefile):
