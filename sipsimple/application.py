@@ -93,20 +93,12 @@ class SIPApplication(object):
         addressbook_manager = AddressbookManager()
         account_manager = AccountManager()
 
-        # load configuration
+        # load configuration and initialize core
         try:
             configuration_manager.start()
             SIPSimpleSettings()
             account_manager.load()
             addressbook_manager.load()
-        except:
-            self.engine = None
-            self.state = None
-            self.storage = None
-            raise
-
-        # initialize core
-        try:
             self._initialize_core()
         except:
             self.engine = None
