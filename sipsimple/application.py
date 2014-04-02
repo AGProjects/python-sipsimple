@@ -15,7 +15,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python import Null
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
-from eventlib import coros, proc
+from eventlib import proc
 from operator import attrgetter
 from threading import RLock, Thread
 from twisted.internet import reactor
@@ -28,7 +28,7 @@ from sipsimple.addressbook import AddressbookManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import AudioMixer, Engine, SIPCoreError
+from sipsimple.core import AudioMixer, Engine
 from sipsimple.lookup import DNSManager
 from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
@@ -56,19 +56,18 @@ class SIPApplication(object):
     implements(IObserver)
 
     storage = ApplicationAttribute(value=None)
+    engine = ApplicationAttribute(value=None)
 
     state = ApplicationAttribute(value=None)
     end_reason = ApplicationAttribute(value=None)
+
     alert_audio_device = ApplicationAttribute(value=None)
     alert_audio_bridge = ApplicationAttribute(value=None)
     voice_audio_device = ApplicationAttribute(value=None)
     voice_audio_bridge = ApplicationAttribute(value=None)
 
-    _channel = ApplicationAttribute(value=coros.queue())
     _lock = ApplicationAttribute(value=RLock())
     _timer = ApplicationAttribute(value=None)
-
-    engine = Engine()
 
     running           = classproperty(lambda cls: cls.state == 'started')
     alert_audio_mixer = classproperty(lambda cls: cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None)
@@ -103,9 +102,16 @@ class SIPApplication(object):
             self.storage = None
             raise
 
-        # start the reactor thread
+        # create the reactor thread, will be started on SIPEngineDidStart
         self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
-        self.thread.start()
+
+        # initialize core
+        try:
+            self._initialize_core()
+        except:
+            self.state = None
+            self.storage = None
+            raise
 
     def stop(self):
         with self._lock:
@@ -130,38 +136,10 @@ class SIPApplication(object):
         self.state = 'stopped'
         notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
 
-    def _initialize_tls(self):
-        engine = Engine()
-        settings = SIPSimpleSettings()
-        account_manager = AccountManager()
-        account = account_manager.default_account
-        try:
-            engine.set_tls_options(port=settings.sip.tls_port,
-                                   verify_server=account.tls.verify_server,
-                                   ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                   cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                   privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                   timeout=settings.tls.timeout)
-        except Exception, e:
-            notification_center = NotificationCenter()
-            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
-
-    @run_in_green_thread
-    def _initialize_subsystems(self):
-        account_manager = AccountManager()
-        addressbook_manager = AddressbookManager()
-        dns_manager = DNSManager()
-        engine = Engine()
+    def _initialize_core(self):
         notification_center = NotificationCenter()
-        session_manager = SessionManager()
         settings = SIPSimpleSettings()
-
-        xcap_client.DEFAULT_HEADERS = {'User-Agent': settings.user_agent}
-
-        notification_center.post_notification('SIPApplicationWillStart', sender=self)
-        if self.state == 'stopping':
-            reactor.stop()
-            return
+        engine = Engine()
 
         # initialize core
         notification_center.add_observer(self, sender=engine)
@@ -184,12 +162,38 @@ class SIPApplication(object):
                        codecs=list(settings.rtp.audio_codec_list),
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
-                       trace_sip=settings.logs.trace_sip,
-                      )
+                       trace_sip=settings.logs.trace_sip)
+        engine.start(**options)
+        self.engine = engine
+
+    def _initialize_tls(self):
+        settings = SIPSimpleSettings()
+        account_manager = AccountManager()
+        account = account_manager.default_account
         try:
-            engine.start(**options)
-        except SIPCoreError:
-            self.end_reason = 'engine failed'
+            self.engine.set_tls_options(port=settings.sip.tls_port,
+                                        verify_server=account.tls.verify_server,
+                                        ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                                        cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                        privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                        timeout=settings.tls.timeout)
+        except Exception, e:
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+
+    @run_in_green_thread
+    def _initialize_subsystems(self):
+        account_manager = AccountManager()
+        addressbook_manager = AddressbookManager()
+        dns_manager = DNSManager()
+        notification_center = NotificationCenter()
+        session_manager = SessionManager()
+        settings = SIPSimpleSettings()
+
+        xcap_client.DEFAULT_HEADERS = {'User-Agent': settings.user_agent}
+
+        notification_center.post_notification('SIPApplicationWillStart', sender=self)
+        if self.state == 'stopping':
             reactor.stop()
             return
 
@@ -197,17 +201,17 @@ class SIPApplication(object):
         self._initialize_tls()
 
         # initialize PJSIP internal resolver
-        engine.set_nameservers(dns_manager.nameservers)
+        self.engine.set_nameservers(dns_manager.nameservers)
 
         # initialize audio objects
         alert_device = settings.audio.alert_device
-        if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
+        if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
             alert_device = u'system_default'
         input_device = settings.audio.input_device
-        if input_device not in (None, u'system_default') and input_device not in engine.input_devices:
+        if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
             input_device = u'system_default'
         output_device = settings.audio.output_device
-        if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
+        if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
             output_device = u'system_default'
         tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
         voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
@@ -262,12 +266,8 @@ class SIPApplication(object):
         proc.waitall(procs)
 
         # shutdown engine
-        engine = Engine()
-        engine.stop()
-        while True:
-            notification = self._channel.wait()
-            if notification.name == 'SIPEngineDidEnd':
-                break
+        self.engine.stop()
+        self.engine.join()
 
         # stop threads
         thread_manager = ThreadManager()
@@ -285,14 +285,14 @@ class SIPApplication(object):
                 self._timer = None
             self._timer = reactor.callLater(5, notify)
 
-    @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
-    def _NH_SIPEngineDidEnd(self, notification):
-        self._channel.send(notification)
+    def _NH_SIPEngineDidStart(self, notification):
+        self.thread.start()
 
+    @run_in_twisted_thread
     def _NH_SIPEngineDidFail(self, notification):
         if not self.running:
             return
@@ -302,20 +302,19 @@ class SIPApplication(object):
 
     @run_in_thread('device-io')
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        engine = Engine()
         settings = SIPSimpleSettings()
         account_manager = AccountManager()
 
         if notification.sender is settings:
             if 'audio.sample_rate' in notification.data.modified:
                 alert_device = settings.audio.alert_device
-                if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
+                if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
                     alert_device = u'system_default'
                 input_device = settings.audio.input_device
-                if input_device not in (None, u'system_default') and input_device not in engine.input_devices:
+                if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
                     input_device = u'system_default'
                 output_device = settings.audio.output_device
-                if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
+                if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
                     output_device = u'system_default'
                 tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                 voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
@@ -336,10 +335,10 @@ class SIPApplication(object):
             else:
                 if set(['audio.input_device', 'audio.output_device', 'audio.alert_device', 'audio.echo_canceller.enabled', 'audio.echo_canceller.tail_length']).intersection(notification.data.modified):
                     input_device = settings.audio.input_device
-                    if input_device not in (None, u'system_default') and input_device not in engine.input_devices:
+                    if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
                         input_device = u'system_default'
                     output_device = settings.audio.output_device
-                    if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
+                    if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
                         output_device = u'system_default'
                     tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                     if (input_device, output_device, tail_length) != attrgetter('input_device', 'output_device', 'ec_tail_length')(self.voice_audio_bridge.mixer):
@@ -348,7 +347,7 @@ class SIPApplication(object):
                         settings.audio.output_device = self.voice_audio_bridge.mixer.output_device
                         settings.save()
                     alert_device = settings.audio.alert_device
-                    if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
+                    if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
                         alert_device = u'system_default'
                     if alert_device != self.alert_audio_bridge.mixer.output_device:
                         self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
@@ -362,21 +361,21 @@ class SIPApplication(object):
                     else:
                         self.alert_audio_bridge.mixer.output_volume = 100
             if 'user_agent' in notification.data.modified:
-                engine.user_agent = settings.user_agent
+                self.engine.user_agent = settings.user_agent
             if 'sip.udp_port' in notification.data.modified:
-                engine.set_udp_port(settings.sip.udp_port)
+                self.engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
-                engine.set_tcp_port(settings.sip.tcp_port)
+                self.engine.set_tcp_port(settings.sip.tcp_port)
             if set(('sip.tls_port', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
                 self._initialize_tls()
             if 'rtp.port_range' in notification.data.modified:
-                engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
+                self.engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codec_list' in notification.data.modified:
-                engine.codecs = list(settings.rtp.audio_codec_list)
+                self.engine.codecs = list(settings.rtp.audio_codec_list)
             if 'logs.trace_sip' in notification.data.modified:
-                engine.trace_sip = settings.logs.trace_sip
+                self.engine.trace_sip = settings.logs.trace_sip
             if set(('logs.trace_pjsip', 'logs.pjsip_level')).intersection(notification.data.modified):
-                engine.log_level = settings.logs.pjsip_level if settings.logs.trace_pjsip else 0
+                self.engine.log_level = settings.logs.pjsip_level if settings.logs.trace_pjsip else 0
         elif notification.sender is account_manager.default_account:
             if set(('tls.verify_server', 'tls.certificate')).intersection(notification.data.modified):
                 self._initialize_tls()
@@ -425,15 +424,17 @@ class SIPApplication(object):
         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
         settings.save()
 
+    @run_in_twisted_thread
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
-            engine = Engine()
-            engine.set_nameservers(notification.data.nameservers)
+            self.engine.set_nameservers(notification.data.nameservers)
             notification.center.post_notification('NetworkConditionsDidChange', sender=self)
 
+    @run_in_twisted_thread
     def _NH_SystemIPAddressDidChange(self, notification):
         self._network_conditions_changed()
 
+    @run_in_twisted_thread
     def _NH_SystemDidWakeupFromSleep(self, notification):
         self._network_conditions_changed()
 
