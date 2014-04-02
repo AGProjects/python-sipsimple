@@ -53,10 +53,11 @@ class ApplicationAttribute(object):
 
 class SIPApplication(object):
     __metaclass__ = Singleton
+
     implements(IObserver)
 
-    engine = ApplicationAttribute(value=None)
     storage = ApplicationAttribute(value=None)
+    engine = ApplicationAttribute(value=None)
     thread = ApplicationAttribute(value=None)
 
     state = ApplicationAttribute(value=None)
