@@ -82,6 +82,7 @@ class SIPApplication(object):
                 raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
             self.state = 'starting'
 
+        self.engine = Engine()
         self.storage = storage
 
         thread_manager = ThreadManager()
@@ -98,6 +99,7 @@ class SIPApplication(object):
             account_manager.load()
             addressbook_manager.load()
         except:
+            self.engine = None
             self.state = None
             self.storage = None
             raise
@@ -109,6 +111,7 @@ class SIPApplication(object):
         try:
             self._initialize_core()
         except:
+            self.engine = None
             self.state = None
             self.storage = None
             raise
@@ -139,10 +142,9 @@ class SIPApplication(object):
     def _initialize_core(self):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
-        engine = Engine()
 
         # initialize core
-        notification_center.add_observer(self, sender=engine)
+        notification_center.add_observer(self, sender=self.engine)
         options = dict(# general
                        user_agent=settings.user_agent,
                        # SIP
@@ -163,8 +165,11 @@ class SIPApplication(object):
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
-        engine.start(**options)
-        self.engine = engine
+        try:
+            self.engine.start(**options)
+        except:
+            notification_center.remove_observer(self, sender=self.engine)
+            raise
 
     def _initialize_tls(self):
         settings = SIPSimpleSettings()
