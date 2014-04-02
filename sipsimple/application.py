@@ -55,8 +55,9 @@ class SIPApplication(object):
     __metaclass__ = Singleton
     implements(IObserver)
 
-    storage = ApplicationAttribute(value=None)
     engine = ApplicationAttribute(value=None)
+    storage = ApplicationAttribute(value=None)
+    thread = ApplicationAttribute(value=None)
 
     state = ApplicationAttribute(value=None)
     end_reason = ApplicationAttribute(value=None)
@@ -104,9 +105,6 @@ class SIPApplication(object):
             self.storage = None
             raise
 
-        # create the reactor thread, will be started on SIPEngineDidStart
-        self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
-
         # initialize core
         try:
             self._initialize_core()
@@ -115,6 +113,10 @@ class SIPApplication(object):
             self.state = None
             self.storage = None
             raise
+
+        # run the reactor thread
+        self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
+        self.thread.start()
 
     def stop(self):
         with self._lock:
@@ -144,7 +146,6 @@ class SIPApplication(object):
         settings = SIPSimpleSettings()
 
         # initialize core
-        notification_center.add_observer(self, sender=self.engine)
         options = dict(# general
                        user_agent=settings.user_agent,
                        # SIP
@@ -165,11 +166,8 @@ class SIPApplication(object):
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
-        try:
-            self.engine.start(**options)
-        except:
-            notification_center.remove_observer(self, sender=self.engine)
-            raise
+        self.engine.start(**options)
+        notification_center.add_observer(self, sender=self.engine)
 
     def _initialize_tls(self):
         settings = SIPSimpleSettings()
@@ -290,17 +288,12 @@ class SIPApplication(object):
                 self._timer = None
             self._timer = reactor.callLater(5, notify)
 
+    @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
-    def _NH_SIPEngineDidStart(self, notification):
-        self.thread.start()
-
-    @run_in_twisted_thread
     def _NH_SIPEngineDidFail(self, notification):
-        if not self.running:
-            return
         self.end_reason = 'engine failed'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
@@ -429,17 +422,14 @@ class SIPApplication(object):
         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
         settings.save()
 
-    @run_in_twisted_thread
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
             self.engine.set_nameservers(notification.data.nameservers)
             notification.center.post_notification('NetworkConditionsDidChange', sender=self)
 
-    @run_in_twisted_thread
     def _NH_SystemIPAddressDidChange(self, notification):
         self._network_conditions_changed()
 
-    @run_in_twisted_thread
     def _NH_SystemDidWakeupFromSleep(self, notification):
         self._network_conditions_changed()
 
