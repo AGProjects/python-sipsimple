@@ -166,8 +166,10 @@ class SIPApplication(object):
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
-        self.engine.start(**options)
-        notification_center.add_observer(self, sender=self.engine)
+        with self.engine._lock:
+            # make sure we add the observer before the engine thread actually runs
+            self.engine.start(**options)
+            notification_center.add_observer(self, sender=self.engine)
 
     def _initialize_tls(self):
         settings = SIPSimpleSettings()

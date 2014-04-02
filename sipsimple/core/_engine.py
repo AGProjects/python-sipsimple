@@ -105,6 +105,7 @@ class Engine(Thread):
 
     # worker thread
     def run(self):
+        with self._lock: pass # wait until start() has finished executing
         failed = False
         while not self._thread_stopping:
             try:
