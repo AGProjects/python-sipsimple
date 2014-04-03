@@ -165,9 +165,9 @@ class AudioBridge(object):
                 raise ValueError("expected port with Mixer %r, got %r" % (self.mixer, port.mixer))
             if weakref.ref(port) in self.ports:
                 return
-            if port.consumer_slot is not None and self.demultiplexer.slot:
+            if port.consumer_slot is not None and self.demultiplexer.slot is not None:
                 self.mixer.connect_slots(self.demultiplexer.slot, port.consumer_slot)
-            if port.producer_slot is not None and self.multiplexer.slot:
+            if port.producer_slot is not None and self.multiplexer.slot is not None:
                 self.mixer.connect_slots(port.producer_slot, self.multiplexer.slot)
             for other in (wr() for wr in self.ports):
                 if other is None:
@@ -187,9 +187,9 @@ class AudioBridge(object):
         with self._lock:
             if weakref.ref(port) not in self.ports:
                 raise ValueError("port %r is not part of this bridge" % port)
-            if port.consumer_slot is not None and self.demultiplexer.slot:
+            if port.consumer_slot is not None and self.demultiplexer.slot is not None:
                 self.mixer.disconnect_slots(self.demultiplexer.slot, port.consumer_slot)
-            if port.producer_slot is not None and self.multiplexer.slot:
+            if port.producer_slot is not None and self.multiplexer.slot is not None:
                 self.mixer.disconnect_slots(port.producer_slot, self.multiplexer.slot)
             for other in (wr() for wr in self.ports):
                 if other is None:
@@ -221,9 +221,9 @@ class AudioBridge(object):
             if weakref.ref(notification.sender) not in self.ports:
                 return
             if notification.data.consumer_slot_changed:
-                if notification.data.old_consumer_slot is not None:
+                if notification.data.old_consumer_slot is not None and self.demultiplexer.slot is not None:
                     self.mixer.disconnect_slots(self.demultiplexer.slot, notification.data.old_consumer_slot)
-                if notification.data.new_consumer_slot is not None:
+                if notification.data.new_consumer_slot is not None and self.demultiplexer.slot is not None:
                     self.mixer.connect_slots(self.demultiplexer.slot, notification.data.new_consumer_slot)
                 for other in (wr() for wr in self.ports):
                     if other is None or other is notification.sender or other.producer_slot is None:
@@ -233,9 +233,9 @@ class AudioBridge(object):
                     if notification.data.new_consumer_slot is not None:
                         self.mixer.connect_slots(other.producer_slot, notification.data.new_consumer_slot)
             if notification.data.producer_slot_changed:
-                if notification.data.old_producer_slot is not None:
+                if notification.data.old_producer_slot is not None and self.multiplexer.slot is not None:
                     self.mixer.disconnect_slots(notification.data.old_producer_slot, self.multiplexer.slot)
-                if notification.data.new_producer_slot is not None:
+                if notification.data.new_producer_slot is not None and self.multiplexer.slot is not None:
                     self.mixer.connect_slots(notification.data.new_producer_slot, self.multiplexer.slot)
                 for other in (wr() for wr in self.ports):
                     if other is None or other is notification.sender or other.consumer_slot is None:
