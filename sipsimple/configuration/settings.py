@@ -72,7 +72,6 @@ class SIPSettings(SettingsGroup):
 
 class TLSSettings(SettingsGroup):
     ca_list = Setting(type=Path, default=None, nillable=True)
-    timeout = Setting(type=NonNegativeInteger, default=3000)
 
 
 class SIPSimpleSettings(SettingsObject):

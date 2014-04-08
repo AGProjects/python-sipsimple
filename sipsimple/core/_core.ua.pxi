@@ -589,7 +589,7 @@ cdef class PJSIPUA:
             return self._pjsip_endpoint._tls_timeout
 
     def set_tls_options(self, port=None, verify_server=False,
-                        ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
+                        ca_file=None, cert_file=None, privkey_file=None, int timeout=3000):
         cdef int c_port
         self._check_self()
         if port is None:

@@ -151,7 +151,6 @@ class SIPApplication(object):
                        tls_ca_file=None,
                        tls_cert_file=None,
                        tls_privkey_file=None,
-                       tls_timeout=3000,
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                        # audio
@@ -173,8 +172,7 @@ class SIPApplication(object):
                                         verify_server=account.tls.verify_server,
                                         ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                         cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                        privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                        timeout=settings.tls.timeout)
+                                        privkey_file=account.tls.certificate.normalized if account.tls.certificate else None)
         except Exception, e:
             notification_center = NotificationCenter()
             notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
@@ -359,7 +357,7 @@ class SIPApplication(object):
                 self.engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
                 self.engine.set_tcp_port(settings.sip.tcp_port)
-            if set(('sip.tls_port', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
+            if set(('sip.tls_port', 'tls.ca_list', 'default_account')).intersection(notification.data.modified):
                 self._initialize_tls()
             if 'rtp.port_range' in notification.data.modified:
                 self.engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
