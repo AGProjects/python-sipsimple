@@ -1,3 +1,22 @@
+python-sipsimple (1.3.0) unstable; urgency=medium
+
+  * Initialize core from main thread
+  * Add AudioStream.recorder property and remove obsolete ones
+  * Allow AudioStream.start_recording to be called early
+  * Ensure MediaStreamDidEnd is always posted for MSRP streams
+  * Fixed cancel_proposal when no streams were proposed
+  * Fixed setting proposed streams on hold when holding during a re-INVITE
+  * Fixed originator for SIPSessionProposalRejected
+  * Fixed pickling for some core objects
+  * Fixed compilation with latest Cython version
+  * Fixed processing AudioPortDidChangeSlots if bridge was stopped
+  * Avoid sending failure reports for MSRP keep-alive chunks
+  * Avoid resetting greenlet when session is about to end or cancel a proposal
+  * Removed unused tls_timeout configuration parameter
+  * pjsip: don't compile libmilenage
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 10 Apr 2014 14:55:40 +0200
+
 python-sipsimple (1.2.1) unstable; urgency=medium
 
   * Handle errors when sending hold/unhold requests
