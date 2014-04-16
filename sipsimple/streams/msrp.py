@@ -775,7 +775,7 @@ class ScreenSharingHandlerBase(object):
 
     def _NH_MediaStreamDidStart(self, notification):
         self.msrp_reader_thread = spawn(self._msrp_reader)
-        self.msrp_writer_thread = spawn(self._msrp_reader)
+        self.msrp_writer_thread = spawn(self._msrp_writer)
 
     def _NH_MediaStreamWillEnd(self, notification):
         notification.center.remove_observer(self, sender=notification.sender)
@@ -1033,7 +1033,7 @@ class ScreenSharingStream(MSRPStreamBase):
                 if response is not None:
                     self.msrp.write_chunk(response)
                 if report is not None:
-                    self.msrp.write_chunk(response)
+                    self.msrp.write_chunk(report)
             except ProcExit:
                 raise
             except Exception, e:
