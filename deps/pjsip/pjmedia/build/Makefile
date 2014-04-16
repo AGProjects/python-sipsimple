@@ -91,7 +91,7 @@ export PJMEDIA_AUDIODEV_CFLAGS += $(_CFLAGS)
 #
 export PJMEDIA_VIDEODEV_SRCDIR = ../src/pjmedia-videodev
 export PJMEDIA_VIDEODEV_OBJS +=  errno.o videodev.o avi_dev.o ffmpeg_dev.o \
-				colorbar_dev.o v4l2_dev.o
+				colorbar_dev.o v4l2_dev.o opengl_dev.o
 export PJMEDIA_VIDEODEV_CFLAGS += $(_CFLAGS)
 
 
@@ -111,12 +111,14 @@ export PJSDP_CFLAGS += $(_CFLAGS)
 # Defines for building PJMEDIA-Codec library
 #
 export PJMEDIA_CODEC_SRCDIR = ../src/pjmedia-codec
-export PJMEDIA_CODEC_OBJS += audio_codecs.o ffmpeg_vid_codecs.o \
+export PJMEDIA_CODEC_OBJS += audio_codecs.o ffmpeg_vid_codecs.o openh264.o \
 			h263_packetizer.o h264_packetizer.o \
 			$(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
 			ipp_codecs.o opencore_amr.o silk.o $(CODEC_OBJS) \
                         g7221_sdp_match.o amr_sdp_match.o
 export PJMEDIA_CODEC_CFLAGS += $(_CFLAGS) $(GSM_CFLAGS) $(SPEEX_CFLAGS) \
+			$(ILBC_CFLAGS) $(IPP_CFLAGS) $(G7221_CFLAGS)
+export PJMEDIA_CODEC_CXXFLAGS += $(_CXXFLAGS) $(GSM_CFLAGS) $(SPEEX_CFLAGS) \
 			$(ILBC_CFLAGS) $(IPP_CFLAGS) $(G7221_CFLAGS)
 
 

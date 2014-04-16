@@ -499,7 +499,8 @@ static int pb_thread_func (void *arg)
             		  status.status));
 		if (status.status == SND_PCM_STATUS_READY ||
 		    status.status == SND_PCM_STATUS_UNDERRUN ||
-		    status.status == SND_PCM_STATUS_ERROR )
+		    status.status == SND_PCM_STATUS_ERROR ||
+		    status.status == SND_PCM_STATUS_CHANGE)
 		{
 		    if (snd_pcm_plugin_prepare (stream->pb_pcm,
 						SND_PCM_CHANNEL_PLAYBACK) < 0)
@@ -583,7 +584,8 @@ static int ca_thread_func (void *arg)
         	 * after */
         	if (status.status == SND_PCM_STATUS_READY ||
         		status.status == SND_PCM_STATUS_OVERRUN ||
-        		status.status == SND_PCM_STATUS_ERROR)
+        		status.status == SND_PCM_STATUS_ERROR ||
+        		status.status == SND_PCM_STATUS_CHANGE)
         	{
         	    if (snd_pcm_plugin_prepare (stream->ca_pcm,
         	                                SND_PCM_CHANNEL_CAPTURE) < 0)
@@ -642,7 +644,7 @@ static pj_status_t bb10_initialize_playback_ctrl(struct bb10_stream *stream,
 	ret = audio_manager_set_handle_type(
 		stream->pb_ctrl_audio_manager_handle,
 		AUDIO_TYPE_VIDEO_CHAT,
-		AUDIO_DEVICE_DEFAULT,
+		AUDIO_DEVICE_SPEAKER,
 		AUDIO_DEVICE_DEFAULT);
     } else {
 	ret = audio_manager_set_handle_type(
@@ -650,6 +652,15 @@ static pj_status_t bb10_initialize_playback_ctrl(struct bb10_stream *stream,
 		AUDIO_TYPE_VOICE,
 		AUDIO_DEVICE_DEFAULT,
 		AUDIO_DEVICE_DEFAULT);
+    }
+
+    /* Make the routing selection stick even when earpeace is plugged in.
+     * But this doesn't seem to work (tested on Q10 10.2.10
+     */
+    if (ret == 0) {
+	ret = audio_manager_set_handle_routing_conditions(
+		stream->pb_ctrl_audio_manager_handle,
+		SETTINGS_NEVER_RESET);
     }
 
     if (ret != 0) {
@@ -1034,6 +1045,11 @@ static pj_status_t bb10_stream_set_cap(pjmedia_aud_stream *strm,
 	PJ_ASSERT_RETURN(value, PJ_EINVAL);
 
 	/* OS 10.2.1 requires pausing audio stream */
+	/* No longer necessary!
+	 * See https://trac.pjsip.org/repos/ticket/1743
+	 */
+	need_restart = PJ_FALSE;
+	/*
 	need_restart = (stream->pb_thread != NULL);
 	if (need_restart) {
 	    PJ_LOG(4,(THIS_FILE, "pausing audio stream.."));
@@ -1043,6 +1059,7 @@ static pj_status_t bb10_stream_set_cap(pjmedia_aud_stream *strm,
 		return ret;
 	    }
 	}
+	*/
 
     	route = *((pjmedia_aud_dev_route*)value);
     	PJ_LOG(4,(THIS_FILE, "setting audio route to %d..", route));

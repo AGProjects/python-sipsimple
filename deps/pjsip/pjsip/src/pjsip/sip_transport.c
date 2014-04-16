@@ -1091,6 +1091,7 @@ PJ_DEF(pj_status_t) pjsip_transport_shutdown(pjsip_transport *tp)
 {
     pjsip_tpmgr *mgr;
     pj_status_t status;
+    pjsip_tp_state_callback state_cb;
 
     TRACE_((THIS_FILE, "Transport %s shutting down", tp->obj_name));
 
@@ -1111,7 +1112,17 @@ PJ_DEF(pj_status_t) pjsip_transport_shutdown(pjsip_transport *tp)
     /* Instruct transport to shutdown itself */
     if (tp->do_shutdown)
 	status = tp->do_shutdown(tp);
-    
+
+    /* Notify application of transport shutdown */
+    state_cb = pjsip_tpmgr_get_state_cb(tp->tpmgr);
+    if (state_cb) {
+	pjsip_transport_state_info state_info;
+
+	pj_bzero(&state_info, sizeof(state_info));
+	state_info.status = status;
+        (*state_cb)(tp, PJSIP_TP_STATE_SHUTDOWN, &state_info);
+    }
+
     if (status == PJ_SUCCESS)
 	tp->is_shutdown = PJ_TRUE;
 
@@ -1133,8 +1144,19 @@ PJ_DEF(pj_status_t) pjsip_transport_shutdown(pjsip_transport *tp)
  */
 PJ_DEF(pj_status_t) pjsip_transport_destroy( pjsip_transport *tp)
 {
+    pjsip_tp_state_callback state_cb;
+
     /* Must have no user. */
     PJ_ASSERT_RETURN(pj_atomic_get(tp->ref_cnt) == 0, PJSIP_EBUSY);
+
+    /* Notify application of transport destroy */
+    state_cb = pjsip_tpmgr_get_state_cb(tp->tpmgr);
+    if (state_cb) {
+	pjsip_transport_state_info state_info;
+
+	pj_bzero(&state_info, sizeof(state_info));
+        (*state_cb)(tp, PJSIP_TP_STATE_DESTROY, &state_info);
+    }
 
     /* Destroy. */
     return destroy_transport(tp->tpmgr, tp);
@@ -1269,19 +1291,26 @@ static pj_status_t get_net_interface(pjsip_transport_type_e tp_type,
 {
     int af;
     pj_sockaddr itf_addr;
-    pj_status_t status;
+    pj_status_t status = -1;
 
     af = (tp_type & PJSIP_TRANSPORT_IPV6)? PJ_AF_INET6 : PJ_AF_INET;
-    status = pj_getipinterface(af, dst, &itf_addr, PJ_FALSE, NULL);
-    if (status != PJ_SUCCESS) {
-	/* If it fails, e.g: on WM6 (http://support.microsoft.com/kb/129065),
-	 * just fallback using pj_gethostip(), see ticket #1660.
-	 */
-	PJ_LOG(5,(THIS_FILE,"Warning: unable to determine local "
-			    "interface, fallback to default interface!"));
-	status = pj_gethostip(af, &itf_addr);
-	if (status != PJ_SUCCESS)
-	    return status;
+
+    if (pjsip_cfg()->endpt.resolve_hostname_to_get_interface) {
+	status = pj_getipinterface(af, dst, &itf_addr, PJ_TRUE, NULL);
+    }
+
+    if (status != PJ_SUCCESS) { 
+	status = pj_getipinterface(af, dst, &itf_addr, PJ_FALSE, NULL);
+	if (status != PJ_SUCCESS) {
+	    /* If it fails, e.g: on WM6(http://support.microsoft.com/kb/129065),
+	     * just fallback using pj_gethostip(), see ticket #1660.
+	     */
+	    PJ_LOG(5,(THIS_FILE,"Warning: unable to determine local "
+				"interface, fallback to default interface!"));
+	    status = pj_gethostip(af, &itf_addr);
+	    if (status != PJ_SUCCESS)
+		return status;
+	}
     }
 
     /* Print address */
@@ -1588,6 +1617,9 @@ PJ_DEF(pj_ssize_t) pjsip_tpmgr_receive_packet( pjsip_tpmgr *mgr,
 
     current_pkt = rdata->pkt_info.packet;
     remaining_len = rdata->pkt_info.len;
+
+    tr->last_recv_len = rdata->pkt_info.len;
+    pj_get_timestamp(&tr->last_recv_ts);
     
     /* Must NULL terminate buffer. This is the requirement of the 
      * parser etc. 

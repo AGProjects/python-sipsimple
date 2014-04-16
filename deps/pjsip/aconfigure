@@ -639,6 +639,8 @@ libssl_present
 openssl_h_present
 ac_no_ssl
 ac_webrtc_platform
+ac_openh264_ldflags
+ac_openh264_cflags
 ac_v4l2_ldflags
 ac_v4l2_cflags
 PKG_CONFIG
@@ -779,6 +781,8 @@ enable_sdl
 with_ffmpeg
 enable_ffmpeg
 enable_v4l2
+with_openh264
+enable_openh264
 enable_ipp
 with_ipp
 with_ipp_samples
@@ -1441,6 +1445,7 @@ Optional Features:
   --disable-sdl           Disable SDL (default: not disabled)
   --disable-ffmpeg        Disable ffmpeg (default: not disabled)
   --disable-v4l2          Disable Video4Linux2 (default: not disabled)
+  --disable-openh264      Disable OpenH264 (default: not disabled)
   --enable-ipp            Enable Intel IPP support. Specify the Intel IPP
                           package and samples location using IPPROOT and
                           IPPSAMPLES env var or with --with-ipp and
@@ -1469,6 +1474,7 @@ Optional Packages:
                           var to set the include/lib paths)
   --with-sdl=DIR          Specify alternate libSDL prefix
   --with-ffmpeg=DIR       Specify alternate FFMPEG prefix
+  --with-openh264=DIR     Specify alternate OpenH264 prefix
   --with-ipp=DIR          Specify the Intel IPP location
   --with-ipp-samples=DIR  Specify the Intel IPP samples location
   --with-ipp-arch=ARCH    Specify the Intel IPP ARCH suffix, e.g. "64" or
@@ -6800,6 +6806,94 @@ fi
 
 
 fi
+
+
+
+# Check whether --with-openh264 was given.
+if test "${with_openh264+set}" = set; then :
+  withval=$with_openh264;
+else
+  with_openh264=no
+
+fi
+
+
+if test "x$ac_cross_compile" != "x" -a "x$with_openh264" = "xno"; then
+    enable_openh264=no
+fi
+
+
+
+# Check whether --enable-openh264 was given.
+if test "${enable_openh264+set}" = set; then :
+  enableval=$enable_openh264;
+		if test "$enable_openh264" = "no"; then
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if OpenH264 is disabled... yes" >&5
+$as_echo "Checking if OpenH264 is disabled... yes" >&6; }
+		fi
+
+else
+
+		  if test "x$with_openh264" != "xno" -a "x$with_openh264" != "x"; then
+		        OPENH264_PREFIX=$with_openh264
+		  	OPENH264_CFLAGS="-I$OPENH264_PREFIX/include"
+			OPENH264_LDFLAGS="-L$OPENH264_PREFIX/lib"
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using OpenH264 prefix... $with_openh264" >&5
+$as_echo "Using OpenH264 prefix... $with_openh264" >&6; }
+		  else
+		  	OPENH264_CFLAGS=""
+			OPENH264_LDFLAGS=""
+		  fi
+
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: checking OpenH264 availability" >&5
+$as_echo_n "checking OpenH264 availability... " >&6; }
+
+		  OPENH264_LIBS="-lwels"
+
+		  SAVED_LIBS="$LIBS"
+		  SAVED_LDFLAGS="$LDFLAGS"
+		  SAVED_CFLAGS="$CFLAGS"
+
+		  LIBS="$OPENH264_LIBS $LIBS"
+		  LDFLAGS="$OPENH264_LDFLAGS $LDFLAGS"
+		  CFLAGS="$OPENH264_CFLAGS $CFLAGS"
+
+		  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <wels/codec_api.h>
+		                                    #include <wels/codec_app_def.h>
+
+int
+main ()
+{
+int main() { CreateSVCEncoder(0); return 0; }
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+   ac_openh264_cflags="-DPJMEDIA_HAS_OPENH264_CODEC=1 $OPENH264_CFLAGS"
+		  		   ac_openh264_ldflags="$OPENH264_LDFLAGS $OPENH264_LIBS"
+		  		   { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+$as_echo "ok" >&6; }
+
+else
+
+				   LIBS="$SAVED_LIBS"
+				   LDFLAGS="$SAVED_LDFLAGS"
+				   CFLAGS="$SAVED_CFLAGS"
+		  		   { $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+$as_echo "failed" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+
+fi
+
+
 
 
 # Check whether --enable-ipp was given.

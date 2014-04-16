@@ -112,6 +112,15 @@ typedef struct pjsip_cfg_t
 	pj_bool_t disable_tcp_switch;
 
 	/**
+	 * Disable automatic switching to TLS if target-URI does not use
+	 * "sips" scheme nor TLS transport, even when request-URI uses
+	 * "sips" scheme.
+	 *
+	 * Default is PJSIP_DONT_SWITCH_TO_TLS.
+	 */
+	pj_bool_t disable_tls_switch;
+
+	/**
 	 * Enable call media session to always be updated to the latest
 	 * received early media SDP when receiving forked early media
 	 * (multiple 183 responses with different To tag).
@@ -127,6 +136,14 @@ typedef struct pjsip_cfg_t
 	 * Default is PJSIP_REQ_HAS_VIA_ALIAS.
 	 */
 	pj_bool_t req_has_via_alias;
+
+	/**
+	 * Resolve hostname when trying to get the network interface to be put 
+	 * in Via or Contact header.
+	 *
+	 * Default is PJSIP_RESOLVE_HOSTNAME_TO_GET_INTERFACE.
+	 */
+	pj_bool_t resolve_hostname_to_get_interface;
 
     } endpt;
 
@@ -309,6 +326,24 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
 
 
 /**
+ * As specified RFC 3261 section 8.1.2, when request-URI uses "sips" scheme,
+ * TLS must always be used regardless of the target-URI scheme or transport
+ * type.
+ *
+ * This option will specify whether the behavior of automatic switching to TLS
+ * should be disabled, i.e: regard the target-URI scheme or transport type.
+ *
+ * This option can also be controlled at run-time by the \a disable_tls_switch
+ * setting in pjsip_cfg_t.
+ *
+ * Default is 0 (no).
+ */
+#ifndef PJSIP_DONT_SWITCH_TO_TLS
+#   define PJSIP_DONT_SWITCH_TO_TLS	0
+#endif
+
+
+/**
  * Specify whether the call media session should be updated to the latest
  * received early media SDP when receiving forked early media (multiple 183
  * responses with different To tag).
@@ -336,6 +371,18 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
 #   define PJSIP_REQ_HAS_VIA_ALIAS		    PJ_TRUE
 #endif
 
+/**
+ * Resolve hostname when trying to get the network interface to be put in Via 
+ * or Contact header.
+ *
+ * This option can also be controlled at run-time by the
+ * \a resolve_hostname_to_get_interface setting in pjsip_cfg_t.
+ *
+ * Default is PJ_FALSE.
+ */
+#ifndef PJSIP_RESOLVE_HOSTNAME_TO_GET_INTERFACE
+#   define PJSIP_RESOLVE_HOSTNAME_TO_GET_INTERFACE  PJ_FALSE
+#endif
 
 /**
  * Accept call replace in early state when invite is not initiated

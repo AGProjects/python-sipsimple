@@ -47,9 +47,9 @@ pj_status_t PixelFormat_to_pjmedia_format_id(enum PixelFormat pf,
 					     pjmedia_format_id *fmt_id);
 
 pj_status_t pjmedia_format_id_to_CodecID(pjmedia_format_id fmt_id,
-					 enum CodecID *codec_id);
+					 unsigned *codec_id);
 
-pj_status_t CodecID_to_pjmedia_format_id(enum CodecID codec_id,
+pj_status_t CodecID_to_pjmedia_format_id(unsigned codec_id,
 					 pjmedia_format_id *fmt_id);
 
 #endif /* __PJMEDIA_FFMPEG_UTIL_H__ */

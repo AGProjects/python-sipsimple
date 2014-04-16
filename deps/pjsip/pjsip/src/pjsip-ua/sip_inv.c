@@ -629,9 +629,12 @@ static pj_bool_t mod_inv_on_rx_response(pjsip_rx_data *rdata)
 	 * retransmission is received. Also handle the situation
 	 * when we have another re-INVITE on going and 200/OK
 	 * retransmission is received. See:
-	 * https://trac.pjsip.org/repos/ticket/1725
+	 * https://trac.pjsip.org/repos/ticket/1725.
+	 * Also send ACK for 200/OK of pending re-INVITE after call is
+	 * disconnected (see https://trac.pjsip.org/repos/ticket/1755).
 	 */
 	if (inv->invite_tsx == NULL ||
+	    inv->state == PJSIP_INV_STATE_DISCONNECTED ||
 	    (inv->last_ack && inv->last_ack_cseq==rdata->msg_info.cseq->cseq))
 	{
 	    pjsip_event e;
@@ -2966,7 +2969,9 @@ PJ_DEF(pj_status_t) pjsip_inv_send_msg( pjsip_inv_session *inv,
 	 */
 	if (tdata->msg->line.req.method.id == PJSIP_BYE_METHOD &&
 	    inv->role == PJSIP_ROLE_UAS &&
-	    inv->state == PJSIP_INV_STATE_CONNECTING)
+	    inv->state == PJSIP_INV_STATE_CONNECTING &&
+	    inv->cause != PJSIP_SC_REQUEST_TIMEOUT &&
+	    inv->cause != PJSIP_SC_TSX_TRANSPORT_ERROR)
 	{
 	    if (inv->pending_bye)
 		pjsip_tx_data_dec_ref(inv->pending_bye);
@@ -3351,13 +3356,23 @@ static pj_bool_t inv_handle_update_response( pjsip_inv_session *inv,
 
     /* Process 2xx response */
     else if (tsx->state == PJSIP_TSX_STATE_COMPLETED &&
-	tsx->status_code/100 == 2 &&
-	e->body.tsx_state.src.rdata->msg_info.msg->body)
+	tsx->status_code/100 == 2)
     {
-	status = handle_timer_response(inv, e->body.tsx_state.src.rdata,
-				       PJ_FALSE);
-	status = inv_check_sdp_in_incoming_msg(inv, tsx, 
-					     e->body.tsx_state.src.rdata);
+	pjsip_rx_data *rdata = e->body.tsx_state.src.rdata;
+	status = handle_timer_response(inv, rdata, PJ_FALSE);
+
+	if (rdata->msg_info.msg->body) {
+	    /* Only process remote SDP if we have sent local offer */
+	    if (inv->neg && pjmedia_sdp_neg_get_state(inv->neg) == 
+					PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER)
+	    {
+		status = inv_check_sdp_in_incoming_msg(inv, tsx, rdata);
+	    } else {
+		PJ_LOG(5,(THIS_FILE, "Ignored message body in %s as no local "
+				     "offer was sent",
+				     pjsip_rx_data_get_info(rdata)));
+	    }
+	}
 	handled = PJ_TRUE;
     }
 
@@ -4226,6 +4241,8 @@ static void inv_on_state_connecting( pjsip_inv_session *inv, pjsip_event *e)
 		} else {
 		    pjsip_tx_data *bye;
 		    pj_status_t status;
+
+		    inv_set_cause(inv, tsx->status_code, &tsx->status_text);
 
 		    /* Send BYE */
 		    status = pjsip_dlg_create_request(inv->dlg,
