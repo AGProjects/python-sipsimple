@@ -417,24 +417,24 @@ class AudioStream(object):
         self.notification_center.post_notification('AudioStreamICENegotiationStateDidChange', sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
-        self._ice_state = "IN_USE"
         rtp_transport = notification.sender
         self.notification_center.remove_observer(self, sender=rtp_transport)
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
+            self._ice_state = "IN_USE"
             self.notification_center.post_notification('AudioStreamICENegotiationDidSucceed', sender=self, data=notification.data)
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def _NH_RTPTransportICENegotiationDidFail(self, notification):
-        self._ice_state = "FAILED"
         rtp_transport = notification.sender
         self.notification_center.remove_observer(self, sender=rtp_transport)
         with self._lock:
             self.notification_center.post_notification('AudioStreamICENegotiationDidFail', sender=self, data=notification.data)
             if self.state != "WAIT_ICE":
                 return
+            self._ice_state = "FAILED"
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
