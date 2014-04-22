@@ -894,7 +894,7 @@ class ExternalVNCServerHandler(ScreenSharingHandlerBase):
 
     connect_timeout = 3
 
-    def __init__(self, address):
+    def __init__(self, address=('localhost', 5900)):
         ScreenSharingHandlerBase.__init__(self)
         self.address = address
         self.vnc_starter_thread = None
