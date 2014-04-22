@@ -962,6 +962,9 @@ class ScreenSharingStream(MSRPStreamBase):
     accept_types = ['application/x-rfb']
     accept_wrapped_types = None
 
+    ServerHandler = InternalVNCServerHandler
+    ViewerHandler = InternalVNCViewerHandler
+
     def __init__(self, handler):
         MSRPStreamBase.__init__(self, direction='sendrecv')
         self.handler = handler
@@ -998,9 +1001,9 @@ class ScreenSharingStream(MSRPStreamBase):
             raise InvalidStreamError("wrong format list specified")
         remote_rfbsetup = remote_stream.attributes.getfirst('rfbsetup', 'active')
         if remote_rfbsetup == 'active':
-            stream = cls(handler=InternalVNCServerHandler())
+            stream = cls(handler=cls.ServerHandler())
         elif remote_rfbsetup == 'passive':
-            stream = cls(handler=InternalVNCViewerHandler())
+            stream = cls(handler=cls.ViewerHandler())
         else:
             raise InvalidStreamError("unknown rfbsetup attribute in the remote screen sharing stream")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
