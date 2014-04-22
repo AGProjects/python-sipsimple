@@ -293,7 +293,6 @@ class MSRPStreamBase(object):
 
 
 class ChatStream(MSRPStreamBase):
-
     type = 'chat'
     priority = 1
     use_msrp_session = True
@@ -633,7 +632,6 @@ class FileSelector(object):
 
 
 class FileTransferStream(MSRPStreamBase):
-
     type = 'file-transfer'
     priority = 10
     use_msrp_session = True
@@ -956,7 +954,6 @@ class ExternalVNCServerHandler(ScreenSharingHandlerBase):
 
 
 class ScreenSharingStream(MSRPStreamBase):
-
     type = 'screen-sharing'
     priority = 1
     use_msrp_session = False
