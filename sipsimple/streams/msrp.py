@@ -824,12 +824,14 @@ class InternalVNCServerHandler(ScreenSharingHandlerBase):
 class ExternalVNCViewerHandler(ScreenSharingHandlerBase):
     type = 'active'
 
-    def __init__(self, address=('localhost', 0), connect_timeout=3):
+    connect_timeout = 3
+
+    def __init__(self, address=('localhost', 0)):
         ScreenSharingHandlerBase.__init__(self)
         self.vnc_starter_thread = None
         self.vnc_socket = GreenSocket(tcp_socket())
         set_reuse_addr(self.vnc_socket)
-        self.vnc_socket.settimeout(connect_timeout)
+        self.vnc_socket.settimeout(self.connect_timeout)
         self.vnc_socket.bind(address)
         self.vnc_socket.listen(1)
         self.address = self.vnc_socket.getsockname()
@@ -890,12 +892,13 @@ class ExternalVNCViewerHandler(ScreenSharingHandlerBase):
 class ExternalVNCServerHandler(ScreenSharingHandlerBase):
     type = 'passive'
 
-    def __init__(self, address, connect_timeout=3):
+    connect_timeout = 3
+
+    def __init__(self, address):
         ScreenSharingHandlerBase.__init__(self)
         self.address = address
         self.vnc_starter_thread = None
         self.vnc_socket = None
-        self.connect_timeout = connect_timeout
 
     def _msrp_reader(self):
         while True:
