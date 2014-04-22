@@ -950,8 +950,8 @@ class ScreenSharingStream(MSRPStreamBase):
     accept_types = ['application/x-rfb']
     accept_wrapped_types = None
 
-    ServerHandler = InternalVNCServerHandler
-    ViewerHandler = InternalVNCViewerHandler
+    ServerHandler = ExternalVNCServerHandler
+    ViewerHandler = ExternalVNCViewerHandler
 
     def __init__(self, handler):
         MSRPStreamBase.__init__(self, direction='sendrecv')
