@@ -878,8 +878,6 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
 
 
 class ExternalVNCServerHandler(ScreenSharingServerHandler):
-    type = 'passive'
-
     connect_timeout = 3
 
     def __init__(self, address=('localhost', 5900)):
