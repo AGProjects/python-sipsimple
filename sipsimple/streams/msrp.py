@@ -10,8 +10,8 @@ sessions that negotiate Instant Messsaging, File Transfer and Screen
 Sharing and handling of the actual media streams.
 """
 
-__all__ = ['MSRPStreamError', 'ChatStreamError', 'ChatStream', 'FileSelector', 'FileTransferStream', 'IScreenSharingHandler', 'ScreenSharingHandlerBase',
-           'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler', 'ScreenSharingStream']
+__all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'ScreenSharingHandler',
+           'ScreenSharingServerHandler', 'ScreenSharingViewerHandler', 'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler']
 
 import os
 import re
@@ -19,13 +19,14 @@ import random
 import hashlib
 import mimetypes
 
+from abc import ABCMeta, abstractmethod, abstractproperty
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.system import host
 from functools import partial
 from itertools import chain
 from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
-from zope.interface import implements, Interface, Attribute
+from zope.interface import implements
 
 from eventlib import api
 from eventlib.coros import queue
@@ -50,6 +51,8 @@ from sipsimple.util import ISOTimestamp
 
 class MSRPStreamError(StreamError): pass
 class ChatStreamError(MSRPStreamError): pass
+
+class VNCConnectionError(Exception): pass
 
 
 class MSRPStreamBase(object):
@@ -727,25 +730,10 @@ class FileTransferStream(MSRPStreamBase):
 # Screen sharing
 #
 
-class VNCConnectionError(Exception): pass
+class ScreenSharingHandler(object):
+    __metaclass__ = ABCMeta
 
-
-class IScreenSharingHandler(Interface):
-    type = Attribute("A string identifying the direction: passive for a server, active for a client")
-
-    def initialize(self, stream):
-        pass
-
-
-class ScreenSharingHandlerBase(object):
-    implements(IScreenSharingHandler, IObserver)
-
-    type = None
-
-    def __new__(cls, *args, **kw):
-        if cls is ScreenSharingHandlerBase:
-            raise TypeError("ScreenSharingHandlerBase cannot be instantiated directly")
-        return object.__new__(cls)
+    implements(IObserver)
 
     def __init__(self):
         self.incoming_msrp_queue = None
@@ -758,13 +746,17 @@ class ScreenSharingHandlerBase(object):
         self.outgoing_msrp_queue = stream.outgoing_queue
         NotificationCenter().add_observer(self, sender=stream)
 
+    @abstractproperty
+    def type(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def _msrp_reader(self):
         raise NotImplementedError
 
+    @abstractmethod
     def _msrp_writer(self):
         raise NotImplementedError
-
-    ## Internal IObserver interface
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -785,9 +777,16 @@ class ScreenSharingHandlerBase(object):
             self.msrp_writer_thread = None
 
 
-class InternalVNCViewerHandler(ScreenSharingHandlerBase):
-    type = 'active'
+class ScreenSharingServerHandler(ScreenSharingHandler):
+    type = property(lambda self: 'passive')
 
+
+class ScreenSharingViewerHandler(ScreenSharingHandler):
+    type = property(lambda self: 'active')
+
+
+
+class InternalVNCViewerHandler(ScreenSharingViewerHandler):
     @run_in_twisted_thread
     def send(self, data):
         self.outgoing_msrp_queue.send(data)
@@ -802,9 +801,7 @@ class InternalVNCViewerHandler(ScreenSharingHandlerBase):
         pass
 
 
-class InternalVNCServerHandler(ScreenSharingHandlerBase):
-    type = 'passive'
-
+class InternalVNCServerHandler(ScreenSharingServerHandler):
     @run_in_twisted_thread
     def send(self, data):
         self.outgoing_msrp_queue.send(data)
@@ -819,13 +816,11 @@ class InternalVNCServerHandler(ScreenSharingHandlerBase):
         pass
 
 
-class ExternalVNCViewerHandler(ScreenSharingHandlerBase):
-    type = 'active'
-
+class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
     connect_timeout = 3
 
     def __init__(self, address=('localhost', 0)):
-        ScreenSharingHandlerBase.__init__(self)
+        super(ExternalVNCViewerHandler, self).__init__()
         self.vnc_starter_thread = None
         self.vnc_socket = GreenSocket(tcp_socket())
         set_reuse_addr(self.vnc_socket)
@@ -878,16 +873,16 @@ class ExternalVNCViewerHandler(ScreenSharingHandlerBase):
         if self.vnc_starter_thread is not None:
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
-        ScreenSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+        super(ExternalVNCViewerHandler, self)._NH_MediaStreamWillEnd(notification)
 
 
-class ExternalVNCServerHandler(ScreenSharingHandlerBase):
+class ExternalVNCServerHandler(ScreenSharingServerHandler):
     type = 'passive'
 
     connect_timeout = 3
 
     def __init__(self, address=('localhost', 5900)):
-        ScreenSharingHandlerBase.__init__(self)
+        super(ExternalVNCServerHandler, self).__init__()
         self.address = address
         self.vnc_starter_thread = None
         self.vnc_socket = None
@@ -936,7 +931,7 @@ class ExternalVNCServerHandler(ScreenSharingHandlerBase):
         if self.vnc_starter_thread is not None:
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
-        ScreenSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+        super(ExternalVNCServerHandler, self)._NH_MediaStreamWillEnd(notification)
         if self.vnc_socket is not None:
             self.vnc_socket.close()
 
