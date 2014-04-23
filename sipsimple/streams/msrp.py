@@ -21,6 +21,7 @@ import mimetypes
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from application.notification import NotificationCenter, NotificationData, IObserver
+from application.python.types import MarkerType
 from application.system import host
 from functools import partial
 from itertools import chain
@@ -553,7 +554,7 @@ class ChatStream(MSRPStreamBase):
 # File transfer
 #
 
-class ComputeHash: pass
+class ComputeHash: __metaclass__ = MarkerType
 
 class FileSelector(object):
     class __metaclass__(type):
