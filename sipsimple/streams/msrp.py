@@ -21,6 +21,7 @@ import mimetypes
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from application.notification import NotificationCenter, NotificationData, IObserver
+from application.python.descriptor import WriteOnceAttribute
 from application.python.types import MarkerType
 from application.system import host
 from functools import partial
@@ -818,15 +819,16 @@ class InternalVNCServerHandler(ScreenSharingServerHandler):
 
 
 class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
+    address = ('localhost', 0)
     connect_timeout = 3
 
-    def __init__(self, address=('localhost', 0)):
+    def __init__(self):
         super(ExternalVNCViewerHandler, self).__init__()
         self.vnc_starter_thread = None
         self.vnc_socket = GreenSocket(tcp_socket())
         set_reuse_addr(self.vnc_socket)
         self.vnc_socket.settimeout(self.connect_timeout)
-        self.vnc_socket.bind(address)
+        self.vnc_socket.bind(self.address)
         self.vnc_socket.listen(1)
         self.address = self.vnc_socket.getsockname()
 
@@ -878,11 +880,11 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
 
 
 class ExternalVNCServerHandler(ScreenSharingServerHandler):
+    address = ('localhost', 5900)
     connect_timeout = 3
 
-    def __init__(self, address=('localhost', 5900)):
+    def __init__(self):
         super(ExternalVNCServerHandler, self).__init__()
-        self.address = address
         self.vnc_starter_thread = None
         self.vnc_socket = None
 
@@ -947,26 +949,17 @@ class ScreenSharingStream(MSRPStreamBase):
     ServerHandler = ExternalVNCServerHandler
     ViewerHandler = ExternalVNCViewerHandler
 
-    def __init__(self, handler):
+    handler = WriteOnceAttribute()
+
+    def __init__(self, mode):
+        if mode not in ('viewer', 'server'):
+            raise ValueError("mode should be 'viewer' or 'server' not '%s'" % mode)
         MSRPStreamBase.__init__(self, direction='sendrecv')
-        self.handler = handler
+        self.handler = self.ViewerHandler() if mode=='viewer' else self.ServerHandler()
         self.incoming_queue = queue()
         self.outgoing_queue = queue()
         self.msrp_reader_thread = None
         self.msrp_writer_thread = None
-
-    def _get_handler(self):
-        return self.__dict__['handler']
-
-    def _set_handler(self, handler):
-        if handler is None:
-            raise ValueError("handler cannot be None")
-        if 'handler' in self.__dict__ and self.handler.type != handler.type:
-            raise TypeError("cannot replace the handler with one with a different type")
-        self.__dict__['handler'] = handler
-
-    handler = property(_get_handler, _set_handler)
-    del _get_handler, _set_handler
 
     @classmethod
     def new_from_sdp(cls, session, remote_sdp, stream_index):
@@ -983,9 +976,9 @@ class ScreenSharingStream(MSRPStreamBase):
             raise InvalidStreamError("wrong format list specified")
         remote_rfbsetup = remote_stream.attributes.getfirst('rfbsetup', 'active')
         if remote_rfbsetup == 'active':
-            stream = cls(handler=cls.ServerHandler())
+            stream = cls(mode='server')
         elif remote_rfbsetup == 'passive':
-            stream = cls(handler=cls.ViewerHandler())
+            stream = cls(mode='viewer')
         else:
             raise InvalidStreamError("unknown rfbsetup attribute in the remote screen sharing stream")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
