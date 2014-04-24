@@ -946,8 +946,8 @@ class ScreenSharingStream(MSRPStreamBase):
     accept_types = ['application/x-rfb']
     accept_wrapped_types = None
 
-    ServerHandler = ExternalVNCServerHandler
-    ViewerHandler = ExternalVNCViewerHandler
+    ServerHandler = InternalVNCServerHandler
+    ViewerHandler = InternalVNCViewerHandler
 
     handler = WriteOnceAttribute()
 
