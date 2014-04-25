@@ -1568,26 +1568,33 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
+    def add_stream(self, stream):
+        self.add_streams([stream])
+
     @transition_state('connected', 'sending_proposal')
     @run_in_green_thread
-    def add_stream(self, stream):
+    def add_streams(self, streams):
+        streams = list(set(streams).difference(self.streams))
+        if not streams:
+            self.state = 'connected'
+            return
+
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
-
-        received_code = None
-        received_reason = None
         unhandled_notifications = []
 
-        self.proposed_streams = [stream]
-        notification_center.add_observer(self, sender=stream)
-        stream.initialize(self, direction='outgoing')
+        self.proposed_streams = streams
+        for stream in self.proposed_streams:
+            notification_center.add_observer(self, sender=stream)
+            stream.initialize(self, direction='outgoing')
 
         try:
-            while True:
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0:
                 notification = self._channel.wait()
                 if notification.name == 'MediaStreamDidInitialize':
-                    break
+                    wait_count -= 1
                 elif notification.name == 'SIPInvitationChangedState':
                     # This is actually the only reason for which this notification could be received
                     if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
@@ -1597,8 +1604,9 @@ class Session(object):
 
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
-            stream.index = len(local_sdp.media)
-            local_sdp.media.append(stream.get_local_media(for_offer=True))
+            for index, stream in enumerate(self.proposed_streams, len(local_sdp.media)):
+                stream.index = index
+                local_sdp.media.append(stream.get_local_media(for_offer=True))
             self._invitation.send_reinvite(sdp=local_sdp)
             notification_center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='local', proposed_streams=self.proposed_streams[:]))
 
@@ -1622,13 +1630,11 @@ class Session(object):
                             if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                                 received_invitation_state = True
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
-                                if 200 <= notification.data.code < 300:
-                                    received_code = notification.data.code
-                                    received_reason = notification.data.reason
-                                else:
-                                    notification_center.remove_observer(self, sender=stream)
-                                    stream.deactivate()
-                                    stream.end()
+                                if notification.data.code >= 300:
+                                    for stream in self.proposed_streams:
+                                        notification_center.remove_observer(self, sender=stream)
+                                        stream.deactivate()
+                                        stream.end()
                                     notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, proposed_streams=self.proposed_streams[:]))
                                     self.state = 'connected'
                                     self.proposed_streams = None
@@ -1640,27 +1646,25 @@ class Session(object):
                 self.cancel_proposal()
                 return
 
-            try:
-                remote_media = remote_sdp.media[stream.index]
-            except IndexError:
-                self._fail_proposal(originator='local', error='SDP media missing in answer')
-                return
-            else:
-                if remote_media.port:
-                    stream.start(local_sdp, remote_sdp, stream.index)
-                else:
-                    notification_center.remove_observer(self, sender=stream)
-                    stream.deactivate()
-                    stream.end()
-                    notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=received_code, reason=received_reason, proposed_streams=self.proposed_streams[:]))
-                    self.state = 'connected'
-                    self.proposed_streams = None
-                    self.greenlet = None
+            accepted_streams = []
+            for stream in self.proposed_streams:
+                try:
+                    remote_media = remote_sdp.media[stream.index]
+                except IndexError:
+                    self._fail_proposal(originator='local', error='SDP media missing in answer')
                     return
+                else:
+                    if remote_media.port:
+                        stream.start(local_sdp, remote_sdp, stream.index)
+                        accepted_streams.append(stream)
+                    else:
+                        notification_center.remove_observer(self, sender=stream)
+                        stream.deactivate()
+                        stream.end()
 
             with api.timeout(self.media_stream_timeout):
-                wait_count = 1
-                while wait_count > 0 or self._channel:
+                wait_count = len(accepted_streams)
+                while wait_count > 0:
                     notification = self._channel.wait()
                     if notification.name == 'MediaStreamDidStart':
                         wait_count -= 1
@@ -1680,36 +1684,40 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            proposed_streams = self.proposed_streams[:]
-            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='local', accepted_streams=proposed_streams, proposed_streams=proposed_streams))
-            self.streams += self.proposed_streams
+            notification_center.post_notification('SIPSessionProposalAccepted', self, NotificationData(originator='local', accepted_streams=accepted_streams[:], proposed_streams=self.proposed_streams[:]))
+            self.streams += accepted_streams
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=proposed_streams, removed_streams=[]))
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=accepted_streams, removed_streams=[]))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
             if self._hold_in_progress:
                 self._send_hold()
 
+    def remove_stream(self, stream):
+        self.remove_streams([stream])
+
     @transition_state('connected', 'sending_proposal')
     @run_in_green_thread
-    def remove_stream(self, stream):
-        if stream not in self.streams:
+    def remove_streams(self, streams):
+        streams = list(set(streams).intersection(self.streams))
+        if not streams:
             self.state = 'connected'
             return
+
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-
         unhandled_notifications = []
 
         try:
-            notification_center.remove_observer(self, sender=stream)
-            stream.deactivate()
-            self.streams.remove(stream)
-
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
-            local_sdp.media[stream.index].port = 0
-            local_sdp.media[stream.index].attributes = []
+            for stream in streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
+                self.streams.remove(stream)
+                local_sdp.media[stream.index].port = 0
+                local_sdp.media[stream.index].attributes = []
+
             self._invitation.send_reinvite(sdp=local_sdp)
 
             received_invitation_state = False
@@ -1736,10 +1744,11 @@ class Session(object):
         except (api.TimeoutError, MediaStreamDidFailError, SIPCoreError):
             self.end()
         else:
-            stream.end()
+            for stream in streams:
+                stream.end()
             self.greenlet = None
             self.state = 'connected'
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=[], removed_streams=[stream]))
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='local', added_streams=[], removed_streams=streams))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
             if self._hold_in_progress:
