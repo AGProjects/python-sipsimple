@@ -849,6 +849,7 @@ cdef class AudioTransport:
             if self._stream_info.param == NULL:
                 raise SIPCoreError("Could not parse SDP for audio session")
             self._stream_info.param.setting.vad = self._vad
+            self._stream_info.use_ka = 1
             with nogil:
                 status = pjmedia_stream_create(media_endpoint, pool, stream_info_address,
                                                transport, NULL, stream_address)
