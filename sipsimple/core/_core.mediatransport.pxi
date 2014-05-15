@@ -61,11 +61,9 @@ cdef class RTPTransport:
         transport = self._obj
         wrapped_transport = self._wrapped_transport
 
-        if self.state in ["LOCAL", "ESTABLISHED"]:
+        if transport != NULL:
             with nogil:
                 pjmedia_transport_media_stop(transport)
-        if self._obj != NULL:
-            with nogil:
                 pjmedia_transport_close(transport)
             if self._obj.type == PJMEDIA_TRANSPORT_TYPE_ICE:
                 (<void **> (self._obj.name + 1))[0] = NULL
@@ -74,11 +72,6 @@ cdef class RTPTransport:
                     (<void **> (self._obj.name + 1))[0] = NULL
                 self._wrapped_transport = NULL
             self._obj = NULL
-        if self._wrapped_transport != NULL:
-            if self._wrapped_transport.type == PJMEDIA_TRANSPORT_TYPE_ICE:
-                (<void **> (self._obj.name + 1))[0] = NULL
-            with nogil:
-                pjmedia_transport_close(wrapped_transport)
         ua.release_memory_pool(self._pool)
         self._pool = NULL
         if self._lock != NULL:
