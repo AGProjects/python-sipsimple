@@ -286,10 +286,9 @@ cdef class RTPTransport:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return False
                 self._get_info(&info)
-                for i from 0 <= i < info.specific_info_cnt:
-                    if info.spc_info[i].type == PJMEDIA_TRANSPORT_TYPE_SRTP:
-                        srtp_info = <pjmedia_srtp_info *> info.spc_info[i].buffer
-                        return bool(srtp_info.active)
+                srtp_info = <pjmedia_srtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_SRTP)
+                if srtp_info != NULL:
+                    return bool(srtp_info.active)
                 return False
             finally:
                 with nogil:

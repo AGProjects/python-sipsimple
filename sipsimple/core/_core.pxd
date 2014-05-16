@@ -472,6 +472,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port,
                                       unsigned int options, pjmedia_transport **p_tp) nogil
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info) nogil
+    void *pjmedia_transport_info_get_spc_info(pjmedia_transport_info *info, pjmedia_transport_type type)
     int pjmedia_transport_close(pjmedia_transport *tp) nogil
     int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options,
                                        pjmedia_sdp_session *rem_sdp, unsigned int media_index) nogil
