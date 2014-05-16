@@ -51,26 +51,20 @@ cdef class RTPTransport:
     def __dealloc__(self):
         cdef PJSIPUA ua
         cdef pjmedia_transport *transport
-        cdef pjmedia_transport *wrapped_transport
         cdef Timer timer
 
         try:
             ua = _get_ua()
         except:
             return
-        transport = self._obj
-        wrapped_transport = self._wrapped_transport
 
+        transport = self._obj
         if transport != NULL:
             with nogil:
                 pjmedia_transport_media_stop(transport)
                 pjmedia_transport_close(transport)
-            if self._obj.type == PJMEDIA_TRANSPORT_TYPE_ICE:
-                (<void **> (self._obj.name + 1))[0] = NULL
-            if self._wrapped_transport != NULL:
-                if self._wrapped_transport.type == PJMEDIA_TRANSPORT_TYPE_ICE:
-                    (<void **> (self._obj.name + 1))[0] = NULL
-                self._wrapped_transport = NULL
+            transport.user_data = NULL
+            self._wrapped_transport = NULL
             self._obj = NULL
         ua.release_memory_pool(self._pool)
         self._pool = NULL
@@ -480,7 +474,6 @@ cdef class RTPTransport:
                         status = pjmedia_ice_create2(media_endpoint, NULL, 2, &ice_cfg, &_ice_cb, 0, transport_address)
                     if status != 0:
                         raise PJSIPError("Could not create ICE media transport", status)
-                    (<void **> (self._obj.name + 1))[0] = <void *> self.weakref
                 else:
                     status = PJ_EBUG
                     for i in xrange(ua._rtp_port_index, ua._rtp_port_index + ua._rtp_port_usable_count, 2):
@@ -493,6 +486,7 @@ cdef class RTPTransport:
                             break
                     if status != 0:
                         raise PJSIPError("Could not create UDP/RTP media transport", status)
+                self._obj.user_data = <void *> self.weakref
                 if self.use_srtp:
                     wrapped_transport = self._wrapped_transport = self._obj
                     self._obj = NULL
@@ -1203,7 +1197,7 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
         return
     try:
         if tp != NULL:
-            rtp_transport_void = (<void **> (tp.name + 1))[0]
+            rtp_transport_void = tp.user_data
         if rtp_transport_void != NULL:
             rtp_transport = (<object> rtp_transport_void)()
             if rtp_transport is None:
@@ -1256,7 +1250,7 @@ cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state 
         return
     try:
         if tp != NULL:
-            rtp_transport_void = (<void **> (tp.name + 1))[0]
+            rtp_transport_void = tp.user_data
         if rtp_transport_void != NULL:
             rtp_transport = (<object> rtp_transport_void)()
             if rtp_transport is None:
@@ -1277,7 +1271,7 @@ cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err
         return
     try:
         if tp != NULL:
-            rtp_transport_void = (<void **> (tp.name + 1))[0]
+            rtp_transport_void = tp.user_data
         if rtp_transport_void != NULL:
             rtp_transport = (<object> rtp_transport_void)()
             if rtp_transport is None:

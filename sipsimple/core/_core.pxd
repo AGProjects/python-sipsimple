@@ -457,6 +457,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_transport:
         char *name
         pjmedia_transport_type type
+        void *user_data
     struct pjmedia_transport_specific_info:
         pjmedia_transport_type type
         char *buffer
