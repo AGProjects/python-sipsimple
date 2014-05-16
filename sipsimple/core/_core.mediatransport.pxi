@@ -199,7 +199,7 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
-                if self._ice_active and self._rtp_valid_pair:
+                if self._ice_active() and self._rtp_valid_pair:
                     return self._rtp_valid_pair.remote_candidate.port
                 self._get_info(&info)
                 if pj_sockaddr_has_addr(&info.src_rtp_name):
@@ -230,7 +230,7 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
-                if self._ice_active and self._rtp_valid_pair:
+                if self._ice_active() and self._rtp_valid_pair:
                     return self._rtp_valid_pair.remote_candidate.address
                 self._get_info(&info)
                 if pj_sockaddr_has_addr(&info.src_rtp_name):
@@ -294,10 +294,30 @@ cdef class RTPTransport:
                 with nogil:
                     pj_mutex_unlock(lock)
 
+    cdef int _ice_active(self):
+        # this function needs to be called with the lock held
+        cdef pjmedia_transport_info info
+        cdef pjmedia_ice_transport_info *ice_info
+
+        if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+            return 0
+
+        self._get_info(&info)
+        ice_info = <pjmedia_ice_transport_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ICE)
+        if ice_info != NULL and ice_info.sess_state == PJ_ICE_STRANS_STATE_RUNNING:
+            return 1
+        return 0
+
     property ice_active:
 
         def __get__(self):
-            return bool(self._ice_active)
+            cdef int status
+            cdef pj_mutex_t *lock = self._lock
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return False
 
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
@@ -1216,7 +1236,6 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
                     pj_time_val_normalize(&tv)
                     duration = (tv.sec*1000 + tv.msec)/1000.0
                     data = _extract_ice_session_data(ice_sess)
-                    rtp_transport._ice_active = 1
                     rtp_transport._rtp_valid_pair = _get_rtp_valid_pair(ice_st)
                     _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport,
                                                                             duration=duration,
@@ -1275,7 +1294,6 @@ cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err
             rtp_transport = (<object> rtp_transport_void)()
             if rtp_transport is None:
                 return
-            rtp_transport._ice_active = 0
             rtp_transport._rtp_valid_pair = None
             _reason = reason
             if _reason != b"media stop requested":

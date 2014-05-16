@@ -243,6 +243,9 @@ cdef extern from "pjnath.h":
         PJ_ICE_SESS_CHECK_STATE_IN_PROGRESS
         PJ_ICE_SESS_CHECK_STATE_SUCCEEDED
         PJ_ICE_SESS_CHECK_STATE_FAILED
+    struct pjmedia_ice_transport_info:
+        int active
+        pj_ice_strans_state sess_state
     void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg) nogil
     pj_ice_sess* pj_ice_strans_get_session(pj_ice_strans *ice_st)
     pj_time_val pj_ice_strans_get_start_time(pj_ice_strans *ice_st)
@@ -2117,7 +2120,6 @@ cdef class RTPTransport(object):
     cdef object __weakref__
     cdef object weakref
     cdef int _af
-    cdef int _ice_active
     cdef pj_mutex_t *_lock
     cdef pj_pool_t *_pool
     cdef pjmedia_transport *_obj
@@ -2135,6 +2137,7 @@ cdef class RTPTransport(object):
     cdef PJSIPUA _check_ua(self)
     cdef void _get_info(self, pjmedia_transport_info *info)
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1
+    cdef int _ice_active(self)
 
 cdef class MediaCheckTimer(Timer):
     # attributes
