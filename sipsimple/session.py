@@ -887,6 +887,7 @@ class Session(object):
     implements(IObserver)
 
     media_stream_timeout = 15
+    short_reinvite_timeout = 5
 
     def __init__(self, account):
         self.account = account
@@ -1727,7 +1728,7 @@ class Session(object):
             received_invitation_state = False
             received_sdp_update = False
 
-            with api.timeout(self.media_stream_timeout):
+            with api.timeout(self.short_reinvite_timeout):
                 while not received_invitation_state or not received_sdp_update:
                     notification = self._channel.wait()
                     if notification.name == 'SIPInvitationGotSDPUpdate':
@@ -2015,7 +2016,6 @@ class Session(object):
         self.state = 'sending_proposal'
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
 
         unhandled_notifications = []
 
@@ -2029,7 +2029,7 @@ class Session(object):
             received_invitation_state = False
             received_sdp_update = False
 
-            with api.timeout(settings.sip.invite_timeout):
+            with api.timeout(self.short_reinvite_timeout):
                 while not received_invitation_state or not received_sdp_update:
                     notification = self._channel.wait()
                     if notification.name == 'SIPInvitationGotSDPUpdate':
@@ -2075,7 +2075,6 @@ class Session(object):
         self.state = 'sending_proposal'
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
 
         unhandled_notifications = []
 
@@ -2089,7 +2088,7 @@ class Session(object):
             received_invitation_state = False
             received_sdp_update = False
 
-            with api.timeout(settings.sip.invite_timeout):
+            with api.timeout(self.short_reinvite_timeout):
                 while not received_invitation_state or not received_sdp_update:
                     notification = self._channel.wait()
                     if notification.name == 'SIPInvitationGotSDPUpdate':
