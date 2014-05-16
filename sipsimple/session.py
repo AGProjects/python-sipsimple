@@ -1370,7 +1370,7 @@ class Session(object):
                 notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=200, reason=sip_status_messages[200], failure_reason=e.data.disconnect_reason, redirect_identities=None))
             else:
                 notification_center.post_notification('SIPSessionWillEnd', self, NotificationData(originator='remote'))
-                notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method=e.data.method, code=200, reason='OK'))
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=200, reason='OK'))
                 self.end_time = datetime.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator='remote', end_reason=e.data.disconnect_reason))
             self.greenlet = None
