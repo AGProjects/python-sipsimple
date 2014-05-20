@@ -205,12 +205,12 @@ class AudioStream(object):
             else:
                 self._init_rtp_transport()
 
-    def get_local_media(self, for_offer):
+    def get_local_media(self, remote_sdp=None, index=0):
         with self._lock:
             if self.state not in ["INITIALIZED", "WAIT_ICE", "ESTABLISHED"]:
-                raise RuntimeError("AudioStream.get_local_media() may only be " +
-                                   "called in the INITIALIZED, WAIT_ICE  or ESTABLISHED states")
-            if for_offer:
+                raise RuntimeError("AudioStream.get_local_media() may only be called in the INITIALIZED, WAIT_ICE  or ESTABLISHED states")
+            if remote_sdp is None:
+                # offer
                 old_direction = self._audio_transport.direction
                 if old_direction is None:
                     new_direction = "sendrecv"
@@ -220,7 +220,7 @@ class AudioStream(object):
                     new_direction = ("inactive" if (self._hold_request == 'hold' or (self._hold_request is None and self.on_hold_by_local)) else "recvonly")
             else:
                 new_direction = None
-            return self._audio_transport.get_local_media(for_offer, new_direction)
+            return self._audio_transport.get_local_media(remote_sdp, index, new_direction)
 
     def start(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
@@ -245,7 +245,7 @@ class AudioStream(object):
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
             connection = remote_sdp.media[stream_index].connection or remote_sdp.connection
-            if connection.address != self._remote_rtp_address_sdp or self._remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
+            if not self._rtp_transport.ice_active and (connection.address != self._remote_rtp_address_sdp or self._remote_rtp_port_sdp != remote_sdp.media[stream_index].port):
                 settings = SIPSimpleSettings()
                 if self._audio_rec is not None:
                     self.bridge.remove(self._audio_rec)
@@ -259,7 +259,6 @@ class AudioStream(object):
                     self.state = "ENDED"
                     self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
                     return
-                self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
                 self.notification_center.add_observer(self, sender=self._audio_transport)
                 self._audio_transport.start(local_sdp, remote_sdp, stream_index, timeout=settings.rtp.timeout)
                 self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=True,
@@ -273,6 +272,8 @@ class AudioStream(object):
                 new_direction = local_sdp.media[stream_index].direction
                 self._audio_transport.update_direction(new_direction)
                 self._check_hold(new_direction, False)
+            self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
+            self._audio_transport.update_sdp(local_sdp, remote_sdp, stream_index)
             self._hold_request = None
 
     def hold(self):

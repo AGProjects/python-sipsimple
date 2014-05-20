@@ -56,7 +56,10 @@ cdef class BaseSDPSession:
     cdef pjmedia_sdp_session* get_sdp_session(self):
         self._sdp_session.media_count = len(self.media)
         for index, m in enumerate(self.media):
-            self._sdp_session.media[index] = (<BaseSDPMediaStream>m).get_sdp_media()
+            if m is not None:
+                self._sdp_session.media[index] = (<BaseSDPMediaStream>m).get_sdp_media()
+            else:
+                self._sdp_session.media[index] = NULL
         self._sdp_session.attr_count = len(self.attributes)
         for index, attr in enumerate(self.attributes):
             self._sdp_session.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
@@ -93,7 +96,7 @@ cdef class SDPSession(BaseSDPSession):
     def new(cls, BaseSDPSession sdp_session):
         connection = SDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
         attributes = [SDPAttribute.new(attr) for attr in sdp_session.attributes]
-        media = [SDPMediaStream.new(m) for m in sdp_session.media]
+        media = [SDPMediaStream.new(m) if m is not None else None for m in sdp_session.media]
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
                    connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
@@ -216,7 +219,7 @@ cdef class SDPSession(BaseSDPSession):
             if len(media) > PJMEDIA_MAX_SDP_MEDIA:
                 raise SIPCoreError("Too many media objects")
             for m in media:
-                if not isinstance(m, SDPMediaStream):
+                if m is not None and not isinstance(m, SDPMediaStream):
                     raise TypeError("Items in SDPSession media list must be SDPMediaStream instancess")
             self._media = media
 
@@ -245,7 +248,8 @@ cdef class SDPSession(BaseSDPSession):
                     self._attributes[index] = attribute
         for index, media in enumerate(session._media):
             old_media = self._media[index]
-            old_media._update(media)
+            if old_media is not None:
+                old_media._update(media)
 
 cdef class FrozenSDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
@@ -824,7 +828,7 @@ cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
                        pj_session.time.start,
                        pj_session.time.stop,
                        [SDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)],
-                       [SDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)])
+                       [SDPMediaStream_create(pj_session.media[i]) if pj_session.media[i] != NULL else None for i in range(pj_session.media_count)])
 
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
     cdef FrozenSDPConnection connection = None
@@ -842,7 +846,7 @@ cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_s
                             pj_session.time.start,
                             pj_session.time.stop,
                             frozenlist([FrozenSDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)]),
-                            frozenlist([FrozenSDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)]))
+                            frozenlist([FrozenSDPMediaStream_create(pj_session.media[i]) if pj_session.media[i] != NULL else None for i in range(pj_session.media_count)]))
 
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
     cdef SDPConnection connection = None

@@ -44,6 +44,7 @@ cdef extern from "pjlib.h":
     struct pj_str_t:
         char *ptr
         int slen
+    ctypedef pj_str_t *pj_str_ptr_const "const pj_str_t *"
 
     # errors
     pj_str_t pj_strerror(int statcode, char *buf, int bufsize) nogil
@@ -106,10 +107,15 @@ cdef extern from "pjlib.h":
     struct pj_ioqueue_t
     struct pj_addr_hdr:
         unsigned int sa_family
-    struct pj_sockaddr:
-        pj_addr_hdr addr
     struct pj_sockaddr_in:
         pass
+    struct pj_sockaddr_in6:
+        pass
+    ctypedef union pj_sockaddr:
+        pj_addr_hdr addr
+        pj_sockaddr_in ipv4
+        pj_sockaddr_in6 ipv6
+    ctypedef pj_sockaddr *pj_sockaddr_ptr_const "const pj_sockaddr *"
     int pj_AF_INET() nogil
     int pj_AF_INET6() nogil
     int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port) nogil
@@ -457,6 +463,7 @@ cdef extern from "pjmedia.h":
         PJMEDIA_TRANSPORT_TYPE_SRTP
     struct pjmedia_sock_info:
         pj_sockaddr rtp_addr_name
+    ctypedef pjmedia_sock_info *pjmedia_sock_info_ptr_const "const pjmedia_sock_info *"
     struct pjmedia_transport:
         char *name
         pjmedia_transport_type type
@@ -486,6 +493,10 @@ cdef extern from "pjmedia.h":
     int pjmedia_transport_media_stop(pjmedia_transport *tp) nogil
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt,
                                  pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp) nogil
+    int pjmedia_endpt_create_base_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, pj_str_ptr_const sess_name,
+                                      pj_sockaddr_ptr_const origin, pjmedia_sdp_session **p_sdp) nogil
+    int pjmedia_endpt_create_audio_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_sock_info_ptr_const si,
+                                       unsigned int options, pjmedia_sdp_media **p_media) nogil
 
     # SRTP
     enum pjmedia_srtp_use:
@@ -2136,12 +2147,19 @@ cdef class RTPTransport(object):
     # private methods
     cdef PJSIPUA _check_ua(self)
     cdef void _get_info(self, pjmedia_transport_info *info)
-    cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1
+    cdef int _init_local_sdp(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index)
     cdef int _ice_active(self)
 
 cdef class MediaCheckTimer(Timer):
     # attributes
     cdef int media_check_interval
+
+cdef class SDPInfo(object):
+    # attributes
+    cdef BaseSDPMediaStream _local_media
+    cdef BaseSDPSession _local_sdp
+    cdef BaseSDPSession _remote_sdp
+    cdef public int index
 
 cdef class AudioTransport(object):
     # attributes
@@ -2155,7 +2173,6 @@ cdef class AudioTransport(object):
     cdef unsigned int _vad
     cdef pj_mutex_t *_lock
     cdef pj_pool_t *_pool
-    cdef pjmedia_sdp_media *_local_media
     cdef pjmedia_stream *_obj
     cdef pjmedia_stream_info _stream_info
     cdef dict _cached_statistics
@@ -2163,6 +2180,7 @@ cdef class AudioTransport(object):
     cdef readonly object direction
     cdef readonly AudioMixer mixer
     cdef readonly RTPTransport transport
+    cdef SDPInfo _sdp_info
 
     # private methods
     cdef PJSIPUA _check_ua(self)

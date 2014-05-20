@@ -42,7 +42,7 @@ from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import SDPAttribute, SDPMediaStream
+from sipsimple.core import SDPAttribute, SDPConnection, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamType, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
@@ -111,11 +111,13 @@ class MSRPStreamBase(object):
         if self.accept_wrapped_types is not None:
             attributes.append(SDPAttribute("accept-wrapped-types", " ".join(self.accept_wrapped_types)))
         attributes.append(SDPAttribute("setup", self.local_role))
-        return SDPMediaStream(self.media_type, uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
+        local_ip = uri_path[-1].host
+        connection = SDPConnection(local_ip)
+        return SDPMediaStream(self.media_type, uri_path[-1].port or 12345, transport, connection=connection, formats=["*"], attributes=attributes)
 
     ## The public API (the IMediaStream interface)
 
-    def get_local_media(self, for_offer=True):
+    def get_local_media(self, remote_sdp=None, index=0):
         return self.local_media
 
     def new_from_sdp(self, session, remote_sdp, stream_index):
