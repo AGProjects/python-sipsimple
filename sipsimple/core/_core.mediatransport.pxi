@@ -319,6 +319,16 @@ cdef class RTPTransport:
             if ua is None:
                 return False
 
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                return bool(self._ice_active())
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
         cdef pj_pool_t *pool
