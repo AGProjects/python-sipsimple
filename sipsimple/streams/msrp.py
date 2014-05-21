@@ -309,7 +309,7 @@ class ChatStream(MSRPStreamBase):
     accept_wrapped_types = ['*']
 
     def __init__(self, direction='sendrecv'):
-        MSRPStreamBase.__init__(self, direction)
+        super(ChatStream, self).__init__(direction=direction)
         self.message_queue = queue()
         self.sent_messages = set()
         self.incoming_queue = {}
@@ -650,7 +650,7 @@ class FileTransferStream(MSRPStreamBase):
     def __init__(self, file_selector, direction):
         if direction not in ('sendonly', 'recvonly'):
             raise ValueError("direction must be one of 'sendonly' or 'recvonly'")
-        MSRPStreamBase.__init__(self, direction=direction)
+        super(FileTransferStream, self).__init__(direction=direction)
         self.file_selector = file_selector
 
     @classmethod
@@ -678,10 +678,10 @@ class FileTransferStream(MSRPStreamBase):
             notification_center = NotificationCenter()
             notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=None, reason='file descriptor not specified'))
             return
-        MSRPStreamBase.initialize(self, session, direction)
+        super(FileTransferStream, self).initialize(session, direction)
 
     def _create_local_media(self, uri_path):
-        local_media = MSRPStreamBase._create_local_media(self, uri_path)
+        local_media = super(FileTransferStream, self)._create_local_media(uri_path)
         local_media.attributes.append(SDPAttribute('file-selector', self.file_selector.sdp_repr))
         return local_media
 
@@ -956,7 +956,7 @@ class ScreenSharingStream(MSRPStreamBase):
     def __init__(self, mode):
         if mode not in ('viewer', 'server'):
             raise ValueError("mode should be 'viewer' or 'server' not '%s'" % mode)
-        MSRPStreamBase.__init__(self, direction='sendrecv')
+        super(ScreenSharingStream, self).__init__(direction='sendrecv')
         self.handler = self.ViewerHandler() if mode=='viewer' else self.ServerHandler()
         self.incoming_queue = queue()
         self.outgoing_queue = queue()
@@ -987,7 +987,7 @@ class ScreenSharingStream(MSRPStreamBase):
         return stream
 
     def _create_local_media(self, uri_path):
-        local_media = MSRPStreamBase._create_local_media(self, uri_path)
+        local_media = super(ScreenSharingStream, self)._create_local_media(uri_path)
         local_media.attributes.append(SDPAttribute('rfbsetup', self.handler.type))
         return local_media
 
