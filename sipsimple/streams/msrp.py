@@ -879,6 +879,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
         super(ExternalVNCViewerHandler, self)._NH_MediaStreamWillEnd(notification)
+        self.vnc_socket.close()
 
 
 class ExternalVNCServerHandler(ScreenSharingServerHandler):
