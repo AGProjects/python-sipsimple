@@ -167,15 +167,16 @@ class SIPApplication(object):
         settings = SIPSimpleSettings()
         account_manager = AccountManager()
         account = account_manager.default_account
-        try:
-            self.engine.set_tls_options(port=settings.sip.tls_port,
-                                        verify_server=account.tls.verify_server,
-                                        ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                        cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                        privkey_file=account.tls.certificate.normalized if account.tls.certificate else None)
-        except Exception, e:
-            notification_center = NotificationCenter()
-            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+        if account is not None:
+            try:
+                self.engine.set_tls_options(port=settings.sip.tls_port,
+                                            verify_server=account.tls.verify_server,
+                                            ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                                            cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                            privkey_file=account.tls.certificate.normalized if account.tls.certificate else None)
+            except Exception, e:
+                notification_center = NotificationCenter()
+                notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
     @run_in_green_thread
     def _initialize_subsystems(self):
