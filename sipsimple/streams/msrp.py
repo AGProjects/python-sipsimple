@@ -822,7 +822,7 @@ class InternalVNCServerHandler(ScreenSharingServerHandler):
 
 class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
     address = ('localhost', 0)
-    connect_timeout = 3
+    connect_timeout = 5
 
     def __init__(self):
         super(ExternalVNCViewerHandler, self).__init__()
@@ -884,7 +884,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
 
 class ExternalVNCServerHandler(ScreenSharingServerHandler):
     address = ('localhost', 5900)
-    connect_timeout = 3
+    connect_timeout = 5
 
     def __init__(self):
         super(ExternalVNCServerHandler, self).__init__()
