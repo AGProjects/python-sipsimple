@@ -1,3 +1,11 @@
+python-sipsimple (1.4.1) unstable; urgency=medium
+
+  * Close external VNC viewer socket when the stream has ended
+  * Don't try to set TLS options if there is no default account
+  * Increased the connect timeout for external screen sharing handlers
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 27 Jun 2014 09:43:19 +0200
+
 python-sipsimple (1.4.0) unstable; urgency=medium
 
   * Add support for adding/removing multiple streams at once
