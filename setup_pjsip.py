@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 from application.version import Version
+from distutils.dir_util import copy_tree
 
 
 # Hack to set environment variables before importing distutils
@@ -199,17 +200,10 @@ class PJSIP_build_ext(build_ext):
             self.build_dir = os.path.join(self.build_temp, "pjsip")
             if self.pjsip_clean_compile:
                 self.clean_pjsip()
-            if not os.path.isdir(self.build_dir):
-                shutil.copytree(self.pjsip_dir, self.build_dir)
+            copy_tree(self.pjsip_dir, self.build_dir, verbose=0)
             if not os.path.exists(os.path.join(self.build_dir, "build.mak")):
                 self.configure_pjsip()
             self.update_extension(extension)
-            if not all(map(lambda x: os.path.exists(x), self.libraries)):
-                for lib in self.libraries:
-                    try:
-                        os.remove(lib)
-                    except OSError:
-                        pass
-                self.compile_pjsip()
+            self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
 
