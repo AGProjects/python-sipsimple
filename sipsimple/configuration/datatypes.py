@@ -18,6 +18,7 @@ __all__ = [# Base datatypes
            # Path datatypes
            'Path']
 
+import locale
 import os
 import re
 import urlparse
@@ -579,6 +580,8 @@ class Path(unicode):
 
     @property
     def normalized(self):
-        return os.path.expanduser(self)
-
+        if not self.startswith('~'):
+            return self
+        encoding = locale.getpreferredencoding() or 'ascii'
+        return os.path.expanduser(self.encode(encoding)).decode(encoding)
 
