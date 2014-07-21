@@ -110,13 +110,27 @@ class XMLDocumentType(type):
                 cls.nsmap.update(base.nsmap)
         cls._update_schema()
 
+    def __setattr__(cls, name, value):
+        if name == 'schema_path':
+            def update_schema(document_class):
+                document_class._update_schema()
+                for document_subclass in document_class.__subclasses__():
+                    update_schema(document_subclass)
+            if cls is not XMLDocument:
+                raise AttributeError("%s can only be changed on XMLDocument" % name)
+            super(XMLDocumentType, cls).__setattr__(name, value)
+            update_schema(XMLDocument)
+        else:
+            super(XMLDocumentType, cls).__setattr__(name, value)
+
     def _update_schema(cls):
         if cls.schema_map:
+            location_map = {ns: urllib.quote(os.path.abspath(os.path.join(cls.schema_path, schema_file)).replace('\\', '//')) for ns, schema_file in cls.schema_map.iteritems()}
             schema = """<?xml version="1.0"?>
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     %s
                 </xs:schema>
-            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (ns, urllib.quote(os.path.abspath(schema_file).replace('\\', '//'))) for ns, schema_file in cls.schema_map.iteritems())
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (namespace, schema_location) for namespace, schema_location in location_map.iteritems())
             cls.schema = etree.XMLSchema(etree.XML(schema))
             cls.parser = etree.XMLParser(schema=cls.schema, remove_blank_text=True)
         else:
@@ -129,6 +143,7 @@ class XMLDocument(object):
 
     encoding = 'UTF-8'
     content_type = None
+    schema_path = os.path.join(os.path.dirname(__file__), 'xml-schemas')
 
     @classmethod
     def parse(cls, document):
@@ -182,7 +197,7 @@ class XMLDocument(object):
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
         cls.nsmap[prefix] = namespace
         if schema is not None:
-            cls.schema_map[namespace] = os.path.join(os.path.dirname(__file__), 'xml-schemas', schema)
+            cls.schema_map[namespace] = schema
             cls._update_schema()
         for child in cls.__subclasses__():
             child.register_namespace(namespace, prefix, schema)
