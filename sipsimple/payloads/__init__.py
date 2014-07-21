@@ -112,13 +112,13 @@ class XMLDocumentType(type):
 
     def __setattr__(cls, name, value):
         if name == 'schema_path':
+            if cls is not XMLDocument:
+                raise AttributeError("%s can only be changed on XMLDocument" % name)
+            super(XMLDocumentType, cls).__setattr__(name, value)
             def update_schema(document_class):
                 document_class._update_schema()
                 for document_subclass in document_class.__subclasses__():
                     update_schema(document_subclass)
-            if cls is not XMLDocument:
-                raise AttributeError("%s can only be changed on XMLDocument" % name)
-            super(XMLDocumentType, cls).__setattr__(name, value)
             update_schema(XMLDocument)
         else:
             super(XMLDocumentType, cls).__setattr__(name, value)
