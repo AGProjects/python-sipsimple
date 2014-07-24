@@ -2,156 +2,98 @@
 SIP SIMPLE client SDK installation on Microsoft Windows
 -------------------------------------------------------
 
-Copyright (c) 2008-2013 AG Projects
+Copyright (c) 2008-2014 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
 
 This document describes the installation procedure on Microsoft Windows
-operating systems. Windows XP, Windows Vista and Windows 7 are supported.
+operating systems. Supported versions are Windows XP or higher.
 
 
 Step 1. Prerequisites
 ---------------------
-	
-The building process is designed to work with MinGW compiler. A proper
-MSYS/MinGW setup is necessary along with Python 2.7.  The development
-version of the following packages are also needed:
 
- * openssl
- * gnutls >=2.4.1
- * python-setuptools >=0.6c9
- * darcs version control tool
+The building process is designed to work with the MSYS2 environment and the
+MinGW-w64 compiler toolchain. Other approaches might work but they are not
+tested nor supported.
 
-Required MSYS and MinGW packages:
+MSYS2: MSYS2 is a minimal Unix-like environment for Windows. It includes a port
+of the 'pacman' package manager (ported from Arch Linux) and a pretty extensive
+collection of packages which can be easily installed. It contains packages for the
+MinGW-w64 toolchain, for 32 and 64 bit architectures.
 
-# MSYS (http://sourceforge.net/projects/mingw/files/MSYS/)
- * MsysCORE (bin)
- * libregex (dll)
- * libtermcap (dll)
- * coreutils (bin)
- * libintl (dll)
- * libiconv (dll)
- * bash (bin)
- * wget (bin)
- * make (bin)
- * sed (bin)
- * grep (bin)
- * gawk (bin)
- * findutils (bin)
- * patch (bin)
- * tar (bin)
- * bzip2 (bin)
- * gzip (bin)
- * diffutils (bin)
-
-# MinGW (http://sourceforge.net/projects/mingw/files/MinGW/)
- * gcc-core (bin)
- * libgcc (dll)
- * gcc-c++ (bin)
- * binutils (bin)
- * less (bin)
- * gmp (dev)
- * libgmp (dll)
- * pthreads (dev)
- * libpthread (dll)
- * mpc (dev)
- * libmpc (dll)
- * mpfr (dev)
- * libmpfr (dll)
- * mingwrt (dev)
- * libz (dll)
- * gdb (bin)
- * libexpat (dll)
- * win32api (dev)
-
-To install the above dependencies in an easy way, download AG Projects
-installer from: 
-
-http://download.ag-projects.com/SipClient/Windows/SipSimpleIDE.exe
-
-The installer includes the following components:
-
- * MSYS environment
- * MinGW compiler
- * Darcs and subversion version control tools
- * Python (2.6.5)
- * python-setuptools (0.6c11)
- * GNUTLS (2.8.6)
- * OpenSSL (1.0.0a)
- * Apple Bonjour SDK
- * Miscrosoft VC 2008 Redistributable
-
-When using the installer select the default options proposed by the installer.
-
-After the above dependencies have been installed, the distutils Python
-package needs to be configured to use MinGW as the compiler. Create the file
-C:\Python27\Lib\distutils\distutils.cfg with the following content:
-
--- BEGIN distutils.cfg --
-[build]
-compiler=mingw32
-[build_ext]
-compiler=mingw32
--- END distutils.cfg --
-
-Make sure when creating the configuration file above that no other extension
-than .cfg is appended to the file (for example .txt).
+MinGW-w64: MinGW is a minimal compilation toolchain for Windows. It contains GCC and
+allows for compilation of native applications for Windows. The original MinGW project
+(available at http://mingw.org, henceforth referred to as 'MinGW32') didn't support
+64 bit Windows so the MinGW-w64 project was created. It contains support for both 32
+and 64 bit architectures and generally it's better maintained than MinGW32.
 
 
-Step 2. Install python dependencies
------------------------------------
+Step 1.1. Installing MSYS2 and MinGW-w64
+----------------------------------------
+
+The following instructions will guide you through the installation of a MSYS2 and MinGW-w64
+installation for a 32 bit Windows system. A 64 bit build is definitely possible but
+hasn't been tested.
+
+* Go to http://msys2.github.io and download the most recent 32 bit (i686) MSYS2 installer
+* Run it and install it on C:\msys2 (or any other path, but note it has to be ASCII
+  only and with no spaces!)
+* Once the process is finished, check the box to "Run MSYS2 32bit now", a new terminal
+  window will appear
+* Upgrade the system packages by running: pacman -Syu
+* If you get an error about some "base mismatch detected", close the terminal, go to the
+  folder where you installed MSYS2, run autorebase.bat and then open the terminal again
+  by running msys2_shell.bat. Run pacman -Syu once more to make sure everything got updated
+* Install GCC by running: pacman -S mingw-w64-i686-gcc
+* Install the usual utilities for compiling software: pacman -S mingw-w64-i686-make make mingw-w64-i686-libtool autoconf automake-wrapper
+* Install some extra useful utilities: pacman -S openssh wget
+
+After MSYS2 was installed a new menu group was created on the Window start menu: "MSYS2 32bit",
+which contains 3 links: MinGW-w64 Win32 Shell, MinGW-w64 Win64 Shell and MSYS2 Shell. We'll
+use "MinGW-w64 Win32 Shell" from now on, since it will contain the 32 bit MinGW-w64 toolchain
+in the path.
+
+
+Step 1.2. Installing Python 2.7
+-------------------------------
+
+In order to avoid problems derived from using multiple C runtimes, we are going to
+install Python 2.7 using pacman. The Python binaries that are available for download
+on Python's official website are compiled with Visual Studio, and if we use MinGW
+to compile libraries which are then used by Python modules we are at risk because
+the resulting application would load 2 different C runtimes.
+
+* Install Python 2.7 by running: pacman -S mingw-w64-i686-python2
+* Get the pip/setuptools installer: wget https://bootstrap.pypa.io/get-pip.py
+* Install pip/setuptools: python get-pip.py
+
+NOTE: At the time of this writing the Python REPL is non-functional due to a problem
+with the ncurses libraries.
+
+
+Step 2. Install dependencies
+----------------------------
 
 See Dependencies.txt for detailed description of the required libraries and
 their minimum version number.
 
-Open the MSYS console.
-
-You must use the easy_install script provided by the python-setuptools
-package to install the packages:
-
-easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4 python-dateutil greenlet
-
-Some packages need to be installed manually:
-
-# python-application
-if [ -d python-application ]; then
-        cd python-application
-        darcs pull -a 
-else
-        darcs get http://devel.ag-projects.com/repositories/python-application
-        cd python-application
-fi
-python setup.py install
-cd ..
-
-# python-cjson
-if [ -d python-cjson ]; then
-        cd python-cjson
-        darcs pull -a 
-else
-        darcs get http://devel.ag-projects.com/repositories/python-cjson
-        cd python-cjson
-fi
-python setup.py build
-python setup.py install
-cd ..
-
-# python-gnutls
-if [ -d python-gnutls ]; then
-        cd python-gnutls
-        darcs pull -a 
-else
-        darcs get http://devel.ag-projects.com/repositories/python-gnutls
-        cd python-gnutls
-fi
-python setup.py build
-python setup.py install
-cd ..
+* Install required dependencies with pacman: pacman -S mingw-w64-i686-gnutls mingw-w64-i686-python2-lxml
+* Install the Python package dependencies: pip install cython dnspython twisted python-dateutil greenlet python-application python-cjson python-gnutls
 
 
 Step 3. Install SIP SIMPLE client SDK
 -------------------------------------
+
+Before we can install the SDK we'll need to install darcs, since some
+packages need to be installed with it.
+
+* Install curl: pacman -S mingw-w64-i686-curl
+* Download the installer from darcs.net: http://darcs.net/binaries/windows/darcs-2.8.1-win1.msi
+* Install Darcs to C:\Program Files\Darcs
+* Copy the binary to our MSYS2 environment: cp /c/Program\ Files/Darcs/darcs.exe /mingw32/bin/
+
 
 The SDK consists of four parts:
 
@@ -166,23 +108,23 @@ contain any space in its name.
 # Eventlib
 if [ -d python-eventlib ]; then
         cd python-eventlib
-        darcs pull -a 
+        darcs pull -a
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlib
         cd python-eventlib
 fi
-python setup.py install
+pip install .
 cd ..
 
 # XCAP library
 if [ -d python-xcaplib ]; then
         cd python-xcaplib
-        darcs pull -a 
+        darcs pull -a
 else
         darcs get http://devel.ag-projects.com/repositories/python-xcaplib
         cd python-xcaplib
 fi
-python setup.py install
+pip install .
 cd ..
 
 # MSRP library
@@ -193,21 +135,21 @@ else
         darcs get http://devel.ag-projects.com/repositories/python-msrplib
         cd python-msrplib
 fi
-python setup.py install
+pip install .
 cd ..
 
 # SIP SIMPLE
 if [ -d python-sipsimple ]; then
-	cd python-sipsimple
-	darcs pull -a
-else 
-	darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
+        cd python-sipsimple
+        darcs pull -a
+else
+        darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
         cd python-sipsimple
 fi
-python setup.py build_ext --pjsip-clean-compile
+./build_inplace --pjsip-clean-compile
 python setup.py install
 cd ..
 
 
-The software has been installed in C:\Python27\Lib\site-packages
+The software has been installed in C:\msys2\mingw32\lib\python2.7\site-packages
 
