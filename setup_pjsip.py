@@ -10,7 +10,6 @@ import subprocess
 import sys
 
 from application.version import Version
-from distutils.dir_util import copy_tree
 
 
 # Hack to set environment variables before importing distutils
@@ -29,12 +28,13 @@ if sys.platform == "darwin":
         osx_sdk_path = old_sdk_path
     else:
         raise RuntimeError("The specified SDK (%s) couldn't be found" % sipsimple_osx_sdk)
-    os.environ['CC'] = 'gcc'
-    os.environ['CFLAGS'] = os.environ.get('CFLAGS', '') + " -isysroot %s" % osx_sdk_path
-    os.environ['LDFLAGS'] = os.environ.get('LDFLAGS', '') + " -Wl,-F. -bundle -undefined dynamic_lookup"
-    os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
+    arch_flags =  "-arch " + " -arch ".join(sipsimple_osx_arch.split())
+    os.environ['CFLAGS'] = os.environ.get('CFLAGS', '') + " %s -mmacosx-version-min=%s -isysroot %s" % (arch_flags, sipsimple_osx_sdk, osx_sdk_path)
+    os.environ['LDFLAGS'] = os.environ.get('LDFLAGS', '') + " %s -isysroot %s" % (arch_flags, osx_sdk_path)
+    os.environ['ARCHFLAGS'] = arch_flags
 
 from distutils import log
+from distutils.dir_util import copy_tree
 from distutils.errors import DistutilsError
 from Cython.Distutils import build_ext
 
@@ -142,14 +142,10 @@ class PJSIP_build_ext(build_ext):
             cflags = "-O0 -g -fPIC"
         else:
             cflags = "-O3 -fPIC"
-        if sys.platform == "darwin":
-            cflags += " %s -mmacosx-version-min=%s " % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk)
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
-        if sys.platform == "darwin":
-            env['LDFLAGS'] = "%s -L%s/usr/lib" % (os.environ['ARCHFLAGS'], osx_sdk_path)
         if sys.platform == "win32":
             cmd = ["bash", "configure", "--disable-video"]
         else:
