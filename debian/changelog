@@ -1,3 +1,11 @@
+python-sipsimple (1.4.2) unstable; urgency=medium
+
+  * Avoid recompiling the whole PJSIP every time the core is recompiled
+  * Fix encoding when expanding user home path
+  * Made the XMLDocument schema path configurable
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 28 Jul 2014 13:51:42 +0200
+
 python-sipsimple (1.4.1) unstable; urgency=medium
 
   * Close external VNC viewer socket when the stream has ended
