@@ -104,7 +104,8 @@ class PJSIP_build_ext(build_ext):
     @staticmethod
     def get_opts_from_string(line, prefix):
         """Returns all options that have a particular prefix on a commandline"""
-        return re.findall("%s(\S+)(?:\s|$)" % prefix, line)
+        chunks = [chunk.strip() for chunk in line.split()]
+        return [chunk[len(prefix):] for chunk in chunks if chunk.startswith(prefix)]
 
     @classmethod
     def check_cython_version(cls):
