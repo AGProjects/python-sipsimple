@@ -144,6 +144,7 @@ class PJSIP_build_ext(build_ext):
             cflags = "-O3 -fPIC"
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
+        cflags += " -Wno-unused-label"    # silence warning
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys.platform == "win32":
