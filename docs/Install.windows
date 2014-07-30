@@ -47,7 +47,7 @@ hasn't been tested.
   folder where you installed MSYS2, run autorebase.bat and then open the terminal again
   by running msys2_shell.bat. Run pacman -Syu once more to make sure everything got updated
 * Install GCC by running: pacman -S mingw-w64-i686-gcc
-* Install the usual utilities for compiling software: pacman -S mingw-w64-i686-make make mingw-w64-i686-libtool autoconf automake-wrapper
+* Install the usual utilities for compiling software: pacman -S make mingw-w64-i686-libtool autoconf automake-wrapper mingw-w64-i686-pkgconf
 * Install some extra useful utilities: pacman -S openssh wget
 
 After MSYS2 was installed a new menu group was created on the Window start menu: "MSYS2 32bit",
