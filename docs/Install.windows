@@ -89,10 +89,8 @@ Step 3. Install SIP SIMPLE client SDK
 Before we can install the SDK we'll need to install darcs, since some
 packages need to be installed with it.
 
-* Install curl: pacman -S mingw-w64-i686-curl
 * Download the installer from darcs.net: http://darcs.net/binaries/windows/darcs-2.8.1-win1.msi
-* Install Darcs to C:\Program Files\Darcs
-* Copy the binary to our MSYS2 environment: cp /c/Program\ Files/Darcs/darcs.exe /mingw32/bin/
+* Install Darcs and add the directory to the system path
 
 
 The SDK consists of four parts:
