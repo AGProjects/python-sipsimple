@@ -351,6 +351,7 @@ class Publisher(object):
 
     def _NH_NetworkConditionsDidChange(self, notification):
         if self.active:
+            self._command_channel.send(Command('unpublish'))
             self._command_channel.send(Command('publish', state=self.state))
 
 

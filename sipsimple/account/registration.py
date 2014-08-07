@@ -297,5 +297,6 @@ class Registrar(object):
 
     def _NH_NetworkConditionsDidChange(self, notification):
         if self.active:
+            self._command_channel.send(Command('unregister'))
             self._command_channel.send(Command('register'))
 
