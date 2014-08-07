@@ -624,6 +624,20 @@ else
 	  AC_MSG_RESULT([Checking if QTKit framework is available... no])
 	fi
 	;;
+  *cygwin* | *mingw*)
+	AC_SUBST(ac_pjmedia_video_has_dshow)
+	AC_SUBST(ac_dshow_cflags)
+	AC_SUBST(ac_dshow_ldflags)
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [])],[ac_pjmedia_video_has_dshow=yes],[ac_pjmedia_video_has_dshow=no])
+	if test "$ac_pjmedia_video_has_dshow" = "yes"; then
+	  ac_dshow_cflags="-DPJMEDIA_VIDEO_DEV_HAS_DSHOW=1"
+	  ac_dshow_ldflags="-lstrmiids -lrpcrt4 -lquartz -lstrmbase -loleaut32 -lstdc++ -luuid"
+	  LIBS="$ac_dshow_ldflags $LIBS"
+	  AC_MSG_RESULT([Checking if DirectShow is available... yes])
+	else
+	  AC_MSG_RESULT([Checking if DirectShow is available... no])
+	fi
+	;;
  esac
 fi
 

@@ -663,6 +663,9 @@ ac_no_g711_codec
 ac_no_speex_aec
 ac_no_large_filter
 ac_no_small_filter
+ac_dshow_ldflags
+ac_dshow_cflags
+ac_pjmedia_video_has_dshow
 ac_qt_cflags
 ac_pjmedia_video_has_qt
 ac_ios_cflags
@@ -5950,6 +5953,39 @@ $as_echo "Checking if QTKit framework is available... yes" >&6; }
 	else
 	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if QTKit framework is available... no" >&5
 $as_echo "Checking if QTKit framework is available... no" >&6; }
+	fi
+	;;
+  *cygwin* | *mingw*)
+
+
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_pjmedia_video_has_dshow=yes
+else
+  ac_pjmedia_video_has_dshow=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+	if test "$ac_pjmedia_video_has_dshow" = "yes"; then
+	  ac_dshow_cflags="-DPJMEDIA_VIDEO_DEV_HAS_DSHOW=1"
+	  ac_dshow_ldflags="-lstrmiids -lrpcrt4 -lquartz -lstrmbase -loleaut32 -lstdc++ -luuid"
+	  LIBS="$ac_dshow_ldflags $LIBS"
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if DirectShow is available... yes" >&5
+$as_echo "Checking if DirectShow is available... yes" >&6; }
+	else
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if DirectShow is available... no" >&5
+$as_echo "Checking if DirectShow is available... no" >&6; }
 	fi
 	;;
  esac

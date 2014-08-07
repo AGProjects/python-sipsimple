@@ -20,29 +20,23 @@
 #include <pj/assert.h>
 #include <pj/log.h>
 #include <pj/os.h>
-#include <pj/unicode.h>
 
 
 #if defined(PJMEDIA_HAS_VIDEO) && PJMEDIA_HAS_VIDEO != 0 && \
     defined(PJMEDIA_VIDEO_DEV_HAS_DSHOW) && PJMEDIA_VIDEO_DEV_HAS_DSHOW != 0
 
-
-#ifdef _MSC_VER
-#   pragma warning(push, 3)
-#endif
-
 #include <windows.h>
 #define COBJMACROS
 #include <DShow.h>
 #include <wmsdkidl.h>
+#include <OleAuto.h>
 
-#ifdef _MSC_VER
-#   pragma warning(pop)
+#ifndef DIBSIZE
+# define WIDTHBYTES(BTIS) ((DWORD)(((BTIS)+31) & (~31)) / 8)
+# define DIBWIDTHBYTES(BI) (DWORD)(BI).biBitCount) * (DWORD)WIDTHBYTES((DWORD)(BI).biWidth
+# define _DIBSIZE(BI) (DIBWIDTHBYTES(BI) * (DWORD)(BI).biHeight)
+# define DIBSIZE(BI) ((BI).biHeight < 0 ? (-1)*(_DIBSIZE(BI)) : _DIBSIZE(BI))
 #endif
-
-#pragma comment(lib, "Strmiids.lib")
-#pragma comment(lib, "Rpcrt4.lib")
-#pragma comment(lib, "Quartz.lib")
 
 #define THIS_FILE		"dshow_dev.c"
 #define DEFAULT_CLOCK_RATE	90000
@@ -57,10 +51,6 @@ typedef void (*input_callback)(void *user_data, IMediaSample *pMediaSample);
 typedef struct NullRenderer NullRenderer;
 IBaseFilter* NullRenderer_Create(input_callback input_cb,
                                  void *user_data);
-typedef struct SourceFilter SourceFilter;
-IBaseFilter* SourceFilter_Create(SourceFilter **pSrc);
-HRESULT SourceFilter_Deliver(SourceFilter *src, void *buf, long size);
-void SourceFilter_SetMediaType(SourceFilter *src, AM_MEDIA_TYPE *pmt);
 
 typedef struct dshow_fmt_info
 {
@@ -121,7 +111,6 @@ struct dshow_stream
     {
         IFilterGraph        *filter_graph;
         IMediaFilter        *media_filter;
-        SourceFilter        *csource_filter;
         IBaseFilter         *source_filter;
         IBaseFilter         *rend_filter;
         AM_MEDIA_TYPE       *mediatype;
@@ -160,8 +149,6 @@ static pj_status_t dshow_stream_set_cap(pjmedia_vid_dev_stream *strm,
 				        pjmedia_vid_dev_cap cap,
 				        const void *value);
 static pj_status_t dshow_stream_start(pjmedia_vid_dev_stream *strm);
-static pj_status_t dshow_stream_put_frame(pjmedia_vid_dev_stream *strm,
-                                          const pjmedia_frame *frame);
 static pj_status_t dshow_stream_stop(pjmedia_vid_dev_stream *strm);
 static pj_status_t dshow_stream_destroy(pjmedia_vid_dev_stream *strm);
 
@@ -184,7 +171,7 @@ static pjmedia_vid_dev_stream_op stream_op =
     &dshow_stream_set_cap,
     &dshow_stream_start,
     NULL,
-    &dshow_stream_put_frame,
+    NULL,
     &dshow_stream_stop,
     &dshow_stream_destroy
 };
@@ -419,13 +406,21 @@ static pj_status_t dshow_factory_refresh(pjmedia_vid_dev_factory *f)
                 if (SUCCEEDED(hr) && var_name.bstrVal) {
                     WCHAR *wszDisplayName = NULL;
 		    IBaseFilter *filter;
+                    pj_ssize_t len;
 
                     ddi = &df->dev_info[df->dev_count++];
                     pj_bzero(ddi, sizeof(*ddi));
-                    pj_unicode_to_ansi(var_name.bstrVal,
-                                       wcslen(var_name.bstrVal),
-                                       ddi->info.name,
-                                       sizeof(ddi->info.name));
+
+                    len = wcslen(var_name.bstrVal),
+                    len = WideCharToMultiByte(CP_ACP,
+                                              0,
+                                              var_name.bstrVal,
+                                              (int)len,
+                                              ddi->info.name,
+                                              sizeof(ddi->info.name), 
+			                      NULL,
+                                              NULL);
+	            ddi->info.name[len] = '\0';
 
                     hr = IMoniker_GetDisplayName(moniker, NULL, NULL,
                                                  &wszDisplayName);
@@ -477,26 +472,6 @@ static pj_status_t dshow_factory_refresh(pjmedia_vid_dev_factory *f)
         IEnumMoniker_Release(enum_cat);
         ICreateDevEnum_Release(dev_enum);
     }
-
-#if HAS_VMR
-    ddi = &df->dev_info[df->dev_count++];
-    pj_bzero(ddi, sizeof(*ddi));
-    pj_ansi_strncpy(ddi->info.name,  "Video Mixing Renderer",
-                    sizeof(ddi->info.name));
-    ddi->info.name[sizeof(ddi->info.name)-1] = '\0';
-    pj_ansi_strncpy(ddi->info.driver, "dshow", sizeof(ddi->info.driver));
-    ddi->info.driver[sizeof(ddi->info.driver)-1] = '\0';
-    ddi->info.dir = PJMEDIA_DIR_RENDER;
-    ddi->info.has_callback = PJ_FALSE;
-    ddi->info.caps = PJMEDIA_VID_DEV_CAP_FORMAT;
-//    TODO:
-//    ddi->info.caps |= PJMEDIA_VID_DEV_CAP_OUTPUT_WINDOW;
-
-    ddi->info.fmt_cnt = 1;
-    pjmedia_format_init_video(&ddi->info.fmt[0], dshow_fmts[0].pjmedia_format, 
-			      DEFAULT_WIDTH, DEFAULT_HEIGHT, 
-			      DEFAULT_FPS, 1);
-#endif
 
     PJ_LOG(4, (THIS_FILE, "DShow has %d devices:", 
 	       df->dev_count));
@@ -550,10 +525,6 @@ static pj_status_t dshow_factory_default_param(pj_pool_t *pool,
 	param->dir = PJMEDIA_DIR_CAPTURE;
 	param->cap_id = index;
 	param->rend_id = PJMEDIA_VID_INVALID_DEV;
-    } else if (di->info.dir & PJMEDIA_DIR_RENDER) {
-	param->dir = PJMEDIA_DIR_RENDER;
-	param->rend_id = index;
-	param->cap_id = PJMEDIA_VID_INVALID_DEV;
     } else {
 	return PJMEDIA_EVID_INVDEV;
     }
@@ -621,26 +592,6 @@ static void input_cb(void *user_data, IMediaSample *pMediaSample)
         (*strm->vid_cb.capture_cb)(&strm->base, strm->user_data, &frame);
 }
 
-/* API: Put frame from stream */
-static pj_status_t dshow_stream_put_frame(pjmedia_vid_dev_stream *strm,
-                                          const pjmedia_frame *frame)
-{
-    struct dshow_stream *stream = (struct dshow_stream*)strm;
-    HRESULT hr;
-
-    if (stream->quit_flag) {
-        stream->rend_thread_exited = PJ_TRUE;
-        return PJ_SUCCESS;
-    }
-
-    hr = SourceFilter_Deliver(stream->dgraph.csource_filter,
-                              frame->buf, (long)frame->size);
-    if (FAILED(hr))
-        return hr;
-
-    return PJ_SUCCESS;
-}
-
 static dshow_fmt_info* get_dshow_format_info(pjmedia_format_id id)
 {
     unsigned i;
@@ -670,6 +621,8 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
     pjmedia_video_format_detail *vfd;
     const pjmedia_video_format_info *vfi;
 
+    PJ_ASSERT_RETURN(dir == PJMEDIA_DIR_CAPTURE, PJ_EINVAL);
+
     vfi = pjmedia_get_video_format_info(pjmedia_video_format_mgr_instance(),
                                         strm->param.fmt.id);
     if (!vfi)
@@ -687,14 +640,10 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
         goto on_error;
     }
 
-    if (dir == PJMEDIA_DIR_CAPTURE) {
 	hr = get_cap_device(df, id, &graph->source_filter);
 	if (FAILED(hr)) {
             goto on_error;
         }
-    } else {
-        graph->source_filter = SourceFilter_Create(&graph->csource_filter);
-    }
 
     hr = IFilterGraph_AddFilter(graph->filter_graph, graph->source_filter,
                                 L"capture");
@@ -702,16 +651,7 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
         goto on_error;
     }
 
-    if (dir == PJMEDIA_DIR_CAPTURE) {
-        graph->rend_filter = NullRenderer_Create(input_cb, strm);
-    } else {
-        hr = CoCreateInstance(&CLSID_VideoMixingRenderer, NULL,
-                              CLSCTX_INPROC, &IID_IBaseFilter,
-                              (LPVOID *)&graph->rend_filter);
-        if (FAILED (hr)) {
-            goto on_error;
-        }
-    }
+    graph->rend_filter = NullRenderer_Create(input_cb, strm);
 
     IBaseFilter_EnumPins(graph->rend_filter, &pEnum);
     if (SUCCEEDED(hr)) {
@@ -738,34 +678,6 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
 		 &mediatype, &srcpin, NULL);
     graph->mediatype = mediatype;
 
-    if (srcpin && dir == PJMEDIA_DIR_RENDER) {
-	mediatype = graph->mediatype = &mtype;
-
-	memset (mediatype, 0, sizeof(AM_MEDIA_TYPE));
-	mediatype->majortype = MEDIATYPE_Video;
-	mediatype->subtype = *(get_dshow_format_info(strm->param.fmt.id)->
-			       dshow_format);
-	mediatype->bFixedSizeSamples = TRUE;
-	mediatype->bTemporalCompression = FALSE;
-
-	vi = (VIDEOINFOHEADER *)
-	    CoTaskMemAlloc(sizeof(VIDEOINFOHEADER));
-	memset (vi, 0, sizeof(VIDEOINFOHEADER));
-	mediatype->formattype = FORMAT_VideoInfo;
-	mediatype->cbFormat = sizeof(VIDEOINFOHEADER);
-	mediatype->pbFormat = (BYTE *)vi;
-
-	vi->rcSource.bottom = vfd->size.h;
-	vi->rcSource.right = vfd->size.w;
-	vi->rcTarget.bottom = vfd->size.h;
-	vi->rcTarget.right = vfd->size.w;
-
-	vi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-	vi->bmiHeader.biPlanes = 1;
-	vi->bmiHeader.biBitCount = vfi->bpp;
-	vi->bmiHeader.biCompression = strm->param.fmt.id;
-    }
-
     if (!srcpin || !sinkpin || !mediatype) {
         hr = VFW_E_TYPE_NOT_ACCEPTED;
         goto on_error;
@@ -784,9 +696,6 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
     }
     video_info->bmiHeader.biSizeImage = DIBSIZE(video_info->bmiHeader);
     mediatype->lSampleSize = DIBSIZE(video_info->bmiHeader);
-    if (graph->csource_filter)
-        SourceFilter_SetMediaType(graph->csource_filter,
-                                  mediatype);
 
     hr = IFilterGraph_AddFilter(graph->filter_graph,
                                 (IBaseFilter *)graph->rend_filter,
@@ -868,9 +777,9 @@ static pj_status_t dshow_factory_create_stream(
     pj_pool_t *pool;
     struct dshow_stream *strm;
     pj_status_t status;
+    const pjmedia_video_format_detail *vfd;
 
-    PJ_ASSERT_RETURN(param->dir == PJMEDIA_DIR_CAPTURE ||
-                     param->dir == PJMEDIA_DIR_RENDER, PJ_EINVAL);
+    PJ_ASSERT_RETURN(param->dir == PJMEDIA_DIR_CAPTURE, PJ_EINVAL);
 
     if (!get_dshow_format_info(param->fmt.id))
         return PJMEDIA_EVID_BADFORMAT;
@@ -884,9 +793,6 @@ static pj_status_t dshow_factory_create_stream(
     strm->pool = pool;
     pj_memcpy(&strm->vid_cb, cb, sizeof(*cb));
     strm->user_data = user_data;
-
-    if (param->dir & PJMEDIA_DIR_CAPTURE) {
-	const pjmedia_video_format_detail *vfd;
 
         /* Create capture stream here */
         status = create_filter_graph(PJMEDIA_DIR_CAPTURE, param->cap_id,
@@ -919,14 +825,6 @@ static pj_status_t dshow_factory_create_stream(
 	
 	vfd = pjmedia_format_get_video_format_detail(&param->fmt, PJ_TRUE);
 	strm->cap_ts_inc = PJMEDIA_SPF2(param->clock_rate, &vfd->fps, 1);
-    } else if (param->dir & PJMEDIA_DIR_RENDER) {
-        /* Create render stream here */
-        status = create_filter_graph(PJMEDIA_DIR_RENDER, param->rend_id,
-                                     PJ_FALSE, PJ_FALSE, df, strm,
-                                     &strm->dgraph);
-        if (status != PJ_SUCCESS)
-            goto on_error;
-    }
 
     /* Apply the remaining settings */
     if (param->flags & PJMEDIA_VID_DEV_CAP_OUTPUT_WINDOW) {
