@@ -224,7 +224,7 @@ class Account(SettingsObject):
 
     @run_in_green_thread
     def reregister(self):
-        if self._started and self.sip.register:
+        if self._started:
             self._registrar.reregister()
 
     @property
