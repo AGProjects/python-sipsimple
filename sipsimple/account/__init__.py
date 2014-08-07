@@ -227,6 +227,16 @@ class Account(SettingsObject):
         if self._started:
             self._registrar.reregister()
 
+    @run_in_green_thread
+    def resubscribe(self):
+        if self._started:
+            self._mwi_subscriber.resubscribe()
+            self._pwi_subscriber.resubscribe()
+            self._dwi_subscriber.resubscribe()
+            self._presence_subscriber.resubscribe()
+            self._self_presence_subscriber.resubscribe()
+            self._dialog_subscriber.resubscribe()
+
     @property
     def credentials(self):
         return Credentials(self.auth.username or self.id.username, self.auth.password)
