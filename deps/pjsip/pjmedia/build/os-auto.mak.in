@@ -156,7 +156,7 @@ endif
 # Dshow video device
 #
 ifeq ($(AC_PJMEDIA_VIDEO_HAS_DSHOW),yes)
-export PJMEDIA_VIDEODEV_OBJS += dshow_dev.o dshowclasses.o
+export PJMEDIA_VIDEODEV_OBJS += dshow_dev.o dshow_filter.o
 endif
 
 #
