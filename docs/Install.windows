@@ -69,8 +69,8 @@ the resulting application would load 2 different C runtimes.
 * Get the pip/setuptools installer: wget https://bootstrap.pypa.io/get-pip.py
 * Install pip/setuptools: python get-pip.py
 
-NOTE: At the time of this writing the Python REPL is non-functional due to a problem
-with the ncurses libraries.
+NOTE: At the time of this writing the Python REPL needs to be started with "python -i" due to
+a problem with the ncurses libraries.
 
 
 Step 2. Install dependencies
