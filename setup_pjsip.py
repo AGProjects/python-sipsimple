@@ -181,7 +181,8 @@ class PJSIP_build_ext(build_ext):
         extension.extra_compile_args.append("-Wno-unused-function")    # silence warning
 
         if sys.platform == "darwin":
-            extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in self.get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
+            frameworks = re.findall("-framework (\S+)(?:\s|$)", build_mak_vars["PJ_LDLIBS"])
+            extension.extra_link_args = list(itertools.chain(*(("-framework", val) for val in frameworks)))
             extension.extra_link_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
             extension.extra_compile_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
             extension.library_dirs.append("%s/usr/lib" % osx_sdk_path)
