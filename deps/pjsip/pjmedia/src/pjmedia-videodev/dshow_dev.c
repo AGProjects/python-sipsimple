@@ -200,7 +200,7 @@ pjmedia_vid_dev_factory* pjmedia_dshow_factory(pj_pool_factory *pf)
 /* API: init factory */
 static pj_status_t dshow_factory_init(pjmedia_vid_dev_factory *f)
 {
-    HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+    HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     if (hr == RPC_E_CHANGED_MODE) {
         PJ_LOG(4,(THIS_FILE, "Failed initializing DShow: "
                              "COM library already initialized with "
@@ -616,7 +616,7 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
     IEnumPins *pEnum;
     IPin *srcpin = NULL;
     IPin *sinkpin = NULL;
-    AM_MEDIA_TYPE *mediatype= NULL, mtype;
+    AM_MEDIA_TYPE *mediatype = NULL;
     VIDEOINFOHEADER *video_info, *vi = NULL;
     pjmedia_video_format_detail *vfd;
     const pjmedia_video_format_info *vfi;
@@ -627,6 +627,12 @@ static pj_status_t create_filter_graph(pjmedia_dir dir,
                                         strm->param.fmt.id);
     if (!vfi)
         return PJMEDIA_EVID_BADFORMAT;
+
+    hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    if (FAILED(hr)) {
+	PJ_LOG(4,(THIS_FILE, "Error: CoInitializeEx")); 
+        goto on_error;
+    }
 
     hr = CoCreateInstance(&CLSID_FilterGraph, NULL, CLSCTX_INPROC,
                           &IID_IFilterGraph, (LPVOID *)&graph->filter_graph);
@@ -825,13 +831,6 @@ static pj_status_t dshow_factory_create_stream(
 	
 	vfd = pjmedia_format_get_video_format_detail(&param->fmt, PJ_TRUE);
 	strm->cap_ts_inc = PJMEDIA_SPF2(param->clock_rate, &vfd->fps, 1);
-
-    /* Apply the remaining settings */
-    if (param->flags & PJMEDIA_VID_DEV_CAP_OUTPUT_WINDOW) {
-	dshow_stream_set_cap(&strm->base,
-		            PJMEDIA_VID_DEV_CAP_OUTPUT_WINDOW,
-		            &param->window);
-    }
 
     /* Done */
     strm->base.op = &stream_op;
