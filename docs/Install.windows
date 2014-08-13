@@ -42,11 +42,9 @@ hasn't been tested.
   only and with no spaces!)
 * Once the process is finished, check the box to "Run MSYS2 32bit now", a new terminal
   window will appear
-* Upgrade the system packages by running: pacman -Syu
-* If you get an error about some "base mismatch detected", close the terminal, go to the
-  folder where you installed MSYS2, run autorebase.bat and then open the terminal again
-  by running msys2_shell.bat. Run pacman -Syu once more to make sure everything got updated
-* Install GCC by running: pacman -S mingw-w64-i686-gcc
+* Upgrade the system packages by following these instructions:
+  https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
+* Install the compiler toolchain: pacman -S mingw-w64-i686-toolchain
 * Install the usual utilities for compiling software: pacman -S make mingw-w64-i686-libtool autoconf automake-wrapper mingw-w64-i686-pkgconf
 * Install some extra useful utilities: pacman -S openssh wget
 
