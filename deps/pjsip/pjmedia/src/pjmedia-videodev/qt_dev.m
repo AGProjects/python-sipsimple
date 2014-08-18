@@ -249,11 +249,10 @@ static pj_status_t qt_factory_refresh(pjmedia_vid_dev_factory *f)
 	    pj_bzero(qdi, sizeof(*qdi));
 	    [[dev localizedDisplayName] getCString:qdi->info.name
                                         maxLength:sizeof(qdi->info.name)
-                                        encoding:
-                                        [NSString defaultCStringEncoding]];
+                                        encoding:NSUTF8StringEncoding];
 	    [[dev uniqueID] getCString:qdi->dev_id
                             maxLength:sizeof(qdi->dev_id)
-                            encoding:[NSString defaultCStringEncoding]];
+                            encoding:NSUTF8StringEncoding];
 	    strcpy(qdi->info.driver, "QT");	    
 	    qdi->info.dir = PJMEDIA_DIR_CAPTURE;
 	    qdi->info.has_callback = PJ_TRUE;
