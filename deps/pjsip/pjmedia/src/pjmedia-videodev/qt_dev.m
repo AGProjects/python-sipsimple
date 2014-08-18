@@ -276,8 +276,18 @@ static pj_status_t qt_factory_refresh(pjmedia_vid_dev_factory *f)
 		    }
 		}
 	    }
-            
-	    PJ_LOG(4, (THIS_FILE, " dev_id %d: %s", i, qdi->info.name));    
+
+	    PJ_LOG(4, (THIS_FILE, " dev_id %d: %s", i, qdi->info.name));
+
+            if (qdi->info.fmt_cnt == 0) {
+                PJ_LOG(4, (THIS_FILE, " there are no compatible formats, using default"));
+                pjmedia_format *fmt = &qdi->info.fmt[qdi->info.fmt_cnt++];
+                pjmedia_format_init_video(fmt,
+                                          qt_fmts[0].pjmedia_format,
+                                          DEFAULT_WIDTH,
+                                          DEFAULT_HEIGHT,
+                                          DEFAULT_FPS, 1);
+            }
 	}
     }
     
