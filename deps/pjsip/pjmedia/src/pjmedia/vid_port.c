@@ -617,6 +617,7 @@ static pj_status_t client_port_event_cb(pjmedia_event *event,
                 PJ_LOG(3, (THIS_FILE, "reverting to its original format: %s",
                                       status != PJMEDIA_EVID_ERR ? "success" :
                                       "failure"));
+	        pjmedia_vid_port_start(vp);
                 return status;
             }
         }
