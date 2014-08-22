@@ -138,14 +138,14 @@ class PJSIP_build_ext(build_ext):
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
         open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
+        cflags = "-g -fPIC -Wno-unused-label"
         if self.debug or hasattr(sys, 'gettotalrefcount'):
             log.info("PJSIP will be built with debugging symbols")
-            cflags = "-O0 -g -fPIC"
+            cflags += " -O0"
         else:
-            cflags = "-O3 -fPIC"
+            cflags += " -O3"
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
-        cflags += " -Wno-unused-label"    # silence warning
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys.platform == "win32":
