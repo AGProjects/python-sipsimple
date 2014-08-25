@@ -1095,6 +1095,7 @@ static pj_status_t decode_frame(pjmedia_vid_stream *stream,
     /* Learn remote frame rate after successful decoding */
     if (frame->type == PJMEDIA_FRAME_TYPE_VIDEO && frame->size)
     {
+#if 0
 	/* Only check remote frame rate when timestamp is not wrapping and
 	 * sequence is increased by 1.
 	 */
@@ -1151,6 +1152,7 @@ static pj_status_t decode_frame(pjmedia_vid_stream *stream,
 		}
 	    }
 	}
+#endif
 
 	/* Update last frame seq and timestamp */
 	stream->last_dec_seq = frm_last_seq;
@@ -1194,8 +1196,10 @@ static pj_status_t get_frame(pjmedia_port *port,
 	    /* Override the framerate to be 1.5x higher in the event
 	     * for the renderer.
 	     */
+#if 0
 	    fmt_chg_data->new_fmt.det.vid.fps.num *= 3;
 	    fmt_chg_data->new_fmt.det.vid.fps.num /= 2;
+#endif
 	} else {
 	    pjmedia_format_copy(&stream->info.codec_param->enc_fmt,
 				&fmt_chg_data->new_fmt);
@@ -1521,7 +1525,9 @@ PJ_DEF(pj_status_t) pjmedia_vid_stream_create(
      * local renderer clock) or video setup lag. Note that the actual framerate
      * will be continuously calculated based on the incoming RTP timestamps.
      */
+#if 0
     vfd_dec->fps.num = vfd_dec->fps.num * 3 / 2;
+#endif
     stream->dec_max_fps = vfd_dec->fps;
 
     /* Create decoder channel */
