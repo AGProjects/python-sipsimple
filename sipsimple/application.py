@@ -100,7 +100,6 @@ class SIPApplication(object):
             SIPSimpleSettings()
             account_manager.load()
             addressbook_manager.load()
-            self._initialize_core()
         except:
             self.engine = None
             self.state = None
@@ -128,7 +127,7 @@ class SIPApplication(object):
         from eventlib.twistedutil import join_reactor
         notification_center = NotificationCenter()
 
-        self._initialize_subsystems()
+        self._initialize_core()
         reactor.run(installSignalHandlers=False)
 
         self.state = 'stopped'
@@ -158,10 +157,8 @@ class SIPApplication(object):
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
-        with self.engine._lock:
-            # make sure we add the observer before the engine thread actually runs
-            self.engine.start(**options)
-            notification_center.add_observer(self, sender=self.engine)
+        notification_center.add_observer(self, sender=self.engine)
+        self.engine.start(**options)
 
     def _initialize_tls(self):
         settings = SIPSimpleSettings()
@@ -286,6 +283,9 @@ class SIPApplication(object):
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
+
+    def _NH_SIPEngineDidStart(self, notification):
+        self._initialize_subsystems()
 
     def _NH_SIPEngineDidFail(self, notification):
         self.end_reason = 'engine failed'

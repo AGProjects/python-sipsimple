@@ -52,10 +52,11 @@ class Engine(Thread):
         self.notification_center = NotificationCenter()
         self._thread_started = False
         self._thread_stopping = False
-        atexit.register(self.stop)
         self._lock = RLock()
-        Thread.__init__(self)
-        self.setDaemon(True)
+        self._options = None
+        atexit.register(self.stop)
+        super(Engine, self).__init__()
+        self.daemon = True
 
     @property
     def is_running(self):
@@ -74,38 +75,35 @@ class Engine(Thread):
         object.__setattr__(self, attr, value)
 
     def start(self, **kwargs):
-        if self._thread_started:
-            raise SIPCoreError("Worker thread was already started once")
-        init_options = Engine.default_start_options.copy()
-        init_options.update(kwargs)
-        self.notification_center.post_notification('SIPEngineWillStart', sender=self)
         with self._lock:
-            try:
-                self._thread_started = True
-                self._ua = PJSIPUA(self._handle_event, **init_options)
-                Thread.start(self)
-            except:
-                self._thread_started = False
-                if hasattr(self, "_ua"):
-                    self._ua.dealloc()
-                    del self._ua
-                exc_type, exc_val, exc_tb = sys.exc_info()
-                self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
-                self.notification_center.post_notification('SIPEngineDidFail', sender=self)
-                raise
-            else:
-                self.notification_center.post_notification('SIPEngineDidStart', sender=self)
+            if self._thread_started:
+                raise SIPCoreError("Worker thread was already started once")
+            self._options = kwargs
+            self._thread_started = True
+            super(Engine, self).start()
 
     def stop(self):
-        if self._thread_stopping:
-            return
         with self._lock:
+            if self._thread_stopping:
+                return
             if self._thread_started:
                 self._thread_stopping = True
 
     # worker thread
     def run(self):
-        with self._lock: pass # wait until start() has finished executing
+        self.notification_center.post_notification('SIPEngineWillStart', sender=self)
+        init_options = Engine.default_start_options.copy()
+        init_options.update(self._options)
+        try:
+            self._ua = PJSIPUA(self._handle_event, **init_options)
+        except Exception:
+            exc_type, exc_val, exc_tb = sys.exc_info()
+            exc_tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+            self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback=exc_tb))
+            self.notification_center.post_notification('SIPEngineDidFail', sender=self)
+            return
+        else:
+            self.notification_center.post_notification('SIPEngineDidStart', sender=self)
         failed = False
         while not self._thread_stopping:
             try:
