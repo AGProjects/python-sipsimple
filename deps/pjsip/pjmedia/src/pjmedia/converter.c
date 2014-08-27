@@ -19,6 +19,7 @@
 #include <pjmedia/converter.h>
 #include <pj/assert.h>
 #include <pj/errno.h>
+#include <pj/log.h>
 
 #define THIS_FILE	"converter.c"
 
@@ -160,8 +161,27 @@ PJ_DEF(pj_status_t) pjmedia_converter_create(pjmedia_converter_mgr *mgr,
     if (status != PJ_SUCCESS)
 	return status;
 
-    *p_cv = cv;
+    if (param->src.type == PJMEDIA_TYPE_VIDEO) {
+        char src_fourcc_name[5];
+        char dst_fourcc_name[5];
+        PJ_LOG(4, (THIS_FILE, "Converter %p (%s) created for video: %dx%d %s ~%dfps -> %dx%d %s ~%dfps",
+                              cv,
+                              f->name,
+                              param->src.det.vid.size.w,
+                              param->src.det.vid.size.h,
+                              pjmedia_fourcc_name(param->src.id, src_fourcc_name),
+                              param->src.det.vid.fps.num/param->src.det.vid.fps.denum,
+                              param->dst.det.vid.size.w,
+                              param->dst.det.vid.size.h,
+                              pjmedia_fourcc_name(param->dst.id, dst_fourcc_name),
+                              param->dst.det.vid.fps.num/param->dst.det.vid.fps.denum));
+    } else if (param->src.type == PJMEDIA_TYPE_AUDIO) {
+        PJ_LOG(4, (THIS_FILE, "Converter %p created for audio", cv));
+    } else {
+        PJ_LOG(4, (THIS_FILE, "Converter %p created for unknown", cv));
+    }
 
+    *p_cv = cv;
     return PJ_SUCCESS;
 }
 
@@ -174,6 +194,7 @@ PJ_DEF(pj_status_t) pjmedia_converter_convert(pjmedia_converter *cv,
 
 PJ_DEF(void) pjmedia_converter_destroy(pjmedia_converter *cv)
 {
+    PJ_LOG(4, (THIS_FILE, "Converter %p destroyed", cv));
     (*cv->op->destroy)(cv);
 }
 
