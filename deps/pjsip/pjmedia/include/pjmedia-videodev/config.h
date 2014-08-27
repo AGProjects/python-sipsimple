@@ -135,6 +135,15 @@ PJ_BEGIN_DECL
 #endif
 
 /**
+ * Enable support for frame buffer render device.
+ *
+ * Default: 1
+ */
+#ifndef PJMEDIA_VIDEO_DEV_HAS_FB
+#   define PJMEDIA_VIDEO_DEV_HAS_FB		1
+#endif
+
+/**
  * Specify the SDL library name to be linked with Visual Studio project. 
  * By default, the name is autodetected based on SDL version ("sdl.lib" or 
  * "sdl2.lib"), but application may explicitly specify the library name if this 

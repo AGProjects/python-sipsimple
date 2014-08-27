@@ -1,6 +1,7 @@
-/* $Id: pjmedia_videodev.h 4016 2012-04-04 05:05:50Z bennylp $ */
-/* 
- * Copyright (C) 2008-2011 Teluu Inc. (http://www.teluu.com)
+/* $Id$ */
+/*
+ * Copyright (C) 2014-present AG Projects
+ * Copyright (C) 2013-2014 Teluu Inc. (http://www.teluu.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,19 +15,18 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __PJMEDIA_VIDEODEV_H__
-#define __PJMEDIA_VIDEODEV_H__
+#ifndef PJMEDIA_VIDEODEV_FB_DEV_H__
+#define PJMEDIA_VIDEODEV_FB_DEV_H__
 
-/**
- * @file pjmedia_videodev.h
- * @brief PJMEDIA main header file.
- */
-
-#include <pjmedia-videodev/videodev.h>
 #include <pjmedia-videodev/videodev_imp.h>
-#include <pjmedia-videodev/avi_dev.h>
-#include <pjmedia-videodev/fb_dev.h>
 
-#endif	/* __PJMEDIA_VIDEODEV_H__ */
+typedef void (*pjmedia_vid_dev_fb_frame_cb)(const pjmedia_frame *frame, const pjmedia_rect_size size, void *user_data);
+
+pj_status_t
+pjmedia_vid_dev_fb_set_callback(pjmedia_vid_dev_stream *strm,
+                                pjmedia_vid_dev_fb_frame_cb cb,
+                                void *user_data);
+
+#endif    /* PJMEDIA_VIDEODEV_FB_DEV_H__ */
