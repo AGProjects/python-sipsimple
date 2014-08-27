@@ -439,11 +439,11 @@ static pj_status_t h264_preopen(ffmpeg_private *ff)
 	/* Misc x264 settings (performance, quality, latency, etc).
 	 * Let's just use the x264 predefined preset & tune.
 	 */
-	if (!AV_OPT_SET(ctx->priv_data, "preset", "veryfast", 0)) {
+	if (!AV_OPT_SET(ctx->priv_data, "preset", "ultrafast", 0)) {
 	    PJ_LOG(3, (THIS_FILE, "Failed to set x264 preset 'veryfast'"));
 	}
-	if (!AV_OPT_SET(ctx->priv_data, "tune", "animation+zerolatency", 0)) {
-	    PJ_LOG(3, (THIS_FILE, "Failed to set x264 tune 'zerolatency'"));
+	if (!AV_OPT_SET(ctx->priv_data, "tune", "fastdecode+zerolatency", 0)) {
+	    PJ_LOG(3, (THIS_FILE, "Failed to set x264 tune 'fastdecode+zerolatency'"));
 	}
     }
 
