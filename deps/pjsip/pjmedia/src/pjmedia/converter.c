@@ -109,7 +109,7 @@ pjmedia_converter_mgr_register_factory(pjmedia_converter_mgr *mgr,
 
     pf = mgr->factory_list.next;
     while (pf != &mgr->factory_list) {
-	if (pf->priority > factory->priority)
+	if (pf->priority < factory->priority)
 	    break;
 	pf = pf->next;
     }
