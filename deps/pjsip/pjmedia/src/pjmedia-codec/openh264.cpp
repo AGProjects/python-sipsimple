@@ -26,6 +26,11 @@
             PJMEDIA_HAS_OPENH264_CODEC != 0 && \
     defined(PJMEDIA_HAS_VIDEO) && (PJMEDIA_HAS_VIDEO != 0)
 
+#ifdef _MSC_VER
+#   include <stdint.h>
+#   pragma comment( lib, "openh264.lib")
+#endif
+
 /* OpenH264: */
 #include <wels/codec_api.h>
 #include <wels/codec_app_def.h>
@@ -34,8 +39,15 @@
  * Constants
  */
 #define THIS_FILE		"openh264.cpp"
-#define DEFAULT_WIDTH		720
-#define DEFAULT_HEIGHT		480
+
+#if defined(PJ_DARWINOS) && PJ_DARWINOS != 0 && TARGET_OS_IPHONE
+#  define DEFAULT_WIDTH		352
+#  define DEFAULT_HEIGHT	288
+#else
+#  define DEFAULT_WIDTH		720
+#  define DEFAULT_HEIGHT	480
+#endif
+
 #define DEFAULT_FPS		15
 #define DEFAULT_AVG_BITRATE	256000
 #define DEFAULT_MAX_BITRATE	256000
@@ -333,14 +345,14 @@ static pj_status_t oh264_alloc_codec(pjmedia_vid_codec_factory *factory,
     codec->codec_data = oh264_data;
 
     /* encoder allocation */
-    rc = CreateSVCEncoder(&oh264_data->enc);
+    rc = WelsCreateSVCEncoder(&oh264_data->enc);
     if (rc != 0)
 	goto on_error;
 
     oh264_data->esrc_pic = PJ_POOL_ZALLOC_T(pool, SSourcePicture);
 
     /* decoder allocation */
-    rc = CreateDecoder(&oh264_data->dec);
+    rc = WelsCreateDecoder(&oh264_data->dec);
     if (rc != 0)
 	goto on_error;
 
@@ -361,12 +373,12 @@ static pj_status_t oh264_dealloc_codec(pjmedia_vid_codec_factory *factory,
 
     oh264_data = (oh264_codec_data*) codec->codec_data;
     if (oh264_data->enc) {
-	DestroySVCEncoder(oh264_data->enc);
+	WelsDestroySVCEncoder(oh264_data->enc);
 	oh264_data->enc = NULL;
     }
     if (oh264_data->dec) {
 	oh264_data->dec->Uninitialize();
-    	DestroyDecoder(oh264_data->dec);
+    	WelsDestroyDecoder(oh264_data->dec);
     	oh264_data->dec = NULL;
     }
     pj_pool_release(oh264_data->pool);
@@ -454,7 +466,7 @@ static pj_status_t oh264_codec_open(pjmedia_vid_codec *codec,
     /* Init encoder parameters */
     pj_bzero(&eprm, sizeof(eprm));
     eprm.iInputCsp			= videoFormatI420;
-    eprm.sSpatialLayers[0].uiProfileIdc	= 66;	// PRO_BASELINE
+    eprm.sSpatialLayers[0].uiProfileIdc	= PRO_BASELINE;
     eprm.iPicWidth			= param->enc_fmt.det.vid.size.w;
     eprm.iPicHeight			= param->enc_fmt.det.vid.size.h;
     eprm.fMaxFrameRate			= (param->enc_fmt.det.vid.fps.num * 1.0 /
@@ -468,7 +480,7 @@ static pj_status_t oh264_codec_open(pjmedia_vid_codec *codec,
     eprm.iLoopFilterAlphaC0Offset	= 0;
     eprm.iLoopFilterBetaOffset		= 0;
     eprm.iMultipleThreadIdc		= 1;
-    eprm.bEnableRc			= 1;
+    //eprm.bEnableRc			= 1;
     eprm.iTargetBitrate			= param->enc_fmt.det.vid.avg_bps;
     eprm.bEnableFrameSkip		= 1;
     eprm.bEnableDenoise			= 0;
@@ -479,6 +491,9 @@ static pj_status_t oh264_codec_open(pjmedia_vid_codec *codec,
     eprm.iLtrMarkPeriod			= 30;
     eprm.bPrefixNalAddingCtrl		= false;
     eprm.iSpatialLayerNum		= 1;
+    if (!oh264_data->whole) {
+	eprm.uiMaxNalSize			= param->enc_mtu;
+    }
 
     pj_bzero(&elayer_ctx, sizeof (SLayerPEncCtx));
     elayer_ctx.iDLayerQp		= 24;
@@ -542,7 +557,7 @@ static pj_status_t oh264_codec_open(pjmedia_vid_codec *codec,
     //TODO:
     // Apply "sprop-parameter-sets" here
 
-    rc = CreateDecoder(&oh264_data->dec);
+    rc = WelsCreateDecoder(&oh264_data->dec);
     if (rc) {
 	PJ_LOG(4,(THIS_FILE, "Unable to create OpenH264 decoder"));
 	return PJMEDIA_CODEC_EFAILED;
@@ -554,7 +569,7 @@ static pj_status_t oh264_codec_open(pjmedia_vid_codec *codec,
 	return PJMEDIA_CODEC_EFAILED;
     }
 
-    int32_t color_fmt = videoFormatI420;
+    pj_int32_t color_fmt = videoFormatI420;
     rc = oh264_data->dec->SetOption (DECODER_OPTION_DATAFORMAT,  &color_fmt);
     if (rc) {
 	PJ_LOG(4,(THIS_FILE,
@@ -858,7 +873,7 @@ static int write_yuv(pj_uint8_t *buf,
 
 static pj_status_t oh264_got_decoded_frame(pjmedia_vid_codec *codec,
 					   struct oh264_codec_data *oh264_data,
-					   void *pData[3],
+					   unsigned char *pData[3],
 					   SBufferInfo *sDstBufInfo,
 					   pj_timestamp *timestamp,
 					   unsigned out_size,
@@ -931,7 +946,7 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
                                       pjmedia_frame *output)
 {
     struct oh264_codec_data *oh264_data;
-    void* pData[3] = {NULL};
+    unsigned char* pData[3] = {NULL};
     const pj_uint8_t nal_start[] = { 0, 0, 1 };
     SBufferInfo sDstBufInfo;
     pj_bool_t has_frame = PJ_FALSE;
@@ -1036,8 +1051,7 @@ static pj_status_t oh264_codec_decode(pjmedia_vid_codec *codec,
     }
 
     /* Signal that we have no more frames */
-    int32_t iEndOfStreamFlag;
-    iEndOfStreamFlag = true;
+    pj_int32_t iEndOfStreamFlag = true;
     oh264_data->dec->SetOption( DECODER_OPTION_END_OF_STREAM,
                                 (void*)&iEndOfStreamFlag);
 

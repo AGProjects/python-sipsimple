@@ -57,6 +57,15 @@
 #endif
 
 
+/* Suppress compile warning of OpenSSL deprecation (OpenSSL is deprecated
+ * since MacOSX 10.7).
+ */
+#if defined(PJ_DARWINOS) && PJ_DARWINOS==1
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+
 /*
  * SSL/TLS state enumeration.
  */
@@ -487,6 +496,12 @@ static pj_status_t set_cipher_list(pj_ssl_sock_t *ssock);
 /* Create and initialize new SSL context and instance */
 static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
 {
+    BIO *bio;
+    DH *dh;
+    long options;
+#if !defined(OPENSSL_NO_ECDH) && OPENSSL_VERSION_NUMBER >= 0x10000000L
+    EC_KEY *ecdh;
+#endif
     SSL_METHOD *ssl_method;
     SSL_CTX *ctx;
     pj_ssl_cert_t *cert;
@@ -502,7 +517,6 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
 
     /* Determine SSL method to use */
     switch (ssock->param.proto) {
-    case PJ_SSL_SOCK_PROTO_DEFAULT:
     case PJ_SSL_SOCK_PROTO_TLS1:
 	ssl_method = (SSL_METHOD*)TLSv1_method();
 	break;
@@ -514,6 +528,7 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
     case PJ_SSL_SOCK_PROTO_SSL3:
 	ssl_method = (SSL_METHOD*)SSLv3_method();
 	break;
+    case PJ_SSL_SOCK_PROTO_DEFAULT:
     case PJ_SSL_SOCK_PROTO_SSL23:
 	ssl_method = (SSL_METHOD*)SSLv23_method();
 	break;
@@ -582,6 +597,51 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
 		SSL_CTX_free(ctx);
 		return status;
 	    }
+
+	    if (ssock->is_server) {
+		bio = BIO_new_file(cert->privkey_file.ptr, "r");
+		if (bio != NULL) {
+		    dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+		    if (dh != NULL) {
+			if (SSL_CTX_set_tmp_dh(ctx, dh)) {
+			    options = SSL_OP_CIPHER_SERVER_PREFERENCE |
+    #if !defined(OPENSSL_NO_ECDH) && OPENSSL_VERSION_NUMBER >= 0x10000000L
+				      SSL_OP_SINGLE_ECDH_USE |
+    #endif
+				      SSL_OP_SINGLE_DH_USE;
+			    options = SSL_CTX_set_options(ctx, options);
+			    PJ_LOG(4,(ssock->pool->obj_name, "SSL DH "
+				     "initialized, PFS cipher-suites enabled"));
+			}
+			DH_free(dh);
+		    }
+		    BIO_free(bio);
+		}
+	    }
+	}
+    }
+
+    if (ssock->is_server) {
+    #ifndef SSL_CTRL_SET_ECDH_AUTO
+	#define SSL_CTRL_SET_ECDH_AUTO 94
+    #endif
+
+	/* SSL_CTX_set_ecdh_auto(ctx,on) requires OpenSSL 1.0.2 which wraps: */
+	if (SSL_CTX_ctrl(ctx, SSL_CTRL_SET_ECDH_AUTO, 1, NULL)) {
+	    PJ_LOG(4,(ssock->pool->obj_name, "SSL ECDH initialized "
+		      "(automatic), faster PFS ciphers enabled"));
+    #if !defined(OPENSSL_NO_ECDH) && OPENSSL_VERSION_NUMBER >= 0x10000000L
+	} else {
+	    /* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
+	    ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+	    if (ecdh != NULL) {
+		if (SSL_CTX_set_tmp_ecdh(ctx, ecdh)) {
+		    PJ_LOG(4,(ssock->pool->obj_name, "SSL ECDH initialized "
+			      "(secp256r1), faster PFS cipher-suites enabled"));
+		}
+		EC_KEY_free(ecdh);
+	    }
+    #endif
 	}
     }
 
@@ -1456,7 +1516,7 @@ static pj_bool_t asock_on_data_read (pj_activesock_t *asock,
 
 	    } else {
 
-		int err = SSL_get_error(ssock->ossl_ssl, (int)size);
+		int err = SSL_get_error(ssock->ossl_ssl, size_);
 		
 		/* SSL might just return SSL_ERROR_WANT_READ in 
 		 * re-negotiation.
@@ -1610,6 +1670,14 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
     if (status != PJ_SUCCESS && !ssock->param.qos_ignore_error)
 	goto on_return;
 
+    /* Apply socket options, if specified */
+    if (ssock->param.sockopt_params.cnt) {
+	status = pj_sock_setsockopt_params(ssock->sock, 
+					   &ssock->param.sockopt_params);
+	if (status != PJ_SUCCESS && !ssock->param.sockopt_ignore_error)
+	    goto on_return;
+    }
+
     /* Update local address */
     ssock->addr_len = src_addr_len;
     status = pj_sock_getsockname(ssock->sock, &ssock->local_addr, 
@@ -1645,6 +1713,24 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
     asock_cfg.async_cnt = ssock->param.async_cnt;
     asock_cfg.concurrency = ssock->param.concurrency;
     asock_cfg.whole_data = PJ_TRUE;
+    
+    /* If listener socket has group lock, automatically create group lock
+     * for the new socket.
+     */
+    if (ssock_parent->param.grp_lock) {
+	pj_grp_lock_t *glock;
+
+	status = pj_grp_lock_create(ssock->pool, NULL, &glock);
+	if (status != PJ_SUCCESS)
+	    goto on_return;
+
+	/* Temporarily add ref the group lock until active socket creation,
+	 * to make sure that group lock is destroyed if the active socket
+	 * creation fails.
+	 */
+	pj_grp_lock_add_ref(glock);
+	asock_cfg.grp_lock = ssock->param.grp_lock = glock;
+    }
 
     pj_bzero(&asock_cb, sizeof(asock_cb));
     asock_cb.on_data_read = asock_on_data_read;
@@ -1658,6 +1744,11 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
 				  &asock_cb,
 				  ssock,
 				  &ssock->asock);
+
+    /* This will destroy the group lock if active socket creation fails */
+    if (asock_cfg.grp_lock) {
+	pj_grp_lock_dec_ref(asock_cfg.grp_lock);
+    }
 
     if (status != PJ_SUCCESS)
 	goto on_return;
@@ -1888,6 +1979,24 @@ PJ_DEF(const char*) pj_ssl_cipher_name(pj_ssl_cipher cipher)
     return NULL;
 }
 
+/* Get cipher identifier */
+PJ_DEF(pj_ssl_cipher) pj_ssl_cipher_id(const char *cipher_name)
+{
+    unsigned i;
+
+    if (openssl_cipher_num == 0) {
+        init_openssl();
+        shutdown_openssl();
+    }
+
+    for (i = 0; i < openssl_cipher_num; ++i) {
+        if (!pj_ansi_stricmp(openssl_ciphers[i].name, cipher_name))
+            return openssl_ciphers[i].id;
+    }
+
+    return PJ_TLS_UNKNOWN_CIPHER;
+}
+
 /* Check if the specified cipher is supported by SSL/TLS backend. */
 PJ_DEF(pj_bool_t) pj_ssl_cipher_is_supported(pj_ssl_cipher cipher)
 {
@@ -2055,6 +2164,9 @@ PJ_DEF(pj_status_t) pj_ssl_sock_get_info (pj_ssl_sock_t *ssock,
 
     /* Last known OpenSSL error code */
     info->last_native_err = ssock->last_err;
+
+    /* Group lock */
+    info->grp_lock = ssock->param.grp_lock;
 
     return PJ_SUCCESS;
 }
@@ -2394,8 +2506,18 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_accept (pj_ssl_sock_t *ssock,
     status = pj_sock_apply_qos2(ssock->sock, ssock->param.qos_type,
 				&ssock->param.qos_params, 2, 
 				ssock->pool->obj_name, NULL);
+
     if (status != PJ_SUCCESS && !ssock->param.qos_ignore_error)
 	goto on_error;
+
+    /* Apply socket options, if specified */
+    if (ssock->param.sockopt_params.cnt) {
+	status = pj_sock_setsockopt_params(ssock->sock, 
+					   &ssock->param.sockopt_params);
+
+	if (status != PJ_SUCCESS && !ssock->param.sockopt_ignore_error)
+	    goto on_error;
+    }
 
     /* Bind socket */
     status = pj_sock_bind(ssock->sock, localaddr, addr_len);
@@ -2412,6 +2534,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_accept (pj_ssl_sock_t *ssock,
     asock_cfg.async_cnt = ssock->param.async_cnt;
     asock_cfg.concurrency = ssock->param.concurrency;
     asock_cfg.whole_data = PJ_TRUE;
+    asock_cfg.grp_lock = ssock->param.grp_lock;
 
     pj_bzero(&asock_cb, sizeof(asock_cb));
     asock_cb.on_accept_complete = asock_on_accept_complete;
@@ -2479,6 +2602,15 @@ PJ_DECL(pj_status_t) pj_ssl_sock_start_connect(pj_ssl_sock_t *ssock,
     if (status != PJ_SUCCESS && !ssock->param.qos_ignore_error)
 	goto on_error;
 
+    /* Apply socket options, if specified */
+    if (ssock->param.sockopt_params.cnt) {
+	status = pj_sock_setsockopt_params(ssock->sock, 
+					   &ssock->param.sockopt_params);
+
+	if (status != PJ_SUCCESS && !ssock->param.sockopt_ignore_error)
+	    goto on_error;
+    }
+
     /* Bind socket */
     status = pj_sock_bind(ssock->sock, localaddr, addr_len);
     if (status != PJ_SUCCESS)
@@ -2489,6 +2621,7 @@ PJ_DECL(pj_status_t) pj_ssl_sock_start_connect(pj_ssl_sock_t *ssock,
     asock_cfg.async_cnt = ssock->param.async_cnt;
     asock_cfg.concurrency = ssock->param.concurrency;
     asock_cfg.whole_data = PJ_TRUE;
+    asock_cfg.grp_lock = ssock->param.grp_lock;
 
     pj_bzero(&asock_cb, sizeof(asock_cb));
     asock_cb.on_connect_complete = asock_on_connect_complete;
@@ -2573,6 +2706,13 @@ PJ_DEF(pj_status_t) pj_ssl_sock_renegotiate(pj_ssl_sock_t *ssock)
 
     return status;
 }
+
+
+/* Put back deprecation warning setting */
+#if defined(PJ_DARWINOS) && PJ_DARWINOS==1
+#  pragma GCC diagnostic pop
+#endif
+
 
 #endif  /* PJ_HAS_SSL_SOCK */
 

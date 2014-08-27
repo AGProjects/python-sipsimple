@@ -325,7 +325,7 @@ static pj_status_t init_driver(unsigned drv_idx, pj_bool_t refresh)
     unsigned i, dev_cnt;
     pj_status_t status;
 
-    if (!refresh) {
+    if (!refresh && drv->create) {
 	/* Create the factory */
 	f = (*drv->create)(aud_subsys.pf);
 	if (!f)
@@ -345,6 +345,9 @@ static pj_status_t init_driver(unsigned drv_idx, pj_bool_t refresh)
     if (!refresh) {
         f->op->set_dev_change_cb(f, &process_aud_dev_change_event);
     }
+
+    if (!f)
+	return PJ_EUNKNOWN;
 
     /* Get number of devices */
     dev_cnt = f->op->get_dev_count(f);
@@ -424,8 +427,8 @@ static void deinit_driver(unsigned drv_idx)
 	drv->f = NULL;
     }
 
-    drv->dev_cnt = 0;
-    drv->play_dev_idx = drv->rec_dev_idx = -1;
+    pj_bzero(drv, sizeof(*drv));
+    drv->play_dev_idx = drv->rec_dev_idx = PJMEDIA_AUD_INVALID_DEV;
 }
 
 /* API: Initialize the audio subsystem. */
@@ -550,7 +553,6 @@ pjmedia_aud_unregister_factory(pjmedia_aud_dev_factory_create_func_ptr adf)
 	    }
 
 	    deinit_driver(i);
-	    pj_bzero(drv, sizeof(*drv));
 	    return PJ_SUCCESS;
 	}
     }

@@ -55,7 +55,7 @@ export PJMEDIA_SRCDIR = ../src/pjmedia
 export PJMEDIA_OBJS += $(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
 			alaw_ulaw.o alaw_ulaw_table.o avi_player.o \
 			bidirectional.o clock_thread.o codec.o conference.o \
-			conf_switch.o converter.o  converter_libswscale.o \
+			conf_switch.o converter.o  converter_libswscale.o converter_libyuv.o \
 			delaybuf.o echo_common.o \
 			echo_port.o echo_suppress.o endpoint.o errno.o \
 			event.o format.o ffmpeg_util.o \
@@ -115,7 +115,7 @@ export PJMEDIA_CODEC_SRCDIR = ../src/pjmedia-codec
 export PJMEDIA_CODEC_OBJS += audio_codecs.o ffmpeg_vid_codecs.o openh264.o \
 			h263_packetizer.o h264_packetizer.o \
 			$(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
-			ipp_codecs.o opencore_amr.o silk.o $(CODEC_OBJS) \
+			ipp_codecs.o silk.o $(CODEC_OBJS) \
                         g7221_sdp_match.o amr_sdp_match.o
 export PJMEDIA_CODEC_CFLAGS += $(_CFLAGS) $(GSM_CFLAGS) $(SPEEX_CFLAGS) \
 			$(ILBC_CFLAGS) $(IPP_CFLAGS) $(G7221_CFLAGS)

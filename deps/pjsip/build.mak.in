@@ -112,11 +112,15 @@ AC_PJMEDIA_VIDEO_HAS_DSHOW = @ac_pjmedia_video_has_dshow@
 DSHOW_CFLAGS = @ac_dshow_cflags@
 DSHOW_LDFLAGS = @ac_dshow_ldflags@
 
+# libyuv
+LIBYUV_CFLAGS = @ac_libyuv_cflags@ 
+LIBYUV_LDFLAGS =  @ac_libyuv_ldflags@
+
 # PJMEDIA features exclusion
 PJ_VIDEO_CFLAGS += $(SDL_CFLAGS) $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(QT_CFLAGS) \
-		   $(OPENH264_CFLAGS) $(IOS_CFLAGS) $(DSHOW_CFLAGS)
+		   $(OPENH264_CFLAGS) $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS)
 PJ_VIDEO_LDFLAGS += $(SDL_LDFLAGS) $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) \
-                   $(OPENH264_LDFLAGS) $(DSHOW_LDFLAGS)
+                   $(OPENH264_LDFLAGS) $(DSHOW_LDFLAGS) $(LIBYUV_LDFLAGS)
 
 
 # CFLAGS, LDFLAGS, and LIBS to be used by applications

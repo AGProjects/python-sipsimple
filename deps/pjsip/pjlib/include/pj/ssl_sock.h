@@ -243,6 +243,9 @@ PJ_DECL(pj_status_t) pj_ssl_cert_get_verify_status_strings(
  */
 typedef enum pj_ssl_cipher {
 
+    /* Unsupported cipher */
+    PJ_TLS_UNKNOWN_CIPHER                       = -1,
+
     /* NULL */
     PJ_TLS_NULL_WITH_NULL_NULL               	= 0x00000000,
 
@@ -353,7 +356,9 @@ PJ_DECL(const char*) pj_ssl_cipher_name(pj_ssl_cipher cipher);
 
 
 /**
- * Get cipher ID from cipher name string.
+ * Get cipher ID from cipher name string. Note that on different backends
+ * (e.g. OpenSSL or Symbian implementation), cipher names may not be
+ * equivalent for the same cipher ID.
  *
  * @param cipher_name	The cipher name string.
  *
@@ -547,6 +552,11 @@ typedef struct pj_ssl_sock_info
      */
     unsigned long	last_native_err;
 
+    /**
+     * Group lock assigned to the ioqueue key.
+     */
+    pj_grp_lock_t *grp_lock;
+
 } pj_ssl_sock_info;
 
 
@@ -555,6 +565,17 @@ typedef struct pj_ssl_sock_info
  */
 typedef struct pj_ssl_sock_param
 {
+    /**
+     * Optional group lock to be assigned to the ioqueue key.
+     *
+     * Note that when a secure socket listener is configured with a group
+     * lock, any new secure socket of an accepted incoming connection
+     * will have its own group lock created automatically by the library,
+     * this group lock can be queried via pj_ssl_sock_get_info() in the info
+     * field pj_ssl_sock_info::grp_lock.
+     */
+    pj_grp_lock_t *grp_lock;
+
     /**
      * Specifies socket address family, either pj_AF_INET() and pj_AF_INET6().
      *
@@ -744,6 +765,22 @@ typedef struct pj_ssl_sock_param
      */
     pj_bool_t qos_ignore_error;
 
+    /**
+     * Specify options to be set on the transport. 
+     *
+     * By default there is no options.
+     * 
+     */
+    pj_sockopt_params sockopt_params;
+
+    /**
+     * Specify if the transport should ignore any errors when setting the 
+     * sockopt parameters.
+     *
+     * Default: PJ_TRUE
+     * 
+     */
+    pj_bool_t sockopt_ignore_error;
 
 } pj_ssl_sock_param;
 
