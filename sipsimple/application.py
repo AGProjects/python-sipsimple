@@ -34,7 +34,7 @@ from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
 from sipsimple.threading import ThreadManager, run_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import run_in_green_thread
-
+from sipsimple.video import VideoDevice
 
 
 class ApplicationAttribute(object):
@@ -67,6 +67,8 @@ class SIPApplication(object):
     alert_audio_bridge = ApplicationAttribute(value=None)
     voice_audio_device = ApplicationAttribute(value=None)
     voice_audio_bridge = ApplicationAttribute(value=None)
+
+    video_device = ApplicationAttribute(value=None)
 
     _lock = ApplicationAttribute(value=RLock())
     _timer = ApplicationAttribute(value=None)
@@ -154,6 +156,8 @@ class SIPApplication(object):
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                        # audio
                        codecs=list(settings.rtp.audio_codec_list),
+                       # video
+                       video_codecs=list(settings.rtp.video_codec_list),
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
@@ -223,12 +227,24 @@ class SIPApplication(object):
         settings.audio.input_device = voice_mixer.input_device
         settings.audio.output_device = voice_mixer.output_device
         settings.audio.alert_device = alert_mixer.output_device
-        settings.save()
+
+        # initialize video
+        self.video_device = VideoDevice(settings.video.device, settings.video.resolution)
+        self.video_device.paused = settings.video.paused
+        settings.video.device = self.video_device.name
+        self.engine.set_h264_options(settings.video.h264.profile,
+                                     settings.video.h264.level,
+                                     settings.video.h264.max_resolution,
+                                     settings.video.h264.max_framerate,
+                                     settings.video.h264.avg_bitrate,
+                                     settings.video.h264.max_bitrate)
 
         # initialize instance id
         if not settings.instance_id:
             settings.instance_id = uuid4().urn
-            settings.save()
+
+        # save settings in case something was modified during startup
+        settings.save()
 
         # initialize middleware components
         dns_manager.start()
@@ -352,6 +368,20 @@ class SIPApplication(object):
                         self.alert_audio_bridge.mixer.output_volume = 0
                     else:
                         self.alert_audio_bridge.mixer.output_volume = 100
+            if 'video.paused' in notification.data.modified:
+                self.video_device.paused = settings.video.paused
+            if {'video.device', 'video.resolution'}.intersection(notification.data.modified):
+                if 'video.resolution' in notification.data.modified or settings.video.device != self.video_device.name:
+                    self.video_device.set_camera(settings.video.device, settings.video.resolution)
+                    settings.video.device = self.video_device.name
+                    settings.save()
+            if set(['video.h264.profile', 'video.h264.level', 'video.h264.max_resolution', 'video.h264.max_framerate', 'video.h264.avg_bitrate', 'video.h264.max_bitrate']).intersection(notification.data.modified):
+                self.engine.set_h264_options(settings.video.h264.profile,
+                                             settings.video.h264.level,
+                                             settings.video.h264.max_resolution,
+                                             settings.video.h264.max_framerate,
+                                             settings.video.h264.avg_bitrate,
+                                             settings.video.h264.max_bitrate)
             if 'user_agent' in notification.data.modified:
                 self.engine.user_agent = settings.user_agent
             if 'sip.udp_port' in notification.data.modified:

@@ -218,6 +218,9 @@ cdef class PJMEDIAEndpoint:
         status = pjmedia_endpt_create(&caching_pool._obj.factory, NULL, 1, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create PJMEDIA endpoint", status)
+        self._pool = pjmedia_endpt_create_pool(self._obj, "PJMEDIAEndpoint", 4096, 4096)
+        if self._pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_codec_speex_init(self._obj, PJMEDIA_SPEEX_NO_NB, -1, -1)
         if status != 0:
             raise PJSIPError("Could not initialize speex codec", status)
@@ -242,8 +245,10 @@ cdef class PJMEDIAEndpoint:
         if status != 0:
             raise PJSIPError("Could not initialize opus codec", status)
         self._has_opus = 1
+        self._video_subsystem_init(caching_pool)
 
     def __dealloc__(self):
+        self._video_subsystem_shutdown()
         if self._has_opus:
             pjmedia_codec_opus_deinit()
         if self._has_gsm:
@@ -256,8 +261,46 @@ cdef class PJMEDIAEndpoint:
             pjmedia_codec_g722_deinit()
         if self._has_speex:
             pjmedia_codec_speex_deinit()
+        if self._pool != NULL:
+            pj_pool_release(self._pool)
         if self._obj != NULL:
             pjmedia_endpt_destroy(self._obj)
+
+    cdef void _video_subsystem_init(self, PJCachingPool caching_pool):
+        status = pjmedia_video_format_mgr_create(self._pool, 64, 0, NULL)
+        if status != 0:
+            raise PJSIPError("Could not initialize video format manager", status)
+        status = pjmedia_converter_mgr_create(self._pool, NULL)
+        if status != 0:
+            raise PJSIPError("Could not initialize converter manager", status)
+        status = pjmedia_event_mgr_create(self._pool, 0, NULL)
+        if status != 0:
+            raise PJSIPError("Could not initialize event manager", status)
+        status = pjmedia_vid_codec_mgr_create(self._pool, NULL)
+        if status != 0:
+            raise PJSIPError("Could not initialize video codec manager", status)
+        status = pjmedia_codec_ffmpeg_vid_init(NULL, &caching_pool._obj.factory)
+        if status != 0:
+            raise PJSIPError("Could not initialize ffmpeg video codecs", status)
+        self._has_ffmpeg_video = 1
+        status = pjmedia_vid_dev_subsys_init(&caching_pool._obj.factory)
+        if status != 0:
+            raise PJSIPError("Could not initialize video subsystem", status)
+        self._has_video = 1
+
+    cdef void _video_subsystem_shutdown(self):
+        if self._has_video:
+            pjmedia_vid_dev_subsys_shutdown()
+        if self._has_ffmpeg_video:
+            pjmedia_codec_ffmpeg_vid_deinit()
+        if pjmedia_vid_codec_mgr_instance() != NULL:
+            pjmedia_vid_codec_mgr_destroy(NULL)
+        if pjmedia_event_mgr_instance() != NULL:
+            pjmedia_event_mgr_destroy(NULL)
+        if pjmedia_converter_mgr_instance() != NULL:
+            pjmedia_converter_mgr_destroy(NULL)
+        if pjmedia_video_format_mgr_instance() != NULL:
+            pjmedia_video_format_mgr_destroy(NULL)
 
     cdef list _get_codecs(self):
         cdef unsigned int count = PJMEDIA_CODEC_MGR_MAX_CODECS
@@ -332,6 +375,128 @@ cdef class PJMEDIAEndpoint:
                     raise PJSIPError("Could not set codec priority", status)
         return 0
 
+    cdef list _get_video_codecs(self):
+        cdef unsigned int count = PJMEDIA_VID_CODEC_MGR_MAX_CODECS
+        cdef pjmedia_vid_codec_info info[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef unsigned int prio[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef int i
+        cdef list retval
+        cdef int status
+        status = pjmedia_vid_codec_mgr_enum_codecs(NULL, &count, info, prio)
+        if status != 0:
+            raise PJSIPError("Could not get available video codecs", status)
+        retval = list()
+        for i from 0 <= i < count:
+            if info[i].packings & PJMEDIA_VID_PACKING_PACKETS:
+                retval.append((prio[i], _pj_str_to_str(info[i].encoding_name), info[i].pt))
+        return retval
+
+    cdef list _get_all_video_codecs(self):
+        cdef list codecs
+        cdef tuple codec_data
+        codecs = self._get_video_codecs()
+        return list(set([codec_data[1] for codec_data in codecs]))
+
+    cdef list _get_current_video_codecs(self):
+        cdef list codecs
+        cdef tuple codec_data
+        cdef list retval
+        codecs = [codec_data for codec_data in self._get_video_codecs() if codec_data[0] > 0]
+        codecs.sort(reverse=True)
+        retval = list(set([codec_data[1] for codec_data in codecs]))
+        return retval
+
+    cdef int _set_video_codecs(self, list req_codecs) except -1:
+        cdef object new_codecs
+        cdef object codec_set
+        cdef list codecs
+        cdef tuple codec_data
+        cdef str codec
+        cdef int payload_type
+        cdef str codec_name
+        cdef int prio
+        cdef list codec_prio
+        cdef pj_str_t codec_pj
+        new_codecs = set(req_codecs)
+        if len(new_codecs) != len(req_codecs):
+            raise ValueError("Requested video codec list contains doubles")
+        codec_set = new_codecs.difference(set(self._get_all_video_codecs()))
+        if len(codec_set) > 0:
+            raise SIPCoreError("Unknown video codec(s): %s" % ", ".join(codec_set))
+        codecs = self._get_video_codecs()
+        codec_prio = list()
+        for codec in req_codecs:
+            for prio, codec_name, payload_type in codecs:
+                if codec == codec_name:
+                    codec_prio.append("%s/%d" % (codec_name, payload_type))
+        for prio, codec in enumerate(reversed(codec_prio)):
+            _str_to_pj_str(codec, &codec_pj)
+            status = pjmedia_vid_codec_mgr_set_codec_priority(NULL, &codec_pj, prio + 1)
+            if status != 0:
+                raise PJSIPError("Could not set video codec priority", status)
+        for prio, codec_name, payload_type in codecs:
+            if codec_name not in req_codecs:
+                codec = "%s/%d" % (codec_name, payload_type)
+                _str_to_pj_str(codec, &codec_pj)
+                status = pjmedia_vid_codec_mgr_set_codec_priority(NULL, &codec_pj, 0)
+                if status != 0:
+                    raise PJSIPError("Could not set video codec priority", status)
+        return 0
+
+    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, int avg_bitrate, int max_bitrate):
+        global h264_profiles_map, h264_profile_level_id, h264_packetization_mode
+
+        cdef unsigned int count = PJMEDIA_VID_CODEC_MGR_MAX_CODECS
+        cdef pjmedia_vid_codec_info info[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef pjmedia_vid_codec_param vparam
+        cdef unsigned int prio[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef int i
+        cdef int status
+        cdef PJSTR h264_profile_level_id_value
+        cdef PJSTR h264_packetization_mode_value = PJSTR("1")    # TODO; make it configurable?
+
+        try:
+            profile_n = h264_profiles_map[profile]
+        except KeyError:
+            raise ValueError("invalid profile specified: %s" % profile)
+        h264_profile_level_id_value = PJSTR("%xe0%x" % (profile_n, level))    # use common subset (e0)
+        max_width, max_height = max_resolution
+
+        status = pjmedia_vid_codec_mgr_enum_codecs(NULL, &count, info, prio)
+        if status != 0:
+            raise PJSIPError("Could not get available video codecs", status)
+        for i from 0 <= i < count:
+            if info[i].packings & PJMEDIA_VID_PACKING_PACKETS:
+                if _pj_str_to_str(info[i].encoding_name) == 'H264':
+                    status = pjmedia_vid_codec_mgr_get_default_param(NULL, &info[i], &vparam)
+                    if status != 0:
+                        continue
+                    # 2 format parameters are currently defined for H264: profile-level-id and packetization-mode
+                    vparam.dec_fmtp.param[0].name = h264_profile_level_id.pj_str
+                    vparam.dec_fmtp.param[0].val = h264_profile_level_id_value.pj_str
+                    vparam.dec_fmtp.param[1].name = h264_packetization_mode.pj_str
+                    vparam.dec_fmtp.param[1].val = h264_packetization_mode_value.pj_str
+                    vparam.dec_fmtp.cnt = 2
+                    # Max resolution
+                    vparam.enc_fmt.det.vid.size.w = max_width
+                    vparam.enc_fmt.det.vid.size.h = max_height
+                    vparam.dec_fmt.det.vid.size.w = max_width
+                    vparam.dec_fmt.det.vid.size.h = max_height
+                    # Max framerate
+                    vparam.enc_fmt.det.vid.fps.num = max_framerate
+                    vparam.enc_fmt.det.vid.fps.denum = 1
+                    vparam.dec_fmt.det.vid.fps.num = max_framerate
+                    vparam.dec_fmt.det.vid.fps.denum = 1
+                    # Average and max bitrate
+                    vparam.enc_fmt.det.vid.avg_bps = avg_bitrate
+                    vparam.enc_fmt.det.vid.max_bps = max_bitrate
+                    vparam.dec_fmt.det.vid.avg_bps = avg_bitrate
+                    vparam.dec_fmt.det.vid.max_bps = max_bitrate
+                    status = pjmedia_vid_codec_mgr_set_default_param(NULL, &info[i], &vparam)
+                    if status != 0:
+                        raise PJSIPError("Could not set H264 options", status)
+
+
 cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil:
     cdef PJSIPUA ua
     cdef str local_address
@@ -356,3 +521,8 @@ cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, 
         event_dict['reason'] = _pj_status_to_str(info.status)
         _add_event("SIPEngineTransportDidDisconnect", event_dict)
 
+
+# globals
+cdef PJSTR h264_profile_level_id = PJSTR("profile-level-id")
+cdef PJSTR h264_packetization_mode = PJSTR("packetization-mode")
+cdef dict h264_profiles_map = dict(baseline=66, main=77, high=100)

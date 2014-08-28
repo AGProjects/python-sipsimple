@@ -10,9 +10,10 @@ Definition of general (non-account related) settings.
 from sipsimple import __version__
 from sipsimple.configuration import CorrelatedSetting, RuntimeSetting, Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
-from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
+from sipsimple.configuration.datatypes import AudioCodecList, SampleRate, VideoCodecList
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList
 from sipsimple.configuration.datatypes import Path
+from sipsimple.configuration.datatypes import H264Profile, VideoDeviceResolution, VideoResolution
 
 
 __all__ = ['SIPSimpleSettings']
@@ -31,6 +32,22 @@ class AudioSettings(SettingsGroup):
     muted = RuntimeSetting(type=bool, default=False)
     silent = Setting(type=bool, default=False)
     echo_canceller = EchoCancellerSettings
+
+
+class H264Settings(SettingsGroup):
+    profile = Setting(type=H264Profile, default='baseline')
+    level = Setting(type=str, default='3.1')
+    max_resolution = Setting(type=VideoResolution, default=VideoResolution('1280x720'))
+    max_framerate = Setting(type=int, default=25)
+    avg_bitrate = Setting(type=int, default=0)
+    max_bitrate = Setting(type=int, default=0)
+
+
+class VideoSettings(SettingsGroup):
+    device = Setting(type=unicode, default=u'system_default', nillable=True)
+    resolution = Setting(type=VideoDeviceResolution, default=VideoDeviceResolution('auto'))
+    paused = RuntimeSetting(type=bool, default=False)
+    h264 = H264Settings
 
 
 class ChatSettings(SettingsGroup):
@@ -56,6 +73,7 @@ class RTPSettings(SettingsGroup):
     port_range = Setting(type=PortRange, default=PortRange(50000, 50500))
     timeout = Setting(type=NonNegativeInteger, default=30)
     audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('opus', 'G722', 'PCMU', 'PCMA')))
+    video_codec_list = Setting(type=VideoCodecList, default=VideoCodecList(('H264',)))
 
 
 def sip_port_validator(port, sibling_port):
@@ -89,5 +107,6 @@ class SIPSimpleSettings(SettingsObject):
     rtp = RTPSettings
     sip = SIPSettings
     tls = TLSSettings
+    video = VideoSettings
 
 

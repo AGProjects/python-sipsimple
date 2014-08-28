@@ -1083,6 +1083,8 @@ class Session(object):
                 if remote_media.port:
                     stream.start(local_sdp, remote_sdp, index)
                 else:
+                    # TODO: check if port is also 0 in local_sdp. In that case PJSIP disabled the stream becuase it couldn't
+                    # make sense out of it (ie, incompatible H264 profiles), we'll need to re-INVITE. -Saul
                     notification_center.remove_observer(self, sender=stream)
                     self.proposed_streams.remove(stream)
                     del stream_map[stream.index]

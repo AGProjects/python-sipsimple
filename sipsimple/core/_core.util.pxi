@@ -388,11 +388,16 @@ def _get_device_name_encoding():
     else:
         encoding = 'utf-8'
     return encoding
+_device_name_encoding = _get_device_name_encoding()
+
+def decode_device_name(device_name):
+    # ignore decoding errors, some systems (I'm looking at you, OSX), seem to misbehave
+    return device_name.decode(_device_name_encoding, 'ignore')
+
 
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
 cdef object _re_warning_hdr = re.compile('(?P<code>[0-9]{3}) (?P<agent>.*?) "(?P<text>.*?)"')
-device_name_encoding = _get_device_name_encoding()
 sip_status_messages = SIPStatusMessages()
 

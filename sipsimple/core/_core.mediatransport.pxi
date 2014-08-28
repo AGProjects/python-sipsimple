@@ -1147,6 +1147,525 @@ cdef class AudioTransport:
                 pj_mutex_unlock(lock)
 
 
+cdef class VideoTransport:
+
+    def __cinit__(self, *args, **kwargs):
+        cdef int status
+        cdef pj_pool_t *pool
+        cdef bytes pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        endpoint = ua._pjsip_endpoint._obj
+        pool_name = b"VideoTransport_%d" % id(self)
+
+        self.weakref = weakref.ref(self)
+        Py_INCREF(self.weakref)
+
+        pool = ua.create_memory_pool(pool_name, 4096, 4096)
+        self._pool = pool
+
+        status = pj_mutex_create_recursive(pool, "video_transport_lock", &self._lock)
+        if status != 0:
+            raise PJSIPError("failed to create lock", status)
+
+        self._timer = None
+
+    def __init__(self, RTPTransport transport, BaseSDPSession remote_sdp=None, int sdp_index=0, list codecs=None):
+        cdef int status
+        cdef pj_pool_t *pool
+        cdef pjmedia_endpt *media_endpoint
+        cdef pjmedia_sdp_media *local_media_c
+        cdef pjmedia_sdp_session *local_sdp_c
+        cdef pjmedia_transport_info info
+        cdef pj_sockaddr *addr
+        cdef list global_codecs
+        cdef SDPMediaStream local_media
+        cdef SDPSession local_sdp
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        media_endpoint = ua._pjmedia_endpoint._obj
+        pool = self._pool
+
+        if self.transport is not None:
+            raise SIPCoreError("VideoTransport.__init__() was already called")
+        if transport is None:
+            raise ValueError("transport argument cannot be None")
+        if sdp_index < 0:
+            raise ValueError("sdp_index argument cannot be negative")
+        if transport.state != "INIT":
+            raise SIPCoreError('RTPTransport object provided is not in the "INIT" state, but in the "%s" state' % transport.state)
+        self.transport = transport
+        transport._get_info(&info)
+        global_codecs = ua._pjmedia_endpoint._get_current_video_codecs()
+        if codecs is None:
+            codecs = global_codecs
+        try:
+            ua._pjmedia_endpoint._set_video_codecs(codecs)
+            addr = &(info.sock_info.rtp_addr_name)
+            with nogil:
+                status = pjmedia_endpt_create_base_sdp(media_endpoint, pool, NULL, addr, &local_sdp_c)
+            if status != 0:
+                raise PJSIPError("Could not generate base SDP", status)
+            with nogil:
+                status = pjmedia_endpt_create_video_sdp(media_endpoint, pool, &info.sock_info, 0, &local_media_c)
+            if status != 0:
+                raise PJSIPError("Could not generate SDP video stream", status)
+            # Create a 'fake' SDP, which only contains the video stream, then the m line is extracted because the full
+            # SDP is built by the Session
+            local_sdp_c.media_count = 1
+            local_sdp_c.media[0] = local_media_c
+        finally:
+            ua._pjmedia_endpoint._set_video_codecs(global_codecs)
+        local_sdp = SDPSession_create(local_sdp_c)
+        local_media = local_sdp.media[0]
+        if remote_sdp is None:
+            self._is_offer = 1
+            self.transport.set_LOCAL(local_sdp, 0)
+        else:
+            self._is_offer = 0
+            if sdp_index != 0:
+                local_sdp.media = [None] * (sdp_index+1)
+                local_sdp.media[sdp_index] = local_media
+            self.transport.set_REMOTE(local_sdp, remote_sdp, sdp_index)
+        self._sdp_info = SDPInfo(local_media, local_sdp, remote_sdp, sdp_index)
+
+        self.local_video = None
+        self.remote_video = None
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        cdef Timer timer
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            return
+        if self._obj != NULL:
+            self.stop()
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
+        ua.release_memory_pool(self._pool)
+        self._pool = NULL
+        timer = Timer()
+        try:
+            timer.schedule(60, deallocate_weakref, self.weakref)
+        except SIPCoreError:
+            pass
+
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+            return ua
+        except:
+            self._obj = NULL
+            self._pool = NULL
+            return None
+
+    property is_active:
+
+        def __get__(self):
+            self._check_ua()
+            return bool(self._obj != NULL)
+
+    property is_started:
+
+        def __get__(self):
+            return bool(self._is_started)
+
+    property codec:
+
+        def __get__(self):
+            self._check_ua()
+            if self._obj == NULL:
+                return None
+            else:
+                return _pj_str_to_str(self._stream_info.codec_info.encoding_name)
+
+    property sample_rate:
+
+        def __get__(self):
+            self._check_ua()
+            if self._obj == NULL:
+                return None
+            else:
+                return self._stream_info.codec_info.clock_rate
+
+    property statistics:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_rtcp_stat stat
+            cdef pjmedia_vid_stream *stream
+            cdef dict statistics = dict()
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return None
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                stream = self._obj
+
+                if self._cached_statistics is not None:
+                    return self._cached_statistics.copy()
+                if self._obj == NULL:
+                    return None
+                with nogil:
+                    status = pjmedia_vid_stream_get_stat(stream, &stat)
+                if status != 0:
+                    raise PJSIPError("Could not get RTP statistics", status)
+                statistics["rtt"] = _pj_math_stat_to_dict(&stat.rtt)
+                statistics["rx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.rx)
+                statistics["tx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.tx)
+                return statistics
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    def get_local_media(self, BaseSDPSession remote_sdp=None, int index=0, direction="sendrecv"):
+        global valid_sdp_directions
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef object direction_attr
+        cdef SDPAttribute attr
+        cdef SDPSession local_sdp
+        cdef SDPMediaStream local_media
+        cdef pjmedia_sdp_media *c_local_media
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            is_offer = remote_sdp == None
+            if is_offer and direction not in valid_sdp_directions:
+                raise SIPCoreError("Unknown direction: %s" % direction)
+            self._sdp_info.index = index
+            local_sdp = self._sdp_info.local_sdp
+            local_media = self._sdp_info.local_media
+            local_sdp.media = [None] * (index+1)
+            local_sdp.media[index] = local_media
+            self.transport.update_local_sdp(local_sdp, remote_sdp, index)
+            # updating the local SDP might have modified the connection line
+            if local_sdp.connection is not None and local_media.connection is None:
+                local_media.connection = SDPConnection.new(local_sdp.connection)
+            local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in valid_sdp_directions]
+            if is_offer:
+                direction_attr = direction
+            else:
+                if self.direction is None or "recv" in self.direction:
+                    direction_attr = "sendrecv"
+                else:
+                    direction_attr = "sendonly"
+            local_media.attributes.append(SDPAttribute(direction_attr, ""))
+            for attribute in local_media.attributes:
+                if attribute.name == 'rtcp':
+                    attribute.value = attribute.value.split(' ', 1)[0]
+            return local_media
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def start(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index, int timeout=30):
+        cdef int status
+        cdef object desired_state
+        cdef pj_mutex_t *lock = self._lock
+        cdef pj_pool_t *pool
+        cdef pjmedia_endpt *media_endpoint
+        cdef pjmedia_sdp_media *local_media
+        cdef pjmedia_sdp_session *pj_local_sdp
+        cdef pjmedia_sdp_session *pj_remote_sdp
+        cdef pjmedia_vid_stream *stream
+        cdef pjmedia_vid_stream_info *stream_info
+        cdef pjmedia_transport *transport
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            pool = self._pool
+            media_endpoint = ua._pjmedia_endpoint._obj
+            stream_info = &self._stream_info
+            transport = self.transport._obj
+
+            if self._is_started:
+                raise SIPCoreError("This VideoTransport was already started once")
+            desired_state = ("LOCAL" if self._is_offer else "REMOTE")
+            if self.transport.state != desired_state:
+                raise SIPCoreError('RTPTransport object provided is not in the "%s" state, but in the "%s" state' % (desired_state, self.transport.state))
+            if None in (local_sdp, remote_sdp):
+                raise ValueError("SDP arguments cannot be None")
+            pj_local_sdp = local_sdp.get_sdp_session()
+            pj_remote_sdp = remote_sdp.get_sdp_session()
+            if sdp_index < 0:
+                raise ValueError("sdp_index argument cannot be negative")
+            if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
+                raise SIPCoreError("Cannot start a rejected video stream")
+            if timeout < 0:
+                raise ValueError("timeout value cannot be negative")
+            self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
+            with nogil:
+                status = pjmedia_vid_stream_info_from_sdp(stream_info, pool, media_endpoint, pj_local_sdp, pj_remote_sdp, sdp_index)
+            if status != 0:
+                raise PJSIPError("Could not parse SDP for video session", status)
+            if self._stream_info.codec_param == NULL:
+                raise SIPCoreError("Could not parse SDP for video session")
+            self._stream_info.use_ka = 1
+            with nogil:
+                status = pjmedia_vid_stream_create(media_endpoint, pool, stream_info, transport, NULL, &stream)
+            if status != 0:
+                raise PJSIPError("Could not initialize RTP for video session", status)
+            self._obj = stream
+            with nogil:
+                status = pjmedia_vid_stream_start(stream)
+            if status != 0:
+                with nogil:
+                    pjmedia_vid_stream_destroy(stream)
+                self._obj = NULL
+                raise PJSIPError("Could not start RTP for video session", status)
+            with nogil:
+                pjmedia_vid_stream_send_rtcp_sdes(stream)
+            try:
+                local_video = LocalVideoStream_create(stream)
+                remote_video = RemoteVideoStream_create(stream)
+            except PJSIPError:
+                with nogil:
+                    pjmedia_vid_stream_destroy(stream)
+                self._obj = NULL
+                self.local_video = None
+                self.remote_video = None
+                raise
+            self.local_video = local_video
+            self.remote_video = remote_video
+            self.update_direction(local_sdp.media[sdp_index].direction)
+            self._sdp_info.local_media = local_sdp.media[sdp_index]
+            self._sdp_info.local_sdp = local_sdp
+            self._sdp_info.remote_sdp = remote_sdp
+            self._sdp_info.index = sdp_index
+            self._is_started = 1
+            if timeout > 0:
+                self._timer = MediaCheckTimer(timeout)
+                self._timer.schedule(timeout, <timer_callback>self._cb_check_rtp, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def stop(self):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+
+        if ua is not None:
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
+            if self._obj == NULL:
+                return
+            if self.local_video is not None:
+                self.local_video.close()
+                self.local_video = None
+            if self.remote_video is not None:
+                self.remote_video.close()
+                self.remote_video = None
+            self._cached_statistics = self.statistics
+            with nogil:
+                pjmedia_vid_stream_send_rtcp_bye(stream)
+            with nogil:
+                pjmedia_vid_stream_destroy(stream)
+            self._obj = NULL
+            self.transport.set_INIT()
+        finally:
+            if ua is not None:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    def update_direction(self, direction):
+        global valid_sdp_directions
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+
+            if self._obj == NULL:
+                raise SIPCoreError("Stream is not active")
+            if direction not in valid_sdp_directions:
+                raise SIPCoreError("Unknown direction: %s" % direction)
+            self.direction = direction
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def update_sdp(self, local_sdp, remote_sdp, index):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._obj == NULL:
+                raise SIPCoreError("Stream is not active")
+            self._sdp_info.local_media = local_sdp.media[index]
+            self._sdp_info.local_sdp = local_sdp
+            self._sdp_info.remote_sdp = remote_sdp
+            self._sdp_info.index = index
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def pause(self, direction="both"):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+        cdef pjmedia_dir pj_dir
+
+        _get_ua()
+
+        if direction not in ("incoming", "outgoing", "both"):
+            raise ValueError("direction can only be one of 'incoming', 'outgoing' or 'both'")
+
+        if direction == "incoming":
+            pj_dir = PJMEDIA_DIR_RENDER
+        elif direction == "outgoing":
+            pj_dir = PJMEDIA_DIR_CAPTURE
+        else:
+            pj_dir = PJMEDIA_DIR_CAPTURE_RENDER
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+            if self._obj == NULL:
+                raise SIPCoreError("Stream is not active")
+            with nogil:
+                status = pjmedia_vid_stream_pause(stream, pj_dir)
+            if status != 0:
+                raise PJSIPError("failed to pause video stream", status)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def resume(self, direction="both"):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+        cdef pjmedia_dir pj_dir
+
+        _get_ua()
+
+        if direction not in ("incoming", "outgoing", "both"):
+            raise ValueError("direction can only be one of 'incoming', 'outgoing' or 'both'")
+
+        if direction == "incoming":
+            pj_dir = PJMEDIA_DIR_RENDER
+        elif direction == "outgoing":
+            pj_dir = PJMEDIA_DIR_CAPTURE
+        else:
+            pj_dir = PJMEDIA_DIR_CAPTURE_RENDER
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+            if self._obj == NULL:
+                raise SIPCoreError("Stream is not active")
+            with nogil:
+                status = pjmedia_vid_stream_resume(stream, pj_dir)
+            if status != 0:
+                raise PJSIPError("failed to resume video stream", status)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def send_keyframe(self):
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+            if self._obj == NULL:
+                raise SIPCoreError("Stream is not active")
+            # Do not check for errors, it's OK if we can't send it
+            pjmedia_vid_stream_send_keyframe(stream)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_rtcp_stat stat
+        cdef pjmedia_vid_stream *stream
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+            if stream == NULL:
+                return 0
+            if self._timer is None:
+                return 0
+            self._timer = None
+            with nogil:
+                status = pjmedia_vid_stream_get_stat(stream, &stat)
+            if status == 0:
+                if self._packets_received == stat.rx.pkt and self.direction == "sendrecv":
+                    _add_event("VideoTransportDidTimeout", dict(obj=self))
+                self._packets_received = stat.rx.pkt
+                if timer.media_check_interval > 0:
+                    self._timer = MediaCheckTimer(timer.media_check_interval)
+                    self._timer.schedule(timer.media_check_interval, <timer_callback>self._cb_check_rtp, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+
 cdef class ICECandidate:
     def __init__(self, component, cand_type, address, port, priority, rel_addr=''):
         self.component = component

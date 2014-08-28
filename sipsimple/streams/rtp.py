@@ -6,7 +6,7 @@ Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
 RFC2833 and RFC3711, RFC3489 and draft-ietf-mmusic-ice-19.
 """
 
-__all__ = ['AudioStream']
+__all__ = ['AudioStream', 'VideoStream']
 
 from threading import RLock
 
@@ -17,9 +17,10 @@ from zope.interface import implements
 from sipsimple.account import BonjourAccount
 from sipsimple.audio import AudioBridge, AudioDevice, IAudioPort, WaveRecorder
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import AudioTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
+from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
+from sipsimple.video import IVideoProducer
 
 
 class AudioStream(object):
@@ -108,6 +109,10 @@ class AudioStream(object):
         return self._rtp_transport.local_rtp_port if self._rtp_transport else None
 
     @property
+    def local_rtp_candidate(self):
+        return self._rtp_transport.local_rtp_candidate if self._rtp_transport else None
+
+    @property
     def remote_rtp_address(self):
         if self._ice_state == "IN_USE":
             return self._rtp_transport.remote_rtp_address if self._rtp_transport else None
@@ -118,10 +123,6 @@ class AudioStream(object):
         if self._ice_state == "IN_USE":
             return self._rtp_transport.remote_rtp_port if self._rtp_transport else None
         return self._remote_rtp_port_sdp if self._rtp_transport else None
-
-    @property
-    def local_rtp_candidate(self):
-        return self._rtp_transport.local_rtp_candidate if self._rtp_transport else None
 
     @property
     def remote_rtp_candidate(self):
@@ -515,6 +516,394 @@ class AudioStream(object):
         finally:
             self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             self._audio_rec = None
+
+    def _save_remote_sdp_rtp_info(self, remote_sdp, index):
+        connection = remote_sdp.media[index].connection or remote_sdp.connection
+        self._remote_rtp_address_sdp = connection.address
+        self._remote_rtp_port_sdp = remote_sdp.media[index].port
+
+
+class VideoStream(object):
+    __metaclass__ = MediaStreamType
+    implements(IMediaStream, IVideoProducer, IObserver)
+
+    type = 'video'
+    priority = 1
+
+    hold_supported = True
+
+    def __init__(self):
+        from sipsimple.application import SIPApplication
+        self.device = SIPApplication.video_device
+
+        self.notification_center = NotificationCenter()
+
+        self.on_hold_by_local = False
+        self.on_hold_by_remote = False
+        self.direction = None
+        self.state = "NULL"
+
+        self._video_transport = None
+        self._rtp_transport = None
+
+        self._hold_request = None
+        self._ice_state = "NULL"
+        self._lock = RLock()
+        self.session = None
+        self._try_ice = False
+        self._try_forced_srtp = False
+        self._use_srtp = False
+        self._remote_rtp_address_sdp = None
+        self._remote_rtp_port_sdp = None
+
+    @property
+    def producer(self):
+        return self._video_transport.remote_video if self._video_transport else None
+
+    @property
+    def codec(self):
+        return self._video_transport.codec if self._video_transport else None
+
+    @property
+    def sample_rate(self):
+        return self._video_transport.sample_rate if self._video_transport else None
+
+    @property
+    def statistics(self):
+        return self._video_transport.statistics if self._video_transport else None
+
+    @property
+    def local_rtp_address(self):
+        return self._rtp_transport.local_rtp_address if self._rtp_transport else None
+
+    @property
+    def local_rtp_port(self):
+        return self._rtp_transport.local_rtp_port if self._rtp_transport else None
+
+    @property
+    def local_rtp_candidate(self):
+        return self._rtp_transport.local_rtp_candidate if self._rtp_transport else None
+
+    @property
+    def remote_rtp_address(self):
+        if self._ice_state == "IN_USE":
+            return self._rtp_transport.remote_rtp_address if self._rtp_transport else None
+        return self._remote_rtp_address_sdp if self._rtp_transport else None
+
+    @property
+    def remote_rtp_port(self):
+        if self._ice_state == "IN_USE":
+            return self._rtp_transport.remote_rtp_port if self._rtp_transport else None
+        return self._remote_rtp_port_sdp if self._rtp_transport else None
+
+    @property
+    def remote_rtp_candidate(self):
+        return self._rtp_transport.remote_rtp_candidate if self._rtp_transport else None
+
+    @property
+    def srtp_active(self):
+        return self._rtp_transport.srtp_active if self._rtp_transport else False
+
+    @property
+    def ice_active(self):
+        return self._ice_state == "IN_USE"
+
+    @property
+    def on_hold(self):
+        return self.on_hold_by_local or self.on_hold_by_remote
+
+    @classmethod
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
+        # TODO: actually validate the SDP
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'video':
+            raise UnknownStreamError
+        if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
+            raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in video stream, got %s" % remote_stream.transport)
+        if session.account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
+            raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
+        stream = cls()
+        if stream.device.producer is None:
+            raise InvalidStreamError("no video support available")
+        stream._incoming_remote_sdp = remote_sdp
+        stream._incoming_stream_index = stream_index
+        stream._incoming_stream_has_srtp = remote_stream.has_srtp
+        stream._incoming_stream_has_srtp_forced = remote_stream.transport == 'RTP/SAVP'
+        return stream
+
+    def pause(self, direction='outgoing'):
+        if self._video_transport is not None:
+            self._video_transport.pause(direction)
+            if direction in ('outgoing', 'both'):
+                self._video_transport.local_video.producer = None
+
+    def resume(self, direction='outgoing'):
+        if self._video_transport is not None:
+            self._video_transport.resume(direction)
+            if direction in ('outgoing', 'both'):
+                self._video_transport.local_video.producer = self.device.producer
+
+    def initialize(self, session, direction):
+        with self._lock:
+            if self.state != "NULL":
+                raise RuntimeError("VideoStream.initialize() may only be called in the NULL state")
+            if self.device.producer is None:
+                self.state = "ENDED"
+                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="no video support available"))
+                return
+            self.state = "INITIALIZING"
+            self.session = session
+            if hasattr(self, "_incoming_remote_sdp"):
+                # ICE attributes could come at the session level or at the media level
+                remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
+                self._try_ice = self.session.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
+                self._use_srtp = self._incoming_stream_has_srtp and ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
+                self._try_forced_srtp = self._incoming_stream_has_srtp_forced
+                if self._incoming_stream_has_srtp_forced and not self._use_srtp:
+                    self.state = "ENDED"
+                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
+                    return
+                del self._incoming_stream_has_srtp
+                del self._incoming_stream_has_srtp_forced
+            else:
+                self._try_ice = self.session.account.nat_traversal.use_ice
+                self._use_srtp = ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
+                self._try_forced_srtp = self.session.account.rtp.srtp_encryption == "mandatory"
+
+            self.notification_center.add_observer(self, name='VideoDeviceDidChangeCamera')
+
+            if self._try_ice:
+                if self.session.account.nat_traversal.stun_server_list:
+                    stun_servers = list((server.host, server.port) for server in self.session.account.nat_traversal.stun_server_list)
+                    self._init_rtp_transport(stun_servers)
+                elif self.session.account is not BonjourAccount():
+                    dns_lookup = DNSLookup()
+                    self.notification_center.add_observer(self, sender=dns_lookup)
+                    dns_lookup.lookup_service(SIPURI(self.session.account.id.domain), "stun")
+            else:
+                self._init_rtp_transport()
+
+    def get_local_media(self, remote_sdp=None, index=0):
+        with self._lock:
+            if self.state not in ["INITIALIZED", "WAIT_ICE", "ESTABLISHED"]:
+                raise RuntimeError("VideoStream.get_local_media() may only be called in the INITIALIZED, WAIT_ICE  or ESTABLISHED states")
+            if remote_sdp is None:
+                # offer
+                old_direction = self._video_transport.direction
+                if old_direction is None:
+                    new_direction = "sendrecv"
+                elif "send" in old_direction:
+                    new_direction = ("sendonly" if (self._hold_request == 'hold' or (self._hold_request is None and self.on_hold_by_local)) else "sendrecv")
+                else:
+                    new_direction = ("inactive" if (self._hold_request == 'hold' or (self._hold_request is None and self.on_hold_by_local)) else "recvonly")
+            else:
+                new_direction = None
+            return self._video_transport.get_local_media(remote_sdp, index, new_direction)
+
+    def start(self, local_sdp, remote_sdp, stream_index):
+        with self._lock:
+            if self.state != "INITIALIZED":
+                raise RuntimeError("VideoStream.start() may only be called in the INITIALIZED state")
+            settings = SIPSimpleSettings()
+            self._video_transport.start(local_sdp, remote_sdp, stream_index, timeout=settings.rtp.timeout)
+            self._video_transport.local_video.producer = self.device.producer
+            self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
+            self._check_hold(self._video_transport.direction, True)
+            if self._try_ice and self._ice_state == "NULL":
+                self.state = 'WAIT_ICE'
+            else:
+                self._video_transport.send_keyframe()
+                self.state = 'ESTABLISHED'
+                self.notification_center.post_notification('MediaStreamDidStart', sender=self)
+
+    def validate_update(self, remote_sdp, stream_index):
+        with self._lock:
+            # TODO: implement
+            return True
+
+    def update(self, local_sdp, remote_sdp, stream_index):
+        with self._lock:
+            new_direction = local_sdp.media[stream_index].direction
+            self._check_hold(new_direction, False)
+            self._video_transport.update_direction(new_direction)
+            self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
+            self._video_transport.update_sdp(local_sdp, remote_sdp, stream_index)
+            self._hold_request = None
+
+    def hold(self):
+        with self._lock:
+            if self.on_hold_by_local or self._hold_request == 'hold':
+                return
+            if self.state == "ESTABLISHED" and self.direction != "inactive":
+                self._video_transport.pause()
+            self._hold_request = 'hold'
+
+    def unhold(self):
+        with self._lock:
+            if (not self.on_hold_by_local and self._hold_request != 'hold') or self._hold_request == 'unhold':
+                return
+            if self.state == "ESTABLISHED" and self._hold_request == 'hold':
+                self._video_transport.resume()
+                self._video_transport.send_keyframe()
+            self._hold_request = None if self._hold_request == 'hold' else 'unhold'
+
+    def deactivate(self):
+        with self._lock:
+            self.notification_center.discard_observer(self, name='VideoDeviceDidChangeCamera')
+
+    def end(self):
+        with self._lock:
+            if self.state != "ENDED":
+                if self._video_transport is not None:
+                    self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
+                    self._video_transport.stop()
+                    self.notification_center.remove_observer(self, sender=self._video_transport)
+                    self._video_transport = None
+                    self._rtp_transport = None
+                    self.state = "ENDED"
+                    self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
+                else:
+                    self.state = "ENDED"
+            self.session = None
+
+    def reset(self, stream_index):
+        pass
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_DNSLookupDidFail(self, notification):
+        with self._lock:
+            self.notification_center.remove_observer(self, sender=notification.sender)
+            if self.state == "ENDED":
+                return
+            self._init_rtp_transport()
+
+    def _NH_DNSLookupDidSucceed(self, notification):
+        with self._lock:
+            self.notification_center.remove_observer(self, sender=notification.sender)
+            if self.state == "ENDED":
+                return
+            self._init_rtp_transport(notification.data.result)
+
+    def _NH_RTPTransportDidFail(self, notification):
+        with self._lock:
+            self.notification_center.remove_observer(self, sender=notification.sender)
+            if self.state == "ENDED":
+                return
+            self._try_next_rtp_transport(notification.data.reason)
+
+    def _NH_RTPTransportDidInitialize(self, notification):
+        settings = SIPSimpleSettings()
+        rtp_transport = notification.sender
+        with self._lock:
+            if not rtp_transport.use_ice:
+                self.notification_center.remove_observer(self, sender=rtp_transport)
+            if self.state == "ENDED":
+                return
+            del self._rtp_args
+            del self._stun_servers
+            codecs=list(self.session.account.rtp.video_codec_list or settings.rtp.video_codec_list)
+            try:
+                if hasattr(self, "_incoming_remote_sdp"):
+                    try:
+                        video_transport = VideoTransport(rtp_transport, self._incoming_remote_sdp, self._incoming_stream_index, codecs=codecs)
+                        self._save_remote_sdp_rtp_info(self._incoming_remote_sdp, self._incoming_stream_index)
+                    finally:
+                        del self._incoming_remote_sdp
+                        del self._incoming_stream_index
+                else:
+                    video_transport = VideoTransport(rtp_transport, codecs=codecs)
+            except SIPCoreError, e:
+                self.state = "ENDED"
+                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
+                return
+            self._rtp_transport = rtp_transport
+            self._video_transport = video_transport
+            self.notification_center.add_observer(self, sender=video_transport)
+            self.state = "INITIALIZED"
+            self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
+
+    def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
+        self.notification_center.post_notification('VideoStreamICENegotiationStateDidChange', sender=self, data=notification.data)
+
+    def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
+        rtp_transport = notification.sender
+        self.notification_center.remove_observer(self, sender=rtp_transport)
+        with self._lock:
+            if self.state != "WAIT_ICE":
+                return
+            self._ice_state = "IN_USE"
+            self.notification_center.post_notification('VideoStreamICENegotiationDidSucceed', sender=self, data=notification.data)
+            self._video_transport.send_keyframe()
+            self.state = 'ESTABLISHED'
+            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
+
+    def _NH_RTPTransportICENegotiationDidFail(self, notification):
+        rtp_transport = notification.sender
+        self.notification_center.remove_observer(self, sender=rtp_transport)
+        with self._lock:
+            self.notification_center.post_notification('VideoStreamICENegotiationDidFail', sender=self, data=notification.data)
+            if self.state != "WAIT_ICE":
+                return
+            self._ice_state = "FAILED"
+            self._video_transport.send_keyframe()
+            self.state = 'ESTABLISHED'
+            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
+
+    def _NH_VideoTransportDidTimeout(self, notification):
+        self.notification_center.post_notification('VideoStreamDidTimeout', sender=self)
+
+    def _NH_VideoDeviceDidChangeCamera(self, notification):
+        new_camera = notification.data.new_camera
+        if self._video_transport is not None and self._video_transport.local_video is not None:
+            self._video_transport.local_video.producer = new_camera
+
+    def _init_rtp_transport(self, stun_servers=None):
+        self._rtp_args = dict()
+        self._rtp_args["use_srtp"] = self._use_srtp
+        self._rtp_args["srtp_forced"] = self._use_srtp and self._try_forced_srtp
+        self._rtp_args["use_ice"] = self._try_ice
+        self._stun_servers = [(None, None)]
+        if stun_servers:
+            self._stun_servers.extend(reversed(stun_servers))
+        self._try_next_rtp_transport()
+
+    def _try_next_rtp_transport(self, failure_reason=None):
+        if self._stun_servers:
+            stun_address, stun_port = self._stun_servers.pop()
+            try:
+                rtp_transport = RTPTransport(ice_stun_address=stun_address, ice_stun_port=stun_port, **self._rtp_args)
+                self.notification_center.add_observer(self, sender=rtp_transport)
+                rtp_transport.set_INIT()
+            except SIPCoreError, e:
+                self.notification_center.discard_observer(self, sender=rtp_transport)
+                self._try_next_rtp_transport(e.args[0])
+        else:
+            self.state = "ENDED"
+            self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=failure_reason))
+
+    def _check_hold(self, direction, is_initial):
+        was_on_hold_by_local = self.on_hold_by_local
+        was_on_hold_by_remote = self.on_hold_by_remote
+        self.direction = direction
+        inactive = self.direction == "inactive"
+        self.on_hold_by_local = was_on_hold_by_local if inactive else direction == "sendonly"
+        self.on_hold_by_remote = "send" not in direction
+        if self.on_hold_by_local or self.on_hold_by_remote:
+            self._video_transport.pause()
+        elif not self.on_hold_by_local and not self.on_hold_by_remote and (was_on_hold_by_local or was_on_hold_by_remote):
+            self._video_transport.resume()
+            self._video_transport.send_keyframe()
+        if not was_on_hold_by_local and self.on_hold_by_local:
+            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
+        if was_on_hold_by_local and not self.on_hold_by_local:
+            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
+        if not was_on_hold_by_remote and self.on_hold_by_remote:
+            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
+        if was_on_hold_by_remote and not self.on_hold_by_remote:
+            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
 
     def _save_remote_sdp_rtp_info(self, remote_sdp, index):
         connection = remote_sdp.media[index].connection or remote_sdp.connection

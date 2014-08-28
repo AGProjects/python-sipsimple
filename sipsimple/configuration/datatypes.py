@@ -11,6 +11,8 @@ __all__ = [# Base datatypes
            'PJSIPLogLevel',
            # Audio datatypes
            'AudioCodecList', 'SampleRate',
+           # Video datatypes
+           'H264Profile', 'VideoDeviceResolution', 'VideoResolution', 'VideoCodecList',
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
@@ -22,6 +24,8 @@ import locale
 import os
 import re
 import urlparse
+
+from operator import itemgetter
 
 
 ## Base datatypes
@@ -194,11 +198,10 @@ class PJSIPLogLevel(int):
         return value
 
 
-## Audio datatypes
-
-class AudioCodecList(List):
+class CodecList(List):
     type = str
-    available_values = {'opus', 'speex', 'G722', 'GSM', 'iLBC', 'PCMU', 'PCMA'}
+    available_values = None    # to be defined in a subclass
+
     def _get_values(self):
         return self.__dict__['values']
     def _set_values(self, values):
@@ -209,6 +212,12 @@ class AudioCodecList(List):
     del _get_values, _set_values
 
 
+## Audio datatypes
+
+class AudioCodecList(CodecList):
+    available_values = {'opus', 'speex', 'G722', 'GSM', 'iLBC', 'PCMU', 'PCMA'}
+
+
 class SampleRate(int):
     valid_values = (16000, 32000, 44100, 48000)
     def __new__(cls, value):
@@ -216,6 +225,50 @@ class SampleRate(int):
         if value not in cls.valid_values:
             raise ValueError("illegal sample rate: %d" % value)
         return value
+
+
+## Video datatypes
+
+class H264Profile(str):
+    valid_values = ('baseline', 'main', 'high')
+
+    def __new__(cls, value):
+        if value.lower() not in cls.valid_values:
+            raise ValueError('invalid value, must be one of %r' % cls.valid_values)
+        return str.__new__(cls, value.lower())
+
+
+class VideoDeviceResolution(str):
+    valid_values = ('auto', 'vga', '720p', '1080p')
+
+    def __new__(cls, value):
+        if value.lower() not in cls.valid_values:
+            raise ValueError('invalid value, must be one of %r' % cls.valid_values)
+        return str.__new__(cls, value.lower())
+
+
+class VideoResolution(tuple):
+    width = property(itemgetter(0))
+    height = property(itemgetter(1))
+
+    def __new__(cls, value):
+        if isinstance(value, tuple):
+            width, height = tuple
+        elif isinstance(value, basestring):
+            width, height = value.split('x')
+        else:
+            raise ValueError('invalid value: %r' % value)
+        return tuple.__new__(cls, (int(width), int(height)))
+
+    def __unicode__(self):
+        return u'%dx%d' % (self.width, self.height)
+
+    def __repr__(self):
+        return '%s(%d, %d)' % (self.__class__.__name__, self.width, self.height)
+
+
+class VideoCodecList(CodecList):
+    available_values = {'H264'}
 
 
 ## Address and transport datatypes

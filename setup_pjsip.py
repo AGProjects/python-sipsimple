@@ -12,11 +12,19 @@ import sys
 from application.version import Version
 
 
+if sys.platform.startswith('linux'):
+    sys_platform = 'linux'
+elif sys.platform.startswith('freebsd'):
+    sys_platform = 'freebsd'
+else:
+    sys_platform = sys.platform
+
+
 # Hack to set environment variables before importing distutils
 # modules that will fetch them and set the compiler and linker
 # to be used. -Saul
 
-if sys.platform == "darwin":
+if sys_platform == "darwin":
     sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
     sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
     sdk_dir = "MacOSX%s.sdk" % sipsimple_osx_sdk
@@ -45,9 +53,9 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_MAX_PKT_LEN 262144",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
                    "#define PJMEDIA_HAS_L16_CODEC 0",
-                   "#define PJMEDIA_AUDIO_DEV_HAS_COREAUDIO %d" % (1 if sys.platform=="darwin" else 0),
-                   "#define PJMEDIA_AUDIO_DEV_HAS_ALSA %d" % (1 if sys.platform.startswith("linux") else 0),
-                   "#define PJMEDIA_AUDIO_DEV_HAS_WMME %d" % (1 if sys.platform=="win32" else 0),
+                   "#define PJMEDIA_AUDIO_DEV_HAS_COREAUDIO %d" % (1 if sys_platform=="darwin" else 0),
+                   "#define PJMEDIA_AUDIO_DEV_HAS_ALSA %d" % (1 if sys_platform=="linux" else 0),
+                   "#define PJMEDIA_AUDIO_DEV_HAS_WMME %d" % (1 if sys_platform=="win32" else 0),
                    "#define PJMEDIA_HAS_SPEEX_AEC 0",
                    "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if re.match('i\d86|x86|x86_64', platform.machine()) else 0),
                    "#define PJMEDIA_RTP_PT_TELEPHONE_EVENTS 101",
@@ -62,7 +70,17 @@ class PJSIP_build_ext(build_ext):
                    "#define PJ_DNS_RESOLVER_INVALID_TTL 0",
                    "#define PJSIP_TRANSPORT_IDLE_TIME 7200",
                    "#define PJ_ENABLE_EXTRA_CHECK 1",
-                   "#define PJSIP_DONT_SWITCH_TO_TCP 1"]
+                   "#define PJSIP_DONT_SWITCH_TO_TCP 1",
+                   "#define PJMEDIA_HAS_VIDEO 1",
+                   "#define PJMEDIA_HAS_FFMPEG 1",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_SDL 0",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_FB 1",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_FFMPEG 0",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_AVI 0",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_V4L2 %d" % (1 if sys_platform=="linux" else 0),
+                   "#define PJMEDIA_VIDEO_DEV_HAS_QT %d" % (1 if sys_platform=="darwin" else 0),
+                   "#define PJMEDIA_VIDEO_DEV_HAS_DSHOW %d" % (1 if sys_platform=="win32" else 0),
+                   "#define PJMEDIA_VIDEO_DEV_HAS_CBAR_SRC 0"]
 
     user_options = build_ext.user_options
     user_options.extend([
@@ -96,7 +114,7 @@ class PJSIP_build_ext(build_ext):
 
     @staticmethod
     def get_make_cmd():
-        if sys.platform.startswith("freebsd"):
+        if sys_platform == "freebsd":
             return "gmake"
         else:
             return "make"
@@ -148,10 +166,15 @@ class PJSIP_build_ext(build_ext):
             cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
-        if sys.platform == "win32":
-            cmd = ["bash", "configure", "--disable-video"]
+        if sys_platform == "win32":
+            cmd = ["bash", "configure"]
         else:
-            cmd = ["./configure", "--disable-video"]
+            cmd = ["./configure"]
+        # TODO: remove these from the actual source tree -Saul
+        cmd.extend(["--disable-sdl", "--disable-silk", "--disable-opencore-amr", "--disable-g7221-codec", "--disable-l16-codec"])
+        video_libraries_path = env.get("SIPSIMPLE_FFMPEG_PATH", None)
+        if video_libraries_path is not None:
+            cmd.append("--with-ffmpeg=%s" % video_libraries_path)
         self.distutils_exec_process(cmd, silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         if "#define PJ_HAS_SSL_SOCK 1\n" not in open(os.path.join(self.build_dir, "pjlib", "include", "pj", "compat", "os_auto.h")).readlines():
             os.remove(os.path.join(self.build_dir, "build.mak"))
@@ -180,7 +203,7 @@ class PJSIP_build_ext(build_ext):
         extension.define_macros.append(("__PYX_FORCE_INIT_THREADS", 1))
         extension.extra_compile_args.append("-Wno-unused-function")    # silence warning
 
-        if sys.platform == "darwin":
+        if sys_platform == "darwin":
             frameworks = re.findall("-framework (\S+)(?:\s|$)", build_mak_vars["PJ_LDLIBS"])
             extension.extra_link_args = list(itertools.chain(*(("-framework", val) for val in frameworks)))
             extension.extra_link_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)

@@ -299,7 +299,6 @@ cdef class AudioMixer:
     # private methods
 
     cdef void _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device, int ec_tail_length):
-        global device_name_encoding
         cdef int idx
         cdef int input_device_i = -99
         cdef int output_device_i = -99
@@ -345,10 +344,10 @@ cdef class AudioMixer:
                     if status != 0:
                         raise PJSIPError("Could not get audio device info", status)
                     if (input_device is not None and input_device_i == -99 and
-                        dev_info.input_count > 0 and dev_info.name.decode(device_name_encoding) == input_device):
+                        dev_info.input_count > 0 and decode_device_name(dev_info.name) == input_device):
                         input_device_i = i
                     if (output_device is not None and output_device_i == -99 and
-                        dev_info.output_count > 0 and dev_info.name.decode(device_name_encoding) == output_device):
+                        dev_info.output_count > 0 and decode_device_name(dev_info.name) == output_device):
                         output_device_i = i
                 if input_device_i == -99 and input_device is not None:
                     input_device_i = PJMEDIA_AUD_DEFAULT_CAPTURE_DEV
@@ -415,13 +414,13 @@ cdef class AudioMixer:
                             status = pjmedia_aud_dev_get_info(aud_param.rec_id, &dev_info)
                         if status != 0:
                             raise PJSIPError("Could not get audio device info", status)
-                        self.real_input_device = dev_info.name.decode(device_name_encoding)
+                        self.real_input_device = decode_device_name(dev_info.name)
                     if output_device_i == PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV:
                         with nogil:
                             status = pjmedia_aud_dev_get_info(aud_param.play_id, &dev_info)
                         if status != 0:
                             raise PJSIPError("Could not get audio device info", status)
-                        self.real_output_device = dev_info.name.decode(device_name_encoding)
+                        self.real_output_device = decode_device_name(dev_info.name)
             if input_device_i != PJMEDIA_AUD_DEFAULT_CAPTURE_DEV:
                 self.real_input_device = input_device
             if output_device_i != PJMEDIA_AUD_DEFAULT_PLAYBACK_DEV:

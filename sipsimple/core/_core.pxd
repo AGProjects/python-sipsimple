@@ -15,6 +15,7 @@ from libc.string cimport memcpy
 # Python C imports
 
 from cpython.float cimport PyFloat_AsDouble
+from cpython.pycapsule cimport PyCapsule_New
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from cpython.string cimport PyString_FromString, PyString_FromStringAndSize, PyString_AsString, PyString_Size
 
@@ -80,6 +81,7 @@ cdef extern from "pjlib.h":
     void pj_pool_reset(pj_pool_t *pool) nogil
     pj_pool_t *pj_pool_create_on_buf(char *name, void *buf, int size) nogil
     pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src) nogil
+    void pj_pool_release(pj_pool_t *pool) nogil
 
     # threads
     enum:
@@ -270,10 +272,38 @@ cdef extern from "pjmedia.h":
         PJMEDIA_AUD_DEV_CAP_EC
         PJMEDIA_AUD_DEV_CAP_EC_TAIL
 
+    enum:
+        PJMEDIA_VID_DEFAULT_CAPTURE_DEV
+        PJMEDIA_VID_DEFAULT_RENDER_DEV
+        PJMEDIA_VID_INVALID_DEV
+
     enum pjmedia_dir:
         PJMEDIA_DIR_PLAYBACK
+        PJMEDIA_DIR_RENDER
         PJMEDIA_DIR_CAPTURE
         PJMEDIA_DIR_CAPTURE_PLAYBACK
+        PJMEDIA_DIR_CAPTURE_RENDER
+
+    enum pjmedia_type:
+        PJMEDIA_TYPE_NONE
+        PJMEDIA_TYPE_NONEYPE_AUDIO
+        PJMEDIA_TYPE_VIDEO
+        PJMEDIA_TYPE_APPLICATION
+        PJMEDIA_TYPE_UNKNOWN
+
+    struct pjmedia_rect_size:
+        unsigned int w
+        unsigned int h
+
+    struct pjmedia_ratio:
+        int num
+        int denum
+
+    # frame
+    struct pjmedia_frame:
+        void *buf
+        int size
+    ctypedef pjmedia_frame *pjmedia_frame_ptr_const "const pjmedia_frame *"
 
     # codec manager
     struct pjmedia_codec_mgr
@@ -283,8 +313,7 @@ cdef extern from "pjmedia.h":
         pj_str_t encoding_name
         unsigned int clock_rate
         unsigned int channel_cnt
-    int pjmedia_codec_mgr_enum_codecs(pjmedia_codec_mgr *mgr, unsigned int *count,
-                                      pjmedia_codec_info *info, unsigned int *prio) nogil
+    int pjmedia_codec_mgr_enum_codecs(pjmedia_codec_mgr *mgr, unsigned int *count, pjmedia_codec_info *info, unsigned int *prio) nogil
     int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio) nogil
 
     # transport manager
@@ -298,17 +327,99 @@ cdef extern from "pjmedia.h":
     ctypedef void (*pjsip_tp_state_callback)(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil
     int pjsip_tpmgr_set_state_cb(pjsip_tpmgr *mgr, pjsip_tp_state_callback cb)
 
+    # formats
+    enum pjmedia_format_detail_type:
+        PJMEDIA_FORMAT_DETAIL_NONE
+        PJMEDIA_FORMAT_DETAIL_AUDIO
+        PJMEDIA_FORMAT_DETAIL_VIDEO
+        PJMEDIA_FORMAT_DETAIL_MAX
+    struct pjmedia_audio_format_detail:
+        unsigned int clock_rate
+        unsigned int channel_count
+        unsigned int frame_time_usec
+        unsigned int baseits_per_sample
+        unsigned int avg_bps
+        unsigned int max_bps
+    struct pjmedia_video_format_detail:
+        pjmedia_rect_size size
+        pjmedia_ratio fps
+        unsigned int avg_bps
+        unsigned int max_bps
+    cdef union pjmedia_format_union:
+        pjmedia_audio_format_detail aud
+        pjmedia_video_format_detail vid
+        char user[1]
+    struct pjmedia_format:
+        unsigned int id
+        pjmedia_type type
+        pjmedia_format_detail_type detail_type
+        pjmedia_format_union det
+    ctypedef pjmedia_format *pjmedia_format_ptr_const "const pjmedia_format *"
+    enum:
+        PJMEDIA_CODEC_MAX_FMTP_CNT
+    struct _param:
+        pj_str_t name
+        pj_str_t val
+    struct pjmedia_codec_fmtp:
+        int cnt
+        _param param[PJMEDIA_CODEC_MAX_FMTP_CNT]
+
+    # video codec parameters
+    enum pjmedia_vid_packing:
+        PJMEDIA_VID_PACKING_PACKETS
+    struct pjmedia_vid_codec_param:
+        pjmedia_dir dir
+        pjmedia_vid_packing packing
+        pjmedia_format enc_fmt
+        pjmedia_codec_fmtp enc_fmtp
+        pjmedia_format dec_fmt
+        pjmedia_codec_fmtp dec_fmtp
+    ctypedef pjmedia_vid_codec_param *pjmedia_vid_codec_param_ptr_const "const pjmedia_vid_codec_param *"
+
+    # video codec manager
+    enum:
+        PJMEDIA_VID_CODEC_MGR_MAX_CODECS
+    struct pjmedia_vid_codec_info:
+        pj_str_t encoding_name
+        unsigned int pt
+        unsigned int clock_rate
+        unsigned int packings
+    ctypedef pjmedia_vid_codec_info *pjmedia_vid_codec_info_ptr_const "const pjmedia_vid_codec_info *"
+    struct pjmedia_vid_codec_mgr
+    int pjmedia_vid_codec_mgr_create(pj_pool_t *pool, pjmedia_vid_codec_mgr **mgr) nogil
+    void pjmedia_vid_codec_mgr_destroy(pjmedia_vid_codec_mgr *mgr) nogil
+    pjmedia_vid_codec_mgr* pjmedia_vid_codec_mgr_instance() nogil
+    int pjmedia_vid_codec_mgr_enum_codecs(pjmedia_vid_codec_mgr *mgr, unsigned int *count, pjmedia_vid_codec_info *info, unsigned int *prio) nogil
+    int pjmedia_vid_codec_mgr_set_codec_priority(pjmedia_vid_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio) nogil
+    int pjmedia_vid_codec_mgr_get_default_param(pjmedia_vid_codec_mgr *mgr, pjmedia_vid_codec_info_ptr_const info, pjmedia_vid_codec_param *param) nogil
+    int pjmedia_vid_codec_mgr_set_default_param(pjmedia_vid_codec_mgr *mgr, pjmedia_vid_codec_info_ptr_const info, pjmedia_vid_codec_param_ptr_const param) nogil
+
+    # video format manager
+    struct pjmedia_video_format_mgr
+    int pjmedia_video_format_mgr_create(pj_pool_t *pool, unsigned int max_fmt, unsigned int options, pjmedia_video_format_mgr **p_mgr) nogil
+    void pjmedia_video_format_mgr_destroy(pjmedia_video_format_mgr *mgr) nogil
+    pjmedia_video_format_mgr* pjmedia_video_format_mgr_instance() nogil
+
+    # converter manager
+    struct pjmedia_converter_mgr
+    int pjmedia_converter_mgr_create(pj_pool_t *pool, pjmedia_converter_mgr **mgr) nogil
+    void pjmedia_converter_mgr_destroy(pjmedia_converter_mgr *mgr) nogil
+    pjmedia_converter_mgr* pjmedia_converter_mgr_instance() nogil
+
+    # event manager
+    struct pjmedia_event_mgr
+    int pjmedia_event_mgr_create(pj_pool_t *pool, unsigned int options, pjmedia_event_mgr **mgr) nogil
+    void pjmedia_event_mgr_destroy(pjmedia_event_mgr *mgr) nogil
+    pjmedia_event_mgr* pjmedia_event_mgr_instance() nogil
+
     # endpoint
     struct pjmedia_endpt
     int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt) nogil
+    pj_pool_t *pjmedia_endpt_create_pool(pjmedia_endpt *endpt, char *pool_name, int initial, int increment) nogil
     int pjmedia_endpt_destroy(pjmedia_endpt *endpt) nogil
     pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt) nogil
     pjmedia_codec_mgr *pjmedia_endpt_get_codec_mgr(pjmedia_endpt *endpt) nogil
     pjsip_tpmgr* pjsip_endpt_get_tpmgr(pjsip_endpoint *endpt)
-
-    # codecs
-    int pjmedia_codec_g711_init(pjmedia_endpt *endpt) nogil
-    int pjmedia_codec_g711_deinit() nogil
 
     # sound devices
     struct pjmedia_aud_dev_info:
@@ -341,7 +452,10 @@ cdef extern from "pjmedia.h":
     int pjmedia_aud_dev_refresh() nogil
 
     # sound port
-    struct pjmedia_port
+    struct pjmedia_port_info:
+        pjmedia_format fmt
+    struct pjmedia_port:
+        pjmedia_port_info info
     struct pjmedia_snd_port
     struct pjmedia_snd_port_param:
         pjmedia_aud_param base
@@ -381,6 +495,102 @@ cdef extern from "pjmedia.h":
     int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot) nogil
     int pjmedia_conf_adjust_rx_level(pjmedia_conf *conf, unsigned slot, int adj_level) nogil
     int pjmedia_conf_adjust_tx_level(pjmedia_conf *conf, unsigned slot, int adj_level) nogil
+
+    # video devices
+    enum pjmedia_vid_dev_cap:
+        PJMEDIA_VID_DEV_CAP_OUTPUT_HIDE
+        PJMEDIA_VID_DEV_CAP_OUTPUT_RESIZE
+        PJMEDIA_VID_DEV_CAP_OUTPUT_WINDOW_FLAGS
+    enum pjmedia_vid_dev_wnd_flag:
+        PJMEDIA_VID_DEV_WND_BORDER
+        PJMEDIA_VID_DEV_WND_RESIZABLE
+    struct pjmedia_vid_dev_info:
+        int id
+        char *name
+        int dir
+    cdef struct pjmedia_hwnd_win:
+        void *hwnd
+    cdef struct pjmedia_hwnd_x11:
+        void *window
+        void *display
+    cdef struct pjmedia_hwnd_cocoa:
+        void *window
+    cdef struct pjmedia_hwnd_ios:
+        void *window
+    cdef union pjmedia_hwnd_union:
+        pjmedia_hwnd_win win
+        pjmedia_hwnd_x11 x11
+        pjmedia_hwnd_cocoa cocoa
+        pjmedia_hwnd_ios ios
+        void *window
+    struct pjmedia_vid_dev_hwnd:
+        pjmedia_hwnd_union info
+    struct pjmedia_vid_dev_param:
+        pjmedia_dir dir
+        int cap_id
+        int rend_id
+        unsigned int flags
+        pjmedia_format fmt
+        pjmedia_vid_dev_hwnd window
+        pjmedia_rect_size disp_size
+        int window_hide
+        unsigned int window_flags
+    struct pjmedia_vid_dev_stream
+    int pjmedia_vid_dev_count() nogil
+    int pjmedia_vid_dev_get_info(int index, pjmedia_vid_dev_info *info) nogil
+    int pjmedia_vid_dev_subsys_init(pj_pool_factory *pf) nogil
+    int pjmedia_vid_dev_subsys_shutdown() nogil
+    int pjmedia_vid_dev_default_param(pj_pool_t *pool, int id, pjmedia_vid_dev_param *param) nogil
+    int pjmedia_vid_dev_stream_get_cap(pjmedia_vid_dev_stream *strm, pjmedia_vid_dev_cap cap, void *value) nogil
+    int pjmedia_vid_dev_stream_set_cap(pjmedia_vid_dev_stream *strm, pjmedia_vid_dev_cap cap, void *value) nogil
+    int pjmedia_vid_dev_stream_get_param(pjmedia_vid_dev_stream *strm, pjmedia_vid_dev_param *param) nogil
+    int pjmedia_vid_dev_refresh() nogil
+    int pjmedia_vid_dev_lookup(char_ptr_const drv_name, char_ptr_const dev_name,  int *id)
+
+    # video stream
+    struct pjmedia_vid_stream_info:
+        pjmedia_vid_codec_param *codec_param
+        pjmedia_vid_codec_info codec_info
+        int use_ka
+
+    struct pjmedia_vid_stream
+    ctypedef pjmedia_vid_stream *pjmedia_vid_stream_ptr_const "const pjmedia_vid_stream *"
+    int pjmedia_vid_stream_get_stat(pjmedia_vid_stream_ptr_const stream, pjmedia_rtcp_stat *stat) nogil
+    int pjmedia_vid_stream_info_from_sdp(pjmedia_vid_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
+                                         pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx) nogil
+    int pjmedia_vid_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_vid_stream_info *info,
+                                  pjmedia_transport *tp, void *user_data, pjmedia_vid_stream **p_stream) nogil
+    int pjmedia_vid_stream_start(pjmedia_vid_stream *stream) nogil
+    int pjmedia_vid_stream_destroy(pjmedia_vid_stream *stream) nogil
+    int pjmedia_vid_stream_get_port(pjmedia_vid_stream *stream, pjmedia_dir dir, pjmedia_port **p_port) nogil
+    int pjmedia_vid_stream_pause(pjmedia_vid_stream *stream, pjmedia_dir dir) nogil
+    int pjmedia_vid_stream_resume(pjmedia_vid_stream *stream, pjmedia_dir dir) nogil
+    int pjmedia_vid_stream_send_keyframe(pjmedia_vid_stream *stream) nogil
+    int pjmedia_vid_stream_send_rtcp_sdes(pjmedia_vid_stream *stream) nogil
+    int pjmedia_vid_stream_send_rtcp_bye(pjmedia_vid_stream *stream) nogil
+
+    # video port
+    struct pjmedia_vid_port
+    struct pjmedia_vid_port_param:
+        pjmedia_vid_dev_param vidparam
+        int active
+
+    void pjmedia_vid_port_param_default(pjmedia_vid_port_param *prm) nogil
+    ctypedef pjmedia_vid_port_param *pjmedia_vid_port_param_ptr_const "const pjmedia_vid_port_param *"
+    int pjmedia_vid_port_create(pj_pool_t *pool, pjmedia_vid_port_param_ptr_const prm, pjmedia_vid_port **p_vp) nogil
+    int pjmedia_vid_port_start(pjmedia_vid_port *vid_port) nogil
+    int pjmedia_vid_port_is_running(pjmedia_vid_port *vid_port) nogil
+    int pjmedia_vid_port_stop(pjmedia_vid_port *vid_port) nogil
+    int pjmedia_vid_port_connect(pjmedia_vid_port *vid_port, pjmedia_port *port, int destroy) nogil
+    pjmedia_port *pjmedia_vid_port_get_passive_port(pjmedia_vid_port *vid_port) nogil
+    int pjmedia_vid_port_disconnect(pjmedia_vid_port *vid_port) nogil
+    void pjmedia_vid_port_destroy(pjmedia_vid_port *vid_port) nogil
+    pjmedia_vid_dev_stream *pjmedia_vid_port_get_stream(pjmedia_vid_port *vid_port) nogil
+
+    # video tee
+    int pjmedia_vid_tee_create(pj_pool_t *pool, pjmedia_format_ptr_const fmt, unsigned int max_dst_cnt, pjmedia_port **p_vid_tee) nogil
+    int pjmedia_vid_tee_add_dst_port2(pjmedia_port *vid_tee, unsigned int option, pjmedia_port *port) nogil
+    int pjmedia_vid_tee_remove_dst_port(pjmedia_port *vid_tee, pjmedia_port *port) nogil
 
     # sdp
     enum:
@@ -497,6 +707,8 @@ cdef extern from "pjmedia.h":
                                       pj_sockaddr_ptr_const origin, pjmedia_sdp_session **p_sdp) nogil
     int pjmedia_endpt_create_audio_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_sock_info_ptr_const si,
                                        unsigned int options, pjmedia_sdp_media **p_media) nogil
+    int pjmedia_endpt_create_video_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_sock_info_ptr_const si,
+                                       unsigned int options, pjmedia_sdp_media **p_media) nogil
 
     # SRTP
     enum pjmedia_srtp_use:
@@ -605,11 +817,17 @@ cdef extern from "pjmedia.h":
     int pjmedia_tonegen_stop(pjmedia_port *tonegen) nogil
     int pjmedia_tonegen_is_busy(pjmedia_port *tonegen) nogil
 
+cdef extern from "pjmedia_videodev.h":
+    ctypedef void (*pjmedia_vid_dev_fb_frame_cb)(pjmedia_frame_ptr_const frame, pjmedia_rect_size size, void *user_data)
+    int pjmedia_vid_dev_fb_set_callback(pjmedia_vid_dev_stream *strm, pjmedia_vid_dev_fb_frame_cb cb, void *user_data)
+
 cdef extern from "pjmedia-codec.h":
 
     # codecs
     enum:
         PJMEDIA_SPEEX_NO_NB
+    int pjmedia_codec_g711_init(pjmedia_endpt *endpt) nogil
+    int pjmedia_codec_g711_deinit() nogil
     int pjmedia_codec_gsm_init(pjmedia_endpt *endpt) nogil
     int pjmedia_codec_gsm_deinit() nogil
     int pjmedia_codec_g722_init(pjmedia_endpt *endpt) nogil
@@ -620,6 +838,8 @@ cdef extern from "pjmedia-codec.h":
     int pjmedia_codec_ilbc_deinit() nogil
     int pjmedia_codec_speex_init(pjmedia_endpt *endpt, int options, int quality, int complexity) nogil
     int pjmedia_codec_speex_deinit() nogil
+    int pjmedia_codec_ffmpeg_vid_init(pjmedia_vid_codec_mgr *mgr, pj_pool_factory *pf) nogil
+    int pjmedia_codec_ffmpeg_vid_deinit() nogil
 
 cdef extern from "pjsip.h":
 
@@ -1156,18 +1376,28 @@ cdef class PJSIPEndpoint(object):
 cdef class PJMEDIAEndpoint(object):
     # attributes
     cdef pjmedia_endpt *_obj
+    cdef pj_pool_t *_pool
     cdef int _has_speex
     cdef int _has_g722
     cdef int _has_g711
     cdef int _has_ilbc
     cdef int _has_gsm
     cdef int _has_opus
+    cdef int _has_video
+    cdef int _has_ffmpeg_video
 
     # private methods
     cdef list _get_codecs(self)
     cdef list _get_all_codecs(self)
     cdef list _get_current_codecs(self)
     cdef int _set_codecs(self, list req_codecs) except -1
+    cdef list _get_video_codecs(self)
+    cdef list _get_all_video_codecs(self)
+    cdef list _get_current_video_codecs(self)
+    cdef int _set_video_codecs(self, list req_codecs) except -1
+    cdef void _video_subsystem_init(self, PJCachingPool caching_pool)
+    cdef void _video_subsystem_shutdown(self)
+    cdef void _set_h264_options(self, str profile, int level, tuple resolution, int framerate, int avg_bitrate, int max_bitrate)
 
 # core.helper
 
@@ -1538,10 +1768,13 @@ cdef class PJSIPUA(object):
     cdef set _incoming_requests
     cdef pj_rwmutex_t *audio_change_rwlock
     cdef list old_devices
+    cdef list old_video_devices
 
     # private methods
     cdef object _get_sound_devices(self, int is_output)
     cdef object _get_default_sound_device(self, int is_output)
+    cdef object _get_video_devices(self)
+    cdef object _get_default_video_device(self)
     cdef int _poll_log(self) except -1
     cdef int _handle_exception(self, int is_fatal) except -1
     cdef int _check_self(self) except -1
@@ -1654,6 +1887,61 @@ cdef class MixerPort(object):
 
 cdef int _AudioMixer_dealloc_handler(object obj) except -1
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
+
+# core.video
+
+cdef class VideoConsumer(object):
+    cdef pjmedia_port *consumer_port
+    cdef pjmedia_vid_port *_video_port
+    cdef pj_pool_t *_pool
+    cdef pj_mutex_t *_lock
+    cdef int _running
+    cdef int _closed
+    cdef VideoProducer _producer
+    cdef object __weakref__
+    cdef object weakref
+
+    cdef void _set_producer(self, VideoProducer producer)
+
+cdef class VideoProducer(object):
+    cdef pjmedia_port *producer_port
+    cdef pjmedia_vid_port *_video_port
+    cdef pj_pool_t *_pool
+    cdef pj_mutex_t *_lock
+    cdef int _running
+    cdef int _started
+    cdef int _closed
+    cdef object _consumers
+
+    cdef void _add_consumer(self, VideoConsumer consumer)
+    cdef void _remove_consumer(self, VideoConsumer consumer)
+
+cdef class VideoCamera(VideoProducer):
+    cdef pjmedia_port *_video_tee
+    cdef readonly unicode name
+    cdef readonly unicode real_name
+
+    cdef void _start(self)
+    cdef void _stop(self)
+
+cdef class FrameBufferVideoRenderer(VideoConsumer):
+    cdef pjmedia_vid_dev_stream *_video_stream
+    cdef object _frame_handler
+
+    cdef _initialize(self, VideoProducer producer)
+    cdef void _start(self)
+    cdef void _stop(self)
+
+cdef class LocalVideoStream(VideoConsumer):
+    cdef void _initialize(self, pjmedia_port *media_port)
+
+cdef class RemoteVideoStream(VideoProducer):
+    cdef void _initialize(self, pjmedia_port *media_port)
+
+cdef LocalVideoStream_create(pjmedia_vid_stream *stream)
+cdef RemoteVideoStream_create(pjmedia_vid_stream *stream)
+cdef void _start_video_port(pjmedia_vid_port *port)
+cdef void _stop_video_port(pjmedia_vid_port *port)
 
 # core.event
 
@@ -2181,6 +2469,29 @@ cdef class AudioTransport(object):
     cdef readonly AudioMixer mixer
     cdef readonly RTPTransport transport
     cdef SDPInfo _sdp_info
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil
+
+cdef class VideoTransport(object):
+    # attributes
+    cdef object __weakref__
+    cdef object weakref
+    cdef int _is_offer
+    cdef int _is_started
+    cdef unsigned int _packets_received
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_vid_stream *_obj
+    cdef pjmedia_vid_stream_info _stream_info
+    cdef dict _cached_statistics
+    cdef Timer _timer
+    cdef readonly object direction
+    cdef readonly RTPTransport transport
+    cdef SDPInfo _sdp_info
+    cdef readonly LocalVideoStream local_video
+    cdef readonly RemoteVideoStream remote_video
 
     # private methods
     cdef PJSIPUA _check_ua(self)

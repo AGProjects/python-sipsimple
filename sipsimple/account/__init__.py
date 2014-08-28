@@ -29,7 +29,7 @@ from sipsimple.account.subscription import MWISubscriber, PresenceWinfoSubscribe
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import Credentials, SIPURI, ContactURIFactory
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, VideoCodecList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads import ParserError
 from sipsimple.payloads.messagesummary import MessageSummary
@@ -58,6 +58,7 @@ class SIPSettings(SettingsGroup):
 
 class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecList, default=None, nillable=True)
+    video_codec_list = Setting(type=VideoCodecList, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='disabled')
     use_srtp_without_tls = Setting(type=bool, default=False)
 

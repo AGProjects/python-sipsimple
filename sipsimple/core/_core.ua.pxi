@@ -105,6 +105,7 @@ cdef class PJSIPUA:
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
         self.codecs = kwargs["codecs"]
+        self.video_codecs = kwargs["video_codecs"]
         self._module_name = PJSTR("mod-core")
         self._module.name = self._module_name.pj_str
         self._module.id = -1
@@ -297,7 +298,6 @@ cdef class PJSIPUA:
                 pj_pool_reset(pool)
 
     cdef object _get_sound_devices(self, int is_output):
-        global device_name_encoding
         cdef int count
         cdef pjmedia_aud_dev_info info
         cdef list retval = list()
@@ -318,13 +318,12 @@ cdef class PJSIPUA:
                 else:
                     count = info.input_count
                 if count:
-                    retval.append(info.name.decode(device_name_encoding))
+                    retval.append(decode_device_name(info.name))
             return retval
         finally:
             pj_rwmutex_unlock_read(self.audio_change_rwlock)
 
     cdef object _get_default_sound_device(self, int is_output):
-        global device_name_encoding
         cdef pjmedia_aud_dev_info info
         cdef int dev_id
         cdef int status
@@ -341,7 +340,7 @@ cdef class PJSIPUA:
                 status = pjmedia_aud_dev_get_info(dev_id, &info)
             if status != 0:
                 raise PJSIPError("Could not get audio device info", status)
-            return info.name.decode(device_name_encoding)
+            return decode_device_name(info.name)
         finally:
             pj_rwmutex_unlock_read(self.audio_change_rwlock)
 
@@ -374,7 +373,6 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            global device_name_encoding
             cdef int count
             cdef pjmedia_aud_dev_info info
             cdef list retval = list()
@@ -389,7 +387,7 @@ cdef class PJSIPUA:
                     with nogil:
                         status = pjmedia_aud_dev_get_info(i, &info)
                     if status == 0:
-                        retval.append(info.name.decode(device_name_encoding))
+                        retval.append(decode_device_name(info.name))
                 return retval
             finally:
                 pj_rwmutex_unlock_read(self.audio_change_rwlock)
@@ -414,6 +412,57 @@ cdef class PJSIPUA:
         event_dict["new_devices"] = self.sound_devices
         _add_event("AudioDevicesDidChange", event_dict)
 
+    cdef object _get_video_devices(self):
+        cdef pjmedia_vid_dev_info info
+        cdef list retval = list()
+        cdef int direction
+        cdef int status
+
+        for i in range(pjmedia_vid_dev_count()):
+            with nogil:
+                status = pjmedia_vid_dev_get_info(i, &info)
+            if status != 0:
+                raise PJSIPError("Could not get video device info", status)
+            direction = info.dir
+            if direction in (PJMEDIA_DIR_CAPTURE, PJMEDIA_DIR_CAPTURE_PLAYBACK):
+                retval.append(decode_device_name(info.name))
+        return retval
+
+    cdef object _get_default_video_device(self):
+        cdef pjmedia_vid_dev_info info
+        cdef int status
+
+        with nogil:
+            status = pjmedia_vid_dev_get_info(PJMEDIA_VID_DEFAULT_CAPTURE_DEV, &info)
+        if status != 0:
+            raise PJSIPError("Could not get default video device info", status)
+        return decode_device_name(info.name)
+
+    def refresh_video_devices(self):
+        self._check_self()
+        cdef int status
+        cdef dict event_dict
+
+        self.old_video_devices = self.video_devices
+        with nogil:
+            pjmedia_vid_dev_refresh()
+        event_dict = dict()
+        event_dict["old_devices"] = self.old_video_devices
+        event_dict["new_devices"] = self.video_devices
+        _add_event("VideoDevicesDidChange", event_dict)
+
+    property default_video_device:
+
+        def __get__(self):
+            self._check_self()
+            return self._get_default_video_device()
+
+    property video_devices:
+
+        def __get__(self):
+            self._check_self()
+            return self._get_video_devices()
+
     property available_codecs:
 
         def __get__(self):
@@ -430,18 +479,21 @@ cdef class PJSIPUA:
             self._check_self()
             self._pjmedia_endpoint._set_codecs(value)
 
-    property ip_address:
+    property available_video_codecs:
 
         def __get__(self):
             self._check_self()
-            if self._pjsip_endpoint._udp_transport != NULL:
-                return _pj_str_to_str(self._pjsip_endpoint._udp_transport.local_name.host)
-            elif self._pjsip_endpoint._tcp_transport != NULL:
-                return _pj_str_to_str(self._pjsip_endpoint._tcp_transport.addr_name.host)
-            elif self._pjsip_endpoint._tls_transport != NULL:
-                return _pj_str_to_str(self._pjsip_endpoint._tls_transport.addr_name.host)
-            else:
-                return None
+            return self._pjmedia_endpoint._get_all_video_codecs()
+
+    property video_codecs:
+
+        def __get__(self):
+            self._check_self()
+            return self._pjmedia_endpoint._get_current_video_codecs()
+
+        def __set__(self, value):
+            self._check_self()
+            self._pjmedia_endpoint._set_video_codecs(value)
 
     property udp_port:
 
@@ -645,6 +697,15 @@ cdef class PJSIPUA:
     def set_nameservers(self, list nameservers):
         self._check_self()
         return self._pjsip_endpoint._set_dns_nameservers([n for n in nameservers if _re_ipv4.match(n)])
+
+    def set_h264_options(self, profile, level, max_resolution, int max_framerate, int avg_bitrate=0, int max_bitrate=0):
+        self._check_self()
+        self._pjmedia_endpoint._set_h264_options(str(profile),
+                                                 int(level.replace('.', '')),
+                                                 tuple(max_resolution),
+                                                 max_framerate,
+                                                 avg_bitrate,
+                                                 max_bitrate)
 
     def __dealloc__(self):
         self.dealloc()

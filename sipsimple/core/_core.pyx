@@ -6,6 +6,7 @@
 include "_core.error.pxi"
 include "_core.lib.pxi"
 include "_core.sound.pxi"
+include "_core.video.pxi"
 include "_core.util.pxi"
 
 include "_core.ua.pxi"
@@ -31,6 +32,7 @@ CORE_REVISION = 176
 __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "SIPCoreError", "PJSIPError", "PJSIPTLSError", "SIPCoreInvalidStateError",
            "AudioMixer", "ToneGenerator", "RecordingWaveFile", "WaveFile", "MixerPort",
+           "VideoCamera", "FrameBufferVideoRenderer",
            "sip_status_messages",
            "BaseCredentials", "Credentials", "FrozenCredentials", "BaseSIPURI", "SIPURI", "FrozenSIPURI",
            "BaseHeader", "Header", "FrozenHeader",
@@ -51,6 +53,6 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "Invitation",
            "DialogID",
            "SDPSession", "FrozenSDPSession", "SDPMediaStream", "FrozenSDPMediaStream", "SDPConnection", "FrozenSDPConnection", "SDPAttribute", "FrozenSDPAttribute", "SDPNegotiator",
-           "RTPTransport", "AudioTransport"]
+           "RTPTransport", "AudioTransport", "VideoTransport"]
 
 
