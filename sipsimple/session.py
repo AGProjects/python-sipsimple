@@ -933,40 +933,37 @@ class Session(object):
                             stream.index = index
                             self.proposed_streams.append(stream)
                             break
-        if self.proposed_streams:
-            self.direction = 'incoming'
-            self.state = 'incoming'
-            self.transport = invitation.transport
-            self._invitation = invitation
-            self.conference = ConferenceHandler(self)
-            self.transfer_handler = TransferHandler(self)
-            if 'isfocus' in invitation.remote_contact_header.parameters:
-                self.remote_focus = True
-            try:
-                self.__dict__['subject'] = data.headers['Subject'].subject
-            except KeyError:
-                pass
-            if 'Referred-By' in data.headers or 'Replaces' in data.headers:
-                self.transfer_info = TransferInfo()
-                if 'Referred-By' in data.headers:
-                    self.transfer_info.referred_by = data.headers['Referred-By'].body
-                if 'Replaces' in data.headers:
-                    replaces_header = data.headers.get('Replaces')
-                    replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
-                    session_manager = SessionManager()
-                    try:
-                        self.replaced_session = (session for session in session_manager.sessions if session._invitation is not None and session._invitation.dialog_id == replaced_dialog_id).next()
-                    except StopIteration:
-                        invitation.send_response(481)
-                        return
-                    else:
-                        self.transfer_info.replaced_dialog_id = replaced_dialog_id
-                        replace_handler = SessionReplaceHandler(self)
-                        replace_handler.start()
-            notification_center.add_observer(self, sender=invitation)
-            notification_center.post_notification('SIPSessionNewIncoming', sender=self, data=NotificationData(streams=self.proposed_streams[:]))
-        else:
-            invitation.send_response(488)
+        self.direction = 'incoming'
+        self.state = 'incoming'
+        self.transport = invitation.transport
+        self._invitation = invitation
+        self.conference = ConferenceHandler(self)
+        self.transfer_handler = TransferHandler(self)
+        if 'isfocus' in invitation.remote_contact_header.parameters:
+            self.remote_focus = True
+        try:
+            self.__dict__['subject'] = data.headers['Subject'].subject
+        except KeyError:
+            pass
+        if 'Referred-By' in data.headers or 'Replaces' in data.headers:
+            self.transfer_info = TransferInfo()
+            if 'Referred-By' in data.headers:
+                self.transfer_info.referred_by = data.headers['Referred-By'].body
+            if 'Replaces' in data.headers:
+                replaces_header = data.headers.get('Replaces')
+                replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
+                session_manager = SessionManager()
+                try:
+                    self.replaced_session = (session for session in session_manager.sessions if session._invitation is not None and session._invitation.dialog_id == replaced_dialog_id).next()
+                except StopIteration:
+                    invitation.send_response(481)
+                    return
+                else:
+                    self.transfer_info.replaced_dialog_id = replaced_dialog_id
+                    replace_handler = SessionReplaceHandler(self)
+                    replace_handler.start()
+        notification_center.add_observer(self, sender=invitation)
+        notification_center.post_notification('SIPSessionNewIncoming', sender=self, data=NotificationData(streams=self.proposed_streams[:]))
 
     @transition_state(None, 'connecting')
     @run_in_green_thread
