@@ -852,7 +852,7 @@ class VideoStream(object):
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
-    def _NH_VideoTransportDidTimeout(self, notification):
+    def _NH_RTPVideoTransportDidTimeout(self, notification):
         self.notification_center.post_notification('VideoStreamDidTimeout', sender=self)
 
     def _NH_VideoDeviceDidChangeCamera(self, notification):

@@ -1656,7 +1656,7 @@ cdef class VideoTransport:
                 status = pjmedia_vid_stream_get_stat(stream, &stat)
             if status == 0:
                 if self._packets_received == stat.rx.pkt and self.direction == "sendrecv":
-                    _add_event("VideoTransportDidTimeout", dict(obj=self))
+                    _add_event("RTPVideoTransportDidTimeout", dict(obj=self))
                 self._packets_received = stat.rx.pkt
                 if timer.media_check_interval > 0:
                     self._timer = MediaCheckTimer(timer.media_check_interval)
