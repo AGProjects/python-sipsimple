@@ -1794,11 +1794,15 @@ class Session(object):
                         elif notification.data.state == 'disconnected':
                             raise InvitationDisconnectedError(notification.sender, notification.data)
         except InvitationDisconnectedError, e:
+            for stream in streams:
+                stream.end()
             self.greenlet = None
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
             notification.center = notification_center
             self.handle_notification(notification)
         except (api.TimeoutError, MediaStreamDidFailError, SIPCoreError):
+            for stream in streams:
+                stream.end()
             self.end()
         else:
             for stream in streams:
