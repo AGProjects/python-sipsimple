@@ -3,7 +3,7 @@
 
 """
 Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
-RFC2833 and RFC3711, RFC3489 and draft-ietf-mmusic-ice-19.
+RFC2833 and RFC3711, RFC3489 and RFC5245.
 """
 
 __all__ = ['AudioStream', 'VideoStream']
