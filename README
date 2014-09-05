@@ -1,8 +1,8 @@
 
-SIP SIMPLE client SDK
+SIP SIMPLE Client SDK
 ---------------------
 
-Copyright (c) 2008-2013 AG Projects
+Copyright (c) 2008-2014 AG Projects
 http://ag-projects.com
 
 
@@ -10,9 +10,9 @@ Description
 -----------
 
 SIP SIMPLE client SDK is a Software Development Kit for easy development of
-SIP end-points that support rich media like Audio, Instant Messaging, File
-Transfers, Desktop Sharing and Presence.  Other media types can be easily
-added by using an extensible high-level API.
+SIP end-points that support rich media like Audio, Video, Instant Messaging,
+File Transfers, Desktop Sharing and Presence.  Other media types can be
+easily added by using an extensible high-level API.
 
 The software has undergone in the past years several interoperability tests
 at SIPIT (http://www.sipit.net) and today is of industry strength quality.
@@ -63,15 +63,16 @@ General
  * Wav player and recorder
  * Acoustic Echo Cancelation
  * Answering machine
- * Wide-band Internet codecs: Speex and G722
- * PSTN compatible codecs: G711, iLBC, GSM
+ * Wide-band Internet audio codecs: Opus and Speex
+ * PSTN compatible codecs: G722, G711, iLBC, GSM
+ * Video codecs: H.264
 
 Supported media
 
- * Audio (RTP/sRTP)
+ * Audio and Video (RTP/sRTP)
  * Instant Messaging (MSRP)
  * File Transfer (MSRP)
- * Desktop Sharing (VNC over MSRP)
+ * Screen Sharing (VNC over MSRP)
 
 All media types can be combined together in the same SIP session.
 
@@ -104,7 +105,7 @@ NAT Traversal
  * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay
    extension (RFC 4976)
 
-Voice over IP
+Audio and Video
 
  * RTP, A Transport Protocol for Real-Time Applications (RFC 3550)
  * Real Time Control Protocol (RTCP) attribute in Session Description
@@ -123,7 +124,7 @@ Instant Messaging
  * Message Summary Event Package (RFC 3842)
  * File Transfer (RFC 5547)
 
-Desktop Sharing
+Screen Sharing
 
  * Variation of draft-garcia-mmusic-sdp-collaboration-00 using RFB over MSRP
 
