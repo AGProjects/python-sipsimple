@@ -57,6 +57,7 @@ class AudioStream(object):
 
         self._initialized = False
         self._done = False
+        self._failure_reason = None
 
         self.bridge.add(self.device)
 
@@ -262,7 +263,8 @@ class AudioStream(object):
                     self._audio_transport = AudioTransport(self.mixer, self._rtp_transport, remote_sdp, stream_index, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
                 except SIPCoreError, e:
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
+                    self._failure_reason = e.args[0]
+                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='update', reason=self._failure_reason))
                     return
                 self.notification_center.add_observer(self, sender=self._audio_transport)
                 self._audio_transport.start(local_sdp, remote_sdp, stream_index, timeout=settings.rtp.timeout)
@@ -315,7 +317,7 @@ class AudioStream(object):
                 self._audio_transport = None
                 self._rtp_transport = None
             self.state = "ENDED"
-            self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
+            self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
             self.session = None
 
     def reset(self, stream_index):
@@ -559,6 +561,7 @@ class VideoStream(object):
 
         self._initialized = False
         self._done = False
+        self._failure_reason = None
 
     @property
     def producer(self):
@@ -767,7 +770,7 @@ class VideoStream(object):
                 self._video_transport = None
                 self._rtp_transport = None
             self.state = "ENDED"
-            self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
+            self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
             self.session = None
 
     def reset(self, stream_index):

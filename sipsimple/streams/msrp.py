@@ -27,7 +27,6 @@ from application.system import host
 from functools import partial
 from itertools import chain
 from twisted.internet.error import ConnectionDone
-from twisted.python.failure import Failure
 from zope.interface import implements
 
 from eventlib import api
@@ -99,6 +98,7 @@ class MSRPStreamBase(object):
 
         self._initialized = False
         self._done = False
+        self._failure_reason = None
 
     @property
     def local_uri(self):
@@ -225,8 +225,9 @@ class MSRPStreamBase(object):
             if self.use_msrp_session:
                 self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming, automatic_reports=False)
             self.msrp_connector = None
-        except Exception, ex:
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__))
+        except Exception, e:
+            self._failure_reason = str(e)
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context=context, reason=self._failure_reason))
         else:
             notification_center.post_notification('MediaStreamDidStart', sender=self)
         finally:
@@ -255,7 +256,7 @@ class MSRPStreamBase(object):
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
-            notification_center.post_notification('MediaStreamDidEnd', sender=self)
+            notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
             notification_center.remove_observer(self, sender=self)
             self.msrp = None
             self.msrp_session = None
@@ -291,7 +292,8 @@ class MSRPStreamBase(object):
         if error is not None:
             if self.shutting_down and isinstance(error.value, ConnectionDone):
                 return
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=error, reason=error.getErrorMessage()))
+            self._failure_reason = error.getErrorMessage()
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', reason=self._failure_reason))
         elif chunk is not None:
             method_handler = getattr(self, '_handle_%s' % chunk.method, None)
             if method_handler is not None:
@@ -460,7 +462,8 @@ class ChatStream(MSRPStreamBase):
             try:
                 self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
             except Exception, e:
-                notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                self._failure_reason = str(e)
+                notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
                 break
             else:
                 if notify_progress and success_report == 'yes' and failure_report != 'no':
@@ -481,7 +484,8 @@ class ChatStream(MSRPStreamBase):
         try:
             self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, message_id))
         except Exception, e:
-            NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+            self._failure_reason = str(e)
+            NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
 
     def send_message(self, content, content_type='text/plain', recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
@@ -724,8 +728,8 @@ class FileTransferStream(MSRPStreamBase):
         if chunk.content_type.lower() == 'message/cpim':
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
             self.msrp_session.send_report(chunk, 415, 'Invalid Content-Type')
-            e = MSRPStreamError("CPIM wrapper is not supported")
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(e), reason=str(e)))
+            self._failure_reason = "CPIM wrapper is not supported"
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', reason=self._failure_reason))
             return
         self.msrp_session.send_report(chunk, 200, 'OK')
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
@@ -846,7 +850,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
                 self.vnc_socket.sendall(data)
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -858,7 +862,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
                 self.outgoing_msrp_queue.send(data)
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -869,7 +873,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
             self.vnc_socket.settimeout(None)
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
+            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -903,7 +907,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
                 self.vnc_socket.sendall(data)
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', reason=str(e)))
                 break
 
     def _msrp_writer(self):
@@ -915,7 +919,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
                 self.outgoing_msrp_queue.send(data)
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
+                NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', reason=str(e)))
                 break
 
     def _start_vnc_connection(self):
@@ -926,7 +930,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
             self.vnc_socket.settimeout(None)
         except Exception, e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
-            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', failure=Failure(), reason=str(e)))
+            NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', reason=str(e)))
         else:
             self.msrp_reader_thread = spawn(self._msrp_reader)
             self.msrp_writer_thread = spawn(self._msrp_writer)
@@ -1024,7 +1028,8 @@ class ScreenSharingStream(MSRPStreamBase):
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break
-                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', failure=Failure(), reason=str(e)))
+                self._failure_reason = str(e)
+                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', reason=self._failure_reason))
                 break
 
     def _msrp_writer(self):
@@ -1040,7 +1045,8 @@ class ScreenSharingStream(MSRPStreamBase):
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break
-                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', failure=Failure(), reason=str(e)))
+                self._failure_reason = str(e)
+                NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
                 break
 
     def _NH_MediaStreamDidInitialize(self, notification):
@@ -1061,6 +1067,7 @@ class ScreenSharingStream(MSRPStreamBase):
             self.msrp_writer_thread = None
 
     def _NH_ScreenSharingHandlerDidFail(self, notification):
+        self._failure_reason = notification.data.reason
         notification.center.post_notification('MediaStreamDidFail', sender=self, data=notification.data)
 
 
