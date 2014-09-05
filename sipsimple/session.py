@@ -46,6 +46,11 @@ class InvitationDisconnectedError(Exception):
         self.invitation = invitation
         self.data = data
 
+class MediaStreamDidNotInitializeError(Exception):
+    def __init__(self, stream, data):
+        self.stream = stream
+        self.data = data
+
 class MediaStreamDidFailError(Exception):
     def __init__(self, stream, data):
         self.stream = stream
@@ -1122,13 +1127,15 @@ class Session(object):
                             unhandled_notifications.append(notification)
                     elif notification.data.state == 'disconnected':
                         raise InvitationDisconnectedError(notification.sender, notification.data)
-        except (MediaStreamDidFailError, api.TimeoutError), e:
+        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
                 stream.deactivate()
                 stream.end()
             if isinstance(e, api.TimeoutError):
                 error = 'media stream timed out while starting'
+            elif isinstance(e, MediaStreamDidNotInitializeError):
+                error = 'media stream did not initialize: %s' % e.data.reason
             else:
                 error = 'media stream failed: %s' % e.data.reason
             self._fail(originator='local', code=0, reason=None, error=error)
@@ -1375,7 +1382,7 @@ class Session(object):
                             raise InvitationDisconnectedError(notification.sender, notification.data)
                     else:
                         unhandled_notifications.append(notification)
-        except (MediaStreamDidFailError, api.TimeoutError), e:
+        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
             if self._invitation.state == 'connecting':
                 ack_received = False if isinstance(e, api.TimeoutError) and wait_count == 0 else 'unknown'
                 # pjsip's invite session object does not inform us whether the ACK was received or not
@@ -1388,13 +1395,19 @@ class Session(object):
                 stream.deactivate()
                 stream.end()
             reason_header = None
-            if isinstance(e, api.TimeoutError) and wait_count > 0:
-                error = 'media stream timed out while starting'
-            elif isinstance(e, api.TimeoutError) and wait_count == 0:
-                error = 'No ACK received'
+            if isinstance(e, api.TimeoutError):
+                if wait_count > 0:
+                    error = 'media stream timed out while starting'
+                else:
+                    error = 'No ACK received'
+                    reason_header = ReasonHeader('SIP')
+                    reason_header.cause = 500
+                    reason_header.text = 'Missing ACK'
+            elif isinstance(e, MediaStreamDidNotInitializeError):
+                error = 'media stream did not initialize: %s' % e.data.reason
                 reason_header = ReasonHeader('SIP')
                 reason_header.cause = 500
-                reason_header.text = 'Missing ACK'
+                reason_header.text = 'media stream did not initialize'
             else:
                 error = 'media stream failed: %s' % e.data.reason
                 reason_header = ReasonHeader('SIP')
@@ -1569,9 +1582,11 @@ class Session(object):
                         wait_count -= 1
                     else:
                         unhandled_notifications.append(notification)
-        except (MediaStreamDidFailError, api.TimeoutError), e:
+        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
             if isinstance(e, api.TimeoutError):
                 error = 'media stream timed out while starting'
+            elif isinstance(e, MediaStreamDidNotInitializeError):
+                error = 'media stream did not initialize: %s' % e.data.reason
             else:
                 error = 'media stream failed: %s' % e.data.reason
             self._fail_proposal(originator='remote', error=error)
@@ -2474,6 +2489,10 @@ class Session(object):
     def _NH_MediaStreamDidStart(self, notification):
         if self.greenlet is not None:
             self._channel.send(notification)
+
+    def _NH_MediaStreamDidNotInitialize(self, notification):
+        if self.greenlet is not None and self.state not in ('terminating', 'terminated'):
+            self._channel.send_exception(MediaStreamDidNotInitializeError(notification.sender, notification.data))
 
     def _NH_MediaStreamDidFail(self, notification):
         if self.greenlet is not None:

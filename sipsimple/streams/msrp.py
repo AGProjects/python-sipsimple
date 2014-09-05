@@ -97,6 +97,9 @@ class MSRPStreamBase(object):
         self.remote_role = None
         self.transport = None
 
+        self._initialized = False
+        self._done = False
+
     @property
     def local_uri(self):
         return URI(host=host.default_ip, port=0, use_tls=self.transport=='tls', credentials=self.session.account.tls_credentials)
@@ -179,9 +182,10 @@ class MSRPStreamBase(object):
                         self.local_role = 'actpass' if outgoing else 'passive'
             full_local_path = self.msrp_connector.prepare(self.local_uri)
             self.local_media = self._create_local_media(full_local_path)
-        except Exception, ex:
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=Failure(), reason=str(ex) or type(ex).__name__))
+        except Exception, e:
+            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
         else:
+            self._initialized = True
             notification_center.post_notification('MediaStreamDidInitialize', sender=self)
         finally:
             self.greenlet = None
@@ -233,8 +237,9 @@ class MSRPStreamBase(object):
 
     @run_in_green_thread
     def end(self):
-        if self.session is None:
+        if not self._initialized or self._done:
             return
+        self._done = True
         notification_center = NotificationCenter()
         notification_center.post_notification('MediaStreamWillEnd', sender=self)
         msrp = self.msrp
@@ -676,7 +681,7 @@ class FileTransferStream(MSRPStreamBase):
     def initialize(self, session, direction):
         if self.direction == 'sendonly' and self.file_selector.fd is None:
             notification_center = NotificationCenter()
-            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='initialize', failure=None, reason='file descriptor not specified'))
+            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='file descriptor not specified'))
             return
         super(FileTransferStream, self).initialize(session, direction)
 

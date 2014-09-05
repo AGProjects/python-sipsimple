@@ -55,6 +55,9 @@ class AudioStream(object):
         self._remote_rtp_address_sdp = None
         self._remote_rtp_port_sdp = None
 
+        self._initialized = False
+        self._done = False
+
         self.bridge.add(self.device)
 
 
@@ -187,7 +190,7 @@ class AudioStream(object):
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
+                    self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
                     return
                 del self._incoming_stream_has_srtp
                 del self._incoming_stream_has_srtp_forced
@@ -195,6 +198,7 @@ class AudioStream(object):
                 self._try_ice = self.session.account.nat_traversal.use_ice
                 self._use_srtp = ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
                 self._try_forced_srtp = self.session.account.rtp.srtp_encryption == "mandatory"
+
             if self._try_ice:
                 if self.session.account.nat_traversal.stun_server_list:
                     stun_servers = list((server.host, server.port) for server in self.session.account.nat_traversal.stun_server_list)
@@ -299,19 +303,19 @@ class AudioStream(object):
 
     def end(self):
         with self._lock:
-            if self.state != "ENDED":
-                if self._audio_transport is not None:
-                    self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
-                    if self._audio_rec is not None:
-                        self._stop_recording()
-                    self._audio_transport.stop()
-                    self.notification_center.remove_observer(self, sender=self._audio_transport)
-                    self._audio_transport = None
-                    self._rtp_transport = None
-                    self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
-                else:
-                    self.state = "ENDED"
+            if not self._initialized or self._done:
+                return
+            self._done = True
+            self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
+            if self._audio_transport is not None:
+                if self._audio_rec is not None:
+                    self._stop_recording()
+                self._audio_transport.stop()
+                self.notification_center.remove_observer(self, sender=self._audio_transport)
+                self._audio_transport = None
+                self._rtp_transport = None
+            self.state = "ENDED"
+            self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
             self.session = None
 
     def reset(self, stream_index):
@@ -401,11 +405,12 @@ class AudioStream(object):
                     audio_transport = AudioTransport(self.mixer, rtp_transport, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
             except SIPCoreError, e:
                 self.state = "ENDED"
-                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
+                self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=e.args[0]))
                 return
             self._rtp_transport = rtp_transport
             self._audio_transport = audio_transport
             self.notification_center.add_observer(self, sender=audio_transport)
+            self._initialized = True
             self.state = "INITIALIZED"
             self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
 
@@ -455,22 +460,18 @@ class AudioStream(object):
         self._try_next_rtp_transport()
 
     def _try_next_rtp_transport(self, failure_reason=None):
-        # TODO: log failure_reason if it is not None? Or send a notification?
         if self._stun_servers:
             stun_address, stun_port = self._stun_servers.pop()
-            observer_added = False
             try:
                 rtp_transport = RTPTransport(ice_stun_address=stun_address, ice_stun_port=stun_port, **self._rtp_args)
                 self.notification_center.add_observer(self, sender=rtp_transport)
-                observer_added = True
                 rtp_transport.set_INIT()
             except SIPCoreError, e:
-                if observer_added:
-                    self.notification_center.remove_observer(self, sender=rtp_transport)
+                self.notification_center.discard_observer(self, sender=rtp_transport)
                 self._try_next_rtp_transport(e.args[0])
         else:
             self.state = "ENDED"
-            self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=failure_reason))
+            self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=failure_reason))
 
     def _check_hold(self, direction, is_initial):
         was_on_hold_by_local = self.on_hold_by_local
@@ -555,6 +556,9 @@ class VideoStream(object):
         self._use_srtp = False
         self._remote_rtp_address_sdp = None
         self._remote_rtp_port_sdp = None
+
+        self._initialized = False
+        self._done = False
 
     @property
     def producer(self):
@@ -649,7 +653,7 @@ class VideoStream(object):
                 raise RuntimeError("VideoStream.initialize() may only be called in the NULL state")
             if self.device.producer is None:
                 self.state = "ENDED"
-                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="no video support available"))
+                self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason="no video support available"))
                 return
             self.state = "INITIALIZING"
             self.session = session
@@ -661,7 +665,7 @@ class VideoStream(object):
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:
                     self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
+                    self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
                     return
                 del self._incoming_stream_has_srtp
                 del self._incoming_stream_has_srtp_forced
@@ -753,17 +757,17 @@ class VideoStream(object):
 
     def end(self):
         with self._lock:
-            if self.state != "ENDED":
-                if self._video_transport is not None:
-                    self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
-                    self._video_transport.stop()
-                    self.notification_center.remove_observer(self, sender=self._video_transport)
-                    self._video_transport = None
-                    self._rtp_transport = None
-                    self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
-                else:
-                    self.state = "ENDED"
+            if not self._initialized or self._done:
+                return
+            self._done = True
+            self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
+            if self._video_transport is not None:
+                self._video_transport.stop()
+                self.notification_center.remove_observer(self, sender=self._video_transport)
+                self._video_transport = None
+                self._rtp_transport = None
+            self.state = "ENDED"
+            self.notification_center.post_notification('MediaStreamDidEnd', sender=self)
             self.session = None
 
     def reset(self, stream_index):
@@ -817,11 +821,12 @@ class VideoStream(object):
                     video_transport = VideoTransport(rtp_transport, codecs=codecs)
             except SIPCoreError, e:
                 self.state = "ENDED"
-                self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=e.args[0]))
+                self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=e.args[0]))
                 return
             self._rtp_transport = rtp_transport
             self._video_transport = video_transport
             self.notification_center.add_observer(self, sender=video_transport)
+            self._initialized = True
             self.state = "INITIALIZED"
             self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
 
@@ -882,7 +887,7 @@ class VideoStream(object):
                 self._try_next_rtp_transport(e.args[0])
         else:
             self.state = "ENDED"
-            self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(reason=failure_reason))
+            self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=failure_reason))
 
     def _check_hold(self, direction, is_initial):
         was_on_hold_by_local = self.on_hold_by_local
