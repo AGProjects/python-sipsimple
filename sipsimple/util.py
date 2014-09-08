@@ -5,16 +5,18 @@
 
 from __future__ import absolute_import
 
-__all__ = ["All", "Any", "ISOTimestamp", "MultilingualText", "user_info"]
+__all__ = ["All", "Any", "ExponentialTimer", "ISOTimestamp", "MultilingualText", "user_info"]
 
 import os
 import platform
 import sys
 import dateutil.parser
 
+from application.notification import NotificationCenter
 from application.python.types import Singleton, MarkerType
 from datetime import datetime
 from dateutil.tz import tzlocal, tzutc
+from twisted.internet import reactor
 
 
 # Utility classes
@@ -69,6 +71,48 @@ class MultilingualText(unicode):
 
     def get_translation(self, language):
         return self.translations.get(language, self)
+
+
+class ExponentialTimer(object):
+    def __init__(self):
+        self._timer = None
+        self._limit_timer = None
+        self._interval = 0
+        self._iterations = None
+
+    def _step(self):
+        if self._iterations is not None:
+            self._iterations -= 1
+        if self._iterations == 0:
+            self.stop()
+        else:
+            self._interval *= 2
+            self._timer = reactor.callLater(self._interval, self._step)
+        NotificationCenter().post_notification('ExponentialTimerDidTimeout', sender=self)
+
+    @property
+    def active(self):
+        return self._timer is not None
+
+    def start(self, base_interval, immediate=False, iterations=None, time_limit=None):
+        assert base_interval > 0
+        assert iterations is None or iterations > 0
+        assert time_limit is None or time_limit > 0
+        if self._timer is not None:
+            self.stop()
+        self._interval = base_interval / 2.0 if immediate else base_interval
+        self._iterations = iterations
+        if time_limit is not None:
+            self._limit_timer = reactor.callLater(time_limit, self.stop)
+        self._timer = reactor.callLater(0 if immediate else base_interval, self._step)
+
+    def stop(self):
+        if self._timer is not None and self._timer.active():
+            self._timer.cancel()
+        if self._limit_timer is not None and self._limit_timer.active():
+            self._limit_timer.cancel()
+        self._timer = None
+        self._limit_timer = None
 
 
 # Utility objects
