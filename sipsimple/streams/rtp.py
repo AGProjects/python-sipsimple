@@ -767,7 +767,7 @@ class VideoStream(object):
             self._done = True
             if self._keyframe_timer is not None:
                 self._keyframe_timer.stop()
-                self.notification_center.remove_observer(self._keyframe_timer)
+                self.notification_center.remove_observer(self, sender=self._keyframe_timer)
             self._keyframe_timer = None
             self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
             if self._video_transport is not None:
