@@ -1627,10 +1627,9 @@ cdef class VideoTransport:
             raise PJSIPError("failed to acquire lock", status)
         try:
             stream = self._obj
-            if self._obj == NULL:
-                raise SIPCoreError("Stream is not active")
-            # Do not check for errors, it's OK if we can't send it
-            pjmedia_vid_stream_send_keyframe(stream)
+            if stream != NULL:
+                # Do not check for errors, it's OK if we can't send it
+                pjmedia_vid_stream_send_keyframe(stream)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
