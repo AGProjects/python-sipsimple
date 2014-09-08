@@ -20,6 +20,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
+from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
 
@@ -558,6 +559,7 @@ class VideoStream(object):
         self._use_srtp = False
         self._remote_rtp_address_sdp = None
         self._remote_rtp_port_sdp = None
+        self._keyframe_timer = None
 
         self._initialized = False
         self._done = False
@@ -719,7 +721,7 @@ class VideoStream(object):
             if self._try_ice and self._ice_state == "NULL":
                 self.state = 'WAIT_ICE'
             else:
-                self._video_transport.send_keyframe()
+                self._send_keyframes()
                 self.state = 'ESTABLISHED'
                 self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
@@ -751,7 +753,7 @@ class VideoStream(object):
                 return
             if self.state == "ESTABLISHED" and self._hold_request == 'hold':
                 self._video_transport.resume()
-                self._video_transport.send_keyframe()
+                self._send_keyframes()
             self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
     def deactivate(self):
@@ -763,6 +765,10 @@ class VideoStream(object):
             if not self._initialized or self._done:
                 return
             self._done = True
+            if self._keyframe_timer is not None:
+                self._keyframe_timer.stop()
+                self.notification_center.remove_observer(self._keyframe_timer)
+            self._keyframe_timer = None
             self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
             if self._video_transport is not None:
                 self._video_transport.stop()
@@ -844,7 +850,7 @@ class VideoStream(object):
                 return
             self._ice_state = "IN_USE"
             self.notification_center.post_notification('VideoStreamICENegotiationDidSucceed', sender=self, data=notification.data)
-            self._video_transport.send_keyframe()
+            self._send_keyframes()
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
@@ -856,7 +862,7 @@ class VideoStream(object):
             if self.state != "WAIT_ICE":
                 return
             self._ice_state = "FAILED"
-            self._video_transport.send_keyframe()
+            self._send_keyframes()
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
@@ -867,6 +873,10 @@ class VideoStream(object):
         new_camera = notification.data.new_camera
         if self._video_transport is not None and self._video_transport.local_video is not None:
             self._video_transport.local_video.producer = new_camera
+
+    def _NH_ExponentialTimerDidTimeout(self, notification):
+        if self._video_transport is not None:
+            self._video_transport.send_keyframe()
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
@@ -903,7 +913,7 @@ class VideoStream(object):
             self._video_transport.pause()
         elif not self.on_hold_by_local and not self.on_hold_by_remote and (was_on_hold_by_local or was_on_hold_by_remote):
             self._video_transport.resume()
-            self._video_transport.send_keyframe()
+            self._send_keyframes()
         if not was_on_hold_by_local and self.on_hold_by_local:
             self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
         if was_on_hold_by_local and not self.on_hold_by_local:
@@ -917,4 +927,10 @@ class VideoStream(object):
         connection = remote_sdp.media[index].connection or remote_sdp.connection
         self._remote_rtp_address_sdp = connection.address
         self._remote_rtp_port_sdp = remote_sdp.media[index].port
+
+    def _send_keyframes(self):
+        if self._keyframe_timer is None:
+            self._keyframe_timer = ExponentialTimer()
+            self.notification_center.add_observer(self, sender=self._keyframe_timer)
+        self._keyframe_timer.start(0.5, immediate=True, iterations=5)
 
