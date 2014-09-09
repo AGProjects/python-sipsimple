@@ -2315,6 +2315,7 @@ class Session(object):
                         if added_media_indexes and removed_media_indexes:
                             engine = Engine()
                             self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
+                            self.state = 'connected'
                             notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
                         elif added_media_indexes:
                             self.proposed_streams = []
@@ -2335,10 +2336,11 @@ class Session(object):
                             if self.proposed_streams:
                                 self._invitation.send_response(100)
                                 notification.center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='remote', proposed_streams=self.proposed_streams[:]))
-                                return
                             else:
                                 self._invitation.send_response(488)
+                                self.state = 'connected'
                                 notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                            return
                         else:
                             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
                             local_sdp.version += 1
@@ -2353,15 +2355,12 @@ class Session(object):
                                 local_sdp.media[stream.index] = stream.get_local_media(remote_sdp=proposed_remote_sdp, index=stream.index)
                             try:
                                 self._invitation.send_response(200, sdp=local_sdp)
-                            except PJSIPError, e:
-                                if 'PJMEDIA_SDPNEG' in str(e):
-                                    engine = Engine()
-                                    self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Changing the codec of an audio stream is currently not supported')])
-                                    self.state = 'connected'
-                                    notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
-                                    return
-                                else:
-                                    raise
+                            except PJSIPError:
+                                for stream in removed_streams:
+                                    self.streams.remove(stream)
+                                    stream.end()
+                                self.end()
+                                return
                             else:
                                 for stream in removed_streams:
                                     self.streams.remove(stream)
@@ -2396,7 +2395,7 @@ class Session(object):
                         notification.center = NotificationCenter()
                         self.handle_notification(notification)
                     except SIPCoreError:
-                        raise #FIXME
+                        self.end()
                     else:
                         self.state = 'connected'
                 elif notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal_request':
