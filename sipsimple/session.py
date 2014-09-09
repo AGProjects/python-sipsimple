@@ -2294,6 +2294,12 @@ class Session(object):
                     try:
                         proposed_remote_sdp = self._invitation.sdp.proposed_remote
                         active_remote_sdp = self._invitation.sdp.active_remote
+                        if len(proposed_remote_sdp.media) < len(active_remote_sdp.media):
+                            engine = Engine()
+                            self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Streams cannot be deleted from the SDP')])
+                            self.state = 'connected'
+                            notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                            return
                         for stream in self.streams:
                             if not stream.validate_update(proposed_remote_sdp, stream.index):
                                 engine = Engine()
@@ -2311,7 +2317,6 @@ class Session(object):
                                 removed_media_indexes.add(index)
                             elif not media_stream.port and active_remote_sdp.media[index].port:
                                 removed_media_indexes.add(index)
-                        removed_media_indexes.update(xrange(len(proposed_remote_sdp.media), len(active_remote_sdp.media)))
                         if added_media_indexes and removed_media_indexes:
                             engine = Engine()
                             self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
