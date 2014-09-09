@@ -1671,9 +1671,20 @@ class Session(object):
 
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
-            for index, stream in enumerate(self.proposed_streams, len(local_sdp.media)):
+            for stream in self.proposed_streams:
+                # Try to reuse a disabled media stream to avoid an ever-growing SDP
+                try:
+                    index = next(index for index, media in enumerate(local_sdp.media) if media.port == 0)
+                    reuse_media = True
+                except StopIteration:
+                    index = len(local_sdp.media)
+                    reuse_media = False
                 stream.index = index
-                local_sdp.media.append(stream.get_local_media(remote_sdp=None, index=index))
+                media = stream.get_local_media(remote_sdp=None, index=index)
+                if reuse_media:
+                    local_sdp.media[index] = media
+                else:
+                    local_sdp.media.append(media)
             self._invitation.send_reinvite(sdp=local_sdp)
             notification_center.post_notification('SIPSessionNewProposal', sender=self, data=NotificationData(originator='local', proposed_streams=self.proposed_streams[:]))
 
@@ -2309,22 +2320,26 @@ class Session(object):
                                 return
                         added_media_indexes = set()
                         removed_media_indexes = set()
+                        reused_media_indexes = set()
                         for index, media_stream in enumerate(proposed_remote_sdp.media):
                             if index >= len(active_remote_sdp.media):
                                 added_media_indexes.add(index)
+                            elif media_stream.port == 0 and active_remote_sdp.media[index].port > 0:
+                                removed_media_indexes.add(index)
+                            elif media_stream.port > 0 and active_remote_sdp.media[index].port == 0:
+                                reused_media_indexes.add(index)
                             elif media_stream.media != active_remote_sdp.media[index].media:
                                 added_media_indexes.add(index)
                                 removed_media_indexes.add(index)
-                            elif not media_stream.port and active_remote_sdp.media[index].port:
-                                removed_media_indexes.add(index)
-                        if added_media_indexes and removed_media_indexes:
+                        if added_media_indexes | reused_media_indexes and removed_media_indexes:
                             engine = Engine()
                             self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
                             self.state = 'connected'
                             notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
-                        elif added_media_indexes:
+                            return
+                        elif added_media_indexes | reused_media_indexes:
                             self.proposed_streams = []
-                            for index in added_media_indexes:
+                            for index in added_media_indexes | reused_media_indexes:
                                 media_stream = proposed_remote_sdp.media[index]
                                 if media_stream.port != 0:
                                     for stream_type in MediaStreamRegistry():

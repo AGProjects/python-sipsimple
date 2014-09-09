@@ -170,6 +170,7 @@ cdef class Invitation:
                 if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
                     pjmedia_sdp_neg_get_neg_remote(self._invite_session.neg, &sdp)
                     self.sdp.proposed_remote = FrozenSDPSession_create(sdp)
+            self._invite_session.sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
             self._invite_session.mod_data[ua._module.id] = <void *> self.weakref
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
             self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
@@ -400,6 +401,7 @@ cdef class Invitation:
                 status = pjsip_inv_create_uac(dialog_address[0], local_sdp, 0, invite_session_address)
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
+            self._invite_session.sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
             self._invite_session.mod_data[ua._module.id] = <void *> self.weakref
             if self.credentials is not None:
                 cred_info = self.credentials.get_cred_info()

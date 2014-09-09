@@ -1270,10 +1270,13 @@ cdef extern from "pjsip_ua.h":
     enum pjsip_inv_state:
         PJSIP_INV_STATE_INCOMING
         PJSIP_INV_STATE_CONFIRMED
+    enum pjmedia_mod_offer_flag:
+        PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
     struct pjsip_inv_session:
         pjsip_inv_state state
         void **mod_data
         pjmedia_sdp_neg *neg
+        unsigned sdp_neg_flags
         int cause
         pj_str_t cause_text
         int cancelling
