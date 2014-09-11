@@ -2445,7 +2445,7 @@ class Session(object):
                         notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
                         received_invitation_state = False
                         received_sdp_update = False
-                        while not received_sdp_update or not received_invitation_state:
+                        while not received_sdp_update or not received_invitation_state or self._channel:
                             notification = self._channel.wait()
                             if notification.name == 'SIPInvitationGotSDPUpdate':
                                 received_sdp_update = True
@@ -2457,8 +2457,12 @@ class Session(object):
                             elif notification.name == 'SIPInvitationChangedState':
                                 if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                                     received_invitation_state = True
-                            elif notification.data.state == 'disconnected':
-                                raise InvitationDisconnectedError(notification.sender, notification.data)
+                                elif notification.data.state == 'disconnected':
+                                    raise InvitationDisconnectedError(notification.sender, notification.data)
+                                else:
+                                    unhandled_notifications.append(notification)
+                            else:
+                                unhandled_notifications.append(notification)
                     except InvitationDisconnectedError, e:
                         self.greenlet = None
                         self.state == 'connected'
