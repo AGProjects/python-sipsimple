@@ -2299,6 +2299,7 @@ class Session(object):
                 self._channel.send(notification)
         else:
             self.greenlet = api.getcurrent()
+            unhandled_notifications = []
             try:
                 if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
                     self.state = 'received_proposal'
@@ -2389,7 +2390,7 @@ class Session(object):
 
                                 received_invitation_state = False
                                 received_sdp_update = False
-                                while not received_sdp_update or not received_invitation_state:
+                                while not received_sdp_update or not received_invitation_state or self._channel:
                                     notification = self._channel.wait()
                                     if notification.name == 'SIPInvitationGotSDPUpdate':
                                         received_sdp_update = True
@@ -2401,6 +2402,12 @@ class Session(object):
                                     elif notification.name == 'SIPInvitationChangedState':
                                         if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                                             received_invitation_state = True
+                                        elif notification.data.state == 'disconnected':
+                                            raise InvitationDisconnectedError(notification.sender, notification.data)
+                                        else:
+                                            unhandled_notifications.append(notification)
+                                    else:
+                                        unhandled_notifications.append(notification)
                                 on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
                                 if on_hold_streams != prev_on_hold_streams:
                                     hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
@@ -2496,6 +2503,8 @@ class Session(object):
                     notification.center.remove_observer(self, sender=self._invitation)
             finally:
                 self.greenlet = None
+                for notification in unhandled_notifications:
+                    self.handle_notification(notification)
 
     def _NH_SIPInvitationGotSDPUpdate(self, notification):
         if self.greenlet is not None:
