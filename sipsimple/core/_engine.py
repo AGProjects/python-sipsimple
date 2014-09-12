@@ -38,6 +38,7 @@ class Engine(Thread):
                              "rtp_port_range": (50000, 50500),
                              "codecs": ["G722", "speex", "PCMU", "PCMA"],
                              "video_codecs": ["H264", "H263-1998"],
+                             "enable_colorbar_device": False,
                              "events": {"conference":      ["application/conference-info+xml"],
                                         "message-summary": ["application/simple-message-summary"],
                                         "presence":        ["multipart/related", "application/rlmi+xml", "application/pidf+xml"],

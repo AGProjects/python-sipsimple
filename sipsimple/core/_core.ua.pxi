@@ -133,6 +133,7 @@ cdef class PJSIPUA:
             raise PJSIPError("Could not add 'gruu' to Supported header", status)
         self._trace_sip = int(bool(kwargs["trace_sip"]))
         self._detect_sip_loops = int(bool(kwargs["detect_sip_loops"]))
+        self._enable_colorbar_device = int(bool(kwargs["enable_colorbar_device"]))
         self._trace_module_name = PJSTR("mod-core-sip-trace")
         self._trace_module.name = self._trace_module_name.pj_str
         self._trace_module.id = -1
@@ -203,6 +204,17 @@ cdef class PJSIPUA:
             self._check_self()
             self._detect_sip_loops = int(bool(value))
 
+    property enable_colorbar_device:
+
+        def __get__(self):
+            self._check_self()
+            return bool(self._enable_colorbar_device)
+
+        def __set__(self, value):
+            self._check_self()
+            self._enable_colorbar_device = int(bool(value))
+            if self._enable_colorbar_device:
+                self.refresh_video_devices()
 
     property events:
 
@@ -425,6 +437,8 @@ cdef class PJSIPUA:
                 raise PJSIPError("Could not get video device info", status)
             direction = info.dir
             if direction in (PJMEDIA_DIR_CAPTURE, PJMEDIA_DIR_CAPTURE_PLAYBACK):
+                if not self._enable_colorbar_device and bytes(info.driver) == "Colorbar":
+                    continue
                 retval.append(decode_device_name(info.name))
         return retval
 
@@ -436,6 +450,8 @@ cdef class PJSIPUA:
             status = pjmedia_vid_dev_get_info(PJMEDIA_VID_DEFAULT_CAPTURE_DEV, &info)
         if status != 0:
             raise PJSIPError("Could not get default video device info", status)
+        if not self._enable_colorbar_device and bytes(info.driver) == "Colorbar":
+            raise SIPCoreError("Could not get default video device")
         return decode_device_name(info.name)
 
     def refresh_video_devices(self):

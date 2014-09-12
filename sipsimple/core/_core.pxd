@@ -507,6 +507,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_vid_dev_info:
         int id
         char *name
+        char *driver
         int dir
     cdef struct pjmedia_hwnd_win:
         void *hwnd
@@ -1758,6 +1759,7 @@ cdef class PJSIPUA(object):
     cdef PJSTR _event_module_name
     cdef int _trace_sip
     cdef int _detect_sip_loops
+    cdef int _enable_colorbar_device
     cdef PJSTR _user_agent
     cdef object _events
     cdef object _sent_messages

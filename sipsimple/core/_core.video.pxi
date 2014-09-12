@@ -197,9 +197,11 @@ cdef class VideoCamera(VideoProducer):
         cdef int dev_count
         cdef int width
         cdef int height
+        cdef PJSIPUA ua
 
         super(VideoCamera, self).__init__()
 
+        ua = _get_ua()
         lock = self._lock
         pool = self._pool
 
@@ -228,12 +230,15 @@ cdef class VideoCamera(VideoProducer):
                         device_id = vdi.id
                         break
 
-            # Set device name
-            self.name = device
             with nogil:
                 status = pjmedia_vid_dev_get_info(device_id, &vdi)
             if status != 0:
                 raise PJSIPError("Could not get video device info", status)
+
+            if not ua.enable_colorbar_device and bytes(vdi.driver) == "Colorbar":
+                raise SIPCoreError("no video devices available")
+
+            self.name = device
             self.real_name = decode_device_name(vdi.name)
 
             pjmedia_vid_port_param_default(&vp_param)

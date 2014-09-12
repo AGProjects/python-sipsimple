@@ -158,6 +158,7 @@ class SIPApplication(object):
                        codecs=list(settings.rtp.audio_codec_list),
                        # video
                        video_codecs=list(settings.rtp.video_codec_list),
+                       enable_colorbar_device=settings.video.enable_colorbar_device,
                        # logging
                        log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
                        trace_sip=settings.logs.trace_sip)
@@ -377,6 +378,8 @@ class SIPApplication(object):
                                              settings.video.h264.level,
                                              settings.video.resolution,
                                              settings.video.framerate)
+            if 'video.enable_colorbar_device' in notification.data.modified:
+                self.engine.enable_colorbar_device = settings.video.enable_colorbar_device
             if 'user_agent' in notification.data.modified:
                 self.engine.user_agent = settings.user_agent
             if 'sip.udp_port' in notification.data.modified:
