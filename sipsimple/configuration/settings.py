@@ -13,7 +13,7 @@ from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate, VideoCodecList
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList
 from sipsimple.configuration.datatypes import Path
-from sipsimple.configuration.datatypes import H264Profile, VideoDeviceResolution, VideoResolution
+from sipsimple.configuration.datatypes import H264Profile, VideoResolution
 
 
 __all__ = ['SIPSimpleSettings']
@@ -37,15 +37,12 @@ class AudioSettings(SettingsGroup):
 class H264Settings(SettingsGroup):
     profile = Setting(type=H264Profile, default='baseline')
     level = Setting(type=str, default='3.1')
-    max_resolution = Setting(type=VideoResolution, default=VideoResolution('1280x720'))
-    max_framerate = Setting(type=int, default=25)
-    avg_bitrate = Setting(type=int, default=0)
-    max_bitrate = Setting(type=int, default=0)
 
 
 class VideoSettings(SettingsGroup):
     device = Setting(type=unicode, default=u'system_default', nillable=True)
-    resolution = Setting(type=VideoDeviceResolution, default=VideoDeviceResolution('auto'))
+    resolution = Setting(type=VideoResolution, default=VideoResolution('1280x720'))
+    framerate = Setting(type=int, default=25)
     paused = RuntimeSetting(type=bool, default=False)
     h264 = H264Settings
 

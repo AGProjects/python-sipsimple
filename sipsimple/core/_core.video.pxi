@@ -184,7 +184,7 @@ cdef class VideoCamera(VideoProducer):
     # time. The video tee, however, is not thread-safe, so we need to make sure the source port
     # is stopped before adding or removing a destination port.
 
-    def __init__(self, unicode device, str resolution='auto', int fps=25):
+    def __init__(self, unicode device, object resolution, int fps):
         cdef pjmedia_vid_port_param vp_param
         cdef pjmedia_vid_dev_info vdi
         cdef pjmedia_vid_port *video_port
@@ -197,17 +197,6 @@ cdef class VideoCamera(VideoProducer):
         cdef int dev_count
         cdef int width
         cdef int height
-        cdef object res
-
-        resolution = resolution.lower()
-        if resolution == 'vga':
-            res = (640, 480)
-        elif resolution in ('auto', '720p'):
-            res = (1280, 720)
-        elif resolution == '1080p':
-            res = (1920, 1080)
-        else:
-            raise ValueError('invalid resolution specified: %s' % resolution)
 
         super(VideoCamera, self).__init__()
 
@@ -257,11 +246,10 @@ cdef class VideoCamera(VideoProducer):
             vp_param.active = 1
             vp_param.vidparam.dir = PJMEDIA_DIR_CAPTURE
             # Set maximum possible resolution
-            width, height = res
-            vp_param.vidparam.fmt.det.vid.size.w = width
-            vp_param.vidparam.fmt.det.vid.size.h = height
+            vp_param.vidparam.fmt.det.vid.size.w = resolution.width
+            vp_param.vidparam.fmt.det.vid.size.h = resolution.height
             # Set maximum fps
-            vp_param.vidparam.fmt.det.vid.fps.num = int(fps)
+            vp_param.vidparam.fmt.det.vid.fps.num = fps
             vp_param.vidparam.fmt.det.vid.fps.denum = 1
             with nogil:
                 status = pjmedia_vid_port_create(pool, &vp_param, &video_port)

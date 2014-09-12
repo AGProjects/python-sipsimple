@@ -698,14 +698,12 @@ cdef class PJSIPUA:
         self._check_self()
         return self._pjsip_endpoint._set_dns_nameservers([n for n in nameservers if _re_ipv4.match(n)])
 
-    def set_h264_options(self, profile, level, max_resolution, int max_framerate, int avg_bitrate=0, int max_bitrate=0):
+    def set_h264_options(self, profile, level, max_resolution, int max_framerate):
         self._check_self()
         self._pjmedia_endpoint._set_h264_options(str(profile),
                                                  int(level.replace('.', '')),
                                                  tuple(max_resolution),
-                                                 max_framerate,
-                                                 avg_bitrate,
-                                                 max_bitrate)
+                                                 max_framerate)
 
     def __dealloc__(self):
         self.dealloc()

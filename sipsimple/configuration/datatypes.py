@@ -12,7 +12,7 @@ __all__ = [# Base datatypes
            # Audio datatypes
            'AudioCodecList', 'SampleRate',
            # Video datatypes
-           'H264Profile', 'VideoDeviceResolution', 'VideoResolution', 'VideoCodecList',
+           'H264Profile', 'VideoResolution', 'VideoCodecList',
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
@@ -231,15 +231,6 @@ class SampleRate(int):
 
 class H264Profile(str):
     valid_values = ('baseline', 'main', 'high')
-
-    def __new__(cls, value):
-        if value.lower() not in cls.valid_values:
-            raise ValueError('invalid value, must be one of %r' % cls.valid_values)
-        return str.__new__(cls, value.lower())
-
-
-class VideoDeviceResolution(str):
-    valid_values = ('auto', 'vga', '720p', '1080p')
 
     def __new__(cls, value):
         if value.lower() not in cls.valid_values:

@@ -28,27 +28,27 @@ class VideoError(Exception): pass
 class VideoDevice(object):
     implements(IVideoProducer)
 
-    def __init__(self, device_name, resolution):
+    def __init__(self, device_name, resolution, framerate):
         self.__dict__['paused'] = False
-        self._camera = self._open_camera(device_name, resolution)
+        self._camera = self._open_camera(device_name, resolution, framerate)
         if self._camera is not None:
             self._camera.start()
 
-    def _open_camera(self, device_name, resolution):
+    def _open_camera(self, device_name, resolution, framerate):
         if device_name is None:
             return None
         try:
-            camera = VideoCamera(device_name, str(resolution))
+            camera = VideoCamera(device_name, resolution, framerate)
         except SIPCoreError:
             try:
-                camera = VideoCamera(u'system_default', str(resolution))
+                camera = VideoCamera(u'system_default', resolution, framerate)
             except SIPCoreError:
                 camera = None
         return camera
 
-    def set_camera(self, device_name, resolution):
+    def set_camera(self, device_name, resolution, framerate):
         old_camera = self._camera
-        new_camera = self._open_camera(device_name, resolution)
+        new_camera = self._open_camera(device_name, resolution, framerate)
         if old_camera is not None:
             old_camera.close()
         if new_camera is not None and not self.paused:
