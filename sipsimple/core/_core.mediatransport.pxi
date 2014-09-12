@@ -565,9 +565,9 @@ cdef class RTPTransport:
             raise ValueError("sdp_index argument cannot be negative")
         if sdp_index >= pj_local_sdp.media_count:
             raise ValueError("sdp_index argument out of range")
-        # Remove ICE related attributes from SDP or they will be added twice
+        # Remove ICE and SRTP related attributes from SDP, they will be added by pjmedia_transport_encode_sdp
         local_media = local_sdp.media[sdp_index]
-        local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ('ice-ufrag', 'ice-pwd', 'ice-mismatch', 'candidate', 'remote-candidates')]
+        local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ('crypto', 'ice-ufrag', 'ice-pwd', 'ice-mismatch', 'candidate', 'remote-candidates')]
         pj_local_sdp = local_sdp.get_sdp_session()
         with nogil:
             status = pjmedia_transport_encode_sdp(transport, pool, pj_local_sdp, pj_remote_sdp, sdp_index)
