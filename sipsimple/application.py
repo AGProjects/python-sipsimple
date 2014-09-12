@@ -444,6 +444,24 @@ class SIPApplication(object):
         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
         settings.save()
 
+    @run_in_thread('device-io')
+    def _NH_VideoDevicesDidChange(self, notification):
+        old_devices = set(notification.data.old_devices)
+        new_devices = set(notification.data.new_devices)
+        removed_devices = old_devices - new_devices
+
+        if not removed_devices:
+            return
+
+        device = self.video_device.name
+        if self.video_device.real_name in removed_devices:
+            device = u'system_default' if new_devices else None
+
+        settings = SIPSimpleSettings()
+        self.video_device.set_camera(device, settings.video.resolution, settings.video.framerate)
+        settings.video.device = self.video_device.name
+        settings.save()
+
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
             self.engine.set_nameservers(notification.data.nameservers)
