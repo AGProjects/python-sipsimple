@@ -1307,6 +1307,10 @@ static pj_status_t transport_encode_sdp(pjmedia_transport *tp,
 	pj_stricmp(&m_loc->desc.transport, &ID_RTP_SAVP) != 0)
 	goto BYPASS_SRTP;
 
+    /* Do nothing if we are in bypass */
+    if (srtp->bypass_srtp)
+        goto BYPASS_SRTP;
+
     /* If the media is inactive, do nothing. */
     /* No, we still need to process SRTP offer/answer even if the media is
      * marked as inactive, because the transport is still alive in this
