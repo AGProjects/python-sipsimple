@@ -48,16 +48,14 @@ from http://icanblink.com
 
 General
 
- * Written in Python programming language
+ * Written in Python
  * Non-blocking asynchronous engine
- * High level middleware
- * Configuration framework
+ * Built-in configuration framework
  * TLS Security for signaling (SIP) and media (MSRP, XCAP)
- * Multiple SIP Accounts support
- * Multiple Media Types per Session (e.g. Audio + IM)
- * Trace capability for all underlying protocols
- * Failover for DNS lookups, SIP and MSRP routing
- * Supports re-INVITE for adding and removing media
+ * Support for multiple SIP accounts
+ * Multiple Media Types per Session (e.g. Video, Audio and IM)
+ * Failover support for DNS lookups, SIP and MSRP routing
+ * Implements re-INVITEs for adding and removing media streams
  * Automatically handling if IP Address changes
  * Audio conference bridge
  * Wav player and recorder
@@ -70,8 +68,8 @@ General
 Supported media
 
  * Audio and Video (RTP/sRTP)
- * Instant Messaging (MSRP)
- * File Transfer (MSRP)
+ * Instant Messaging (MSRP and its relay extension)
+ * File Transfer (MSRP and its relay extension)
  * Screen Sharing (VNC over MSRP)
 
 All media types can be combined together in the same SIP session.
@@ -94,8 +92,8 @@ SIP Signaling
 
 Address Resolution
 
- * RFC 3263 next hop resolution lookup
- * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
+ * DNS resolution (RFC 3263)
+ * Bonjour multicast DNS (draft-lee-sip-dns-sd-uri-03)
 
 NAT Traversal
 
