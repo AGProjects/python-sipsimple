@@ -266,6 +266,7 @@ struct ffmpeg_codec_desc
 /* H264 constants */
 #define PROFILE_H264_BASELINE		66
 #define PROFILE_H264_MAIN		77
+#define PROFILE_H264_HIGH		100
 
 /* Codec specific functions */
 #if PJMEDIA_HAS_FFMPEG_CODEC_H264
@@ -402,6 +403,9 @@ static pj_status_t h264_preopen(ffmpeg_private *ff)
 	    break;
 	case PROFILE_H264_MAIN:
 	    profile = "main";
+	    break;
+	case PROFILE_H264_HIGH:
+	    profile = "high";
 	    break;
 	default:
 	    break;
