@@ -213,8 +213,7 @@ cdef class PJSIPUA:
         def __set__(self, value):
             self._check_self()
             self._enable_colorbar_device = int(bool(value))
-            if self._enable_colorbar_device:
-                self.refresh_video_devices()
+            self.refresh_video_devices()
 
     property events:
 
