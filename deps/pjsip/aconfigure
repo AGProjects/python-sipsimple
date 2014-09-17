@@ -668,8 +668,8 @@ ac_no_small_filter
 ac_dshow_ldflags
 ac_dshow_cflags
 ac_pjmedia_video_has_dshow
-ac_qt_cflags
-ac_pjmedia_video_has_qt
+ac_avf_cflags
+ac_pjmedia_video_has_avf
 ac_ios_cflags
 ac_pjmedia_video_has_ios
 ac_pjmedia_video
@@ -5931,7 +5931,7 @@ $as_echo "Checking if AVFoundation framework is available... no" >&6; }
 
 
 	SAVED_LIBS="$LIBS"
-	LIBS="-framework QTKit"
+	LIBS="-framework AVFoundation"
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5944,21 +5944,21 @@ main ()
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_pjmedia_video_has_qt=yes
+  ac_pjmedia_video_has_avf=yes
 else
-  ac_pjmedia_video_has_qt=no
+  ac_pjmedia_video_has_avf=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 	LIBS="$SAVED_LIBS"
-	if test "$ac_pjmedia_video_has_qt" = "yes"; then
-	  ac_qt_cflags="-DPJMEDIA_VIDEO_DEV_HAS_QT=1"
-	  LIBS="$LIBS -framework QTKit -framework QuartzCore -framework OpenGL"
-	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if QTKit framework is available... yes" >&5
-$as_echo "Checking if QTKit framework is available... yes" >&6; }
+	if test "$ac_pjmedia_video_has_avf" = "yes"; then
+	  ac_qt_cflags="-DPJMEDIA_VIDEO_DEV_HAS_AVF=1"
+	  LIBS="$LIBS -framework AVFoundation -framework QuartzCore"
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if AVFoundation framework is available... yes" >&5
+$as_echo "Checking if AVFoundation framework is available... yes" >&6; }
 	else
-	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if QTKit framework is available... no" >&5
-$as_echo "Checking if QTKit framework is available... no" >&6; }
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if AVFoundation framework is available... no" >&5
+$as_echo "Checking if AVFoundation framework is available... no" >&6; }
 	fi
 	;;
   *cygwin* | *mingw*)

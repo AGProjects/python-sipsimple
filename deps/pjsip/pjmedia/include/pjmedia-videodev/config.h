@@ -66,12 +66,12 @@ PJ_BEGIN_DECL
 
 
 /**
- * This setting controls whether QT support should be included.
+ * This setting controls whether AVFoundation support should be included.
  *
  * Default: 0 (or detected by configure)
  */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_QT
-#   define PJMEDIA_VIDEO_DEV_HAS_QT		0
+#ifndef PJMEDIA_VIDEO_DEV_HAS_AVF
+#   define PJMEDIA_VIDEO_DEV_HAS_AVF		0
 #endif
 
 

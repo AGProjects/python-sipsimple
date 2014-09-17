@@ -18,9 +18,9 @@ FFMPEG_LDFLAGS =  @ac_ffmpeg_ldflags@
 V4L2_CFLAGS = @ac_v4l2_cflags@
 V4L2_LDFLAGS = @ac_v4l2_ldflags@
 
-# QT
-AC_PJMEDIA_VIDEO_HAS_QT = @ac_pjmedia_video_has_qt@
-QT_CFLAGS = @ac_qt_cflags@
+# AVF
+AC_PJMEDIA_VIDEO_HAS_AVF = @ac_pjmedia_video_has_avf@
+AVF_CFLAGS = @ac_avf_cflags@
 
 # iOS
 IOS_CFLAGS = @ac_ios_cflags@
@@ -36,7 +36,7 @@ LIBYUV_LDFLAGS = @ac_libyuv_ldflags@
 
 # PJMEDIA features exclusion
 export CFLAGS += @ac_no_small_filter@ @ac_no_large_filter@ @ac_no_speex_aec@ \
-		 $(SDL_CFLAGS) $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(QT_CFLAGS) \
+		 $(SDL_CFLAGS) $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(AVF_CFLAGS) \
 		 $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS)
 export LDFLAGS += $(SDL_LDFLAGS) $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) $(DSHOW_LDFLAGS) \
     		  $(LIBYUV_LDFLAGS)
@@ -165,10 +165,10 @@ export PJMEDIA_VIDEODEV_OBJS += dshow_dev.o dshow_filter.o
 endif
 
 #
-# QT video device
+# AVF video device
 #
-ifeq ($(AC_PJMEDIA_VIDEO_HAS_QT),yes)
-export PJMEDIA_VIDEODEV_OBJS += qt_dev.o
+ifeq ($(AC_PJMEDIA_VIDEO_HAS_AVF),yes)
+export PJMEDIA_VIDEODEV_OBJS += avf_dev.o
 endif
 
 #

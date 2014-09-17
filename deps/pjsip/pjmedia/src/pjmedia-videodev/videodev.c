@@ -89,8 +89,8 @@ pjmedia_vid_dev_factory* pjmedia_ffmpeg_factory(pj_pool_factory *pf);
 pjmedia_vid_dev_factory* pjmedia_v4l2_factory(pj_pool_factory *pf);
 #endif
 
-#if PJMEDIA_VIDEO_DEV_HAS_QT
-pjmedia_vid_dev_factory* pjmedia_qt_factory(pj_pool_factory *pf);
+#if PJMEDIA_VIDEO_DEV_HAS_AVF
+pjmedia_vid_dev_factory* pjmedia_avf_factory(pj_pool_factory *pf);
 #endif
 
 #if PJMEDIA_VIDEO_DEV_HAS_IOS
@@ -382,8 +382,8 @@ PJ_DEF(pj_status_t) pjmedia_vid_dev_subsys_init(pj_pool_factory *pf)
 #if PJMEDIA_VIDEO_DEV_HAS_V4L2
     vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_v4l2_factory;
 #endif
-#if PJMEDIA_VIDEO_DEV_HAS_QT
-    vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_qt_factory;
+#if PJMEDIA_VIDEO_DEV_HAS_AVF
+    vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_avf_factory;
 #endif
 #if PJMEDIA_VIDEO_DEV_HAS_IOS
     vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_ios_factory;

@@ -610,18 +610,18 @@ else
 	;;
   *darwin*)
 	ac_pjmedia_video=mac_os
-	AC_SUBST(ac_pjmedia_video_has_qt)
-	AC_SUBST(ac_qt_cflags)
+	AC_SUBST(ac_pjmedia_video_has_avf)
+	AC_SUBST(ac_avf_cflags)
 	SAVED_LIBS="$LIBS"
-	LIBS="-framework QTKit"
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [])],[ac_pjmedia_video_has_qt=yes],[ac_pjmedia_video_has_qt=no])
+	LIBS="-framework AVFoundation"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [])],[ac_pjmedia_video_has_avf=yes],[ac_pjmedia_video_has_avf=no])
 	LIBS="$SAVED_LIBS"
-	if test "$ac_pjmedia_video_has_qt" = "yes"; then
-	  ac_qt_cflags="-DPJMEDIA_VIDEO_DEV_HAS_QT=1"
-	  LIBS="$LIBS -framework QTKit -framework QuartzCore -framework OpenGL"
-	  AC_MSG_RESULT([Checking if QTKit framework is available... yes])
+	if test "$ac_pjmedia_video_has_avf" = "yes"; then
+	  ac_qt_cflags="-DPJMEDIA_VIDEO_DEV_HAS_AVF=1"
+	  LIBS="$LIBS -framework AVFoundation -framework QuartzCore"
+	  AC_MSG_RESULT([Checking if AVFoundation framework is available... yes])
 	else
-	  AC_MSG_RESULT([Checking if QTKit framework is available... no])
+	  AC_MSG_RESULT([Checking if AVFoundation framework is available... no])
 	fi
 	;;
   *cygwin* | *mingw*)
