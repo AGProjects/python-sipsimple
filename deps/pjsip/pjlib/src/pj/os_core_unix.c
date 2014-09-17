@@ -37,6 +37,11 @@
 
 #if defined(PJ_HAS_SEMAPHORE_H) && PJ_HAS_SEMAPHORE_H != 0
 #  include <semaphore.h>
+#  if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+#    include <mach/mach.h>
+#    include <mach/task.h>
+#    include <mach/semaphore.h>
+#  endif
 #endif
 
 #include <unistd.h>	    // getpid()
@@ -89,7 +94,11 @@ struct pj_mutex_t
 #if defined(PJ_HAS_SEMAPHORE) && PJ_HAS_SEMAPHORE != 0
 struct pj_sem_t
 {
+#if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+    semaphore_t        *sem;
+#else
     sem_t	       *sem;
+#endif
     char		obj_name[PJ_MAX_OBJ_NAME];
 };
 #endif /* PJ_HAS_SEMAPHORE */
@@ -1531,35 +1540,16 @@ PJ_DEF(pj_status_t) pj_sem_create( pj_pool_t *pool,
     PJ_ASSERT_RETURN(sem, PJ_ENOMEM);
 
 #if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
-    /* MacOS X doesn't support anonymous semaphore */
     {
-	char sem_name[PJ_GUID_MAX_LENGTH+1];
-	pj_str_t nam;
-
-	/* We should use SEM_NAME_LEN, but this doesn't seem to be
-	 * declared anywhere? The value here is just from trial and error
-	 * to get the longest name supported.
-	 */
-#	define MAX_SEM_NAME_LEN	23
-
-	/* Create a unique name for the semaphore. */
-	if (PJ_GUID_STRING_LENGTH <= MAX_SEM_NAME_LEN) {
-	    nam.ptr = sem_name;
-	    pj_generate_unique_string(&nam);
-	    sem_name[nam.slen] = '\0';
-	} else {
-	    pj_create_random_string(sem_name, MAX_SEM_NAME_LEN);
-	    sem_name[MAX_SEM_NAME_LEN] = '\0';
-	}
-
-	/* Create semaphore */
-	sem->sem = sem_open(sem_name, O_CREAT|O_EXCL, S_IRUSR|S_IWUSR,
-			    initial);
-	if (sem->sem == SEM_FAILED)
-	    return PJ_RETURN_OS_ERROR(pj_get_native_os_error());
-
-	/* And immediately release the name as we don't need it */
-	sem_unlink(sem_name);
+        kern_return_t err;
+        sem->sem = PJ_POOL_ALLOC_T(pool, semaphore_t);
+        err = semaphore_create(mach_task_self(), sem->sem, SYNC_POLICY_FIFO, initial);
+        if (err != KERN_SUCCESS) {
+            if (err == KERN_RESOURCE_SHORTAGE)
+                return PJ_RETURN_OS_ERROR(ENOMEM);
+            else
+                return PJ_RETURN_OS_ERROR(EINVAL);
+        }
     }
 #else
     sem->sem = PJ_POOL_ALLOC_T(pool, sem_t);
@@ -1595,6 +1585,7 @@ PJ_DEF(pj_status_t) pj_sem_wait(pj_sem_t *sem)
 {
 #if PJ_HAS_THREADS
     int result;
+    int error;
 
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(sem, PJ_EINVAL);
@@ -1602,6 +1593,20 @@ PJ_DEF(pj_status_t) pj_sem_wait(pj_sem_t *sem)
     PJ_LOG(6, (sem->obj_name, "Semaphore: thread %s is waiting",
 			      pj_thread_this()->obj_name));
 
+#if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+    {
+        do
+            result = semaphore_wait(*(sem->sem));
+        while (result == KERN_ABORTED);
+
+        if (result == KERN_SUCCESS) {
+            result = error = 0;
+        } else {
+            result = -1;
+            error = EINVAL;
+        }
+    }
+#else
     result = sem_wait( sem->sem );
 
     if (result == 0) {
@@ -1610,12 +1615,14 @@ PJ_DEF(pj_status_t) pj_sem_wait(pj_sem_t *sem)
     } else {
 	PJ_LOG(6, (sem->obj_name, "Semaphore: thread %s FAILED to acquire",
 				  pj_thread_this()->obj_name));
+	error = pj_get_native_os_error();
     }
+#endif
 
     if (result == 0)
 	return PJ_SUCCESS;
     else
-	return PJ_RETURN_OS_ERROR(pj_get_native_os_error());
+	return PJ_RETURN_OS_ERROR(error);
 #else
     pj_assert( sem == (pj_sem_t*) 1 );
     return PJ_SUCCESS;
@@ -1629,20 +1636,45 @@ PJ_DEF(pj_status_t) pj_sem_trywait(pj_sem_t *sem)
 {
 #if PJ_HAS_THREADS
     int result;
+    int error;
 
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(sem, PJ_EINVAL);
 
+#if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+    {
+        mach_timespec_t interval;
+        kern_return_t err;
+
+        interval.tv_sec = 0;
+        interval.tv_nsec = 0;
+
+        err = semaphore_timedwait(*(sem->sem), interval);
+        if (err == KERN_SUCCESS) {
+            result = error = 0;
+        } else if (err == KERN_OPERATION_TIMED_OUT) {
+            result = -1;
+            error = EAGAIN;
+        } else {
+            result = -1;
+            error = EINVAL;
+        }
+    }
+#else
     result = sem_trywait( sem->sem );
 
     if (result == 0) {
 	PJ_LOG(6, (sem->obj_name, "Semaphore acquired by thread %s",
 				  pj_thread_this()->obj_name));
+    } else {
+        error = pj_get_native_os_error();
     }
+#endif
+
     if (result == 0)
 	return PJ_SUCCESS;
     else
-	return PJ_RETURN_OS_ERROR(pj_get_native_os_error());
+	return PJ_RETURN_OS_ERROR(error);
 #else
     pj_assert( sem == (pj_sem_t*)1 );
     return PJ_SUCCESS;
@@ -1656,14 +1688,30 @@ PJ_DEF(pj_status_t) pj_sem_post(pj_sem_t *sem)
 {
 #if PJ_HAS_THREADS
     int result;
+    int error;
     PJ_LOG(6, (sem->obj_name, "Semaphore released by thread %s",
 			      pj_thread_this()->obj_name));
+#if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+    {
+        kern_return_t err;
+        err = semaphore_signal(*(sem->sem));
+        if (err == KERN_SUCCESS) {
+            result = error = 0;
+        } else {
+            result = -1;
+            error = EINVAL;
+        }
+    }
+#else
     result = sem_post( sem->sem );
+    if (result != 0)
+        error = pj_get_native_os_error();
+#endif
 
     if (result == 0)
 	return PJ_SUCCESS;
     else
-	return PJ_RETURN_OS_ERROR(pj_get_native_os_error());
+	return PJ_RETURN_OS_ERROR(error);
 #else
     pj_assert( sem == (pj_sem_t*) 1);
     return PJ_SUCCESS;
@@ -1677,6 +1725,7 @@ PJ_DEF(pj_status_t) pj_sem_destroy(pj_sem_t *sem)
 {
 #if PJ_HAS_THREADS
     int result;
+    int error;
 
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(sem, PJ_EINVAL);
@@ -1684,15 +1733,26 @@ PJ_DEF(pj_status_t) pj_sem_destroy(pj_sem_t *sem)
     PJ_LOG(6, (sem->obj_name, "Semaphore destroyed by thread %s",
 			      pj_thread_this()->obj_name));
 #if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
-    result = sem_close( sem->sem );
+    {
+        kern_return_t err;
+        err = semaphore_destroy(mach_task_self(), *(sem->sem));
+        if (err == KERN_SUCCESS) {
+            result = error = -1;
+        } else {
+            result = -1;
+            error = EINVAL;
+        }
+    }
 #else
     result = sem_destroy( sem->sem );
+    if (result != 0)
+        error = pj_get_native_os_error();
 #endif
 
     if (result == 0)
 	return PJ_SUCCESS;
     else
-	return PJ_RETURN_OS_ERROR(pj_get_native_os_error());
+	return PJ_RETURN_OS_ERROR(error);
 #else
     pj_assert( sem == (pj_sem_t*) 1 );
     return PJ_SUCCESS;
