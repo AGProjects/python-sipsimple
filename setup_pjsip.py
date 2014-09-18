@@ -27,15 +27,10 @@ else:
 if sys_platform == "darwin":
     sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
     sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
-    sdk_dir = "MacOSX%s.sdk" % sipsimple_osx_sdk
-    old_sdk_path = os.path.join("/Developer/SDKs", sdk_dir)
-    new_sdk_path = os.path.join("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs", sdk_dir)
-    if os.path.exists(new_sdk_path):
-        osx_sdk_path = new_sdk_path
-    elif os.path.exists(old_sdk_path):
-        osx_sdk_path = old_sdk_path
-    else:
-        raise RuntimeError("The specified SDK (%s) couldn't be found" % sipsimple_osx_sdk)
+    try:
+        osx_sdk_path = subprocess.check_output(["xcodebuild", "-version", "-sdk", "macosx%s" % sipsimple_osx_sdk, "Path"]).strip()
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("Could not locate SDK path: %s" % str(e))
     arch_flags =  "-arch " + " -arch ".join(sipsimple_osx_arch.split())
     os.environ['CFLAGS'] = os.environ.get('CFLAGS', '') + " %s -mmacosx-version-min=%s -isysroot %s" % (arch_flags, sipsimple_osx_sdk, osx_sdk_path)
     os.environ['LDFLAGS'] = os.environ.get('LDFLAGS', '') + " %s -isysroot %s" % (arch_flags, osx_sdk_path)
