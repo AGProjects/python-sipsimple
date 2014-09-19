@@ -16,7 +16,7 @@ cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
     if not isinstance(other, BaseSDPSession):
         return NotImplemented
     for attr in ("id", "version", "user", "net_type", "address_type", "address", "address",
-                 "name", "connection", "start_time", "stop_time", "attributes", "media"):
+                 "name", "connection", "start_time", "stop_time", "attributes", "bandwidth_info", "media"):
         if getattr(self, attr) != getattr(other, attr):
             eq = 0
             break
@@ -39,8 +39,8 @@ cdef class BaseSDPSession:
         raise TypeError("BaseSDPSession cannot be instantiated directly")
 
     def __repr__(self):
-        return "%s(%r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.address, self.id, self.version, self.user, self.net_type,
-                    self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.media)
+        return "%s(%r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.address, self.id, self.version, self.user, self.net_type,
+                    self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.bandwidth_info, self.media)
 
     def __str__(self):
         cdef char cbuf[2048]
@@ -63,6 +63,9 @@ cdef class BaseSDPSession:
         self._sdp_session.attr_count = len(self.attributes)
         for index, attr in enumerate(self.attributes):
             self._sdp_session.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
+        self._sdp_session.bandw_count = len(self.bandwidth_info)
+        for index, info in enumerate(self.bandwidth_info):
+            self._sdp_session.bandw[index] = (<BaseSDPBandwidthInfo>info).get_sdp_bandwidth_info()
         return &self._sdp_session
 
     property has_ice_attributes:
@@ -72,7 +75,7 @@ cdef class BaseSDPSession:
 
 cdef class SDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4",
-                 str name not None=" ", SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list media=None):
+                 str name not None=" ", SDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, list attributes=None, list bandwidth_info=None, list media=None):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
 
@@ -90,15 +93,17 @@ cdef class SDPSession(BaseSDPSession):
         self.start_time = start_time
         self.stop_time = stop_time
         self.attributes = attributes if attributes is not None else []
+        self.bandwidth_info = bandwidth_info if bandwidth_info is not None else []
         self.media = media if media is not None else []
 
     @classmethod
     def new(cls, BaseSDPSession sdp_session):
         connection = SDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
         attributes = [SDPAttribute.new(attr) for attr in sdp_session.attributes]
+        bandwidth_info = [SDPBandwidthInfo.new(info) for info in sdp_session.bandwidth_info]
         media = [SDPMediaStream.new(m) if m is not None else None for m in sdp_session.media]
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
-                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, bandwidth_info, media)
 
     @classmethod
     def parse(cls, str sdp):
@@ -210,6 +215,21 @@ cdef class SDPSession(BaseSDPSession):
                 attributes = SDPAttributeList(attributes)
             self._attributes = attributes
 
+    property bandwidth_info:
+
+        def __get__(self):
+            return self._bandwidth_info
+
+        def __set__(self, list infos not None):
+            if len(infos) > PJMEDIA_MAX_SDP_BANDW:
+                raise SIPCoreError("Too many bandwidth info attributes")
+            for info in infos:
+                if not isinstance(info, SDPBandwidthInfo):
+                    raise TypeError("Items in SDPSession attribute list must be SDPBandwidthInfo instancess")
+            if not isinstance(infos, SDPBandwidthInfoList):
+                infos = SDPBandwidthInfoList(infos)
+            self._bandwidth_info = infos
+
     property media:
 
         def __get__(self):
@@ -246,6 +266,14 @@ cdef class SDPSession(BaseSDPSession):
             else:
                 if old_attribute != attribute:
                     self._attributes[index] = attribute
+        for index, info in enumerate(session._bandwidth_info):
+            try:
+                old_info = self._bandwidth_info[index]
+            except IndexError:
+                self._bandwidth_info.append(info)
+            else:
+                if old_info != info:
+                    self._bandwidth_info[index] = info
         for index, media in enumerate(session._media):
             old_media = self._media[index]
             if old_media is not None:
@@ -253,7 +281,8 @@ cdef class SDPSession(BaseSDPSession):
 
 cdef class FrozenSDPSession(BaseSDPSession):
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
-                 FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
+                 FrozenSDPConnection connection=None, unsigned long start_time=0, unsigned long stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist bandwidth_info not None=frozenlist(),
+                 frozenlist media not None=frozenlist()):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
 
@@ -263,6 +292,11 @@ cdef class FrozenSDPSession(BaseSDPSession):
             for attr in attributes:
                 if not isinstance(attr, FrozenSDPAttribute):
                     raise TypeError("Items in FrozenSDPSession attribute list must be FrozenSDPAttribute instances")
+            if len(bandwidth_info) > PJMEDIA_MAX_SDP_BANDW:
+                raise SIPCoreError("Too many bandwidth info attributes")
+            for info in bandwidth_info:
+                if not isinstance(info, FrozenSDPBandwidthInfo):
+                    raise TypeError("Items in FrozenSDPSession bandwidth info attribute list must be FrozenSDPBandwidthInfo instances")
             if len(media) > PJMEDIA_MAX_SDP_MEDIA:
                 raise SIPCoreError("Too many media objects")
             for m in media:
@@ -296,6 +330,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
             self.stop_time = stop_time
             self._sdp_session.time.stop = stop_time
             self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
+            self.bandwidth_info = FrozenSDPBandwidthInfoList(bandwidth_info) if not isinstance(bandwidth_info, FrozenSDPBandwidthInfo) else bandwidth_info
             self.media = media
             self.initialized = 1
 
@@ -305,9 +340,10 @@ cdef class FrozenSDPSession(BaseSDPSession):
             return sdp_session
         connection = FrozenSDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
         attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_session.attributes])
+        bandwidth_info = frozenlist([FrozenSDPBandwidthInfo.new(info) for info in sdp_session.bandwidth_info])
         media = frozenlist([FrozenSDPMediaStream.new(m) for m in sdp_session.media])
         return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
-                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
+                   connection, sdp_session.start_time, sdp_session.stop_time, attributes, bandwidth_info, media)
 
     @classmethod
     def parse(cls, str sdp):
@@ -316,7 +352,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
         return FrozenSDPSession_create(sdp_session)
 
     def __hash__(self):
-        return hash((self.address, self.id, self.version, self.user, self.net_type, self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.media))
+        return hash((self.address, self.id, self.version, self.user, self.net_type, self.address_type, self.name, self.connection, self.start_time, self.stop_time, self.attributes, self.bandwidth_info, self.media))
 
     def __richcmp__(self, other, op):
         return BaseSDPSession_richcmp(self, other, op)
@@ -359,7 +395,7 @@ cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with g
         return NotImplemented
     if not isinstance(other, BaseSDPMediaStream):
         return NotImplemented
-    for attr in ("media", "port", "port_count", "transport", "formats", "connection", "attributes"):
+    for attr in ("media", "port", "port_count", "transport", "formats", "connection", "attributes", "bandwidth_info"):
         if getattr(self, attr) != getattr(other, attr):
             eq = 0
             break
@@ -392,8 +428,8 @@ cdef class BaseSDPMediaStream:
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
 
     def __repr__(self):
-        return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
-                self.port_count, self.formats, self.connection, self.attributes)
+        return "%s(%r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
+                self.port_count, self.formats, self.connection, self.attributes, self.bandwidth_info)
 
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
@@ -430,11 +466,14 @@ cdef class BaseSDPMediaStream:
         self._sdp_media.attr_count = len(self.attributes)
         for index, attr in enumerate(self.attributes):
             self._sdp_media.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
+        self._sdp_media.bandw_count = len(self.bandwidth_info)
+        for index, info in enumerate(self.bandwidth_info):
+            self._sdp_media.bandw[index] = (<BaseSDPBandwidthInfo>info).get_sdp_bandwidth_info()
         return &self._sdp_media
 
 cdef class SDPMediaStream(BaseSDPMediaStream):
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, list formats=None,
-                 SDPConnection connection=None, list attributes=None):
+                 SDPConnection connection=None, list attributes=None, list bandwidth_info=None):
         self.media = media
         self.port = port
         self.transport = transport
@@ -442,13 +481,15 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
         self.formats = formats if formats is not None else []
         self.connection = connection
         self.attributes = attributes if attributes is not None else []
+        self.bandwidth_info = bandwidth_info if bandwidth_info is not None else []
 
     @classmethod
     def new(cls, BaseSDPMediaStream sdp_media):
         connection = SDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
         attributes = [SDPAttribute.new(attr) for attr in sdp_media.attributes]
+        bandwidth_info = [SDPBandwidthInfo.new(bi) for bi in sdp_media.bandwidth_info]
         return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count, list(sdp_media.formats),
-                   connection, attributes)
+                   connection, attributes, bandwidth_info)
 
     property media:
 
@@ -537,9 +578,26 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             else:
                 self._codec_list = list()
 
+    property bandwidth_info:
+
+        def __get__(self):
+            return self._bandwidth_info
+
+        def __set__(self, list infos not None):
+            if len(infos) > PJMEDIA_MAX_SDP_BANDW:
+                raise SIPCoreError("Too many bandwidth information attributes")
+            for info in infos:
+                if not isinstance(info, SDPBandwidthInfo):
+                    raise TypeError("Items in SDPMediaStream bandwidth_info list must be SDPBandwidthInfo instances")
+            if not isinstance(infos, SDPBandwidthInfoList):
+                infos = SDPBandwidthInfoList(infos)
+            self._bandwidth_info = infos
+
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
             raise ValueError("Number of attributes in SDPMediaStream got reduced")
+        if len(self._bandwidth_info) > len(media._bandwidth_info):
+            raise ValueError("Number of bandwidth info attributes in SDPMediaStream got reduced")
         for attr in ("media", "port", "transport", "port_count", "formats"):
             setattr(self, attr, getattr(media, attr))
         if media._connection is None:
@@ -554,10 +612,18 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             else:
                 if old_attribute != attribute:
                     self._attributes[index] = attribute
+        for index, info in enumerate(media._bandwidth_info):
+            try:
+                old_info = self._bandwidth_info[index]
+            except IndexError:
+                self._bandwidth_info.append(info)
+            else:
+                if old_info != info:
+                    self._bandwidth_info[index] = info
 
 cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, frozenlist formats not None=frozenlist(),
-                 FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist()):
+                 FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist(), frozenlist bandwidth_info not None=frozenlist()):
         if not self.initialized:
             if len(formats) > PJMEDIA_MAX_SDP_FMT:
                 raise SIPCoreError("Too many formats")
@@ -566,6 +632,11 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             for attr in attributes:
                 if not isinstance(attr, FrozenSDPAttribute):
                     raise TypeError("Items in FrozenSDPMediaStream attribute list must be FrozenSDPAttribute instances")
+            if len(bandwidth_info) > PJMEDIA_MAX_SDP_BANDW:
+                raise SIPCoreError("Too many bandwidth info attributes")
+            for info in bandwidth_info:
+                if not isinstance(info, FrozenSDPBandwidthInfo):
+                    raise TypeError("Items in FrozenSDPMediaStream bandwidth info list must be FrozenSDPBandwidthInfo instances")
             self.media = media
             _str_to_pj_str(media, &self._sdp_media.desc.media)
             self.port = port
@@ -592,6 +663,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
                 self.codec_list = frozenlist([rtp_mappings.get(int(format), MediaCodec('Unknown', 0)) for format in self.formats])
             else:
                 self.codec_list = frozenlist()
+            self.bandwidth_info = FrozenSDPBandwidthInfoList(bandwidth_info) if not isinstance(bandwidth_info, FrozenSDPBandwidthInfoList) else bandwidth_info
             self.initialized = 1
 
     @classmethod
@@ -600,11 +672,12 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             return sdp_media
         connection = FrozenSDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
         attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_media.attributes])
+        bandwidth_info = frozenlist([FrozenSDPBandwidthInfo.new(info) for info in sdp_media.bandwidth_info])
         return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count,
-                   frozenlist(sdp_media.formats), connection, attributes)
+                   frozenlist(sdp_media.formats), connection, attributes, bandwidth_info)
 
     def __hash__(self):
-        return hash((self.media, self.port, self.transport, self.port_count, self.formats, self.connection, self.attributes))
+        return hash((self.media, self.port, self.transport, self.port_count, self.formats, self.connection, self.attributes, self.bandwidth_info))
 
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
@@ -809,6 +882,98 @@ cdef class FrozenSDPAttribute(BaseSDPAttribute):
         return BaseSDPAttribute_richcmp(self, other, op)
 
 
+cdef class SDPBandwidthInfoList(list):
+    def __contains__(self, item):
+        if isinstance(item, BaseSDPBandwidthInfo):
+            return list.__contains__(self, item)
+        else:
+            return item in [attr.name for attr in self]
+
+cdef class FrozenSDPBandwidthInfoList(frozenlist):
+    def __contains__(self, item):
+        if isinstance(item, BaseSDPBandwidthInfo):
+            return list.__contains__(self, item)
+        else:
+            return item in [info.modifier for info in self]
+
+
+cdef object BaseSDPBandwidthInfo_richcmp(object self, object other, int op) with gil:
+    cdef int eq = 1
+    if op not in [2,3]:
+        return NotImplemented
+    if not isinstance(other, BaseSDPBandwidthInfo):
+        return NotImplemented
+    for attr in ("modifier", "value"):
+        if getattr(self, attr) != getattr(other, attr):
+            eq = 0
+            break
+    if op == 2:
+        return bool(eq)
+    else:
+        return not eq
+
+cdef class BaseSDPBandwidthInfo:
+    def __init__(self, *args, **kwargs):
+        raise TypeError("BaseSDPBandwidthInfo cannot be instantiated directly")
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.modifier, self.value)
+
+    def __richcmp__(self, other, op):
+        return BaseSDPBandwidthInfo_richcmp(self, other, op)
+
+    cdef pjmedia_sdp_bandw* get_sdp_bandwidth_info(self):
+        return &self._sdp_bandwidth_info
+
+cdef class SDPBandwidthInfo(BaseSDPBandwidthInfo):
+    def __init__(self, str modifier not None, object value not None):
+        self.modifier = modifier
+        self.value = value
+
+    @classmethod
+    def new(cls, BaseSDPBandwidthInfo sdp_bandwidth_info):
+        return cls(sdp_bandwidth_info.modifier, sdp_bandwidth_info.value)
+
+    property modifier:
+
+        def __get__(self):
+            return self._modifier
+
+        def __set__(self, str modifier not None):
+            _str_to_pj_str(modifier, &self._sdp_bandwidth_info.modifier)
+            self._modifier = modifier
+
+    property value:
+
+        def __get__(self):
+            return self._value
+
+        def __set__(self, object value not None):
+            self._value = value
+            self._sdp_bandwidth_info.value = self._value
+
+cdef class FrozenSDPBandwidthInfo(BaseSDPBandwidthInfo):
+    def __init__(self, str modifier not None, object value not None):
+        if not self.initialized:
+            _str_to_pj_str(modifier, &self._sdp_bandwidth_info.modifier)
+            self.modifier = modifier
+            self._sdp_bandwidth_info.value = value
+            self.value = value
+            self.initialized = 1
+
+    @classmethod
+    def new(cls, BaseSDPBandwidthInfo sdp_bandwidth_info):
+        if isinstance(sdp_bandwidth_info, FrozenSDPBandwidthInfo):
+            return sdp_bandwidth_info
+        return cls(sdp_bandwidth_info.modifier, sdp_bandwidth_info.value)
+
+    def __hash__(self):
+        return hash((self.modifier, self.value))
+
+    def __richcmp__(self, other, op):
+        return BaseSDPBandwidthInfo_richcmp(self, other, op)
+
+
 # Factory functions
 #
 
@@ -828,6 +993,7 @@ cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
                        pj_session.time.start,
                        pj_session.time.stop,
                        [SDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)],
+                       [SDPBandwidthInfo_create(pj_session.bandw[i]) for i in range(pj_session.bandw_count)],
                        [SDPMediaStream_create(pj_session.media[i]) if pj_session.media[i] != NULL else None for i in range(pj_session.media_count)])
 
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
@@ -846,6 +1012,7 @@ cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_s
                             pj_session.time.start,
                             pj_session.time.stop,
                             frozenlist([FrozenSDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)]),
+                            frozenlist([FrozenSDPBandwidthInfo_create(pj_session.bandw[i]) for i in range(pj_session.bandw_count)]),
                             frozenlist([FrozenSDPMediaStream_create(pj_session.media[i]) if pj_session.media[i] != NULL else None for i in range(pj_session.media_count)]))
 
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
@@ -859,7 +1026,8 @@ cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
                           pj_media.desc.port_count,
                           [_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
                           connection,
-                          [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)])
+                          [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)],
+                          [SDPBandwidthInfo_create(pj_media.bandw[i]) for i in range(pj_media.bandw_count)])
 
 cdef FrozenSDPMediaStream FrozenSDPMediaStream_create(pjmedia_sdp_media *pj_media):
     cdef FrozenSDPConnection connection = None
@@ -872,7 +1040,8 @@ cdef FrozenSDPMediaStream FrozenSDPMediaStream_create(pjmedia_sdp_media *pj_medi
                           pj_media.desc.port_count,
                           frozenlist([_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)]),
                           connection,
-                          frozenlist([FrozenSDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)]))
+                          frozenlist([FrozenSDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)]),
+                          frozenlist([FrozenSDPBandwidthInfo_create(pj_media.bandw[i]) for i in range(pj_media.bandw_count)]))
 
 cdef SDPConnection SDPConnection_create(pjmedia_sdp_conn *pj_conn):
     return SDPConnection(_pj_str_to_str(pj_conn.addr), _pj_str_to_str(pj_conn.net_type),
@@ -887,6 +1056,12 @@ cdef SDPAttribute SDPAttribute_create(pjmedia_sdp_attr *pj_attr):
 
 cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr):
     return FrozenSDPAttribute(_pj_str_to_str(pj_attr.name), _pj_str_to_str(pj_attr.value))
+
+cdef SDPBandwidthInfo SDPBandwidthInfo_create(pjmedia_sdp_bandw *pj_bandw):
+    return SDPBandwidthInfo(_pj_str_to_str(pj_bandw.modifier), int(pj_bandw.value))
+
+cdef FrozenSDPBandwidthInfo FrozenSDPBandwidthInfo_create(pjmedia_sdp_bandw *pj_bandw):
+    return FrozenSDPBandwidthInfo(_pj_str_to_str(pj_bandw.modifier), int(pj_bandw.value))
 
 
 # SDP negotiator

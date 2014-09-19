@@ -600,9 +600,14 @@ cdef extern from "pjmedia.h":
         PJMEDIA_MAX_SDP_ATTR
     enum:
         PJMEDIA_MAX_SDP_MEDIA
+    enum:
+        PJMEDIA_MAX_SDP_BANDW
     struct pjmedia_sdp_attr:
         pj_str_t name
         pj_str_t value
+    struct pjmedia_sdp_bandw:
+        pj_str_t modifier
+        unsigned int value
     struct pjmedia_sdp_conn:
         pj_str_t net_type
         pj_str_t addr_type
@@ -619,6 +624,8 @@ cdef extern from "pjmedia.h":
         pjmedia_sdp_conn *conn
         unsigned int attr_count
         pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
+        unsigned int bandw_count
+        pjmedia_sdp_bandw *bandw[PJMEDIA_MAX_SDP_BANDW]
     struct pjmedia_sdp_session_origin:
         pj_str_t user
         unsigned int id
@@ -636,6 +643,8 @@ cdef extern from "pjmedia.h":
         pjmedia_sdp_session_time time
         unsigned int attr_count
         pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
+        unsigned int bandw_count
+        pjmedia_sdp_bandw *bandw[PJMEDIA_MAX_SDP_BANDW]
         unsigned int media_count
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
     ctypedef pjmedia_sdp_session *pjmedia_sdp_session_ptr_const "const pjmedia_sdp_session *"
@@ -2191,6 +2200,12 @@ cdef class SDPAttributeList(list):
 cdef class FrozenSDPAttributeList(frozenlist):
     pass
 
+cdef class SDPBandwidthInfoList(list):
+    pass
+
+cdef class FrozenSDPBandwidthInfoList(frozenlist):
+    pass
+
 cdef class BaseSDPSession(object):
     # attributes
     cdef pjmedia_sdp_session _sdp_session
@@ -2208,6 +2223,7 @@ cdef class SDPSession(BaseSDPSession):
     cdef str _info
     cdef SDPConnection _connection
     cdef list _attributes
+    cdef list _bandwidth_info
     cdef list _media
 
     # private methods
@@ -2228,6 +2244,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
     cdef readonly int start_time
     cdef readonly int stop_time
     cdef readonly FrozenSDPAttributeList attributes
+    cdef readonly FrozenSDPBandwidthInfoList bandwidth_info
     cdef readonly frozenlist media
 
 cdef class BaseSDPMediaStream(object):
@@ -2246,6 +2263,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
     cdef str _info
     cdef SDPConnection _connection
     cdef SDPAttributeList _attributes
+    cdef SDPBandwidthInfoList _bandwidth_info
 
     # private methods
     cdef int _update(self, SDPMediaStream media) except -1
@@ -2262,6 +2280,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     cdef readonly str info
     cdef readonly FrozenSDPConnection connection
     cdef readonly FrozenSDPAttributeList attributes
+    cdef readonly FrozenSDPBandwidthInfoList bandwidth_info
 
 cdef class BaseSDPAttribute(object):
     # attributes
@@ -2281,6 +2300,24 @@ cdef class FrozenSDPAttribute(BaseSDPAttribute):
     cdef readonly str name
     cdef readonly str value
 
+cdef class BaseSDPBandwidthInfo(object):
+    # attributes
+    cdef pjmedia_sdp_bandw _sdp_bandwidth_info
+
+    # private methods
+    cdef pjmedia_sdp_bandw* get_sdp_bandwidth_info(self)
+
+cdef class SDPBandwidthInfo(BaseSDPBandwidthInfo):
+    # attributes
+    cdef str _modifier
+    cdef int _value
+
+cdef class FrozenSDPBandwidthInfo(BaseSDPBandwidthInfo):
+    # attributes
+    cdef int initialized
+    cdef readonly str modifier
+    cdef readonly int value
+
 cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media)
@@ -2289,6 +2326,8 @@ cdef SDPConnection SDPConnection_create(pjmedia_sdp_conn *pj_conn)
 cdef FrozenSDPConnection FrozenSDPConnection_create(pjmedia_sdp_conn *pj_conn)
 cdef SDPAttribute SDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
+cdef SDPBandwidthInfo SDPBandwidthInfo_create(pjmedia_sdp_bandw *pj_bandw)
+cdef FrozenSDPBandwidthInfo FrozenSDPBandwidthInfo_create(pjmedia_sdp_bandw *pj_bandw)
 
 cdef class SDPNegotiator(object):
     # attributes
