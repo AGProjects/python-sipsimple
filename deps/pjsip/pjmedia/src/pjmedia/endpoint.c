@@ -564,6 +564,7 @@ PJ_DEF(pj_status_t) pjmedia_endpt_create_audio_sdp(pjmedia_endpt *endpt,
     /* Put bandwidth info in media level using bandwidth modifier "TIAS"
      * (RFC3890).
      */
+#if 0
     if (max_bitrate && pjmedia_add_bandwidth_tias_in_sdp) {
 	const pj_str_t STR_BANDW_MODIFIER = { "TIAS", 4 };
 	pjmedia_sdp_bandw *b;
@@ -573,6 +574,7 @@ PJ_DEF(pj_status_t) pjmedia_endpt_create_audio_sdp(pjmedia_endpt *endpt,
 	b->value = max_bitrate;
 	m->bandw[m->bandw_count++] = b;
     }
+#endif
 
     *p_m = m;
     return PJ_SUCCESS;
