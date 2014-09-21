@@ -13,7 +13,6 @@ __all__ = ['Session', 'SessionManager']
 
 import random
 
-from datetime import datetime
 from threading import RLock
 from time import time
 
@@ -39,6 +38,7 @@ from sipsimple.payloads.conference import ConferenceDocument
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.util import ISOTimestamp
 
 
 class InvitationDisconnectedError(Exception):
@@ -1153,7 +1153,7 @@ class Session(object):
                 notification_center.post_notification('SIPSessionWillEnd', self, NotificationData(originator=e.data.originator))
                 if e.data.originator == 'remote':
                     notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method=e.data.method, code=200, reason=sip_status_messages[200]))
-                self.end_time = datetime.now()
+                self.end_time = ISOTimestamp.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator=e.data.originator, end_reason=e.data.disconnect_reason))
             else:
                 if e.data.originator == 'remote':
@@ -1186,7 +1186,7 @@ class Session(object):
             self.state = 'connected'
             self.streams = self.proposed_streams
             self.proposed_streams = None
-            self.start_time = datetime.now()
+            self.start_time = ISOTimestamp.now()
             any_stream_ice = any(getattr(stream, 'ice_active', False) for stream in self.streams)
             if any_stream_ice:
                 self._reinvite_after_ice()
@@ -1415,7 +1415,7 @@ class Session(object):
                 reason_header = ReasonHeader('SIP')
                 reason_header.cause = 500
                 reason_header.text = 'media stream failed to start'
-            self.start_time = datetime.now()
+            self.start_time = ISOTimestamp.now()
             if self._invitation.state in ('incoming', 'early'):
                 self._fail(originator='local', code=500, reason=sip_status_messages[500], error=error, reason_header=reason_header)
             else:
@@ -1436,7 +1436,7 @@ class Session(object):
             else:
                 notification_center.post_notification('SIPSessionWillEnd', self, NotificationData(originator='remote'))
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method=getattr(e.data, 'method', 'INVITE'), code=200, reason='OK'))
-                self.end_time = datetime.now()
+                self.end_time = ISOTimestamp.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator='remote', end_reason=e.data.disconnect_reason))
             self.greenlet = None
         except SIPCoreInvalidStateError:
@@ -1461,7 +1461,7 @@ class Session(object):
             self.state = 'connected'
             self.streams = self.proposed_streams
             self.proposed_streams = None
-            self.start_time = datetime.now()
+            self.start_time = ISOTimestamp.now()
             notification_center.post_notification('SIPSessionDidStart', self, NotificationData(streams=self.streams[:]))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
@@ -1983,14 +1983,14 @@ class Session(object):
             if cancelling:
                 notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
             else:
-                self.end_time = datetime.now()
+                self.end_time = ISOTimestamp.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator='local', end_reason='SIP core error: %s' % str(e)))
         except InvitationDisconnectedError, e:
             # As it weird as it may sound, PJSIP accepts a BYE even without receiving a final response to the INVITE
             if e.data.prev_state == 'connected':
                 if e.data.originator == 'remote':
                     notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator=e.data.originator, method=e.data.method, code=200, reason=sip_status_messages[200]))
-                self.end_time = datetime.now()
+                self.end_time = ISOTimestamp.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator=e.data.originator, end_reason=e.data.disconnect_reason))
             elif getattr(e.data, 'method', None) == 'BYE' and e.data.originator == 'remote':
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator=e.data.originator, method=e.data.method, code=200, reason=sip_status_messages[200]))
@@ -2015,7 +2015,7 @@ class Session(object):
             if cancelling:
                 notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
             else:
-                self.end_time = datetime.now()
+                self.end_time = ISOTimestamp.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, NotificationData(originator='local', end_reason='user request'))
         finally:
             for stream in streams:
@@ -2509,7 +2509,7 @@ class Session(object):
                                 notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator=notification.data.originator, method=notification.data.method, code=200, reason=sip_status_messages[200]))
                             else:
                                 notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator=notification.data.originator, method='INVITE', code=notification.data.code, reason=notification.data.reason))
-                        self.end_time = datetime.now()
+                        self.end_time = ISOTimestamp.now()
                         notification.center.post_notification('SIPSessionDidEnd', self, NotificationData(originator=notification.data.originator, end_reason=notification.data.disconnect_reason))
                     notification.center.remove_observer(self, sender=self._invitation)
             finally:
