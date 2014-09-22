@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Debian
 --------------------------------------------
 
-Copyright (c) 2008-2013 AG Projects
+Copyright (c) 2008-2014 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
@@ -58,6 +58,18 @@ Install the building dependencies:
 
 sudo apt-get install cython cython-dbg python-setuptools \
 debhelper python-all-dev python-all-dbg libasound2-dev libssl-dev
+
+For adding Video support:
+
+sudo apt-get install libv4l-dev libavcodec-dev libavformat-dev libavutil-dev \
+libswscale-dev libswresample-dev libx264-dev libavcodec-extra
+
+If using the Debian-Multimedia repositories, do not install libavcodec-extra.
+
+For Ubuntu variants:
+
+sudo apt-get install libv4l-dev libavcodec-dev libavformat-dev libavutil-dev \
+libswscale-dev libswresample-dev libx264-dev libavcodec-extra53
 
 Obtain the source code using darcs as described in Install.linux document.
 

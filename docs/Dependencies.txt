@@ -2,7 +2,7 @@
 Dependencies for SIP SIMPLE client SDK
 --------------------------------------
 
-Copyright (c) 2008-2013 AG Projects
+Copyright (c) 2008-2014 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
@@ -21,3 +21,41 @@ Home page: http://sipsimpleclient.org
  * dnspython                http://www.dnspython.org                          >=1.9.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
+
+For Video support:
+
+ * ffmpeg (libavformat, libswscale, libavcodec, libavutil) (2.0 release)
+ * libx264 (snapshot-20130806-2245-stable)
+
+To compile the video dependencies:
+
+export MY_FFMPEG_LIBS=$HOME/work/ag-projects/video/local
+
+NOTE: yasm is required in order to enable asm optimizations. It does not
+come preinstalled on OSX, so it has to be manually installed. (brew install
+yams or apt-get install yams (fink) will do)
+
+For libx264:
+
+./configure --enable-shared --disable-avs --disable-lavf --disable-ffms
+--disable-gpac --prefix=$MY_FFMPEG_LIBS
+make
+make install
+
+# If a 32bit build is wanted on OSX, then run this configure instead:
+./configure --host=i386-apple-darwin --enable-shared --disable-avs
+# --disable-lavf --disable-ffms --disable-gpac --prefix=$MY_FFMPEG_LIBS
+
+For ffmpeg:
+
+# Some exports
+export PKG_CONFIG_PATH=$MY_FFMPEG_LIBS/lib/pkgconfig
+
+./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --prefix=$MY_FFMPEG_LIBS --extra-cflags="`pkg-config --cflags x264`" --extra-ldflags="`pkg-config --libs x264`" 
+
+make
+make install
+
+# If a 32bit build is wanted on OSX do:
+./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --prefix=$MY_FFMPEG_LIBS --extra-cflags="`pkg-config --cflags x264`" --extra-ldflags="`pkg-config --libs x264`" --cc="gcc -m32"
+
