@@ -362,7 +362,7 @@ static void dump_port_info(const pjmedia_vid_channel *chan,
     const pjmedia_port_info *pi = &chan->port.info;
     char fourcc_name[5];
 
-    PJ_LOG(5, (pi->name.ptr,
+    PJ_LOG(4, (pi->name.ptr,
 	       " %s format %s: %dx%d %s%s %d/%d(~%d)fps",
 	       (chan->dir==PJMEDIA_DIR_DECODING? "Decoding":"Encoding"),
 	       event_name,
@@ -1095,7 +1095,6 @@ static pj_status_t decode_frame(pjmedia_vid_stream *stream,
     /* Learn remote frame rate after successful decoding */
     if (frame->type == PJMEDIA_FRAME_TYPE_VIDEO && frame->size)
     {
-#if 0
 	/* Only check remote frame rate when timestamp is not wrapping and
 	 * sequence is increased by 1.
 	 */
@@ -1152,7 +1151,6 @@ static pj_status_t decode_frame(pjmedia_vid_stream *stream,
 		}
 	    }
 	}
-#endif
 
 	/* Update last frame seq and timestamp */
 	stream->last_dec_seq = frm_last_seq;
