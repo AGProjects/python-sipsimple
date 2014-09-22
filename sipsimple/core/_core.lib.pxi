@@ -485,7 +485,7 @@ cdef class PJMEDIAEndpoint:
                     # Max framerate
                     vparam.enc_fmt.det.vid.fps.num = max_framerate
                     vparam.enc_fmt.det.vid.fps.denum = 1
-                    vparam.dec_fmt.det.vid.fps.num = max_framerate
+                    vparam.dec_fmt.det.vid.fps.num = 10
                     vparam.dec_fmt.det.vid.fps.denum = 1
                     # Average and max bitrate (set to 0 for 'unlimited')
                     vparam.enc_fmt.det.vid.avg_bps = int(max_bitrate * 1e6)
