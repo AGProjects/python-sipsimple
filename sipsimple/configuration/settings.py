@@ -43,6 +43,7 @@ class VideoSettings(SettingsGroup):
     device = Setting(type=unicode, default=u'system_default', nillable=True)
     resolution = Setting(type=VideoResolution, default=VideoResolution('1280x720'))
     framerate = Setting(type=int, default=25)
+    max_bitrate = Setting(type=float, default=None, nillable=True)
     paused = RuntimeSetting(type=bool, default=False)
     h264 = H264Settings
 

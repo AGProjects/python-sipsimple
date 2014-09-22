@@ -235,7 +235,8 @@ class SIPApplication(object):
         self.engine.set_h264_options(settings.video.h264.profile,
                                      settings.video.h264.level,
                                      settings.video.resolution,
-                                     settings.video.framerate)
+                                     settings.video.framerate,
+                                     settings.video.max_bitrate)
 
         # initialize instance id
         if not settings.instance_id:
@@ -368,7 +369,7 @@ class SIPApplication(object):
                         self.alert_audio_bridge.mixer.output_volume = 100
             if 'video.paused' in notification.data.modified:
                 self.video_device.paused = settings.video.paused
-            if {'video.device', 'video.resolution', 'video.framerate', 'video.h264.profile', 'video.h264.level'}.intersection(notification.data.modified):
+            if {'video.device', 'video.resolution', 'video.framerate', 'video.max_bitrate', 'video.h264.profile', 'video.h264.level'}.intersection(notification.data.modified):
                 if {'video.device', 'video.resolution', 'video.framerate'}.intersection(notification.data.modified) or settings.video.device != self.video_device.name:
                     self.video_device.set_camera(settings.video.device, settings.video.resolution, settings.video.framerate)
                     settings.video.device = self.video_device.name
@@ -376,7 +377,8 @@ class SIPApplication(object):
                 self.engine.set_h264_options(settings.video.h264.profile,
                                              settings.video.h264.level,
                                              settings.video.resolution,
-                                             settings.video.framerate)
+                                             settings.video.framerate,
+                                             settings.video.max_bitrate)
             if 'user_agent' in notification.data.modified:
                 self.engine.user_agent = settings.user_agent
             if 'sip.udp_port' in notification.data.modified:

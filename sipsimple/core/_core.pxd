@@ -1410,7 +1410,7 @@ cdef class PJMEDIAEndpoint(object):
     cdef int _set_video_codecs(self, list req_codecs) except -1
     cdef void _video_subsystem_init(self, PJCachingPool caching_pool)
     cdef void _video_subsystem_shutdown(self)
-    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate)
+    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, float max_bitrate)
 
 # core.helper
 

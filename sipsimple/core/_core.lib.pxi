@@ -443,7 +443,7 @@ cdef class PJMEDIAEndpoint:
                     raise PJSIPError("Could not set video codec priority", status)
         return 0
 
-    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate):
+    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, float max_bitrate):
         global h264_profiles_map, h264_profile_level_id, h264_packetization_mode
 
         cdef unsigned int count = PJMEDIA_VID_CODEC_MGR_MAX_CODECS
@@ -488,8 +488,8 @@ cdef class PJMEDIAEndpoint:
                     vparam.dec_fmt.det.vid.fps.num = max_framerate
                     vparam.dec_fmt.det.vid.fps.denum = 1
                     # Average and max bitrate (set to 0 for 'unlimited')
-                    vparam.enc_fmt.det.vid.avg_bps = 0
-                    vparam.enc_fmt.det.vid.max_bps = 0
+                    vparam.enc_fmt.det.vid.avg_bps = int(max_bitrate * 1e6)
+                    vparam.enc_fmt.det.vid.max_bps = int(max_bitrate * 1e6)
                     vparam.dec_fmt.det.vid.avg_bps = 0
                     vparam.dec_fmt.det.vid.max_bps = 0
 
