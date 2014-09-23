@@ -348,6 +348,7 @@ static avf_fmt_info* get_avf_format_info(pjmedia_format_id id)
 {
     pjmedia_frame frame = {0};
     CVImageBufferRef img;
+    CVReturn ret;
 
     if (!sampleBuffer)
 	return;
@@ -358,7 +359,9 @@ static avf_fmt_info* get_avf_format_info(pjmedia_format_id id)
         return;
 
     /* Lock the base address of the pixel buffer */
-    CVPixelBufferLockBaseAddress(img, kCVPixelBufferLock_ReadOnly);
+    ret = CVPixelBufferLockBaseAddress(img, kCVPixelBufferLock_ReadOnly);
+    if (ret != kCVReturnSuccess)
+        return;
 
     /* Prepare frame */
     frame.type = PJMEDIA_FRAME_TYPE_VIDEO;
