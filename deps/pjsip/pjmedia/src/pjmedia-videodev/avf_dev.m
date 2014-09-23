@@ -43,6 +43,7 @@ typedef struct avf_fmt_info
 
 static avf_fmt_info avf_fmts[] =
 {
+    {PJMEDIA_FORMAT_BGRA, kCVPixelFormatType_32BGRA},
     {PJMEDIA_FORMAT_YUY2, kCVPixelFormatType_422YpCbCr8_yuvs},
     {PJMEDIA_FORMAT_UYVY, kCVPixelFormatType_422YpCbCr8},
 };
