@@ -447,20 +447,26 @@ static void init_avf_stream(struct avf_stream *strm)
         status = PJMEDIA_EVID_SYSERR;
         return;
     }
-    strm->video_output.alwaysDiscardsLateVideoFrames = YES;
     [strm->cap_session addOutput:strm->video_output];
 
     /* Configure the video output */
+    strm->video_output.alwaysDiscardsLateVideoFrames = YES;
+    /* The Apple provided documentation says the only supported key is kCVPixelBufferPixelFormatTypeKey,
+     * but it turns out kCVPixelBufferWidthKey and kCVPixelBufferHeightKey are also required. Thanks
+     * Chromium, for figuring it out.*/
+    strm->video_output.videoSettings =
+        [NSDictionary dictionaryWithObjectsAndKeys: @(fi->avf_format),
+                                                    kCVPixelBufferPixelFormatTypeKey,
+                                                    @(vfd->size.w),
+                                                    kCVPixelBufferWidthKey,
+                                                    @(vfd->size.h),
+                                                    kCVPixelBufferHeightKey,
+                                                    nil];
     strm->delegate = [[AVFDelegate alloc] init];
     strm->delegate->stream = strm;
     dispatch_queue_t queue = dispatch_queue_create("AVFQueue", NULL);
     [strm->video_output setSampleBufferDelegate:strm->delegate queue:queue];
     dispatch_release(queue);
-
-    strm->video_output.videoSettings =
-        [NSDictionary dictionaryWithObjectsAndKeys:
-                        [NSNumber numberWithInt:fi->avf_format],
-                        kCVPixelBufferPixelFormatTypeKey, nil];
 }
 
 static void run_func_on_main_thread(struct avf_stream *strm, func_ptr func)
