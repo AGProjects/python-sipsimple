@@ -1073,7 +1073,6 @@ class ScreenSharingStream(MSRPStreamBase):
 
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
 class NotificationProxyLogger(object):
-
     def __init__(self):
         from application import log
         self.level = log.level
@@ -1107,7 +1106,8 @@ class NotificationProxyLogger(object):
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
         if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='incoming', data=chunk))
+            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk)
+            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
     def sent_new_chunk(self, data, transport, chunk):
         content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
@@ -1127,7 +1127,8 @@ class NotificationProxyLogger(object):
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
         if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=NotificationData(direction='outgoing', data=chunk))
+            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk))
+            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
     def debug(self, message, **context):
         pass
