@@ -706,22 +706,21 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
         if old_producer is producer:
             return
 
-        # initialize our port if not initialized
-        if self._video_port == NULL:
-            self._initialize(producer)
-
-        self._stop()
         if old_producer is not None:
+            self._stop()
             old_producer._remove_consumer(self)
+            self._destroy_video_port()
+
         self._producer = producer
+
         if producer is not None:
+            self._initialize(producer)
             producer._add_consumer(self)
             self._start()
 
     def close(self):
         cdef int status
         cdef pj_mutex_t *lock
-        cdef pjmedia_vid_port *video_port
         cdef PJSIPUA ua
         cdef void* ptr
 
@@ -742,16 +741,21 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
             self._set_producer(None)
             self._stop()
             self._closed = 1
-            video_port = self._video_port
-            if video_port != NULL:
-                with nogil:
-                    pjmedia_vid_port_stop(video_port)
-                    pjmedia_vid_port_disconnect(video_port)
-                    pjmedia_vid_port_destroy(video_port)
-            self._video_port = NULL
+            self._destroy_video_port()
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+
+    cdef void _destroy_video_port(self):
+        # No need to hold the lock, this function is always called with it held
+        cdef pjmedia_vid_port *video_port
+        video_port = self._video_port
+        if video_port != NULL:
+            with nogil:
+                pjmedia_vid_port_stop(video_port)
+                pjmedia_vid_port_disconnect(video_port)
+                pjmedia_vid_port_destroy(video_port)
+        self._video_port = NULL
 
     cdef void _start(self):
         # No need to hold the lock, this function is always called with it held
@@ -769,18 +773,11 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
 
     def __dealloc__(self):
         cdef PJSIPUA ua
-        cdef pjmedia_vid_port *video_port
         try:
             ua = _get_ua()
         except:
             return
-        video_port = self._video_port
-        if video_port != NULL:
-            with nogil:
-                pjmedia_vid_port_stop(video_port)
-                pjmedia_vid_port_disconnect(video_port)
-                pjmedia_vid_port_destroy(video_port)
-        self._video_port = NULL
+        self._destroy_video_port()
 
 
 cdef RemoteVideoStream_create(pjmedia_vid_stream *stream):

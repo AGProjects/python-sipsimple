@@ -1943,6 +1943,7 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
     cdef object _frame_handler
 
     cdef _initialize(self, VideoProducer producer)
+    cdef void _destroy_video_port(self)
     cdef void _start(self)
     cdef void _stop(self)
 
