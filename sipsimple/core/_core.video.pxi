@@ -809,7 +809,7 @@ cdef void _stop_video_port(pjmedia_vid_port *port):
     with nogil:
         status = pjmedia_vid_port_stop(port)
     if status != 0:
-        raise PJSIPError("Could not start video port", status)
+        raise PJSIPError("Could not stop video port", status)
 
 
 cdef void FrameBufferVideoRenderer_frame_handler(pjmedia_frame_ptr_const frame, pjmedia_rect_size size, void *user_data) with gil:
