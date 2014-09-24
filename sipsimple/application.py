@@ -289,6 +289,12 @@ class SIPApplication(object):
         if self.running and self._timer is None:
             def notify():
                 if self.running:
+                    settings = SIPSimpleSettings()
+                    if 'tcp' in settings.sip.transport_list:
+                        self.engine.set_tcp_port(None)
+                        self.engine.set_tcp_port(settings.sip.tcp_port)
+                    if 'tls' in settings.sip.transport_list:
+                        self._initialize_tls()
                     notification_center = NotificationCenter()
                     notification_center.post_notification('NetworkConditionsDidChange', sender=self)
                 self._timer = None
