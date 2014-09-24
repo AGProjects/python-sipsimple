@@ -557,6 +557,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_vid_stream
     ctypedef pjmedia_vid_stream *pjmedia_vid_stream_ptr_const "const pjmedia_vid_stream *"
     int pjmedia_vid_stream_get_stat(pjmedia_vid_stream_ptr_const stream, pjmedia_rtcp_stat *stat) nogil
+    int pjmedia_vid_stream_get_info(pjmedia_vid_stream_ptr_const stream, pjmedia_vid_stream_info *info) nogil
     int pjmedia_vid_stream_info_from_sdp(pjmedia_vid_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
                                          pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx) nogil
     int pjmedia_vid_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_vid_stream_info *info,
@@ -1951,7 +1952,9 @@ cdef class LocalVideoStream(VideoConsumer):
     cdef void _initialize(self, pjmedia_port *media_port)
 
 cdef class RemoteVideoStream(VideoProducer):
-    cdef void _initialize(self, pjmedia_port *media_port)
+    cdef pjmedia_vid_stream *_video_stream
+
+    cdef void _initialize(self, pjmedia_vid_stream *stream)
 
 cdef LocalVideoStream_create(pjmedia_vid_stream *stream)
 cdef RemoteVideoStream_create(pjmedia_vid_stream *stream)

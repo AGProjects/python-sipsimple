@@ -282,6 +282,68 @@ cdef class VideoCamera(VideoProducer):
             with nogil:
                 pj_mutex_unlock(lock)
 
+    property framerate:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock
+            cdef pjmedia_vid_dev_stream *stream
+            cdef pjmedia_vid_dev_param param
+            cdef PJSIPUA ua
+
+            ua = _get_ua()
+            lock = self._lock
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            if self._closed:
+                return None
+            stream = pjmedia_vid_port_get_stream(self._video_port)
+            if stream == NULL:
+                return None
+            try:
+                with nogil:
+                    status = pjmedia_vid_dev_stream_get_param(stream, &param)
+                if status != 0:
+                    return None
+                return float(param.fmt.det.vid.fps.num) / param.fmt.det.vid.fps.denum
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property framesize:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock
+            cdef pjmedia_vid_dev_stream *stream
+            cdef pjmedia_vid_dev_param param
+            cdef PJSIPUA ua
+
+            ua = _get_ua()
+            lock = self._lock
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            if self._closed:
+                return (-1, -1)
+            stream = pjmedia_vid_port_get_stream(self._video_port)
+            if stream == NULL:
+                return (-1, -1)
+            try:
+                with nogil:
+                    status = pjmedia_vid_dev_stream_get_param(stream, &param)
+                if status != 0:
+                    return (-1, -1)
+                return (param.fmt.det.vid.size.w, param.fmt.det.vid.size.h)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
     def start(self):
         cdef int status
         cdef pj_mutex_t *lock
@@ -521,12 +583,81 @@ cdef LocalVideoStream_create(pjmedia_vid_stream *stream):
 
 cdef class RemoteVideoStream(VideoProducer):
 
-    cdef void _initialize(self, pjmedia_port *media_port):
+    cdef void _initialize(self, pjmedia_vid_stream *stream):
+        cdef pjmedia_port *media_port
+        cdef int status
+
+        with nogil:
+            status = pjmedia_vid_stream_get_port(stream, PJMEDIA_DIR_DECODING, &media_port)
+        if status != 0:
+            raise PJSIPError("failed to get video stream port", status)
+        if media_port == NULL:
+            raise ValueError("invalid media port")
+        self._video_stream = stream
+
         # TODO: we cannot use a tee here, because the remote video is a passive port, we have a pjmedia_port, not a
         # pjmedia_vid_port, so, for now, only one consumer is allowed
         self.producer_port = media_port
         self._running = 1
         self._closed = 0
+
+    property framerate:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock
+            cdef pjmedia_vid_stream *stream
+            cdef pjmedia_vid_stream_info info
+            cdef PJSIPUA ua
+
+            ua = _get_ua()
+            lock = self._lock
+            stream = self._video_stream
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            if self._closed:
+                return 0
+            try:
+                with nogil:
+                    status = pjmedia_vid_stream_get_info(stream, &info)
+                if status != 0:
+                    return 0
+                return float(info.codec_param.dec_fmt.det.vid.fps.num) / info.codec_param.dec_fmt.det.vid.fps.denum
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property framesize:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock
+            cdef pjmedia_vid_stream *stream
+            cdef pjmedia_vid_stream_info info
+            cdef PJSIPUA ua
+
+            ua = _get_ua()
+            lock = self._lock
+            stream = self._video_stream
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            if self._closed:
+                return (-1, -1)
+            try:
+                with nogil:
+                    status = pjmedia_vid_stream_get_info(stream, &info)
+                if status != 0:
+                    return (-1, -1)
+                return (info.codec_param.dec_fmt.det.vid.size.w, info.codec_param.dec_fmt.det.vid.size.h)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     def start(self):
         pass
@@ -781,18 +912,8 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
 
 
 cdef RemoteVideoStream_create(pjmedia_vid_stream *stream):
-    cdef pjmedia_port *media_port
-    cdef int status
-
-    with nogil:
-        status = pjmedia_vid_stream_get_port(stream, PJMEDIA_DIR_DECODING, &media_port)
-    if status != 0:
-        raise PJSIPError("failed to get video stream port", status)
-    if media_port == NULL:
-        raise ValueError("invalid media port")
-
     obj = RemoteVideoStream()
-    obj._initialize(media_port)
+    obj._initialize(stream)
     return obj
 
 
