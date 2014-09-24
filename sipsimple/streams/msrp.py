@@ -1127,7 +1127,7 @@ class NotificationProxyLogger(object):
         self.stripped_data_transactions.discard(transaction_id)
         self.text_transactions.discard(transaction_id)
         if self.log_settings.trace_msrp:
-            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk))
+            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk)
             self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
     def debug(self, message, **context):
