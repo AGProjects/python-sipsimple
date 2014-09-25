@@ -933,6 +933,19 @@ cdef void _stop_video_port(pjmedia_vid_port *port):
         raise PJSIPError("Could not stop video port", status)
 
 
+cdef class VideoFrame:
+
+    def __init__(self, str data, int width, int height):
+        self.data = data
+        self.width = width
+        self.height = height
+
+    property size:
+
+        def __get__(self):
+            return (self.width, self.height)
+
+
 cdef void FrameBufferVideoRenderer_frame_handler(pjmedia_frame_ptr_const frame, pjmedia_rect_size size, void *user_data) with gil:
     cdef PJSIPUA ua
     cdef FrameBufferVideoRenderer rend
@@ -947,5 +960,5 @@ cdef void FrameBufferVideoRenderer_frame_handler(pjmedia_frame_ptr_const frame, 
         return
     if rend._frame_handler is not None:
         data = PyString_FromStringAndSize(<char*>frame.buf, frame.size)
-        rend._frame_handler(data, size.w, size.h)
+        rend._frame_handler(VideoFrame(data, size.w, size.h))
 

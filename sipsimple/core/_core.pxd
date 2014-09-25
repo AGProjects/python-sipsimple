@@ -1905,6 +1905,11 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 
 # core.video
 
+cdef class VideoFrame(object):
+    cdef readonly str data
+    cdef readonly int width
+    cdef readonly int height
+
 cdef class VideoConsumer(object):
     cdef pjmedia_port *consumer_port
     cdef pjmedia_vid_port *_video_port
