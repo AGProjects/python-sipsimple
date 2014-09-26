@@ -1440,7 +1440,7 @@ cdef class VideoTransport:
                 pjmedia_vid_stream_send_rtcp_sdes(stream)
             try:
                 local_video = LocalVideoStream_create(stream)
-                remote_video = RemoteVideoStream_create(stream)
+                remote_video = RemoteVideoStream_create(stream, self._remote_format_changed)
             except PJSIPError:
                 with nogil:
                     pjmedia_vid_stream_destroy(stream)
@@ -1663,6 +1663,9 @@ cdef class VideoTransport:
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+
+    def _remote_format_changed(self, object size, float framerate):
+        _add_event("RTPVideoTransportRemoteFormatDidChange", dict(obj=self, size=size, framerate=framerate))
 
 
 cdef class ICECandidate:

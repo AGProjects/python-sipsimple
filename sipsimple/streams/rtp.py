@@ -869,6 +869,9 @@ class VideoStream(object):
     def _NH_RTPVideoTransportDidTimeout(self, notification):
         self.notification_center.post_notification('VideoStreamDidTimeout', sender=self)
 
+    def _NH_RTPVideoTransportRemoteFormatDidChange(self, notification):
+        self.notification_center.post_notification('VideoStreamRemoteFormatDidChange', sender=self, data=notification.data)
+
     def _NH_VideoDeviceDidChangeCamera(self, notification):
         new_camera = notification.data.new_camera
         if self._video_transport is not None and self._video_transport.local_video is not None:

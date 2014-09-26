@@ -408,9 +408,23 @@ cdef extern from "pjmedia.h":
 
     # event manager
     struct pjmedia_event_mgr
+    enum pjmedia_event_type:
+        PJMEDIA_EVENT_FMT_CHANGED
+    struct pjmedia_event_fmt_changed_data:
+        pjmedia_dir dir
+        pjmedia_format new_fmt
+    cdef union pjmedia_event_data_union:
+        pjmedia_event_fmt_changed_data fmt_changed
+        void* ptr
+    struct pjmedia_event:
+        pjmedia_event_type type
+        pjmedia_event_data_union data
     int pjmedia_event_mgr_create(pj_pool_t *pool, unsigned int options, pjmedia_event_mgr **mgr) nogil
     void pjmedia_event_mgr_destroy(pjmedia_event_mgr *mgr) nogil
     pjmedia_event_mgr* pjmedia_event_mgr_instance() nogil
+    ctypedef int pjmedia_event_cb(pjmedia_event *event, void *user_data)
+    int pjmedia_event_subscribe(pjmedia_event_mgr *mgr, pjmedia_event_cb *cb, void *user_data, void *epub) nogil
+    int pjmedia_event_unsubscribe(pjmedia_event_mgr *mgr, pjmedia_event_cb *cb, void *user_data, void *epub) nogil
 
     # endpoint
     struct pjmedia_endpt
@@ -1958,11 +1972,13 @@ cdef class LocalVideoStream(VideoConsumer):
 
 cdef class RemoteVideoStream(VideoProducer):
     cdef pjmedia_vid_stream *_video_stream
+    cdef object _format_change_handler
 
     cdef void _initialize(self, pjmedia_vid_stream *stream)
 
 cdef LocalVideoStream_create(pjmedia_vid_stream *stream)
-cdef RemoteVideoStream_create(pjmedia_vid_stream *stream)
+cdef RemoteVideoStream_create(pjmedia_vid_stream *stream, format_change_handler=*)
+cdef int RemoteVideoStream_on_event(pjmedia_event *event, void *user_data) with gil
 cdef void _start_video_port(pjmedia_vid_port *port)
 cdef void _stop_video_port(pjmedia_vid_port *port)
 

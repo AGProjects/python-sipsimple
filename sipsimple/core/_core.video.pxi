@@ -583,9 +583,16 @@ cdef LocalVideoStream_create(pjmedia_vid_stream *stream):
 
 cdef class RemoteVideoStream(VideoProducer):
 
+    def __init__(self, object format_change_handler=None):
+        super(RemoteVideoStream, self).__init__()
+        if format_change_handler is not None and not callable(format_change_handler):
+            raise TypeError("format_change_handler must be a callable or None")
+        self._format_change_handler = format_change_handler
+
     cdef void _initialize(self, pjmedia_vid_stream *stream):
         cdef pjmedia_port *media_port
         cdef int status
+        cdef void* ptr
 
         with nogil:
             status = pjmedia_vid_stream_get_port(stream, PJMEDIA_DIR_DECODING, &media_port)
@@ -594,6 +601,10 @@ cdef class RemoteVideoStream(VideoProducer):
         if media_port == NULL:
             raise ValueError("invalid media port")
         self._video_stream = stream
+
+        ptr = <void*>self
+        with nogil:
+            pjmedia_event_subscribe(NULL, &RemoteVideoStream_on_event, ptr, media_port);
 
         # TODO: we cannot use a tee here, because the remote video is a passive port, we have a pjmedia_port, not a
         # pjmedia_vid_port, so, for now, only one consumer is allowed
@@ -670,6 +681,8 @@ cdef class RemoteVideoStream(VideoProducer):
         cdef pj_mutex_t *lock
         cdef PJSIPUA ua
         cdef VideoConsumer consumer
+        cdef void* ptr
+        cdef pjmedia_port *media_port
 
         try:
             ua = _get_ua()
@@ -688,6 +701,10 @@ cdef class RemoteVideoStream(VideoProducer):
             if self._consumers:
                 consumer = self._consumers.pop()
                 consumer.producer = None
+            ptr = <void*>self
+            media_port = self.producer_port
+            with nogil:
+                pjmedia_event_unsubscribe(NULL, &RemoteVideoStream_on_event, ptr, media_port)
             self._closed = 1
         finally:
             with nogil:
@@ -911,8 +928,8 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
         self._destroy_video_port()
 
 
-cdef RemoteVideoStream_create(pjmedia_vid_stream *stream):
-    obj = RemoteVideoStream()
+cdef RemoteVideoStream_create(pjmedia_vid_stream *stream, format_change_handler=None):
+    obj = RemoteVideoStream(format_change_handler)
     obj._initialize(stream)
     return obj
 
@@ -961,4 +978,24 @@ cdef void FrameBufferVideoRenderer_frame_handler(pjmedia_frame_ptr_const frame, 
     if rend._frame_handler is not None:
         data = PyString_FromStringAndSize(<char*>frame.buf, frame.size)
         rend._frame_handler(VideoFrame(data, size.w, size.h))
+
+
+cdef int RemoteVideoStream_on_event(pjmedia_event *event, void *user_data) with gil:
+    cdef PJSIPUA ua
+    cdef RemoteVideoStream stream
+    cdef pjmedia_format fmt
+
+    try:
+        ua = _get_ua()
+    except:
+        return 0
+    if user_data == NULL:
+        return 0
+    stream = <object>user_data
+    if event.type == PJMEDIA_EVENT_FMT_CHANGED and stream._format_change_handler is not None:
+        fmt = event.data.fmt_changed.new_fmt
+        size = (fmt.det.vid.size.w, fmt.det.vid.size.h)
+        fps = 1.0*fmt.det.vid.fps.num/fmt.det.vid.fps.denum
+        stream._format_change_handler(size, fps)
+    return 0
 
