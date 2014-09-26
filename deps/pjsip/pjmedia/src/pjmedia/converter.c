@@ -174,17 +174,15 @@ PJ_DEF(pj_status_t) pjmedia_converter_create(pjmedia_converter_mgr *mgr,
     if (param->src.type == PJMEDIA_TYPE_VIDEO) {
         char src_fourcc_name[5];
         char dst_fourcc_name[5];
-        PJ_LOG(4, (THIS_FILE, "Converter %p (%s) created for video: %dx%d %s ~%dfps -> %dx%d %s ~%dfps",
+        PJ_LOG(4, (THIS_FILE, "Converter %p (%s) created for video: %dx%d %s -> %dx%d %s",
                               cv,
                               f->name,
                               param->src.det.vid.size.w,
                               param->src.det.vid.size.h,
                               pjmedia_fourcc_name(param->src.id, src_fourcc_name),
-                              param->src.det.vid.fps.num/param->src.det.vid.fps.denum,
                               param->dst.det.vid.size.w,
                               param->dst.det.vid.size.h,
-                              pjmedia_fourcc_name(param->dst.id, dst_fourcc_name),
-                              param->dst.det.vid.fps.num/param->dst.det.vid.fps.denum));
+                              pjmedia_fourcc_name(param->dst.id, dst_fourcc_name)));
     } else if (param->src.type == PJMEDIA_TYPE_AUDIO) {
         PJ_LOG(4, (THIS_FILE, "Converter %p created for audio", cv));
     } else {
