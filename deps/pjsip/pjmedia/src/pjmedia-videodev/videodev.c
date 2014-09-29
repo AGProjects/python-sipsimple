@@ -105,6 +105,10 @@ pjmedia_vid_dev_factory* pjmedia_opengl_factory(pj_pool_factory *pf);
 pjmedia_vid_dev_factory* pjmedia_fb_factory(pj_pool_factory *pf);
 #endif
 
+#if PJMEDIA_VIDEO_DEV_HAS_NULL
+pjmedia_vid_dev_factory* pjmedia_null_factory(pj_pool_factory *pf);
+#endif
+
 #define MAX_DRIVERS	16
 #define MAX_DEVS	64
 
@@ -405,6 +409,9 @@ PJ_DEF(pj_status_t) pjmedia_vid_dev_subsys_init(pj_pool_factory *pf)
 #endif
 #if PJMEDIA_VIDEO_DEV_HAS_FB
     vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_fb_factory;
+#endif
+#if PJMEDIA_VIDEO_DEV_HAS_NULL
+    vid_subsys.drv[vid_subsys.drv_cnt++].create = &pjmedia_null_factory;
 #endif
 
     /* Initialize each factory and build the device ID list */
