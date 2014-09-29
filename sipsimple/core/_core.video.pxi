@@ -217,18 +217,22 @@ cdef class VideoCamera(VideoProducer):
             if dev_count == 0:
                 raise SIPCoreError("no video devices available")
 
-            device_id = PJMEDIA_VID_DEFAULT_CAPTURE_DEV
-
-            # Find the device matching the name
-            if device != u"system_default":
-                for i in range(dev_count):
-                    with nogil:
-                        status = pjmedia_vid_dev_get_info(i, &vdi)
-                    if status != 0:
-                        continue
-                    if vdi.dir in (PJMEDIA_DIR_CAPTURE, PJMEDIA_DIR_CAPTURE_PLAYBACK) and decode_device_name(vdi.name) == device:
-                        device_id = vdi.id
-                        break
+            if device is None:
+                status = pjmedia_vid_dev_lookup("Null", "Null video device", &device_id)
+                if status != 0:
+                    raise PJSIPError("Could not get capture video device index", status)
+            else:
+                device_id = PJMEDIA_VID_DEFAULT_CAPTURE_DEV
+                # Find the device matching the name
+                if device != u"system_default":
+                    for i in range(dev_count):
+                        with nogil:
+                            status = pjmedia_vid_dev_get_info(i, &vdi)
+                        if status != 0:
+                            continue
+                        if vdi.dir in (PJMEDIA_DIR_CAPTURE, PJMEDIA_DIR_CAPTURE_PLAYBACK) and decode_device_name(vdi.name) == device:
+                            device_id = vdi.id
+                            break
 
             with nogil:
                 status = pjmedia_vid_dev_get_info(device_id, &vdi)
@@ -239,7 +243,7 @@ cdef class VideoCamera(VideoProducer):
                 raise SIPCoreError("no video devices available")
 
             self.name = device
-            self.real_name = decode_device_name(vdi.name)
+            self.real_name = decode_device_name(vdi.name) if device is not None else None
 
             pjmedia_vid_port_param_default(&vp_param)
             with nogil:

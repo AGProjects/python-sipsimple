@@ -436,7 +436,7 @@ cdef class PJSIPUA:
                 raise PJSIPError("Could not get video device info", status)
             direction = info.dir
             if direction in (PJMEDIA_DIR_CAPTURE, PJMEDIA_DIR_CAPTURE_PLAYBACK):
-                if not self._enable_colorbar_device and bytes(info.driver) == "Colorbar":
+                if (not self._enable_colorbar_device and bytes(info.driver) == "Colorbar") or bytes(info.driver) == "Null":
                     continue
                 retval.append(decode_device_name(info.name))
         return retval
@@ -449,7 +449,7 @@ cdef class PJSIPUA:
             status = pjmedia_vid_dev_get_info(PJMEDIA_VID_DEFAULT_CAPTURE_DEV, &info)
         if status != 0:
             raise PJSIPError("Could not get default video device info", status)
-        if not self._enable_colorbar_device and bytes(info.driver) == "Colorbar":
+        if (not self._enable_colorbar_device and bytes(info.driver) == "Colorbar") or bytes(info.driver) == "Null":
             raise SIPCoreError("Could not get default video device")
         return decode_device_name(info.name)
 

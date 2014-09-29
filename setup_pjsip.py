@@ -75,7 +75,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJMEDIA_VIDEO_DEV_HAS_V4L2 %d" % (1 if sys_platform=="linux" else 0),
                    "#define PJMEDIA_VIDEO_DEV_HAS_AVF %d" % (1 if sys_platform=="darwin" else 0),
                    "#define PJMEDIA_VIDEO_DEV_HAS_DSHOW %d" % (1 if sys_platform=="win32" else 0),
-                   "#define PJMEDIA_VIDEO_DEV_HAS_CBAR_SRC 1"]
+                   "#define PJMEDIA_VIDEO_DEV_HAS_CBAR_SRC 1",
+                   "#define PJMEDIA_VIDEO_DEV_HAS_NULL 1"]
 
     user_options = build_ext.user_options
     user_options.extend([
