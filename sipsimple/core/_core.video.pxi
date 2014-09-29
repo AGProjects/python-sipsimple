@@ -242,6 +242,10 @@ cdef class VideoCamera(VideoProducer):
             if not ua.enable_colorbar_device and bytes(vdi.driver) == "Colorbar":
                 raise SIPCoreError("no video devices available")
 
+            if bytes(vdi.driver) in ("Colorbar", "Null"):
+                # override camera fps
+                fps = 5
+
             self.name = device
             self.real_name = decode_device_name(vdi.name) if device is not None else None
 
