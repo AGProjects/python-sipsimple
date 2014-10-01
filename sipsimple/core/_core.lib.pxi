@@ -155,7 +155,7 @@ cdef class PJSIPEndpoint:
             tls_setting.cert_file = self._tls_cert_file.pj_str
         if self._tls_privkey_file is not None:
             tls_setting.privkey_file = self._tls_privkey_file.pj_str
-        tls_setting.method = PJSIP_TLSV1_METHOD
+        tls_setting.method = PJSIP_SSLV23_METHOD
         tls_setting.verify_server = self._tls_verify_server
         status = pjsip_tls_transport_start(self._obj, &tls_setting, &local_addr, NULL, 1, &self._tls_transport)
         if status in (PJSIP_TLS_EUNKNOWN, PJSIP_TLS_EINVMETHOD, PJSIP_TLS_ECACERT, PJSIP_TLS_ECERTFILE, PJSIP_TLS_EKEYFILE, PJSIP_TLS_ECIPHER, PJSIP_TLS_ECTX):

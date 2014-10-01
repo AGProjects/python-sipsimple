@@ -1098,6 +1098,7 @@ cdef extern from "pjsip.h":
     # transports
     enum pjsip_ssl_method:
         PJSIP_TLSV1_METHOD
+        PJSIP_SSLV23_METHOD
     struct pjsip_transport:
         char *type_name
         pj_sockaddr local_addr
