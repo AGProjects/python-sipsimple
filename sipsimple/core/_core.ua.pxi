@@ -167,6 +167,9 @@ cdef class PJSIPUA:
         status = pj_rwmutex_create(self._pjsip_endpoint._pool, "ua_audio_change_rwlock", &self.audio_change_rwlock)
         if status != 0:
             raise PJSIPError("Could not initialize audio change rwmutex", status)
+        status = pj_mutex_create_recursive(self._pjsip_endpoint._pool, "ua_video_lock", &self.video_lock)
+        if status != 0:
+            raise PJSIPError("Could not initialize video mutex", status)
         self._user_agent = PJSTR(kwargs["user_agent"])
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
@@ -732,6 +735,8 @@ cdef class PJSIPUA:
         pjmedia_aud_dev_set_observer_cb(NULL)
         if self.audio_change_rwlock != NULL:
             pj_rwmutex_destroy(self.audio_change_rwlock)
+        if self.video_lock != NULL:
+            pj_mutex_destroy(self.video_lock)
         _process_handler_queue(self, &_dealloc_handler_queue)
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)

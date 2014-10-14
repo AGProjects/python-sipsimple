@@ -1797,6 +1797,7 @@ cdef class PJSIPUA(object):
     cdef set _incoming_events
     cdef set _incoming_requests
     cdef pj_rwmutex_t *audio_change_rwlock
+    cdef pj_mutex_t *video_lock
     cdef list old_devices
     cdef list old_video_devices
 

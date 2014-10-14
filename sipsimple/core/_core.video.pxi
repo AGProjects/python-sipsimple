@@ -139,12 +139,26 @@ cdef class VideoConsumer:
                     pj_mutex_unlock(lock)
 
         def __set__(self, value):
+            cdef PJSIPUA ua
+            cdef pj_mutex_t *global_lock
             cdef pj_mutex_t *lock
+
+            try:
+                ua = _get_ua()
+            except:
+                return
+
+            global_lock = ua.video_lock
             lock = self._lock
 
             with nogil:
+                status = pj_mutex_lock(global_lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire global video lock", status)
+            with nogil:
                 status = pj_mutex_lock(lock)
             if status != 0:
+                pj_mutex_unlock(global_lock)
                 raise PJSIPError("failed to acquire lock", status)
             try:
                 if self._closed:
@@ -153,6 +167,7 @@ cdef class VideoConsumer:
             finally:
                 with nogil:
                     pj_mutex_unlock(lock)
+                    pj_mutex_unlock(global_lock)
 
     property closed:
 
@@ -398,6 +413,7 @@ cdef class VideoCamera(VideoProducer):
     def close(self):
         cdef int status
         cdef pj_mutex_t *lock
+        cdef pj_mutex_t *global_lock
         cdef PJSIPUA ua
 
         try:
@@ -405,11 +421,17 @@ cdef class VideoCamera(VideoProducer):
         except:
             return
 
+        global_lock = ua.video_lock
         lock = self._lock
 
         with nogil:
+            status = pj_mutex_lock(global_lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire global video lock", status)
+        with nogil:
             status = pj_mutex_lock(lock)
         if status != 0:
+            pj_mutex_unlock(global_lock)
             raise PJSIPError("failed to acquire lock", status)
         try:
             if self._closed:
@@ -433,6 +455,7 @@ cdef class VideoCamera(VideoProducer):
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+                pj_mutex_unlock(global_lock)
 
     cdef void _add_consumer(self, VideoConsumer consumer):
         cdef int status
@@ -549,6 +572,7 @@ cdef class LocalVideoStream(VideoConsumer):
 
     def close(self):
         cdef int status
+        cdef pj_mutex_t *global_lock
         cdef pj_mutex_t *lock
         cdef PJSIPUA ua
 
@@ -557,11 +581,17 @@ cdef class LocalVideoStream(VideoConsumer):
         except:
             return
 
+        global_lock = ua.video_lock
         lock = self._lock
 
         with nogil:
+            status = pj_mutex_lock(global_lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire global video lock", status)
+        with nogil:
             status = pj_mutex_lock(lock)
         if status != 0:
+            pj_mutex_unlock(global_lock)
             raise PJSIPError("failed to acquire lock", status)
         try:
             if self._closed:
@@ -571,6 +601,7 @@ cdef class LocalVideoStream(VideoConsumer):
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+                pj_mutex_unlock(global_lock)
 
 
 cdef LocalVideoStream_create(pjmedia_vid_stream *stream):
@@ -686,6 +717,7 @@ cdef class RemoteVideoStream(VideoProducer):
 
     def close(self):
         cdef int status
+        cdef pj_mutex_t *global_lock
         cdef pj_mutex_t *lock
         cdef PJSIPUA ua
         cdef VideoConsumer consumer
@@ -697,11 +729,17 @@ cdef class RemoteVideoStream(VideoProducer):
         except:
             return
 
+        global_lock = ua.video_lock
         lock = self._lock
 
         with nogil:
+            status = pj_mutex_lock(global_lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire global video lock", status)
+        with nogil:
             status = pj_mutex_lock(lock)
         if status != 0:
+            pj_mutex_unlock(global_lock)
             raise PJSIPError("failed to acquire lock", status)
         try:
             if self._closed:
@@ -717,6 +755,7 @@ cdef class RemoteVideoStream(VideoProducer):
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+                pj_mutex_unlock(global_lock)
 
     cdef void _add_consumer(self, VideoConsumer consumer):
         cdef int status
@@ -876,6 +915,7 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
 
     def close(self):
         cdef int status
+        cdef pj_mutex_t *global_lock
         cdef pj_mutex_t *lock
         cdef PJSIPUA ua
         cdef void* ptr
@@ -885,11 +925,17 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
         except:
             return
 
+        global_lock = ua.video_lock
         lock = self._lock
 
         with nogil:
+            status = pj_mutex_lock(global_lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire global video lock", status)
+        with nogil:
             status = pj_mutex_lock(lock)
         if status != 0:
+            pj_mutex_unlock(global_lock)
             raise PJSIPError("failed to acquire lock", status)
         try:
             if self._closed:
@@ -901,6 +947,7 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+                pj_mutex_unlock(global_lock)
 
     cdef void _destroy_video_port(self):
         # No need to hold the lock, this function is always called with it held
