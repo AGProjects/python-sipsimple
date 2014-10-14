@@ -274,6 +274,9 @@ class SIPApplication(object):
         procs = [proc.spawn(dns_manager.stop), proc.spawn(account_manager.stop), proc.spawn(addressbook_manager.stop), proc.spawn(session_manager.stop)]
         proc.waitall(procs)
 
+        # stop video device
+        self.video_device.producer.close()
+
         # shutdown engine
         self.engine.stop()
         self.engine.join()
