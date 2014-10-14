@@ -27,6 +27,18 @@ cdef class VideoProducer:
         self._started = 0
         self._closed = 0
 
+    def __dealloc__(self):
+        # cython will always call the __dealloc__ method of the parent class *after* the child's
+        # __dealloc__ was executed
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except:
+            return
+        if self._lock != NULL:
+            pj_mutex_destroy(self._lock)
+        ua.release_memory_pool(self._pool)
+
     property consumers:
 
         def __get__(self):
@@ -103,7 +115,7 @@ cdef class VideoConsumer:
         self._closed = 0
 
     def __dealloc__(self):
-        # cython will always the __dealloc__ method of the parent class *after* the child's
+        # cython will always call the __dealloc__ method of the parent class *after* the child's
         # __dealloc__ was executed
         cdef PJSIPUA ua
         cdef Timer timer
@@ -535,22 +547,7 @@ cdef class VideoCamera(VideoProducer):
         self._running = 0
 
     def __dealloc__(self):
-        cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except:
-            return
-        if self._video_port != NULL:
-            with nogil:
-                pjmedia_vid_port_stop(self._video_port)
-                pjmedia_vid_port_disconnect(self._video_port)
-                pjmedia_vid_port_destroy(self._video_port)
-        if self._video_tee != NULL:
-            with nogil:
-                pjmedia_port_destroy(self._video_tee)
-        if self._lock != NULL:
-            pj_mutex_destroy(self._lock)
-        ua.release_memory_pool(self._pool)
+        self.close()
 
 
 cdef class LocalVideoStream(VideoConsumer):
@@ -975,12 +972,7 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
         self._running = 0
 
     def __dealloc__(self):
-        cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except:
-            return
-        self._destroy_video_port()
+        self.close()
 
 
 cdef RemoteVideoStream_create(pjmedia_vid_stream *stream, format_change_handler=None):
