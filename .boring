@@ -13,4 +13,5 @@
 (^|/)sipsimple/core/_core.c$
 (^|/)test($|/)
 (^|/)\.komodotools($|/)
+(^|/)\autom4te.cache($|/)
 ^MANIFEST$
