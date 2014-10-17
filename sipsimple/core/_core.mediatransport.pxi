@@ -1836,12 +1836,20 @@ cdef dict _extract_ice_session_data(pj_ice_sess *ice_sess):
 
     return data
 
+cdef object _extract_rtp_transport(pjmedia_transport *tp):
+    cdef void *rtp_transport_ptr = NULL
+
+    if tp != NULL:
+        rtp_transport_ptr = tp.user_data
+    if rtp_transport_ptr == NULL:
+        return None
+    return (<object> rtp_transport_ptr)()
+
 # callback functions
 
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
     # Despite the name this callback is not only called when ICE negotiation ends, it depends on the
     # op parameter
-    cdef void *rtp_transport_void = NULL
     cdef double duration
     cdef pj_ice_strans *ice_st
     cdef pj_ice_sess *ice_sess
@@ -1853,51 +1861,48 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
     except:
         return
     try:
-        if tp != NULL:
-            rtp_transport_void = tp.user_data
-        if rtp_transport_void != NULL:
-            rtp_transport = (<object> rtp_transport_void)()
-            if rtp_transport is None:
-                return
-            if op == PJ_ICE_STRANS_OP_NEGOTIATION:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        if op == PJ_ICE_STRANS_OP_NEGOTIATION:
+            if status == 0:
                 ice_st = pjmedia_ice_get_strans(tp)
                 if ice_st == NULL:
                     return
-                if status == 0:
-                    ice_sess = pj_ice_strans_get_session(ice_st)
-                    if ice_sess == NULL:
-                        return
-                    start_time = pj_ice_strans_get_start_time(ice_st)
-                    pj_gettimeofday(&tv)
-                    tv.sec -= start_time.sec
-                    tv.msec -= start_time.msec
-                    pj_time_val_normalize(&tv)
-                    duration = (tv.sec*1000 + tv.msec)/1000.0
-                    data = _extract_ice_session_data(ice_sess)
-                    rtp_transport._rtp_valid_pair = _get_rtp_valid_pair(ice_st)
-                    _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport,
-                                                                            duration=duration,
-                                                                            local_candidates=data['local_candidates'],
-                                                                            remote_candidates=data['remote_candidates'],
-                                                                            valid_pairs=data['valid_pairs'],
-                                                                            valid_list=data['valid_list']))
-                else:
-                    rtp_transport._rtp_valid_pair = None
-                    _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
-            elif op == PJ_ICE_STRANS_OP_INIT:
-                if status == 0:
-                    rtp_transport.state = "INIT"
-                    _add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
-                else:
-                    rtp_transport.state = "INVALID"
-                    _add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
+                ice_sess = pj_ice_strans_get_session(ice_st)
+                if ice_sess == NULL:
+                    return
+                start_time = pj_ice_strans_get_start_time(ice_st)
+                pj_gettimeofday(&tv)
+                tv.sec -= start_time.sec
+                tv.msec -= start_time.msec
+                pj_time_val_normalize(&tv)
+                duration = (tv.sec*1000 + tv.msec)/1000.0
+                data = _extract_ice_session_data(ice_sess)
+                rtp_transport._rtp_valid_pair = _get_rtp_valid_pair(ice_st)
+                _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport,
+                                                                        duration=duration,
+                                                                        local_candidates=data['local_candidates'],
+                                                                        remote_candidates=data['remote_candidates'],
+                                                                        valid_pairs=data['valid_pairs'],
+                                                                        valid_list=data['valid_list']))
             else:
-                pass
+                rtp_transport._rtp_valid_pair = None
+                _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
+        elif op == PJ_ICE_STRANS_OP_INIT:
+            if status == 0:
+                rtp_transport.state = "INIT"
+                _add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
+            else:
+                rtp_transport.state = "INVALID"
+                _add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
+        else:
+            # silence compiler warning
+            pass
     except:
         ua._handle_exception(1)
 
 cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil:
-    cdef void *rtp_transport_void = NULL
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
@@ -1905,20 +1910,16 @@ cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state 
     except:
         return
     try:
-        if tp != NULL:
-            rtp_transport_void = tp.user_data
-        if rtp_transport_void != NULL:
-            rtp_transport = (<object> rtp_transport_void)()
-            if rtp_transport is None:
-                return
-            _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=rtp_transport,
-                                                                        prev_state=_ice_state_to_str(prev),
-                                                                        state=_ice_state_to_str(curr)))
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=rtp_transport,
+                                                                    prev_state=_ice_state_to_str(prev),
+                                                                    state=_ice_state_to_str(curr)))
     except:
         ua._handle_exception(1)
 
 cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err) with gil:
-    cdef void *rtp_transport_void = NULL
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
@@ -1926,16 +1927,13 @@ cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err
     except:
         return
     try:
-        if tp != NULL:
-            rtp_transport_void = tp.user_data
-        if rtp_transport_void != NULL:
-            rtp_transport = (<object> rtp_transport_void)()
-            if rtp_transport is None:
-                return
-            rtp_transport._rtp_valid_pair = None
-            _reason = reason
-            if _reason != b"media stop requested":
-                _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_reason))
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        rtp_transport._rtp_valid_pair = None
+        _reason = reason
+        if _reason != b"media stop requested":
+            _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_reason))
     except:
         ua._handle_exception(1)
 
