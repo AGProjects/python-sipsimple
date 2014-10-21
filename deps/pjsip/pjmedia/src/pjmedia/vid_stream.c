@@ -142,6 +142,10 @@ struct pjmedia_vid_stream
     pjmedia_frame            dec_frame;	    /**< Current decoded frame.     */
     pjmedia_event            fmt_event;	    /**< Buffered fmt_changed event
                                                  to avoid deadlock	    */
+    pjmedia_event            found_keyframe_event; 
+					    /**< Buffered found keyframe
+                                                 event for delayed republish*/
+
     pjmedia_event            miss_keyframe_event; 
 					    /**< Buffered missing keyframe
                                                  event for delayed republish*/
@@ -390,6 +394,11 @@ static pj_status_t stream_event_cb(pjmedia_event *event,
 	     * while we're still holding the jb_mutex.
 	     */
 	    pj_memcpy(&stream->fmt_event, event, sizeof(*event));
+	    return PJ_SUCCESS;
+
+	case PJMEDIA_EVENT_KEYFRAME_FOUND:
+	    /* Republish this event later from get_frame(). */
+	    pj_memcpy(&stream->found_keyframe_event, event, sizeof(*event));
 	    return PJ_SUCCESS;
 
 	case PJMEDIA_EVENT_KEYFRAME_MISSING:
@@ -1212,6 +1221,12 @@ static pj_status_t get_frame(pjmedia_port *port,
 	pjmedia_event_publish(NULL, port, &stream->fmt_event, 0);
 
 	stream->fmt_event.type = PJMEDIA_EVENT_NONE;
+    }
+
+    if (stream->found_keyframe_event.type != PJMEDIA_EVENT_NONE) {
+	pjmedia_event_publish(NULL, port, &stream->found_keyframe_event,
+			      PJMEDIA_EVENT_PUBLISH_POST_EVENT);
+	stream->found_keyframe_event.type = PJMEDIA_EVENT_NONE;
     }
 
     if (stream->miss_keyframe_event.type != PJMEDIA_EVENT_NONE) {
