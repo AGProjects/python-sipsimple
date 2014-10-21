@@ -410,6 +410,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_event_mgr
     enum pjmedia_event_type:
         PJMEDIA_EVENT_FMT_CHANGED
+        PJMEDIA_EVENT_KEYFRAME_FOUND
     struct pjmedia_event_fmt_changed_data:
         pjmedia_dir dir
         pjmedia_format new_fmt
@@ -1974,7 +1975,7 @@ cdef class LocalVideoStream(VideoConsumer):
 
 cdef class RemoteVideoStream(VideoProducer):
     cdef pjmedia_vid_stream *_video_stream
-    cdef object _format_change_handler
+    cdef object _event_handler
 
     cdef void _initialize(self, pjmedia_vid_stream *stream)
 

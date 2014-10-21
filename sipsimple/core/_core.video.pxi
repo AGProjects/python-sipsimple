@@ -619,11 +619,11 @@ cdef LocalVideoStream_create(pjmedia_vid_stream *stream):
 
 cdef class RemoteVideoStream(VideoProducer):
 
-    def __init__(self, object format_change_handler=None):
+    def __init__(self, object event_handler=None):
         super(RemoteVideoStream, self).__init__()
-        if format_change_handler is not None and not callable(format_change_handler):
-            raise TypeError("format_change_handler must be a callable or None")
-        self._format_change_handler = format_change_handler
+        if event_handler is not None and not callable(event_handler):
+            raise TypeError("event_handler must be a callable or None")
+        self._event_handler = event_handler
 
     cdef void _initialize(self, pjmedia_vid_stream *stream):
         cdef pjmedia_port *media_port
@@ -1039,10 +1039,13 @@ cdef int RemoteVideoStream_on_event(pjmedia_event *event, void *user_data) with 
     if user_data == NULL:
         return 0
     stream = <object>user_data
-    if event.type == PJMEDIA_EVENT_FMT_CHANGED and stream._format_change_handler is not None:
-        fmt = event.data.fmt_changed.new_fmt
-        size = (fmt.det.vid.size.w, fmt.det.vid.size.h)
-        fps = 1.0*fmt.det.vid.fps.num/fmt.det.vid.fps.denum
-        stream._format_change_handler(size, fps)
+    if (event.type == PJMEDIA_EVENT_FMT_CHANGED or event.type == PJMEDIA_EVENT_KEYFRAME_FOUND) and stream._event_handler is not None:
+        if event.type == PJMEDIA_EVENT_FMT_CHANGED:
+            fmt = event.data.fmt_changed.new_fmt
+            size = (fmt.det.vid.size.w, fmt.det.vid.size.h)
+            fps = 1.0*fmt.det.vid.fps.num/fmt.det.vid.fps.denum
+            stream._event_handler('FORMAT_CHANGED', (size, fps))
+        elif event.type == PJMEDIA_EVENT_KEYFRAME_FOUND:
+            stream._event_handler('RECEIVED_KEYFRAME', None)
     return 0
 
