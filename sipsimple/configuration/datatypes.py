@@ -123,6 +123,9 @@ class List(object):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.values)
 
+    def __str__(self):
+        return ', '.join(str(item) for item in self)
+
     def __unicode__(self):
         return u', '.join(unicode(item) for item in self)
 
@@ -251,11 +254,14 @@ class VideoResolution(tuple):
             raise ValueError('invalid value: %r' % value)
         return tuple.__new__(cls, (int(width), int(height)))
 
-    def __unicode__(self):
-        return u'%dx%d' % (self.width, self.height)
-
     def __repr__(self):
         return '%s(%d, %d)' % (self.__class__.__name__, self.width, self.height)
+
+    def __str__(self):
+        return '%dx%d' % (self.width, self.height)
+
+    def __unicode__(self):
+        return u'%dx%d' % (self.width, self.height)
 
 
 class VideoCodecList(CodecList):
@@ -303,6 +309,9 @@ class PortRange(object):
 
     def __repr__(self):
         return '%s(start=%r, end=%r)' % (self.__class__.__name__, self.start, self.end)
+
+    def __str__(self):
+        return '%d-%d' % (self.start, self.end)
 
     def __unicode__(self):
         return u'%d-%d' % (self.start, self.end)
@@ -375,6 +384,9 @@ class EndpointAddress(object):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.host, self.port)
 
+    def __str__(self):
+        return '%s:%d' % (self.host, self.port)
+
     def __unicode__(self):
         return u'%s:%d' % (self.host, self.port)
 
@@ -445,6 +457,9 @@ class MSRPRelayAddress(object):
     def __repr__(self):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
 
+    def __str__(self):
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
+
     def __unicode__(self):
         return u'%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
@@ -492,6 +507,9 @@ class SIPProxyAddress(object):
     def __repr__(self):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
 
+    def __str__(self):
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
+
     def __unicode__(self):
         return u'%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
@@ -537,6 +555,9 @@ class STUNServerAddress(object):
 
     def __repr__(self):
         return '%s(%r, port=%r)' % (self.__class__.__name__, self.host, self.port)
+
+    def __str__(self):
+        return '%s:%d' % (self.host, self.port)
 
     def __unicode__(self):
         return u'%s:%d' % (self.host, self.port)
