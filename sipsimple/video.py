@@ -44,8 +44,8 @@ class VideoDevice(object):
 
     def set_camera(self, device_name, resolution, framerate):
         old_camera = self._camera
-        new_camera = self._open_camera(device_name, resolution, framerate)
         old_camera.close()
+        new_camera = self._open_camera(device_name, resolution, framerate)
         if not self.paused:
             new_camera.start()
         self._camera = new_camera

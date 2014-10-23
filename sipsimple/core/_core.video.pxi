@@ -448,11 +448,9 @@ cdef class VideoCamera(VideoProducer):
         try:
             if self._closed:
                 return
-            _stop_video_port(self._video_port)
+            self.stop()
             for c in self._consumers.copy():
                 c.producer = None
-            self._stop()
-            self._started = 0
             self._closed = 1
             if self._video_port != NULL:
                 with nogil:
