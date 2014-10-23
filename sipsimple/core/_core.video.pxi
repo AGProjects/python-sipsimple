@@ -941,6 +941,7 @@ cdef class FrameBufferVideoRenderer(VideoConsumer):
             self._stop()
             self._closed = 1
             self._destroy_video_port()
+            self._frame_handler = None
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
