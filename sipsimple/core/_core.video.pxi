@@ -749,6 +749,7 @@ cdef class RemoteVideoStream(VideoProducer):
             with nogil:
                 pjmedia_event_unsubscribe(NULL, &RemoteVideoStream_on_event, ptr, media_port)
             self._closed = 1
+            self._event_handler = None
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
