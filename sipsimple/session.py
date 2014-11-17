@@ -1299,6 +1299,7 @@ class Session(object):
                         media.connection = SDPConnection('127.0.0.1')
                         media.port = 0
                         media.attributes = []
+                        media.bandwidth_info = []
                     local_sdp.media.append(media)
             else:
                 for index, stream in enumerate(self.proposed_streams):
@@ -1544,6 +1545,7 @@ class Session(object):
                     media.connection = SDPConnection('127.0.0.1')
                     media.port = 0
                     media.attributes = []
+                    media.bandwidth_info = []
                     local_sdp.media.append(media)
             self._invitation.send_response(200, sdp=local_sdp)
 
@@ -1810,6 +1812,7 @@ class Session(object):
                 media.connection = SDPConnection('127.0.0.1')
                 media.port = 0
                 media.attributes = []
+                media.bandwidth_info = []
 
             self._invitation.send_reinvite(sdp=local_sdp)
 
@@ -2385,6 +2388,7 @@ class Session(object):
                                 media.connection = SDPConnection('127.0.0.1')
                                 media.port = 0
                                 media.attributes = []
+                                media.bandwidth_info = []
                             for stream in self.streams:
                                 local_sdp.media[stream.index] = stream.get_local_media(remote_sdp=proposed_remote_sdp, index=stream.index)
                             try:
