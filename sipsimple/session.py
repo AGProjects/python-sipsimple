@@ -2397,8 +2397,15 @@ class Session(object):
                                 for stream in removed_streams:
                                     self.streams.remove(stream)
                                     stream.end()
-                                self.end()
-                                return
+                                if removed_streams:
+                                    self.end()
+                                    return
+                                else:
+                                    try:
+                                        self._invitation.send_response(488)
+                                    except PJSIPError:
+                                        self.end()
+                                        return
                             else:
                                 for stream in removed_streams:
                                     self.streams.remove(stream)
