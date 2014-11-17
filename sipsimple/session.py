@@ -2191,7 +2191,6 @@ class Session(object):
                         if notification.data.succeeded:
                             local_sdp = notification.data.local_sdp
                             remote_sdp = notification.data.remote_sdp
-
                             for stream in self.streams:
                                 stream.update(local_sdp, remote_sdp, stream.index)
                     elif notification.name == 'SIPInvitationChangedState':
@@ -2205,6 +2204,7 @@ class Session(object):
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
             notification.center = notification_center
             self.handle_notification(notification)
+            return
         except api.TimeoutError:
             if not self._cancel_hold():
                 return
