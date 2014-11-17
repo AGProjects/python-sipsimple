@@ -1296,6 +1296,7 @@ class Session(object):
                             media.connection = connection
                     else:
                         media = SDPMediaStream.new(media)
+                        media.connection = SDPConnection('127.0.0.1')
                         media.port = 0
                         media.attributes = []
                     local_sdp.media.append(media)
@@ -1540,6 +1541,7 @@ class Session(object):
                         local_sdp.media.append(stream.get_local_media(remote_sdp=remote_sdp, index=index))
                 elif index >= len(local_sdp.media): # actually == is sufficient
                     media = SDPMediaStream.new(media)
+                    media.connection = SDPConnection('127.0.0.1')
                     media.port = 0
                     media.attributes = []
                     local_sdp.media.append(media)
@@ -1804,8 +1806,10 @@ class Session(object):
                 notification_center.remove_observer(self, sender=stream)
                 stream.deactivate()
                 self.streams.remove(stream)
-                local_sdp.media[stream.index].port = 0
-                local_sdp.media[stream.index].attributes = []
+                media = local_sdp.media[stream.index]
+                media.connection = SDPConnection('127.0.0.1')
+                media.port = 0
+                media.attributes = []
 
             self._invitation.send_reinvite(sdp=local_sdp)
 
@@ -2377,8 +2381,10 @@ class Session(object):
                             for stream in removed_streams:
                                 notification.center.remove_observer(self, sender=stream)
                                 stream.deactivate()
-                                local_sdp.media[stream.index].port = 0
-                                local_sdp.media[stream.index].attributes = []
+                                media = local_sdp.media[stream.index]
+                                media.connection = SDPConnection('127.0.0.1')
+                                media.port = 0
+                                media.attributes = []
                             for stream in self.streams:
                                 local_sdp.media[stream.index] = stream.get_local_media(remote_sdp=proposed_remote_sdp, index=stream.index)
                             try:
