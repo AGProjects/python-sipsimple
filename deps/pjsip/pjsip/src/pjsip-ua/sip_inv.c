@@ -162,6 +162,7 @@ struct tsx_inv_data
     pj_bool_t		 retrying;  /* Resend (e.g. due to 401/407)         */
     pj_str_t		 done_tag;  /* To tag in RX response with answer    */
     pj_bool_t		 done_early;/* Negotiation was done for early med?  */
+    pj_bool_t		 has_sdp;   /* Message with SDP?		    */
 };
 
 /*
@@ -711,6 +712,40 @@ static void mod_inv_on_tsx_state(pjsip_transaction *tsx, pjsip_event *e)
 		inv->last_answer = NULL;
 	}
     }
+}
+
+/* 
+ * Check if tx_data has sdp. 
+ */
+static pj_bool_t tx_data_has_sdp(const pjsip_tx_data *tdata)
+{
+    pjsip_msg_body *body = tdata->msg->body;
+    pjsip_media_type app_sdp;
+
+    PJ_ASSERT_RETURN(tdata, PJ_FALSE);
+
+    pjsip_media_type_init2(&app_sdp, "application", "sdp");
+
+    if (body &&
+	pj_stricmp(&body->content_type.type, &app_sdp.type)==0 && 
+	pj_stricmp(&body->content_type.subtype, &app_sdp.subtype)==0) 
+    {
+	return PJ_TRUE;
+
+    } else if (body && 
+	       pj_stricmp2(&body->content_type.type, "multipart") && 
+	       (pj_stricmp2(&body->content_type.subtype, "mixed")==0 ||
+	        pj_stricmp2(&body->content_type.subtype, "alternative")==0))    
+    {
+	pjsip_multipart_part *part;
+
+	part = pjsip_multipart_find_part(body, &app_sdp, NULL);
+	if (part) {
+	    return PJ_TRUE;
+	}
+    }
+
+    return PJ_FALSE;
 }
 
 
@@ -1495,6 +1530,7 @@ PJ_DEF(pj_status_t) pjsip_inv_create_uas( pjsip_dialog *dlg,
     /* Attach our data to the transaction. */
     tsx_inv_data = PJ_POOL_ZALLOC_T(inv->invite_tsx->pool, struct tsx_inv_data);
     tsx_inv_data->inv = inv;
+    tsx_inv_data->has_sdp = (sdp_info->sdp!=NULL);
     inv->invite_tsx->mod_data[mod_inv.mod.id] = tsx_inv_data;
 
     /* Create 100rel handler */
@@ -1864,6 +1900,7 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
     if (tsx_inv_data == NULL) {
 	tsx_inv_data = PJ_POOL_ZALLOC_T(tsx->pool, struct tsx_inv_data);
 	tsx_inv_data->inv = inv;
+	tsx_inv_data->has_sdp = (sdp_info->sdp!=NULL);
 	tsx->mod_data[mod_inv.mod.id] = tsx_inv_data;
     }
 
@@ -3071,6 +3108,7 @@ PJ_DEF(pj_status_t) pjsip_inv_send_msg( pjsip_inv_session *inv,
 	/* Associate our data in outgoing invite transaction */
 	tsx_inv_data = PJ_POOL_ZALLOC_T(inv->pool, struct tsx_inv_data);
 	tsx_inv_data->inv = inv;
+	tsx_inv_data->has_sdp = tx_data_has_sdp(tdata);
 
 	pjsip_dlg_dec_lock(inv->dlg);
 
@@ -3506,7 +3544,7 @@ static pj_bool_t inv_handle_update_response( pjsip_inv_session *inv,
     if (pjmedia_sdp_neg_get_state(inv->neg) ==
 		PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER &&
 	tsx_inv_data && tsx_inv_data->sdp_done == PJ_FALSE &&
-	!tsx_inv_data->retrying)
+	!tsx_inv_data->retrying && tsx_inv_data->has_sdp)
     {
 	pjmedia_sdp_neg_cancel_offer(inv->neg);
 
@@ -3582,6 +3620,7 @@ static void inv_respond_incoming_prack(pjsip_inv_session *inv,
 	    tsx_inv_data = PJ_POOL_ZALLOC_T(inv->invite_tsx->pool, 
 					    struct tsx_inv_data);
 	    tsx_inv_data->inv = inv;
+	    tsx_inv_data->has_sdp = PJ_TRUE;
 	    inv->invite_tsx->mod_data[mod_inv.mod.id] = tsx_inv_data;
 	}
 	
@@ -4752,36 +4791,53 @@ static void inv_on_state_confirmed( pjsip_inv_session *inv, pjsip_event *e)
             }
 
 	    if (status != PJ_SUCCESS) {
+		pj_bool_t reject_message = PJ_TRUE;
 
-		/* Not Acceptable */
-		const pjsip_hdr *accept;
-
-		/* The incoming SDP is unacceptable. If the SDP negotiator
-		 * state has just been changed, i.e: DONE -> REMOTE_OFFER,
-		 * revert it back.
-		 */
-		if (pjmedia_sdp_neg_get_state(inv->neg) ==
-		    PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER)
+		if (status == PJMEDIA_SDP_EINSDP)
 		{
-		    pjmedia_sdp_neg_cancel_offer(inv->neg);
+		    sdp_info = pjsip_rdata_get_sdp_info(rdata);
+		    if (sdp_info->body.ptr == NULL && 
+			PJSIP_INV_ACCEPT_UNKNOWN_BODY) 
+		    {
+			/* Message body is not "application/sdp" */
+			reject_message = PJ_FALSE;
+		    }		    
 		}
 
-		status = pjsip_dlg_create_response(inv->dlg, rdata, 
-						   488, NULL, &tdata);
-		if (status != PJ_SUCCESS)
+		if (reject_message) {
+		    /* Not Acceptable */
+		    const pjsip_hdr *accept;
+
+		    /* The incoming SDP is unacceptable. If the SDP negotiator
+		     * state has just been changed, i.e: DONE -> REMOTE_OFFER,
+		     * revert it back.
+		     */
+		    if (pjmedia_sdp_neg_get_state(inv->neg) ==
+			PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER)
+		    {
+			pjmedia_sdp_neg_cancel_offer(inv->neg);
+		    }
+
+		    status = pjsip_dlg_create_response(inv->dlg, rdata, 
+					 (status == PJMEDIA_SDP_EINSDP)?415:488,
+					  NULL, &tdata);
+
+		    if (status != PJ_SUCCESS)
+			return;
+
+
+		    accept = pjsip_endpt_get_capability(dlg->endpt, 
+							PJSIP_H_ACCEPT,
+							NULL);
+		    if (accept) {
+			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)
+					  pjsip_hdr_clone(tdata->pool, accept));
+		    }
+
+		    status = pjsip_dlg_send_response(dlg, tsx, tdata);
+
 		    return;
-
-
-		accept = pjsip_endpt_get_capability(dlg->endpt, PJSIP_H_ACCEPT,
-						    NULL);
-		if (accept) {
-		    pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)
-				      pjsip_hdr_clone(tdata->pool, accept));
 		}
-
-		status = pjsip_dlg_send_response(dlg, tsx, tdata);
-
-		return;
 	    }
 
 	    /* Create 2xx ANSWER */

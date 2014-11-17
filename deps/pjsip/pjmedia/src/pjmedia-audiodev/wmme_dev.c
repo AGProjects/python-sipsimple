@@ -40,8 +40,11 @@
 #endif
 
 #ifndef PJMEDIA_WMME_DEV_USE_MMDEVICE_API
-#   define PJMEDIA_WMME_DEV_USE_MMDEVICE_API \
-	   (defined(_WIN32_WINNT) && (_WIN32_WINNT>=0x0600))
+#   if defined(_WIN32_WINNT) && (_WIN32_WINNT>=0x0600)
+#      define PJMEDIA_WMME_DEV_USE_MMDEVICE_API 1
+#   else
+#      define PJMEDIA_WMME_DEV_USE_MMDEVICE_API 0
+#   endif
 #endif
 
 #if PJMEDIA_WMME_DEV_USE_MMDEVICE_API != 0
@@ -296,8 +299,11 @@ static void get_dev_names(pjmedia_aud_dev_factory *f)
 
 	for (i = 0; i < wf->dev_count; ++i) {
 	    if (0 == wcscmp(wf->dev_info[i].endpointId, pwszID)) {
-		wcstombs(wf->dev_info[i].info.name, varName.pwszVal,
-			 sizeof(wf->dev_info[i].info.name));
+		pj_unicode_to_ansi(varName.pwszVal, 
+				   wcslen(varName.pwszVal), 
+				   wf->dev_info[i].info.name, 
+				   sizeof(wf->dev_info[i].info.name));
+
 		break;
 	    }
 	}
