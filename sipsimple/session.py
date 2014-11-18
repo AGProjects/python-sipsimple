@@ -1296,7 +1296,7 @@ class Session(object):
                             media.connection = connection
                     else:
                         media = SDPMediaStream.new(media)
-                        media.connection = SDPConnection('127.0.0.1')
+                        media.connection = connection
                         media.port = 0
                         media.attributes = []
                         media.bandwidth_info = []
