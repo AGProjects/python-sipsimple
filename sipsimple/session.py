@@ -1532,17 +1532,21 @@ class Session(object):
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
             remote_sdp = self._invitation.sdp.proposed_remote
+            connection = SDPConnection(local_sdp.address)
             stream_map = dict((stream.index, stream) for stream in streams)
             for index, media in enumerate(remote_sdp.media):
                 stream = stream_map.get(index, None)
                 if stream is not None:
+                    media = stream.get_local_media(remote_sdp=remote_sdp, index=index)
+                    if not media.has_ice_attributes and not media.has_ice_candidates:
+                        media.connection = connection
                     if index < len(local_sdp.media):
-                        local_sdp.media[index] = stream.get_local_media(remote_sdp=remote_sdp, index=index)
+                        local_sdp.media[index] = media
                     else:
-                        local_sdp.media.append(stream.get_local_media(remote_sdp=remote_sdp, index=index))
+                        local_sdp.media.append(media)
                 elif index >= len(local_sdp.media): # actually == is sufficient
                     media = SDPMediaStream.new(media)
-                    media.connection = SDPConnection('127.0.0.1')
+                    media.connection = connection
                     media.port = 0
                     media.attributes = []
                     media.bandwidth_info = []
