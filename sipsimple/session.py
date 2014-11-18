@@ -1809,7 +1809,6 @@ class Session(object):
                 stream.deactivate()
                 self.streams.remove(stream)
                 media = local_sdp.media[stream.index]
-                media.connection = SDPConnection('127.0.0.1')
                 media.port = 0
                 media.attributes = []
                 media.bandwidth_info = []
@@ -2385,7 +2384,6 @@ class Session(object):
                                 notification.center.remove_observer(self, sender=stream)
                                 stream.deactivate()
                                 media = local_sdp.media[stream.index]
-                                media.connection = SDPConnection('127.0.0.1')
                                 media.port = 0
                                 media.attributes = []
                                 media.bandwidth_info = []
