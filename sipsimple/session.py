@@ -1292,7 +1292,7 @@ class Session(object):
                     stream = stream_map.get(index, None)
                     if stream is not None:
                         media = stream.get_local_media(remote_sdp=remote_sdp, index=index)
-                        if media.connection is None or (media.connection is not None and not media.has_ice_attributes and not media.has_ice_candidates):
+                        if not media.has_ice_attributes and not media.has_ice_candidates:
                             media.connection = connection
                     else:
                         media = SDPMediaStream.new(media)
