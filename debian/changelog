@@ -1,3 +1,35 @@
+python-sipsimple (2.0.0) unstable; urgency=medium
+
+  * Add video support (H264 codec)
+  * Add support for handling initial INVITE requests without SDP
+  * Restart TCP and TLS transports when network conditions change
+  * Reuse disabled SDP streams
+  * Fix parsing makefile options
+  * Fix linking with OSX frameworks
+  * Unregister and unpublish when network conditions change, before restarting
+  * Leave symbols in even on release builds
+  * Fix not ending streams in some cases when Session.remove_streams fails
+  * Make stream initialization and ending consistent
+  * Report stream failure in MediaStreamDidEnd
+  * Add ExponentialTimer helper class to util
+  * Improved handling failures when processing remote proposals
+  * Reply with 488 if a remote SDP offer has deleted streams
+  * Fix race conditions when handling remote proposals
+  * Refresh SRTP crypto lines when updating local SDP
+  * Simplify code for obtaining the path to the OSX SDK
+  * Use 488 code when a proposal with streams fails
+  * Use timezone aware timestamps for Session start_time and stop_time
+  * Parse and generate bandwidth info attributes (b=) on the SDP
+  * Include address information with the MSRPTransportTrace notification
+  * Use SSLv23 method for TLSi (SSLv2 and SSLv3 are disabled)
+  * Updated bundled PJSIP to revision 4961
+  * Make sure a removed stream always has a connection line
+  * Remove bandwidth attributes when disabling a stream
+  * Reject incoming re-INVITE if we couldn't reply to it
+  * Fix setting SDP connection line when accepting a proposal
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 20 Nov 2014 18:30:35 +0100
+
 python-sipsimple (1.4.2) unstable; urgency=medium
 
   * Avoid recompiling the whole PJSIP every time the core is recompiled
