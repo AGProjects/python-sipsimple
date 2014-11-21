@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
 Uploaders: Adrian Georgescu <ag@ag-projects.com>, Saul Ibarra <saul@ag-projects.com>
 Build-Depends: debhelper (>= 7.3.5), python-all-dev (>= 2.7), python-all-dbg (>= 2.7), cython-dbg (>= 0.19), libasound2-dev, libssl-dev, libv4l-dev, libavcodec-dev, libavformat-dev, libavutil-dev, libswscale-dev, libx264-dev, pkg-config
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 Homepage: http://sipsimpleclient.org
 
 Package: python-sipsimple
