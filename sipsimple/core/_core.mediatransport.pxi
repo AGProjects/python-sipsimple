@@ -1054,7 +1054,8 @@ cdef class AudioTransport:
                 raise SIPCoreError("Stream is not active")
             if direction not in valid_sdp_directions:
                 raise SIPCoreError("Unknown direction: %s" % direction)
-            self.mixer.reset_ec()
+            if direction != self.direction:
+                self.mixer.reset_ec()
             self.direction = direction
         finally:
             with nogil:
