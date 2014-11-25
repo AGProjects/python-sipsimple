@@ -1042,7 +1042,6 @@ cdef class AudioTransport:
     def update_direction(self, direction):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
-        cdef pjmedia_stream *stream
 
         _get_ua()
 
@@ -1051,8 +1050,6 @@ cdef class AudioTransport:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            stream = self._obj
-
             if self._obj == NULL:
                 raise SIPCoreError("Stream is not active")
             if direction not in valid_sdp_directions:
