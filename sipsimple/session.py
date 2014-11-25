@@ -1827,6 +1827,11 @@ class Session(object):
                     notification = self._channel.wait()
                     if notification.name == 'SIPInvitationGotSDPUpdate':
                         received_sdp_update = True
+                        if notification.data.succeeded:
+                            local_sdp = notification.data.local_sdp
+                            remote_sdp = notification.data.remote_sdp
+                            for s in self.streams:
+                                s.update(local_sdp, remote_sdp, s.index)
                     elif notification.name == 'SIPInvitationChangedState':
                         if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                             received_invitation_state = True
