@@ -26,7 +26,7 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages, sipfrag_re
-from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
+from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, BonjourAccount
@@ -918,7 +918,6 @@ class Session(object):
         self._local_identity = None
         self._remote_identity = None
         self._lock = RLock()
-        self.__dict__['subject'] = None
 
     def init_incoming(self, invitation, data):
         notification_center = NotificationCenter()
@@ -946,10 +945,6 @@ class Session(object):
         self.transfer_handler = TransferHandler(self)
         if 'isfocus' in invitation.remote_contact_header.parameters:
             self.remote_focus = True
-        try:
-            self.__dict__['subject'] = data.headers['Subject'].subject
-        except KeyError:
-            pass
         if 'Referred-By' in data.headers or 'Replaces' in data.headers:
             self.transfer_info = TransferInfo()
             if 'Referred-By' in data.headers:
@@ -968,11 +963,11 @@ class Session(object):
                     replace_handler = SessionReplaceHandler(self)
                     replace_handler.start()
         notification_center.add_observer(self, sender=invitation)
-        notification_center.post_notification('SIPSessionNewIncoming', sender=self, data=NotificationData(streams=self.proposed_streams[:]))
+        notification_center.post_notification('SIPSessionNewIncoming', sender=self, data=NotificationData(streams=self.proposed_streams[:], headers=data.headers))
 
     @transition_state(None, 'connecting')
     @run_in_green_thread
-    def connect(self, to_header, routes, streams, is_focus=False, subject=None, transfer_info=None):
+    def connect(self, to_header, routes, streams, is_focus=False, transfer_info=None, extra_headers=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
@@ -981,6 +976,10 @@ class Session(object):
         received_code = 0
         received_reason = None
         unhandled_notifications = []
+        extra_headers = extra_headers or []
+
+        if any(header.name.lower() in ('to', 'from', 'via', 'contact', 'route', 'record-route') for header in extra_headers):
+            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
 
         self.direction = 'outgoing'
         self.proposed_streams = streams
@@ -992,7 +991,6 @@ class Session(object):
         self._remote_identity = to_header
         self.conference = ConferenceHandler(self)
         self.transfer_handler = TransferHandler(self)
-        self.__dict__['subject'] = subject
         self.transfer_info = transfer_info
         notification_center.add_observer(self, sender=self._invitation)
         notification_center.post_notification('SIPSessionNewOutgoing', sender=self, data=NotificationData(streams=streams[:]))
@@ -1031,9 +1029,6 @@ class Session(object):
             contact_header = ContactHeader(contact_uri)
             if is_focus:
                 contact_header.parameters['isfocus'] = None
-            extra_headers = []
-            if self.subject is not None:
-                extra_headers.append(SubjectHeader(self.subject))
             if self.transfer_info is not None:
                 extra_headers.append(Header('Referred-By', self.transfer_info.referred_by))
                 if self.transfer_info.replaced_dialog_id is not None:
@@ -1246,7 +1241,7 @@ class Session(object):
 
     @transition_state('incoming', 'accepting')
     @run_in_green_thread
-    def accept(self, streams, is_focus=False):
+    def accept(self, streams, is_focus=False, extra_headers=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
@@ -1254,6 +1249,10 @@ class Session(object):
         self.local_focus = is_focus
         connected = False
         unhandled_notifications = []
+        extra_headers = extra_headers or []
+
+        if any(header.name.lower() in ('to', 'from', 'via', 'contact', 'route', 'record-route') for header in extra_headers):
+            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
 
         if self.proposed_streams:
             for stream in self.proposed_streams:
@@ -1317,7 +1316,7 @@ class Session(object):
                 contact_header.uri = local_contact_uri
             if is_focus:
                 contact_header.parameters['isfocus'] = None
-            self._invitation.send_response(200, contact_header=contact_header, sdp=local_sdp)
+            self._invitation.send_response(200, contact_header=contact_header, sdp=local_sdp, extra_headers=extra_headers)
             notification_center.post_notification('SIPSessionWillStart', sender=self)
             # Local and remote SDPs will be set after the 200 OK is sent
             while True:
@@ -2082,10 +2081,6 @@ class Session(object):
     @property
     def remote_user_agent(self):
         return self._invitation.remote_user_agent if self._invitation is not None else None
-
-    @property
-    def subject(self):
-        return self.__dict__['subject']
 
     def _cancel_hold(self):
         notification_center = NotificationCenter()
