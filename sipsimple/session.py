@@ -979,7 +979,7 @@ class Session(object):
         extra_headers = extra_headers or []
 
         if {'to', 'from', 'via', 'contact', 'route', 'record-route'}.intersection(header.name.lower() for header in extra_headers):
-            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
+            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and Record-Route headers are not allowed')
 
         self.direction = 'outgoing'
         self.proposed_streams = streams
@@ -1252,7 +1252,7 @@ class Session(object):
         extra_headers = extra_headers or []
 
         if {'to', 'from', 'via', 'contact', 'route', 'record-route'}.intersection(header.name.lower() for header in extra_headers):
-            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
+            raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and Record-Route headers are not allowed')
 
         if self.proposed_streams:
             for stream in self.proposed_streams:
