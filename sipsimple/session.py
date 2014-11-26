@@ -978,7 +978,7 @@ class Session(object):
         unhandled_notifications = []
         extra_headers = extra_headers or []
 
-        if any(header.name.lower() in ('to', 'from', 'via', 'contact', 'route', 'record-route') for header in extra_headers):
+        if {'to', 'from', 'via', 'contact', 'route', 'record-route'}.intersection(header.name.lower() for header in extra_headers):
             raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
 
         self.direction = 'outgoing'
@@ -1251,7 +1251,7 @@ class Session(object):
         unhandled_notifications = []
         extra_headers = extra_headers or []
 
-        if any(header.name.lower() in ('to', 'from', 'via', 'contact', 'route', 'record-route') for header in extra_headers):
+        if {'to', 'from', 'via', 'contact', 'route', 'record-route'}.intersection(header.name.lower() for header in extra_headers):
             raise RuntimeError('invalid header in extra_headers: To, From, Via, Contact, Route and RecordRoute headers are not allowed')
 
         if self.proposed_streams:
