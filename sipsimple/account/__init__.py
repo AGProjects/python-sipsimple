@@ -581,7 +581,6 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal = NATTraversalSettings()
         self.nat_traversal.use_ice = False
         self.nat_traversal.msrp_relay = None
-        self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
 
     def __repr__(self):
