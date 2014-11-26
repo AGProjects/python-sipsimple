@@ -1638,6 +1638,7 @@ class Session(object):
                     if notification.name == 'SIPInvitationChangedState':
                         if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                             notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received='unknown'))
+                            break
         except SIPCoreError, e:
             self._fail_proposal(originator='remote', error='SIP core error: %s' % str(e))
         else:
