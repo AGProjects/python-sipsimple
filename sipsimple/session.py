@@ -1105,7 +1105,8 @@ class Session(object):
                         wait_count -= 1
                     elif notification.name == 'SIPInvitationChangedState':
                         invitation_notifications.append(notification)
-            [self._channel.send(notification) for notification in invitation_notifications]
+            for notification in invitation_notifications:
+                self._channel.send(notification)
             while not connected or self._channel:
                 notification = self._channel.wait()
                 if notification.name == 'SIPInvitationChangedState':
