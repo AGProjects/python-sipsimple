@@ -104,6 +104,7 @@ cdef class PJSIPUA:
         status = pj_mutex_create_simple(self._pjsip_endpoint._pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
+        self._ip_address = kwargs["ip_address"]
         self.codecs = kwargs["codecs"]
         self.video_codecs = kwargs["video_codecs"]
         self._module_name = PJSTR("mod-core")
@@ -223,6 +224,12 @@ cdef class PJSIPUA:
         def __get__(self):
             self._check_self()
             return self._events.copy()
+
+    property ip_address:
+
+        def __get__(self):
+            self._check_self()
+            return self._ip_address
 
     def add_event(self, object event, list accept_types):
         cdef pj_str_t event_pj

@@ -32,15 +32,12 @@ cdef class RTPTransport:
         self._pool = pool
         self.state = "NULL"
 
-    def __init__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False,
+    def __init__(self, use_srtp=False, srtp_forced=False, use_ice=False,
                  ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         cdef PJSIPUA ua = _get_ua()
 
         if self.state != "NULL":
             raise SIPCoreError("RTPTransport.__init__() was already called")
-        if local_rtp_address is not None and not _is_valid_ip(self._af, local_rtp_address):
-            raise ValueError("Not a valid IPv4 address: %s" % local_rtp_address)
-        self._local_rtp_addr = local_rtp_address
         self._rtp_valid_pair = None
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
@@ -475,10 +472,10 @@ cdef class RTPTransport:
                     raise PJSIPError("Could not stop media transport", status)
                 self.state = "INIT"
             elif self.state == "NULL":
-                if self._local_rtp_addr is None:
+                if ua.ip_address is None:
                     local_ip_address = NULL
                 else:
-                    _str_to_pj_str(self._local_rtp_addr, &local_ip)
+                    _str_to_pj_str(ua.ip_address, &local_ip)
                     local_ip_address = &local_ip
                 if self.use_ice:
                     with nogil:

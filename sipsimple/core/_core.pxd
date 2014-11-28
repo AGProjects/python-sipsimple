@@ -1789,6 +1789,7 @@ cdef class PJSIPUA(object):
     cdef PJSTR _user_agent
     cdef object _events
     cdef object _sent_messages
+    cdef object _ip_address
     cdef int _rtp_port_start
     cdef int _rtp_port_count
     cdef int _rtp_port_usable_count
@@ -2495,7 +2496,6 @@ cdef class RTPTransport(object):
     cdef pj_pool_t *_pool
     cdef pjmedia_transport *_obj
     cdef pjmedia_transport *_wrapped_transport
-    cdef object _local_rtp_addr
     cdef ICECheck _rtp_valid_pair
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
