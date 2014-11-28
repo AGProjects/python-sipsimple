@@ -98,6 +98,7 @@ class SIPSimpleSettings(SettingsObject):
     instance_id = Setting(type=str, default='')
 
     audio = AudioSettings
+    video = VideoSettings
     chat = ChatSettings
     screen_sharing = ScreenSharingSettings
     file_transfer = FileTransferSettings
@@ -105,6 +106,5 @@ class SIPSimpleSettings(SettingsObject):
     rtp = RTPSettings
     sip = SIPSettings
     tls = TLSSettings
-    video = VideoSettings
 
 
