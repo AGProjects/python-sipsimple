@@ -1,3 +1,13 @@
+python-sipsimple (2.1.0) unstable; urgency=medium
+
+  * Use the Engine IP address also for media
+  * Extend Session.connect and Session.accept with an extra_headers parameter
+  * Do not reset the Echo Canceller unless the audio stream changes direction
+  * Also call stream.update on the remaining streams when removing streams
+  * Fix unnecessarily waiting for a timeout on Session.reject_proposal
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 05 Dec 2014 13:26:06 +0100
+
 python-sipsimple (2.0.0) unstable; urgency=medium
 
   * Add video support (H264 codec)
