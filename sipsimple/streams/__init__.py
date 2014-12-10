@@ -92,7 +92,7 @@ class MediaStreamRegistry(object):
         return iter(self.__types__)
 
     def add(self, cls):
-        if cls.priority is not None and cls not in self.__types__:
+        if cls.type is not None and cls.priority is not None and cls not in self.__types__:
             self.__types__.append(cls)
             self.__types__.sort(key=attrgetter('priority'), reverse=True)
             setattr(self.__class__, cls.type.title().translate(None, ' -_') + 'Stream', StreamDescriptor(cls.type))
