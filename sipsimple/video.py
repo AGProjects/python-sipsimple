@@ -29,7 +29,6 @@ class VideoDevice(object):
     implements(IVideoProducer)
 
     def __init__(self, device_name, resolution, framerate):
-        self.__dict__['paused'] = False
         self._camera = self._open_camera(device_name, resolution, framerate)
         self._camera.start()
 
@@ -46,7 +45,7 @@ class VideoDevice(object):
         old_camera = self._camera
         old_camera.close()
         new_camera = self._open_camera(device_name, resolution, framerate)
-        if not self.paused:
+        if not self.muted:
             new_camera.start()
         self._camera = new_camera
         notification_center = NotificationCenter()
@@ -64,25 +63,20 @@ class VideoDevice(object):
     def real_name(self):
         return self._camera.real_name
 
-    def _set_paused(self, value):
+    def _set_muted(self, value):
         if not isinstance(value, bool):
-            raise ValueError('illegal value for paused property: %r' % (value,))
-        if value == self.paused:
+            raise ValueError('illegal value for muted property: %r' % (value,))
+        if value == self.muted:
             return
         if value:
             self._camera.stop()
         else:
             self._camera.start()
-        self.__dict__['paused'] = value
-        notification_center = NotificationCenter()
-        if value:
-            notification_center.post_notification('VideoDeviceDidPauseCamera', sender=self)
-        else:
-            notification_center.post_notification('VideoDeviceDidUnpauseCamera', sender=self)
+        self.__dict__['muted'] = value
 
-    def _get_paused(self):
-        return self.__dict__['paused']
+    def _get_muted(self):
+        return self.__dict__.get('muted', False)
 
-    paused = property(_get_paused, _set_paused)
-    del _get_paused, _set_paused
+    muted = property(_get_muted, _set_muted)
+    del _get_muted, _set_muted
 

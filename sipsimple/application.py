@@ -230,7 +230,7 @@ class SIPApplication(object):
 
         # initialize video
         self.video_device = VideoDevice(settings.video.device, settings.video.resolution, settings.video.framerate)
-        self.video_device.paused = settings.video.paused
+        self.video_device.muted = settings.video.muted
         settings.video.device = self.video_device.name
         self.engine.set_h264_options(settings.video.h264.profile,
                                      settings.video.h264.level,
@@ -376,8 +376,8 @@ class SIPApplication(object):
                         self.alert_audio_bridge.mixer.output_volume = 0
                     else:
                         self.alert_audio_bridge.mixer.output_volume = 100
-            if 'video.paused' in notification.data.modified:
-                self.video_device.paused = settings.video.paused
+            if 'video.muted' in notification.data.modified:
+                self.video_device.muted = settings.video.muted
             if {'video.device', 'video.resolution', 'video.framerate', 'video.max_bitrate', 'video.h264.profile', 'video.h264.level'}.intersection(notification.data.modified):
                 if {'video.device', 'video.resolution', 'video.framerate'}.intersection(notification.data.modified) or settings.video.device != self.video_device.name:
                     self.video_device.set_camera(settings.video.device, settings.video.resolution, settings.video.framerate)
