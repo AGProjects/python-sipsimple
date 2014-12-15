@@ -1019,7 +1019,7 @@ cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_con
             event_dict["error"] = res.status_text
         _add_event("SIPEngineDetectedNATType", event_dict)
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
 
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil:
     cdef PJSIPUA ua
@@ -1030,7 +1030,7 @@ cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil:
     try:
         return ua._cb_rx_request(rdata)
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
 
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil:
     cdef PJSIPUA ua
@@ -1047,7 +1047,7 @@ cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil:
                              data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
                              transport=rdata.tp_info.transport.type_name))
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
     return 0
 
 cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil:
@@ -1066,7 +1066,7 @@ cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil:
                              data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
                              transport=tdata.tp_info.transport.type_name))
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
     return 0
 
 cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil:
@@ -1086,7 +1086,7 @@ cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil:
                 raise SIPCoreError('Could not add "User-Agent" header to outgoing request')
             pjsip_msg_add_hdr(tdata.msg, hdr)
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
     return 0
 
 cdef int _cb_add_server_hdr(pjsip_tx_data *tdata) with gil:
@@ -1106,7 +1106,7 @@ cdef int _cb_add_server_hdr(pjsip_tx_data *tdata) with gil:
                 raise SIPCoreError('Could not add "Server" header to outgoing response')
             pjsip_msg_add_hdr(tdata.msg, hdr)
     except:
-        ua._handle_exception(1)
+        ua._handle_exception(0)
     return 0
 
 # functions
