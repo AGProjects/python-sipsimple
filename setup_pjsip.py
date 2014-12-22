@@ -157,7 +157,7 @@ class PJSIP_build_ext(build_ext):
             log.info("PJSIP will be built with debugging symbols")
             cflags += " -O0"
         else:
-            cflags += " -O3"
+            cflags += " -O2"
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
