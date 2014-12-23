@@ -13,11 +13,12 @@ Sharing and handling of the actual media streams.
 __all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'ScreenSharingHandler',
            'ScreenSharingServerHandler', 'ScreenSharingViewerHandler', 'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler']
 
-import os
-import re
-import random
 import hashlib
 import mimetypes
+import os
+import random
+import re
+import uuid
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from application.notification import NotificationCenter, NotificationData, IObserver
@@ -567,6 +568,8 @@ class ChatStream(MSRPStreamBase):
 #
 
 class ComputeHash: __metaclass__ = MarkerType
+class RandomID: __metaclass__ = MarkerType
+
 
 class FileSelector(object):
     class __metaclass__(type):
@@ -656,11 +659,12 @@ class FileTransferStream(MSRPStreamBase):
     accept_types = ['*']
     accept_wrapped_types = ['*']
 
-    def __init__(self, file_selector, direction):
+    def __init__(self, file_selector, direction, transfer_id=RandomID):
         if direction not in ('sendonly', 'recvonly'):
             raise ValueError("direction must be one of 'sendonly' or 'recvonly'")
         super(FileTransferStream, self).__init__(direction=direction)
         self.file_selector = file_selector
+        self.transfer_id = transfer_id if transfer_id is not RandomID else str(uuid.uuid4())
 
     @classmethod
     def new_from_sdp(cls, session, remote_sdp, stream_index):
@@ -673,10 +677,11 @@ class FileTransferStream(MSRPStreamBase):
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
         file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
+        transfer_id = remote_stream.attributes.getfirst('file-transfer-id', None)
         if remote_stream.direction == 'sendonly':
-            stream = cls(file_selector, 'recvonly')
+            stream = cls(file_selector, 'recvonly', transfer_id)
         elif remote_stream.direction == 'recvonly':
-            stream = cls(file_selector, 'sendonly')
+            stream = cls(file_selector, 'sendonly', transfer_id)
         else:
             raise InvalidStreamError("wrong stream direction specified")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
@@ -692,6 +697,8 @@ class FileTransferStream(MSRPStreamBase):
     def _create_local_media(self, uri_path):
         local_media = super(FileTransferStream, self)._create_local_media(uri_path)
         local_media.attributes.append(SDPAttribute('file-selector', self.file_selector.sdp_repr))
+        if self.transfer_id is not None:
+            local_media.attributes.append(SDPAttribute('file-transfer-id', self.transfer_id))
         return local_media
 
     def _NH_MediaStreamDidStart(self, notification):
