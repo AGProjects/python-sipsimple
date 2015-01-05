@@ -1,3 +1,13 @@
+python-sipsimple (2.1.1) unstable; urgency=medium
+
+  * Add a base class for Audio and Video streams
+  * Add / support file-transfer-id SDP attribute to FileTransferStream
+  * Refactor video pausing capability
+  * Relax handling some errors in the core
+  * Compile PJSIP with -O2 optimization
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 05 Jan 2015 12:36:56 +0100
+
 python-sipsimple (2.1.0) unstable; urgency=medium
 
   * Use the Engine IP address also for media

@@ -1,3 +1,63 @@
+python-sipsimple (2.1.1) unstable; urgency=medium
+
+  * Add a base class for Audio and Video streams
+  * Add / support file-transfer-id SDP attribute to FileTransferStream
+  * Refactor video pausing capability
+  * Relax handling some errors in the core
+  * Compile PJSIP with -O2 optimization
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 05 Jan 2015 12:36:56 +0100
+
+python-sipsimple (2.1.0) unstable; urgency=medium
+
+  * Use the Engine IP address also for media
+  * Extend Session.connect and Session.accept with an extra_headers parameter
+  * Do not reset the Echo Canceller unless the audio stream changes direction
+  * Also call stream.update on the remaining streams when removing streams
+  * Fix unnecessarily waiting for a timeout on Session.reject_proposal
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 05 Dec 2014 13:26:06 +0100
+
+python-sipsimple (2.0.0) unstable; urgency=medium
+
+  * Add video support (H264 codec)
+  * Add support for handling initial INVITE requests without SDP
+  * Restart TCP and TLS transports when network conditions change
+  * Reuse disabled SDP streams
+  * Fix parsing makefile options
+  * Fix linking with OSX frameworks
+  * Unregister and unpublish when network conditions change, before restarting
+  * Leave symbols in even on release builds
+  * Fix not ending streams in some cases when Session.remove_streams fails
+  * Make stream initialization and ending consistent
+  * Report stream failure in MediaStreamDidEnd
+  * Add ExponentialTimer helper class to util
+  * Improved handling failures when processing remote proposals
+  * Reply with 488 if a remote SDP offer has deleted streams
+  * Fix race conditions when handling remote proposals
+  * Refresh SRTP crypto lines when updating local SDP
+  * Simplify code for obtaining the path to the OSX SDK
+  * Use 488 code when a proposal with streams fails
+  * Use timezone aware timestamps for Session start_time and stop_time
+  * Parse and generate bandwidth info attributes (b=) on the SDP
+  * Include address information with the MSRPTransportTrace notification
+  * Use SSLv23 method for TLSi (SSLv2 and SSLv3 are disabled)
+  * Updated bundled PJSIP to revision 4961
+  * Make sure a removed stream always has a connection line
+  * Remove bandwidth attributes when disabling a stream
+  * Reject incoming re-INVITE if we couldn't reply to it
+  * Fix setting SDP connection line when accepting a proposal
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 20 Nov 2014 18:30:35 +0100
+
+python-sipsimple (1.4.2) unstable; urgency=medium
+
+  * Avoid recompiling the whole PJSIP every time the core is recompiled
+  * Fix encoding when expanding user home path
+  * Made the XMLDocument schema path configurable
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 28 Jul 2014 13:51:42 +0200
+
 python-sipsimple (1.4.1) unstable; urgency=medium
 
   * Close external VNC viewer socket when the stream has ended
