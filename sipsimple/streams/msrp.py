@@ -10,7 +10,7 @@ sessions that negotiate Instant Messsaging, File Transfer and Screen
 Sharing and handling of the actual media streams.
 """
 
-__all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'ScreenSharingHandler',
+__all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'RandomID', 'ScreenSharingHandler',
            'ScreenSharingServerHandler', 'ScreenSharingViewerHandler', 'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler']
 
 import hashlib
@@ -568,7 +568,7 @@ class ChatStream(MSRPStreamBase):
 #
 
 class ComputeHash: __metaclass__ = MarkerType
-class RandomID: __metaclass__ = MarkerType
+class RandomID:    __metaclass__ = MarkerType
 
 
 class FileSelector(object):
