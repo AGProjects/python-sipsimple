@@ -247,8 +247,6 @@ class RTPStream(object):
             self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
-        rtp_transport = notification.sender
-        self.notification_center.remove_observer(self, sender=rtp_transport)
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
@@ -258,8 +256,6 @@ class RTPStream(object):
             self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def _NH_RTPTransportICENegotiationDidFail(self, notification):
-        rtp_transport = notification.sender
-        self.notification_center.remove_observer(self, sender=rtp_transport)
         with self._lock:
             self.notification_center.post_notification('%sStreamICENegotiationDidFail' % self.type.capitalize(), sender=self, data=notification.data)
             if self.state != "WAIT_ICE":
@@ -447,6 +443,7 @@ class AudioStream(RTPStream):
                 self._transport.stop()
                 self.notification_center.remove_observer(self, sender=self._transport)
                 self._transport = None
+                self.notification_center.remove_observer(self, sender=self._rtp_transport)
                 self._rtp_transport = None
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
@@ -491,8 +488,6 @@ class AudioStream(RTPStream):
         settings = SIPSimpleSettings()
         rtp_transport = notification.sender
         with self._lock:
-            if not rtp_transport.use_ice:
-                self.notification_center.remove_observer(self, sender=rtp_transport)
             if self.state == "ENDED":
                 return
             del self._rtp_args
@@ -510,6 +505,7 @@ class AudioStream(RTPStream):
                     audio_transport = AudioTransport(self.mixer, rtp_transport, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
             except SIPCoreError, e:
                 self.state = "ENDED"
+                self.notification_center.remove_observer(self, sender=rtp_transport)
                 self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=e.args[0]))
                 return
             self._rtp_transport = rtp_transport
@@ -668,6 +664,7 @@ class VideoStream(RTPStream):
                 self._transport.stop()
                 self.notification_center.remove_observer(self, sender=self._transport)
                 self._transport = None
+                self.notification_center.remove_observer(self, sender=self._rtp_transport)
                 self._rtp_transport = None
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
@@ -680,8 +677,6 @@ class VideoStream(RTPStream):
         settings = SIPSimpleSettings()
         rtp_transport = notification.sender
         with self._lock:
-            if not rtp_transport.use_ice:
-                self.notification_center.remove_observer(self, sender=rtp_transport)
             if self.state == "ENDED":
                 return
             del self._rtp_args
@@ -699,6 +694,7 @@ class VideoStream(RTPStream):
                     video_transport = VideoTransport(rtp_transport, codecs=codecs)
             except SIPCoreError, e:
                 self.state = "ENDED"
+                self.notification_center.remove_observer(self, sender=rtp_transport)
                 self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=e.args[0]))
                 return
             self._rtp_transport = rtp_transport
