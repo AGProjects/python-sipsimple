@@ -241,7 +241,10 @@ class RTPStream(object):
             self._try_next_rtp_transport(notification.data.reason)
 
     def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
-        self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
+        with self._lock:
+            if self.state != "WAIT_ICE":
+                return
+            self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
         rtp_transport = notification.sender
