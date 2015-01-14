@@ -409,11 +409,7 @@ static pj_status_t alsa_factory_refresh(pjmedia_aud_dev_factory *f)
                 strncmp("hw", name, 2) == 0 ||
                 strncmp("plughw", name, 6) == 0 ||
                 strncmp("center_lfe", name, 10) == 0 ||
-	        strncmp("surround40", name, 10) == 0 ||
-	        strncmp("surround41", name, 10) == 0 ||
-	        strncmp("surround50", name, 10) == 0 ||
-	        strncmp("surround51", name, 10) == 0 ||
-	        strncmp("surround71", name, 10) == 0 ||
+	        strncmp("surround", name, 8) == 0 ||
 	        (strncmp("default", name, 7) == 0 && strstr(name, ":CARD=") != NULL)) {
 	        /* skip these devices, 'sysdefault' always contains the relevant information */
 	        ;
