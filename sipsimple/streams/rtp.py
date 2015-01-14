@@ -234,35 +234,35 @@ class RTPStream(object):
         raise NotImplementedError
 
     def _NH_RTPTransportDidFail(self, notification):
+        self.notification_center.remove_observer(self, sender=notification.sender)
         with self._lock:
-            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
-            self._try_next_rtp_transport(notification.data.reason)
+        self._try_next_rtp_transport(notification.data.reason)
 
     def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
-            self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
         with self._lock:
             if self.state != "WAIT_ICE":
                 return
             self._ice_state = "IN_USE"
-            self.notification_center.post_notification('%sStreamICENegotiationDidSucceed' % self.type.capitalize(), sender=self, data=notification.data)
             self.state = 'ESTABLISHED'
-            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
+        self.notification_center.post_notification('%sStreamICENegotiationDidSucceed' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def _NH_RTPTransportICENegotiationDidFail(self, notification):
         with self._lock:
-            self.notification_center.post_notification('%sStreamICENegotiationDidFail' % self.type.capitalize(), sender=self, data=notification.data)
             if self.state != "WAIT_ICE":
                 return
             self._ice_state = "FAILED"
             self.state = 'ESTABLISHED'
-            self.notification_center.post_notification('MediaStreamDidStart', sender=self)
+        self.notification_center.post_notification('%sStreamICENegotiationDidFail' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     # Private methods
 
