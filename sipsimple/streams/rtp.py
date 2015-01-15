@@ -216,18 +216,18 @@ class RTPStream(object):
         handler(notification)
 
     def _NH_DNSLookupDidFail(self, notification):
+        self.notification_center.remove_observer(self, sender=notification.sender)
         with self._lock:
-            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
-            self._init_rtp_transport()
+        self._init_rtp_transport()
 
     def _NH_DNSLookupDidSucceed(self, notification):
+        self.notification_center.remove_observer(self, sender=notification.sender)
         with self._lock:
-            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
-            self._init_rtp_transport(notification.data.result)
+        self._init_rtp_transport(notification.data.result)
 
     @abstractmethod
     def _NH_RTPTransportDidInitialize(self, notification):
