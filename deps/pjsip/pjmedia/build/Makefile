@@ -66,7 +66,7 @@ export PJMEDIA_OBJS += $(OS_OBJS) $(M_OBJS) $(CC_OBJS) $(HOST_OBJS) \
 			sdp.o sdp_cmp.o sdp_neg.o session.o silencedet.o \
 			sound_legacy.o sound_port.o stereo_port.o stream_common.o \
 			stream.o stream_info.o tonegen.o transport_adapter_sample.o \
-			transport_ice.o transport_loop.o transport_srtp.o transport_udp.o \
+			transport_ice.o transport_loop.o transport_srtp.o transport_zrtp.o transport_udp.o \
 			types.o vid_codec.o vid_codec_util.o \
 			vid_port.o vid_stream.o vid_stream_info.o vid_tee.o \
 			wav_player.o wav_playlist.o wav_writer.o wave.o \

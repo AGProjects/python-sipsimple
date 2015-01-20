@@ -68,6 +68,7 @@
 #include <pjmedia/transport_ice.h>
 #include <pjmedia/transport_loop.h>
 #include <pjmedia/transport_srtp.h>
+#include <pjmedia/transport_zrtp.h>
 #include <pjmedia/transport_udp.h>
 #include <pjmedia/vid_port.h>
 #include <pjmedia/vid_codec.h>
