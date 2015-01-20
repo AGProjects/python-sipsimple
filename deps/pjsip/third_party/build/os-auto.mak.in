@@ -29,3 +29,5 @@ endif
 
 DIRS += opus
 
+DIRS += zsrtp
+

@@ -40,6 +40,10 @@ APP_THIRD_PARTY_LIBS += -lopuscodec-$(TARGET_NAME)
 APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libopuscodec-$(LIB_SUFFIX)
 endif
 
+# ZRTP
+APP_THIRD_PARTY_LIBS += -lzsrtp-$(TARGET_NAME) -lsqlite3 -lstdc++
+APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libzsrtp-$(LIB_SUFFIX)
+
 ifneq (@ac_no_gsm_codec@,1)
 ifeq (@ac_external_gsm@,1)
 # External GSM library
