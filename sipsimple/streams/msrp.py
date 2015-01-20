@@ -1011,9 +1011,7 @@ class ScreenSharingStream(MSRPStreamBase):
     def _msrp_reader(self):
         while True:
             try:
-                # it should be read_chunk(0) to read as much as available, but it doesn't work
-                # as it sends 1-2 bytes more than provided by the app to the other side. -Dan
-                chunk = self.msrp.read_chunk(None) # 0 means to return as much data as was read
+                chunk = self.msrp.read_chunk()
                 if chunk.method in (None, 'REPORT'):
                     continue
                 elif chunk.method == 'SEND':
