@@ -307,6 +307,24 @@ class MSRPStreamBase(object):
         pass
 
 
+class Message(object):
+    __slots__ = ('id', 'content', 'content_type', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'failure_report', 'success_report', 'notify_progress')
+
+    def __init__(self, id, content, content_type, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
+        self.id = id
+        self.content = content
+        self.content_type = content_type
+        self.recipients = recipients
+        self.courtesy_recipients = courtesy_recipients
+        self.subject = subject
+        self.timestamp = timestamp
+        self.required = required
+        self.additional_headers = additional_headers
+        self.failure_report = failure_report
+        self.success_report = success_report
+        self.notify_progress = notify_progress
+
+
 class ChatStream(MSRPStreamBase):
     type = 'chat'
     priority = 1
@@ -321,6 +339,7 @@ class ChatStream(MSRPStreamBase):
         self.message_queue = queue()
         self.sent_messages = set()
         self.incoming_queue = {}
+        self.message_queue_thread = None
 
     @classmethod
     def new_from_sdp(cls, session, remote_sdp, stream_index):
@@ -372,13 +391,23 @@ class ChatStream(MSRPStreamBase):
         except AttributeError:
             return False
 
-    # TODO: chatroom, recvonly/sendonly (in start)?
-
     def _NH_MediaStreamDidStart(self, notification):
-        spawn(self._message_queue_handler)
+        self.message_queue_thread = spawn(self._message_queue_handler)
+
+    def _NH_MediaStreamDidNotInitialize(self, notification):
+        message_queue, self.message_queue = self.message_queue, queue()
+        for message in message_queue.items:
+            data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream was closed')
+            notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _NH_MediaStreamDidEnd(self, notification):
-        self.message_queue.send_exception(ProcExit)
+        if self.message_queue_thread is not None:
+            self.message_queue_thread.kill()
+        else:
+            message_queue, self.message_queue = self.message_queue, queue()
+            for message in message_queue.items:
+                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
@@ -450,30 +479,82 @@ class ChatStream(MSRPStreamBase):
 
     def _message_queue_handler(self):
         notification_center = NotificationCenter()
-        while True:
-            message_id, message, content_type, failure_report, success_report, notify_progress = self.message_queue.wait()
-            if self.msrp_session is None:
-                # should we generate ChatStreamDidNotDeliver per each message in the queue here?
-                break
-            chunk = self.msrp_session.make_message(message, content_type=content_type, message_id=message_id)
-            if failure_report is not None:
-                chunk.add_header(FailureReportHeader(failure_report))
-            if success_report is not None:
-                chunk.add_header(SuccessReportHeader(success_report))
-            try:
-                self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
-            except Exception, e:
-                self._failure_reason = str(e)
-                notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
-                break
-            else:
-                if notify_progress and success_report == 'yes' and failure_report != 'no':
-                    self.sent_messages.add(message_id)
-                    notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
+        try:
+            while True:
+                message = self.message_queue.wait()
+                if self.msrp_session is None:
+                    data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    break
+                try:
+                    if self.cpim_enabled:
+                        if not contains_mime_type(self.accept_wrapped_types, message.content_type):
+                            raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
+                        if not message.recipients:
+                            message.recipients = [self.remote_identity]
+                        elif not self.private_messages_allowed and message.recipients != [self.remote_identity]:
+                            raise ChatStreamError('The remote end does not support private messages')
+                        if message.timestamp is None:
+                            message.timestamp = ISOTimestamp.now()
+                        msg = CPIMMessage(message.content, message.content_type, sender=self.local_identity,
+                                          recipients=message.recipients, courtesy_recipients=message.courtesy_recipients,
+                                          subject=message.subject, timestamp=message.timestamp,
+                                          required=message.required, additional_headers=message.additional_headers)
+                        content = str(msg)
+                        content_type = 'message/cpim'
+                    else:
+                        if not contains_mime_type(self.accept_types, message.content_type):
+                            raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
+                        if message.recipients is not None and message.recipients != [self.remote_identity]:
+                            raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
+                        if message.courtesy_recipients or message.subject or message.timestamp or message.required or message.additional_headers:
+                            raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
+                        if isinstance(message.content, unicode):
+                            message.content = message.content.encode('utf-8')
+                        content = message.content
+                        content_type = message.content_type
+                except ChatStreamError, e:
+                    data = NotificationData(message_id=message.id, message=None, code=0, reason=e.args[0])
+                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    continue
+
+                message_id = message.id
+                failure_report = message.failure_report
+                success_report = message.success_report
+                notify_progress = message.notify_progress
+
+                chunk = self.msrp_session.make_message(content, content_type=content_type, message_id=message_id)
+                if failure_report is not None:
+                    chunk.add_header(FailureReportHeader(failure_report))
+                if success_report is not None:
+                    chunk.add_header(SuccessReportHeader(success_report))
+                try:
+                    self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
+                except Exception, e:
+                    data = NotificationData(message_id=message_id, message=None, code=0, reason=str(e))
+                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                except ProcExit:
+                    data = NotificationData(message_id=message_id, message=None, code=0, reason='Stream ended')
+                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    raise
+                else:
+                    if notify_progress and success_report == 'yes' and failure_report != 'no':
+                        self.sent_messages.add(message_id)
+                        notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
+        finally:
+            self.message_queue_thread = None
+            message_queue, self.message_queue = self.message_queue, queue()
+            for message in message_queue.items:
+                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     @run_in_twisted_thread
-    def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None, notify_progress=True):
-        self.message_queue.send((message_id, message, content_type, failure_report, success_report, notify_progress))
+    def _enqueue_message(self, message):
+        if self._done:
+            data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+            NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+        else:
+            self.message_queue.send(message)
 
     @run_in_green_thread
     def _set_local_nickname(self, nickname, message_id):
@@ -512,48 +593,17 @@ class ChatStream(MSRPStreamBase):
         if self.direction=='recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
         message_id = '%x' % random.getrandbits(64)
-        if self.cpim_enabled:
-            if not contains_mime_type(self.accept_wrapped_types, content_type):
-                raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
-            if not recipients:
-                recipients = [self.remote_identity]
-            elif not self.private_messages_allowed and recipients != [self.remote_identity]:
-                raise ChatStreamError('The remote end does not support private messages')
-            if timestamp is None:
-                timestamp = ISOTimestamp.now()
-            msg = CPIMMessage(content, content_type, sender=self.local_identity, recipients=recipients, courtesy_recipients=courtesy_recipients,
-                              subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers)
-            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='yes', success_report='yes', notify_progress=True)
-        else:
-            if not contains_mime_type(self.accept_types, content_type):
-                raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
-            if recipients is not None and recipients != [self.remote_identity]:
-                raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            if courtesy_recipients or subject or timestamp or required or additional_headers:
-                raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
-            if isinstance(content, unicode):
-                content = content.encode('utf-8')
-            self._enqueue_message(message_id, content, content_type, failure_report='yes', success_report='yes', notify_progress=True)
+        message = Message(message_id, content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, failure_report='yes', success_report='yes', notify_progress=True)
+        self._enqueue_message(message)
         return message_id
 
     def send_composing_indication(self, state, refresh=None, last_active=None, recipients=None):
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
-        if state not in ('active', 'idle'):
-            raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
-        if self.cpim_enabled:
-            if recipients is None:
-                recipients = [self.remote_identity]
-            elif not self.private_messages_allowed and recipients != [self.remote_identity]:
-                raise ChatStreamError('The remote end does not support private messages')
-            msg = CPIMMessage(content, IsComposingDocument.content_type, sender=self.local_identity, recipients=recipients, timestamp=ISOTimestamp.now())
-            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
-        else:
-            if recipients is not None and recipients != [self.remote_identity]:
-                raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, IsComposingDocument.content_type, failure_report='partial', success_report='no', notify_progress=False)
+        message = Message(message_id, content, IsComposingDocument.content_type, recipients=recipients, failure_report='partial', success_report='no', notify_progress=False)
+        self._enqueue_message(message)
         return message_id
 
     def set_local_nickname(self, nickname):
