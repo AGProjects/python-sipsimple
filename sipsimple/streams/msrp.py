@@ -96,6 +96,8 @@ class MSRPStreamBase(object):
         self.local_role = None
         self.remote_role = None
         self.transport = None
+        self.remote_accept_types = None
+        self.remote_accept_wrapped_types = None
 
         self._initialized = False
         self._done = False
@@ -199,9 +201,9 @@ class MSRPStreamBase(object):
             context = 'sdp_negotiation'
             remote_media = remote_sdp.media[stream_index]
             self.remote_media = remote_media
-            remote_accept_types = remote_media.attributes.getfirst('accept-types')
-            # TODO: update accept_types and accept_wrapped_types from remote_media
-            self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim') and contains_mime_type(remote_accept_types.split(), 'message/cpim')
+            self.remote_accept_types = remote_media.attributes.getfirst('accept-types', '').split()
+            self.remote_accept_wrapped_types = remote_media.attributes.getfirst('accept-wrapped-types', '').split()
+            self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim') and contains_mime_type(self.remote_accept_types, 'message/cpim')
             remote_uri_path = remote_media.attributes.getfirst('path')
             if remote_uri_path is None:
                 raise AttributeError("remote SDP media does not have 'path' attribute")
@@ -435,13 +437,20 @@ class ChatStream(MSRPStreamBase):
             else:
                 self.msrp_session.send_report(chunk, 200, 'OK')
                 return
-        if chunk.content_type.lower() == 'message/cpim':
+        content_type = chunk.content_type.lower()
+        if not contains_mime_type(self.accept_types, content_type):
+            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
+            return
+        if content_type == 'message/cpim':
             try:
                 message = CPIMMessage.parse(chunk.data)
             except CPIMParserError:
                 self.msrp_session.send_report(chunk, 400, 'CPIM Parser Error')
                 return
             else:
+                if not contains_mime_type(self.accept_wrapped_types, message.content_type):
+                    self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
+                    return
                 if message.timestamp is None:
                     message.timestamp = ISOTimestamp.now()
                 if message.sender is None:
@@ -450,7 +459,6 @@ class ChatStream(MSRPStreamBase):
         else:
             message = ChatMessage(chunk.data.decode('utf-8'), chunk.content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
             private = False
-        # TODO: check wrapped content-type and issue a report if it's invalid
         self.msrp_session.send_report(chunk, 200, 'OK')
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
@@ -488,7 +496,7 @@ class ChatStream(MSRPStreamBase):
                     break
                 try:
                     if self.cpim_enabled:
-                        if not contains_mime_type(self.accept_wrapped_types, message.content_type):
+                        if not contains_mime_type(self.remote_accept_wrapped_types, message.content_type):
                             raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
                         if not message.recipients:
                             message.recipients = [self.remote_identity]
@@ -503,7 +511,7 @@ class ChatStream(MSRPStreamBase):
                         content = str(msg)
                         content_type = 'message/cpim'
                     else:
-                        if not contains_mime_type(self.accept_types, message.content_type):
+                        if not contains_mime_type(self.remote_accept_types, message.content_type):
                             raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
                         if message.recipients is not None and message.recipients != [self.remote_identity]:
                             raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
