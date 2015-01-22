@@ -333,8 +333,8 @@ class ChatStream(MSRPStreamBase):
     use_msrp_session = True
 
     media_type = 'message'
-    accept_types = ['message/cpim', 'text/*', 'application/im-iscomposing+xml']
-    accept_wrapped_types = ['*']
+    accept_types = ['message/cpim', 'text/*', 'image/*', 'application/im-iscomposing+xml']
+    accept_wrapped_types = ['text/*', 'image/*', 'application/im-iscomposing+xml']
 
     def __init__(self, direction='sendrecv'):
         super(ChatStream, self).__init__(direction=direction)
