@@ -1,3 +1,17 @@
+python-sipsimple (2.2.0) unstable; urgency=medium
+
+  * Make sure ICE status change notification is only sent while waiting for it
+  * Listen for notifications on the RTPTransport until the stream ends
+  * pjsip: skip all surround device configurations in ALSA backend
+  * Hold the stream lock just for checking / changing states
+  * Adapt to API change in MSRPLib
+  * Refactor message handling in ChatStream
+  * Check remote supported content types in ChatStream
+  * Update supported types in ChatStream
+  * Raised python-msrplib version dependency
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 26 Jan 2015 12:59:03 +0100
+
 python-sipsimple (2.1.1) unstable; urgency=medium
 
   * Add a base class for Audio and Video streams
