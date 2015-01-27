@@ -44,6 +44,7 @@ static const struct ffmpeg_fmt_table_t
     enum PixelFormat	pf;
 } ffmpeg_fmt_table[] =
 {
+    { PJMEDIA_FORMAT_ARGB, PIX_FMT_ARGB},
     { PJMEDIA_FORMAT_RGBA, PIX_FMT_RGBA},
     { PJMEDIA_FORMAT_RGB24,PIX_FMT_BGR24},
     { PJMEDIA_FORMAT_BGRA, PIX_FMT_BGRA},

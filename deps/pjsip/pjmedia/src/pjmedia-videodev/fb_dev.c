@@ -34,7 +34,11 @@
 
 
 /* Supported formats */
+#if defined(PJ_DARWINOS) && PJ_DARWINOS!=0
+static pjmedia_format_id fb_fmts[] = {PJMEDIA_FORMAT_ARGB};
+#else
 static pjmedia_format_id fb_fmts[] = {PJMEDIA_FORMAT_BGRA};
+#endif
 
 
 /* fb device info */

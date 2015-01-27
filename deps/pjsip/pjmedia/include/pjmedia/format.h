@@ -97,6 +97,7 @@ typedef enum pjmedia_format_id
     /**
      * 32bit RGB with alpha channel
      */
+    PJMEDIA_FORMAT_ARGB     = PJMEDIA_FORMAT_PACK('A', 'R', 'G', 'B'),
     PJMEDIA_FORMAT_RGBA     = PJMEDIA_FORMAT_PACK('R', 'G', 'B', 'A'),
     PJMEDIA_FORMAT_BGRA     = PJMEDIA_FORMAT_PACK('B', 'G', 'R', 'A'),
 
