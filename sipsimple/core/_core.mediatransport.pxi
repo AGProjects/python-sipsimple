@@ -3,6 +3,9 @@
 
 # python imports
 
+import struct
+import sys
+
 from errno import EADDRINUSE
 
 
@@ -32,15 +35,13 @@ cdef class RTPTransport:
         self._pool = pool
         self.state = "NULL"
 
-    def __init__(self, use_srtp=False, srtp_forced=False, use_ice=False,
-                 ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
+    def __init__(self, encryption=None, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         cdef PJSIPUA ua = _get_ua()
 
         if self.state != "NULL":
             raise SIPCoreError("RTPTransport.__init__() was already called")
         self._rtp_valid_pair = None
-        self.use_srtp = use_srtp
-        self.srtp_forced = srtp_forced
+        self._encryption = encryption
         self.use_ice = use_ice
         self.ice_stun_address = ice_stun_address
         self.ice_stun_port = ice_stun_port
@@ -57,12 +58,14 @@ cdef class RTPTransport:
 
         transport = self._obj
         if transport != NULL:
+            transport.user_data = NULL
+            if self._wrapped_transport != NULL:
+                self._wrapped_transport.user_data = NULL
             with nogil:
                 pjmedia_transport_media_stop(transport)
                 pjmedia_transport_close(transport)
-            transport.user_data = NULL
-            self._wrapped_transport = NULL
             self._obj = NULL
+            self._wrapped_transport = NULL
         ua.release_memory_pool(self._pool)
         self._pool = NULL
         if self._lock != NULL:
@@ -264,7 +267,6 @@ cdef class RTPTransport:
     property srtp_active:
 
         def __get__(self):
-            cdef int i
             cdef int status
             cdef pj_mutex_t *lock = self._lock
             cdef pjmedia_srtp_info *srtp_info
@@ -286,6 +288,64 @@ cdef class RTPTransport:
                 srtp_info = <pjmedia_srtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_SRTP)
                 if srtp_info != NULL:
                     return bool(srtp_info.active)
+                return False
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property srtp_cipher:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_srtp_info *srtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return None
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return None
+                self._get_info(&info)
+                srtp_info = <pjmedia_srtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_SRTP)
+                if srtp_info == NULL or not bool(srtp_info.active):
+                    return None
+                return _pj_str_to_str(srtp_info.tx_policy.name)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property zrtp_active:
+
+        def __get__(self):
+            cdef int status
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return False
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return False
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info != NULL:
+                    return bool(zrtp_info.active)
                 return False
             finally:
                 with nogil:
@@ -448,6 +508,8 @@ cdef class RTPTransport:
         cdef pjmedia_transport **transport_address
         cdef pjmedia_transport *wrapped_transport
         cdef pjsip_endpoint *sip_endpoint
+        cdef bytes zid_file
+        cdef char *c_zid_file
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -510,20 +572,38 @@ cdef class RTPTransport:
                     if status != 0:
                         raise PJSIPError("Could not create UDP/RTP media transport", status)
                 self._obj.user_data = <void *> self.weakref
-                if self.use_srtp:
+                if self._encryption is not None:
                     wrapped_transport = self._wrapped_transport = self._obj
                     self._obj = NULL
-                    with nogil:
-                        pjmedia_srtp_setting_default(&srtp_setting)
-                    if self.srtp_forced:
-                        srtp_setting.use = PJMEDIA_SRTP_MANDATORY
-                    with nogil:
-                        status = pjmedia_transport_srtp_create(media_endpoint, wrapped_transport, &srtp_setting, transport_address)
-                    if status != 0:
+                    if self._encryption.startswith('sdes'):
                         with nogil:
-                            pjmedia_transport_close(wrapped_transport)
-                        self._wrapped_transport = NULL
-                        raise PJSIPError("Could not create SRTP media transport", status)
+                            pjmedia_srtp_setting_default(&srtp_setting)
+                        if self._encryption == 'sdes_mandatory':
+                            srtp_setting.use = PJMEDIA_SRTP_MANDATORY
+                        with nogil:
+                            status = pjmedia_transport_srtp_create(media_endpoint, wrapped_transport, &srtp_setting, transport_address)
+                        if status != 0:
+                            with nogil:
+                                pjmedia_transport_close(wrapped_transport)
+                            self._wrapped_transport = NULL
+                            raise PJSIPError("Could not create SRTP media transport", status)
+                    elif self._encryption == 'zrtp':
+                        with nogil:
+                            status = pjmedia_transport_zrtp_create(media_endpoint, pjsip_endpt_get_timer_heap(sip_endpoint), wrapped_transport, transport_address, 1)
+                        if status == 0:
+                            zid_file = ua.zrtp_cache.encode(sys.getfilesystemencoding())
+                            c_zid_file = zid_file
+                            with nogil:
+                                # Auto-enable is deactivated
+                                status = pjmedia_transport_zrtp_initialize(self._obj, c_zid_file, 0, &_zrtp_cb)
+                        if status != 0:
+                            with nogil:
+                                pjmedia_transport_close(wrapped_transport)
+                            self._wrapped_transport = NULL
+                            raise PJSIPError("Could not create ZRTP media transport", status)
+                    else:
+                        raise RuntimeError('invalid SRTP key negotiation specified: %s' % self._encryption)
+                    self._obj.user_data = <void *> self.weakref
                 if not self.use_ice or self.ice_stun_address is None:
                     self.state = "INIT"
                     _add_event("RTPTransportDidInitialize", dict(obj=self))
@@ -542,6 +622,254 @@ cdef class RTPTransport:
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
+
+    def set_zrtp_sas_verified(self, verified):
+        cdef int status
+        cdef int c_verified
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_zrtp_info *zrtp_info
+        cdef pjmedia_transport_info info
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return False
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                return False
+            self._get_info(&info)
+            zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+            if zrtp_info == NULL or not bool(zrtp_info.active):
+                return False
+            c_verified = int(verified)
+            with nogil:
+                pjmedia_transport_zrtp_setSASVerified(self._obj, c_verified)
+            return True
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def set_zrtp_enabled(self, enabled, object master_stream):
+        cdef int status
+        cdef int c_enabled
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_zrtp_info *zrtp_info
+        cdef pjmedia_transport_info info
+        cdef PJSIPUA ua
+        cdef bytes multistream_params
+        cdef char *c_multistream_params
+        cdef int length
+        cdef RTPTransport master_transport
+
+        ua = self._check_ua()
+        if ua is None:
+            return
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                return
+            self._get_info(&info)
+            zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+            if zrtp_info == NULL:
+                return
+            if master_stream is not None:
+                master_transport = master_stream._rtp_transport
+                assert master_transport is not None
+                # extract the multistream parameters
+                multistream_params = master_transport.zrtp_multistream_parameters
+                if multistream_params:
+                    # set multistream mode in ourselves
+                    c_multistream_params = multistream_params
+                    length = len(multistream_params)
+                    with nogil:
+                        pjmedia_transport_zrtp_setMultiStreamParameters(self._obj, c_multistream_params, length, master_transport._obj)
+            c_enabled = int(enabled)
+            with nogil:
+                pjmedia_transport_zrtp_setEnableZrtp(self._obj, c_enabled)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    property zrtp_multistream_parameters:
+
+        def __get__(self):
+            cdef int status
+            cdef char* c_name
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+            cdef char *multistr_params
+            cdef int length
+
+            ua = self._check_ua()
+            if ua is None:
+                return None
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return None
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info == NULL or not bool(zrtp_info.active):
+                    return None
+                with nogil:
+                    multistr_params = pjmedia_transport_zrtp_getMultiStreamParameters(self._obj, &length)
+                if length > 0:
+                    ret = PyString_FromStringAndSize(multistr_params, length)
+                    free(multistr_params)
+                    return ret
+                else:
+                    return None
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property zrtp_cipher:
+
+        def __get__(self):
+            cdef int status
+            cdef char* c_name
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return None
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return None
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info == NULL or not bool(zrtp_info.active):
+                    return None
+                return PyString_FromString(zrtp_info.cipher)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property zrtp_peer_name:
+
+        def __get__(self):
+            cdef int status
+            cdef char* c_name
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return ''
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return ''
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info == NULL or not bool(zrtp_info.active):
+                    return ''
+                with nogil:
+                    c_name = pjmedia_transport_zrtp_getPeerName(self._obj)
+                if c_name == NULL:
+                    return ''
+                else:
+                    name = PyString_FromString(c_name)
+                    free(c_name)
+                    return name
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+        def __set__(self, bytes name):
+            cdef int status
+            cdef char* c_name
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info == NULL or not bool(zrtp_info.active):
+                    return
+                c_name = name
+                with nogil:
+                    pjmedia_transport_zrtp_putPeerName(self._obj, c_name)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
+
+    property zrtp_peer_id:
+
+        def __get__(self):
+            cdef int status
+            cdef unsigned char name[12]    # IDENTIFIER_LEN, 96bits
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_zrtp_info *zrtp_info
+            cdef pjmedia_transport_info info
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+            if ua is None:
+                return None
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
+                    return None
+                self._get_info(&info)
+                zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
+                if zrtp_info == NULL or not bool(zrtp_info.active):
+                    return None
+                with nogil:
+                    status = pjmedia_transport_zrtp_getPeerZid(self._obj, name)
+                if status <= 0:
+                    return None
+                else:
+                    name_str = PyString_FromStringAndSize(<char*>name, 12)
+                    return ':'.join(map(str, struct.unpack("B"*12, name_str)))
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     def update_local_sdp(self, SDPSession local_sdp, BaseSDPSession remote_sdp=None, int sdp_index=0):
         cdef int status
@@ -562,9 +890,9 @@ cdef class RTPTransport:
             raise ValueError("sdp_index argument cannot be negative")
         if sdp_index >= pj_local_sdp.media_count:
             raise ValueError("sdp_index argument out of range")
-        # Remove ICE and SRTP related attributes from SDP, they will be added by pjmedia_transport_encode_sdp
+        # Remove ICE and SRTP/ZRTP related attributes from SDP, they will be added by pjmedia_transport_encode_sdp
         local_media = local_sdp.media[sdp_index]
-        local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ('crypto', 'ice-ufrag', 'ice-pwd', 'ice-mismatch', 'candidate', 'remote-candidates')]
+        local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ('crypto', 'zrtp-hash', 'ice-ufrag', 'ice-pwd', 'ice-mismatch', 'candidate', 'remote-candidates')]
         pj_local_sdp = local_sdp.get_sdp_session()
         with nogil:
             status = pjmedia_transport_encode_sdp(transport, pool, pj_local_sdp, pj_remote_sdp, sdp_index)
@@ -1936,6 +2264,147 @@ cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err
     except:
         ua._handle_exception(1)
 
+cdef void _RTPTransport_cb_zrtp_secure_on(pjmedia_transport *tp, char* cipher) with gil:
+   cdef RTPTransport rtp_transport
+   cdef PJSIPUA ua
+   try:
+       ua = _get_ua()
+   except:
+       return
+   try:
+       rtp_transport = _extract_rtp_transport(tp)
+       if rtp_transport is None:
+           return
+       _add_event("RTPTransportZRTPSecureOn", dict(obj=rtp_transport, cipher=bytes(cipher)))
+   except:
+       ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_secure_off(pjmedia_transport *tp) with gil:
+   cdef RTPTransport rtp_transport
+   cdef PJSIPUA ua
+   try:
+       ua = _get_ua()
+   except:
+       return
+   try:
+       rtp_transport = _extract_rtp_transport(tp)
+       if rtp_transport is None:
+           return
+       _add_event("RTPTransportZRTPSecureOff", dict(obj=rtp_transport))
+   except:
+       ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_show_sas(pjmedia_transport *tp, char* sas, int verified) with gil:
+   cdef RTPTransport rtp_transport
+   cdef PJSIPUA ua
+   try:
+       ua = _get_ua()
+   except:
+       return
+   try:
+       rtp_transport = _extract_rtp_transport(tp)
+       if rtp_transport is None:
+           return
+       _add_event("RTPTransportZRTPReceivedSAS", dict(obj=rtp_transport, sas=str(sas), verified=bool(verified)))
+   except:
+       ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_confirm_goclear(pjmedia_transport *tp) with gil:
+   cdef RTPTransport rtp_transport
+   cdef PJSIPUA ua
+   try:
+       ua = _get_ua()
+   except:
+       return
+   try:
+       rtp_transport = _extract_rtp_transport(tp)
+       if rtp_transport is None:
+           return
+       # TODO: not yet implemented by PJSIP's ZRTP transport
+   except:
+       ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_show_message(pjmedia_transport *tp, int severity, int sub_code) with gil:
+    global zrtp_message_levels, zrtp_error_messages
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        level = zrtp_message_levels.get(severity, 1)
+        message = zrtp_error_messages[level].get(sub_code, 'Unknown')
+        _add_event("RTPTransportZRTPLog", dict(obj=rtp_transport, level=level, message=message))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_negotiation_failed(pjmedia_transport *tp, int severity, int sub_code) with gil:
+    global zrtp_message_levels, zrtp_error_messages
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        level = zrtp_message_levels.get(severity, 1)
+        reason = zrtp_error_messages[level].get(sub_code, 'Unknown')
+        _add_event("RTPTransportZRTPNegotiationFailed", dict(obj=rtp_transport, reason=reason))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_not_supported_by_other(pjmedia_transport *tp) with gil:
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        _add_event("RTPTransportZRTPNotSupportedByRemote", dict(obj=rtp_transport))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_ask_enrollment(pjmedia_transport *tp, int info) with gil:
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        # TODO: implement PBX enrollment
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_zrtp_inform_enrollment(pjmedia_transport *tp, int info) with gil:
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        rtp_transport = _extract_rtp_transport(tp)
+        if rtp_transport is None:
+            return
+        # TODO: implement PBX enrollment
+    except:
+        ua._handle_exception(1)
+
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
     cdef AudioTransport audio_stream = (<object> user_data)()
     cdef PJSIPUA ua
@@ -1958,4 +2427,82 @@ _ice_cb.on_ice_state = _RTPTransport_cb_ice_state
 _ice_cb.on_ice_stop = _RTPTransport_cb_ice_stop
 
 valid_sdp_directions = ("sendrecv", "sendonly", "recvonly", "inactive")
+
+# ZRTP
+
+cdef pjmedia_zrtp_cb _zrtp_cb
+_zrtp_cb.secure_on = _RTPTransport_cb_zrtp_secure_on
+_zrtp_cb.secure_off = _RTPTransport_cb_zrtp_secure_off
+_zrtp_cb.show_sas = _RTPTransport_cb_zrtp_show_sas
+_zrtp_cb.confirm_go_clear = _RTPTransport_cb_zrtp_confirm_goclear
+_zrtp_cb.show_message = _RTPTransport_cb_zrtp_show_message
+_zrtp_cb.negotiation_failed = _RTPTransport_cb_zrtp_negotiation_failed
+_zrtp_cb.not_supported_by_other = _RTPTransport_cb_zrtp_not_supported_by_other
+_zrtp_cb.ask_enrollment = _RTPTransport_cb_zrtp_ask_enrollment
+_zrtp_cb.inform_enrollment = _RTPTransport_cb_zrtp_inform_enrollment
+_zrtp_cb.sign_sas = NULL
+_zrtp_cb.check_sas_signature = NULL
+
+# Keep these aligned with ZrtpCodes.h
+
+cdef dict zrtp_message_levels = {1: 'INFO', 2: 'WARNING', 3: 'SEVERE', 4: 'ERROR'}
+cdef dict zrtp_error_messages = {
+    'INFO': {
+        0: "Unknown",
+        1: "Hello received and prepared a Commit, ready to get peer's hello hash", #InfoHelloReceived
+        2: "Commit: Generated a public DH key",                                    #InfoCommitDHGenerated
+        3: "Responder: Commit received, preparing DHPart1",                        #InfoRespCommitReceived
+        4: "DH1Part: Generated a public DH key",                                   #InfoDH1DHGenerated
+        5: "Initiator: DHPart1 received, preparing DHPart2",                       #InfoInitDH1Received
+        6: "Responder: DHPart2 received, preparing Confirm1",                      #InfoRespDH2Received
+        7: "Initiator: Confirm1 received, preparing Confirm2",                     #InfoInitConf1Received
+        8: "Responder: Confirm2 received, preparing Conf2Ack",                     #InfoRespConf2Received
+        9: "At least one retained secrets matches - security OK",                  #InfoRSMatchFound
+       10: "Entered secure state",                                                 #InfoSecureStateOn
+       11: "No more security for this session",                                    #InfoSecureStateOff
+    },
+    'WARNING': {
+        0: "Unknown",
+        1: "WarningDHAESmismatch = 1, //!< Commit contains an AES256 cipher but does not offer a Diffie-Helman 4096 - not used DH4096 was discarded", #WarningDHAESmismatch
+        2: "Received a GoClear message",                                                                                                              #WarningGoClearReceived
+        3: "Hello offers an AES256 cipher but does not offer a Diffie-Helman 4096- not used DH4096 was discarded",                                    #WarningDHShort
+        4: "No retained shared secrets available - must verify SAS",                                                                                  #WarningNoRSMatch
+        5: "Internal ZRTP packet checksum mismatch - packet dropped",                                                                                 #WarningCRCmismatch
+        6: "Dropping packet because SRTP authentication failed!",                                                                                     #WarningSRTPauthError
+        7: "Dropping packet because SRTP replay check failed!",                                                                                       #WarningSRTPreplayError
+        8: "Valid retained shared secrets availabe but no matches found - must verify SAS",                                                           #WarningNoExpectedRSMatch
+    },
+    'SEVERE': {
+        0: "Unknown",
+        1: "Hash HMAC check of Hello failed!",                                    #SevereHelloHMACFailed
+        2: "Hash HMAC check of Commit failed!",                                   #SevereCommitHMACFailed
+        3: "Hash HMAC check of DHPart1 failed!",                                  #SevereDH1HMACFailed
+        4: "Hash HMAC check of DHPart2 failed!",                                  #SevereDH2HMACFailed
+        5: "Cannot send data - connection or peer down?",                         #SevereCannotSend
+        6: "Internal protocol error occured!",                                    #SevereProtocolError
+        7: "Cannot start a timer - internal resources exhausted?",                #SevereNoTimer
+        8: "Too much retries during ZRTP negotiation - connection or peer down?", #SevereTooMuchRetries
+    },
+    'ERROR': {
+              0x00: "Unknown",
+              0x10: "Malformed packet (CRC OK, but wrong structure)", #MalformedPacket
+              0x20: "Critical software error",                        #CriticalSWError
+              0x30: "Unsupported ZRTP version",                       #UnsuppZRTPVersion
+              0x40: "Hello components mismatch",                      #HelloCompMismatch
+              0x51: "Hash type not supported",                        #UnsuppHashType
+              0x52: "Cipher type not supported",                      #UnsuppCiphertype
+              0x53: "Public key exchange not supported",              #UnsuppPKExchange
+              0x54: "SRTP auth. tag not supported",                   #UnsuppSRTPAuthTag
+              0x55: "SAS scheme not supported",                       #UnsuppSASScheme
+              0x56: "No shared secret available, DH mode required",   #NoSharedSecret
+              0x61: "DH Error: bad pvi or pvr ( == 1, 0, or p-1)",    #DHErrorWrongPV
+              0x62: "DH Error: hvi != hashed data",                   #DHErrorWrongHVI
+              0x63: "Received relayed SAS from untrusted MiTM",       #SASuntrustedMiTM
+              0x70: "Auth. Error: Bad Confirm pkt HMAC",              #ConfirmHMACWrong
+              0x80: "Nonce reuse",                                    #NonceReused
+              0x90: "Equal ZIDs in Hello",                            #EqualZIDHello
+             0x100: "GoClear packet received, but not allowed",       #GoCleatNotAllowed
+        0x7fffffff: "Packet ignored",                                 #IgnorePacket
+    }
+}
 

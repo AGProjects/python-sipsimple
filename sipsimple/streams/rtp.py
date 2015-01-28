@@ -25,6 +25,195 @@ from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
 
+class ZRTPStreamOptions(object):
+    def __init__(self, stream):
+        self._stream = stream
+        self.__dict__['sas'] = None
+        self.__dict__['verified'] = False
+
+    @property
+    def sas(self):
+        return self.__dict__['sas']
+
+    def _get_verified(self):
+        return self.__dict__['verified']
+
+    def _set_verified(self, verified):
+        if self.__dict__['verified'] == verified:
+            return
+        if self.sas is None:
+            raise AttributeError('Cannot verify peer before SAS is received')
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None or not rtp_transport.set_zrtp_sas_verified(verified):
+            raise AttributeError('Cannot verify peer after stream ended')
+        self.__dict__['verified'] = verified
+        notification_center = NotificationCenter()
+        notification_center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
+
+    verified = property(_get_verified, _set_verified)
+    del _get_verified, _set_verified
+
+    @property
+    def peer_id(self):
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None:
+            return None
+        return rtp_transport.zrtp_peer_id
+
+    def _get_peer_name(self):
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None:
+            return ''
+        return rtp_transport.zrtp_peer_name
+
+    def _set_peer_name(self, name):
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None:
+            return
+        rtp_transport.zrtp_peer_name = name
+
+    peer_name = property(_get_peer_name, _set_peer_name)
+    del _get_peer_name, _set_peer_name
+
+    def _enable(self, master_stream=None):
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None:
+            return
+        if master_stream is not None and not (master_stream.encryption.active and master_stream.encryption.type == 'ZRTP'):
+            raise RuntimeError('Master stream must have ZRTP encryption activated')
+        rtp_transport.set_zrtp_enabled(True, master_stream)
+
+
+class RTPStreamEncryption(object):
+    implements(IObserver)
+
+    def __init__(self, stream):
+        self._stream = stream
+        self._rtp_transport = None
+
+        self.__dict__['type'] = None
+        self.__dict__['zrtp'] = None
+
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=stream)
+
+    @property
+    def active(self):
+        stream = self._stream
+        if stream is None:
+            return False
+        rtp_transport = stream._rtp_transport
+        if rtp_transport is None:
+            return False
+        if self.type == 'SRTP-SDES':
+            return rtp_transport.srtp_active
+        elif self.type == 'ZRTP':
+            return rtp_transport.zrtp_active
+        return False
+
+    @property
+    def type(self):
+        return self.__dict__['type']
+
+    @property
+    def cipher(self):
+        stream = self._stream
+        if stream is None:
+            return None
+        rtp_transport = self._stream._rtp_transport
+        if rtp_transport is None:
+            return None
+        if self.type == 'SRTP-SDES':
+            return rtp_transport.srtp_cipher
+        elif self.type == 'ZRTP':
+            return rtp_transport.zrtp_cipher
+        return None
+
+    @property
+    def zrtp(self):
+        zrtp = self.__dict__['zrtp']
+        if zrtp is None:
+            raise RuntimeError('ZRTP options have not been initialized')
+        return zrtp
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_MediaStreamDidInitialize(self, notification):
+        stream = notification.sender
+        self._rtp_transport = stream._rtp_transport
+        notification.center.add_observer(self, sender=self._rtp_transport)
+        if stream._srtp_encryption.startswith('sdes'):
+            self.__dict__['type'] = 'SRTP-SDES'
+        elif stream._srtp_encryption == 'zrtp':
+            self.__dict__['type'] = 'ZRTP'
+            self.__dict__['zrtp'] = ZRTPStreamOptions(self._stream)
+
+    def _NH_MediaStreamDidNotInitialize(self, notification):
+        notification.center.remove_observer(self, sender=self._stream)
+        self._stream = None
+
+    def _NH_MediaStreamDidStart(self, notification):
+        if self.type == 'SRTP-SDES':
+            stream = self._stream
+            if self.active:
+                notification.center.post_notification('%sStreamDidEnableEncryption' % stream.type.capitalize(), sender=stream)
+            else:
+                reason = 'Not supported by remote'
+                notification.center.post_notification('%sStreamDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+
+    def _NH_MediaStreamDidEnd(self, notification):
+        notification.center.remove_observer(self, sender=self._stream)
+        notification.center.remove_observer(self, sender=self._rtp_transport)
+        self._stream = None
+        self._rtp_transport = None
+        self.__dict__['zrtp'] = None
+
+    def _NH_RTPTransportZRTPSecureOn(self, notification):
+        stream = self._stream
+        with stream._lock:
+            if stream.state == "ENDED":
+                return
+        notification.center.post_notification('%sStreamDidEnableEncryption' % stream.type.capitalize(), sender=stream)
+
+    def _NH_RTPTransportZRTPSecureOff(self, notification):
+        # We should never get here because we don't allow disabling encryption -Saul
+        pass
+
+    def _NH_RTPTransportZRTPReceivedSAS(self, notification):
+        stream = self._stream
+        with stream._lock:
+            if stream.state == "ENDED":
+                return
+        self.zrtp.__dict__['sas'] = sas = notification.data.sas
+        self.zrtp.__dict__['verified'] = verified = notification.data.verified
+        notification.center.post_notification('%sStreamZRTPReceivedSAS' % stream.type.capitalize(), sender=stream, data=NotificationData(sas=sas, verified=verified))
+
+    def _NH_RTPTransportZRTPLog(self, notification):
+        stream = self._stream
+        with stream._lock:
+            if stream.state == "ENDED":
+                return
+        notification.center.post_notification('%sStreamZRTPLog' % stream.type.capitalize(), sender=stream, data=notification.data)
+
+    def _NH_RTPTransportZRTPNegotiationFailed(self, notification):
+        stream = self._stream
+        with stream._lock:
+            if stream.state == "ENDED":
+                return
+        reason = 'Negotiation failed: %s' % notification.data.reason
+        notification.center.post_notification('%sStreamiDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+
+    def _NH_RTPTransportZRTPNotSupportedByRemote(self, notification):
+        stream = self._stream
+        with stream._lock:
+            if stream.state == "ENDED":
+                return
+        reason = 'ZRTP not supported by remote'
+        notification.center.post_notification('%sStreamiDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+
+
 class RTPStreamType(ABCMeta, MediaStreamType):
     pass
 
@@ -45,6 +234,7 @@ class RTPStream(object):
         self.direction = None
         self.state = "NULL"
         self.session = None
+        self.encryption = RTPStreamEncryption(self)
 
         self._transport = None
         self._hold_request = None
@@ -53,8 +243,7 @@ class RTPStream(object):
         self._rtp_transport = None
 
         self._try_ice = False
-        self._try_forced_srtp = False
-        self._use_srtp = False
+        self._srtp_encryption = None
         self._remote_rtp_address_sdp = None
         self._remote_rtp_port_sdp = None
 
@@ -103,20 +292,12 @@ class RTPStream(object):
         return self._rtp_transport.remote_rtp_candidate if self._rtp_transport else None
 
     @property
-    def srtp_active(self):
-        return self._rtp_transport.srtp_active if self._rtp_transport else False
-
-    @property
     def ice_active(self):
         return self._ice_state == "IN_USE"
 
     @property
     def on_hold(self):
         return self.on_hold_by_local or self.on_hold_by_remote
-
-    @abstractmethod
-    def new_from_sdp(cls, session, remote_sdp, stream_index):
-        raise NotImplementedError
 
     @abstractmethod
     def start(self, local_sdp, remote_sdp, stream_index):
@@ -158,6 +339,33 @@ class RTPStream(object):
                 self._resume()
             self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
+    @classmethod
+    def new_from_sdp(cls, session, remote_sdp, stream_index):
+        # TODO: actually validate the SDP
+        settings = SIPSimpleSettings()
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != cls.type:
+            raise UnknownStreamError
+        if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
+            raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in %s stream, got %s" % (cls.type, remote_stream.transport))
+        if session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation == "sdes_mandatory" and not "crypto" in remote_stream.attributes:
+            raise InvalidStreamError("SRTP-SDES is locally mandatory but it's not remotely enabled")
+        if remote_stream.transport == 'RTP/SAVP' and "crypto" in remote_stream.attributes and not (session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation in ("sdes_optional", "sdes_mandatory")):
+            raise InvalidStreamError("SRTP-SDES is remotely mandatory but it's not locally enabled")
+        account_preferred_codecs = getattr(session.account.rtp, '%s_codec_list' % cls.type)
+        general_codecs = getattr(settings.rtp, '%s_codec_list' % cls.type)
+        supported_codecs = account_preferred_codecs or general_codecs
+        if not any(codec for codec in remote_stream.codec_list if codec in supported_codecs):
+            raise InvalidStreamError("no compatible codecs found")
+        stream = cls()
+        stream._incoming_remote_sdp = remote_sdp
+        stream._incoming_stream_index = stream_index
+        if "crypto" in remote_stream.attributes:
+            stream._incoming_stream_encryption = 'sdes_mandatory' if remote_stream.transport=='RTP/SAVP' else 'sdes_optional'
+        else:
+            stream._incoming_stream_encryption = None
+        return stream
+
     def initialize(self, session, direction):
         with self._lock:
             if self.state != "NULL":
@@ -168,18 +376,14 @@ class RTPStream(object):
                 # ICE attributes could come at the session level or at the media level
                 remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
                 self._try_ice = self.session.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
-                self._use_srtp = self._incoming_stream_has_srtp and ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
-                self._try_forced_srtp = self._incoming_stream_has_srtp_forced
-                if self._incoming_stream_has_srtp_forced and not self._use_srtp:
-                    self.state = "ENDED"
-                    self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason="SRTP is remotely mandatory but it's not locally enabled"))
-                    return
-                del self._incoming_stream_has_srtp
-                del self._incoming_stream_has_srtp_forced
+                if self._incoming_stream_encryption is not None:
+                    self._srtp_encryption = self._incoming_stream_encryption
+                else:
+                    self._srtp_encryption = self.session.account.rtp.encryption.key_negotiation if self.session.account.rtp.encryption.enabled else None
+                del self._incoming_stream_encryption
             else:
                 self._try_ice = self.session.account.nat_traversal.use_ice
-                self._use_srtp = ((self.session.transport == "tls" or self.session.account.rtp.use_srtp_without_tls) and self.session.account.rtp.srtp_encryption != "disabled")
-                self._try_forced_srtp = self.session.account.rtp.srtp_encryption == "mandatory"
+                self._srtp_encryption = self.session.account.rtp.encryption.key_negotiation if self.session.account.rtp.encryption.enabled else None
 
             if self._try_ice:
                 if self.session.account.nat_traversal.stun_server_list:
@@ -268,8 +472,7 @@ class RTPStream(object):
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
-        self._rtp_args["use_srtp"] = self._use_srtp
-        self._rtp_args["srtp_forced"] = self._use_srtp and self._try_forced_srtp
+        self._rtp_args["encryption"] = self._srtp_encryption
         self._rtp_args["use_ice"] = self._try_ice
         self._stun_servers = [(None, None)]
         if stun_servers:
@@ -351,27 +554,6 @@ class AudioStream(RTPStream):
     @property
     def recorder(self):
         return self._audio_rec
-
-    @classmethod
-    def new_from_sdp(cls, session, remote_sdp, stream_index):
-        # TODO: actually validate the SDP
-        settings = SIPSimpleSettings()
-        remote_stream = remote_sdp.media[stream_index]
-        if remote_stream.media != 'audio':
-            raise UnknownStreamError
-        if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
-            raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
-        if session.account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
-            raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
-        supported_codecs = session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list
-        if not any(codec for codec in remote_stream.codec_list if codec in supported_codecs):
-            raise InvalidStreamError("no compatible codecs found")
-        stream = cls()
-        stream._incoming_remote_sdp = remote_sdp
-        stream._incoming_stream_index = stream_index
-        stream._incoming_stream_has_srtp = remote_stream.has_srtp
-        stream._incoming_stream_has_srtp_forced = remote_stream.transport == 'RTP/SAVP'
-        return stream
 
     def start(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
@@ -595,21 +777,9 @@ class VideoStream(RTPStream):
 
     @classmethod
     def new_from_sdp(cls, session, remote_sdp, stream_index):
-        # TODO: actually validate the SDP
-        remote_stream = remote_sdp.media[stream_index]
-        if remote_stream.media != 'video':
-            raise UnknownStreamError
-        if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
-            raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in video stream, got %s" % remote_stream.transport)
-        if session.account.rtp.srtp_encryption == "mandatory" and not remote_stream.has_srtp:
-            raise InvalidStreamError("SRTP is locally mandatory but it's not remotely enabled")
-        stream = cls()
+        stream = super(VideoStream, cls).new_from_sdp(session, remote_sdp, stream_index)
         if stream.device.producer is None:
             raise InvalidStreamError("no video support available")
-        stream._incoming_remote_sdp = remote_sdp
-        stream._incoming_stream_index = stream_index
-        stream._incoming_stream_has_srtp = remote_stream.has_srtp
-        stream._incoming_stream_has_srtp_forced = remote_stream.transport == 'RTP/SAVP'
         return stream
 
     def initialize(self, session, direction):

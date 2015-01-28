@@ -697,6 +697,7 @@ cdef extern from "pjmedia.h":
     enum pjmedia_transport_type:
         PJMEDIA_TRANSPORT_TYPE_ICE
         PJMEDIA_TRANSPORT_TYPE_SRTP
+        PJMEDIA_TRANSPORT_TYPE_ZRTP
     struct pjmedia_sock_info:
         pj_sockaddr rtp_addr_name
     ctypedef pjmedia_sock_info *pjmedia_sock_info_ptr_const "const pjmedia_sock_info *"
@@ -712,8 +713,6 @@ cdef extern from "pjmedia.h":
         pj_sockaddr src_rtp_name
         int specific_info_cnt
         pjmedia_transport_specific_info *spc_info
-    struct pjmedia_srtp_info:
-        int active
     void pjmedia_transport_info_init(pjmedia_transport_info *info) nogil
     int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port,
                                       unsigned int options, pjmedia_transport **p_tp) nogil
@@ -737,6 +736,13 @@ cdef extern from "pjmedia.h":
                                        unsigned int options, pjmedia_sdp_media **p_media) nogil
 
     # SRTP
+    struct pjmedia_srtp_crypto:
+        pj_str_t key
+        pj_str_t name
+        unsigned int flags
+    struct pjmedia_srtp_info:
+        int active
+        pjmedia_srtp_crypto tx_policy
     enum pjmedia_srtp_use:
         PJMEDIA_SRTP_MANDATORY
     struct pjmedia_srtp_setting:
@@ -744,6 +750,35 @@ cdef extern from "pjmedia.h":
     void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt) nogil
     int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp,
                                       pjmedia_srtp_setting *opt, pjmedia_transport **p_tp) nogil
+
+    # ZRTP
+    struct pjmedia_zrtp_info:
+        int active
+        char cipher[128]
+    struct pjmedia_zrtp_cb:
+        void secure_on(pjmedia_transport *tp, char* cipher) with gil
+        void secure_off(pjmedia_transport *tp) with gil
+        void show_sas(pjmedia_transport *tp, char* sas, int verified) with gil
+        void confirm_go_clear(pjmedia_transport *tp) with gil
+        void show_message(pjmedia_transport *tp, int severity, int subCode) with gil
+        void negotiation_failed(pjmedia_transport *tp, int severity, int subCode) with gil
+        void not_supported_by_other(pjmedia_transport *tp) with gil
+        void ask_enrollment(pjmedia_transport *tp, int info) with gil
+        void inform_enrollment(pjmedia_transport *tp, int info) with gil
+        void sign_sas(pjmedia_transport *tp, unsigned char* sas) with gil
+        int check_sas_signature(pjmedia_transport *tp, unsigned char* sas) with gil
+
+    int pjmedia_transport_zrtp_create(pjmedia_endpt *endpt, pj_timer_heap_t *timer_heap, pjmedia_transport *tp,
+                                      pjmedia_transport **p_tp, int close_slave) nogil
+    int pjmedia_transport_zrtp_initialize(pjmedia_transport *tp, char_ptr_const zidFilename,
+                                          int autoEnable, pjmedia_zrtp_cb *zrtp_cb) nogil
+    void pjmedia_transport_zrtp_setSASVerified(pjmedia_transport *tp, int verified) nogil
+    char* pjmedia_transport_zrtp_getPeerName(pjmedia_transport *tp) nogil
+    void pjmedia_transport_zrtp_putPeerName(pjmedia_transport *tp, const char *name) nogil
+    int pjmedia_transport_zrtp_getPeerZid(pjmedia_transport *tp, unsigned char* data) nogil
+    void pjmedia_transport_zrtp_setEnableZrtp(pjmedia_transport *tp, int onOff) nogil
+    char* pjmedia_transport_zrtp_getMultiStreamParameters(pjmedia_transport *tp, int *length) nogil
+    void pjmedia_transport_zrtp_setMultiStreamParameters(pjmedia_transport *tp, const char *parameters, int length, pjmedia_transport *master_tp) nogil
 
     # ICE
     struct pjmedia_ice_cb:
@@ -1802,6 +1837,7 @@ cdef class PJSIPUA(object):
     cdef pj_mutex_t *video_lock
     cdef list old_devices
     cdef list old_video_devices
+    cdef object _zrtp_cache
 
     # private methods
     cdef object _get_sound_devices(self, int is_output)
@@ -2497,12 +2533,11 @@ cdef class RTPTransport(object):
     cdef pjmedia_transport *_obj
     cdef pjmedia_transport *_wrapped_transport
     cdef ICECheck _rtp_valid_pair
+    cdef str _encryption
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
-    cdef readonly object srtp_forced
     cdef readonly object state
     cdef readonly object use_ice
-    cdef readonly object use_srtp
 
     # private methods
     cdef PJSIPUA _check_ua(self)
@@ -2572,6 +2607,15 @@ cdef class VideoTransport(object):
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil
 cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err) with gil
+cdef void _RTPTransport_cb_zrtp_secure_on(pjmedia_transport *tp, char* cipher) with gil
+cdef void _RTPTransport_cb_zrtp_secure_off(pjmedia_transport *tp) with gil
+cdef void _RTPTransport_cb_zrtp_show_sas(pjmedia_transport *tp, char* sas, int verified) with gil
+cdef void _RTPTransport_cb_zrtp_confirm_goclear(pjmedia_transport *tp) with gil
+cdef void _RTPTransport_cb_zrtp_show_message(pjmedia_transport *tp, int severity, int subCode) with gil
+cdef void _RTPTransport_cb_zrtp_negotiation_failed(pjmedia_transport *tp, int severity, int subCode) with gil
+cdef void _RTPTransport_cb_zrtp_not_supported_by_other(pjmedia_transport *tp) with gil
+cdef void _RTPTransport_cb_zrtp_ask_enrollment(pjmedia_transport *tp, int info) with gil
+cdef void _RTPTransport_cb_zrtp_inform_enrollment(pjmedia_transport *tp, int info) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
 cdef ICECandidate ICECandidate_create(pj_ice_sess_cand *cand)
 cdef ICECheck ICECheck_create(pj_ice_sess_check *check)

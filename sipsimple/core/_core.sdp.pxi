@@ -442,16 +442,6 @@ cdef class BaseSDPMediaStream:
                     return attribute.name
             return "sendrecv"
 
-    property has_srtp:
-
-        def __get__(self):
-            if self.transport == "RTP/SAVP":
-                return True
-            for attribute in self.attributes:
-                if attribute.name == "crypto":
-                    return True
-            return False
-
     property has_ice_attributes:
 
         def __get__(self):

@@ -36,6 +36,7 @@ class Engine(Thread):
                              "trace_sip": False,
                              "detect_sip_loops": True,
                              "rtp_port_range": (50000, 50500),
+			     "zrtp_cache": None,
                              "codecs": ["G722", "speex", "PCMU", "PCMA"],
                              "video_codecs": ["H264", "H263-1998"],
                              "enable_colorbar_device": False,

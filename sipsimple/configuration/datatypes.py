@@ -16,7 +16,9 @@ __all__ = [# Base datatypes
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
-           'MSRPConnectionModel', 'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption',
+           'MSRPConnectionModel', 'MSRPTransport', 'SIPTransport', 'SIPTransportList',
+           # SRTP encryption
+           'SRTPKeyNegotiation',
            # Path datatypes
            'Path']
 
@@ -628,12 +630,12 @@ class SIPTransportList(List):
     available_values = SIPTransport.available_values
 
 
-class SRTPEncryption(str):
-    available_values = ('disabled', 'optional', 'mandatory')
+class SRTPKeyNegotiation(str):
+    available_values = ('sdes_optional', 'sdes_mandatory', 'zrtp')
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
-            raise ValueError("illegal value for srtp encryption: %s" % value)
+            raise ValueError("illegal value for SRTP key negotiation: %s" % value)
         return value
 
 

@@ -11,6 +11,7 @@ import sys
 import time
 import traceback
 import os
+import tempfile
 
 
 # classes
@@ -184,6 +185,7 @@ cdef class PJSIPUA:
                 raise ValueError('Handling incoming "%s" requests is not allowed' % method)
             self._incoming_requests.add(method)
         self.rtp_port_range = kwargs["rtp_port_range"]
+        self.zrtp_cache = kwargs["zrtp_cache"]
         pj_stun_config_init(&self._stun_cfg, &self._caching_pool._obj.factory, 0,
                             pjmedia_endpt_get_ioqueue(self._pjmedia_endpoint._obj),
                             pjsip_endpt_get_timer_heap(self._pjsip_endpoint._obj))
@@ -730,6 +732,18 @@ cdef class PJSIPUA:
                                                  tuple(max_resolution),
                                                  max_framerate,
                                                  max_bitrate or 0.0)
+
+    property zrtp_cache:
+
+        def __get__(self):
+            self._check_self()
+            return self._zrtp_cache
+
+        def __set__(self, value):
+            self._check_self()
+            if value is None:
+                value = os.path.join(tempfile.gettempdir(), 'zrtp_cache_%d.db' % os.getpid())
+            self._zrtp_cache = value
 
     def __dealloc__(self):
         self.dealloc()

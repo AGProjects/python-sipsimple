@@ -11,6 +11,8 @@ from __future__ import absolute_import
 
 __all__ = ["SIPApplication"]
 
+import os
+
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.descriptor import classproperty
@@ -31,7 +33,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioMixer, Engine
 from sipsimple.lookup import DNSManager
 from sipsimple.session import SessionManager
-from sipsimple.storage import ISIPSimpleStorage
+from sipsimple.storage import ISIPSimpleStorage, FileStorage
 from sipsimple.threading import ThreadManager, run_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import run_in_green_thread
 from sipsimple.video import VideoDevice
@@ -241,6 +243,10 @@ class SIPApplication(object):
         # initialize instance id
         if not settings.instance_id:
             settings.instance_id = uuid4().urn
+
+	# initialize path for ZRTP cache file
+        if isinstance(self.storage, FileStorage):
+            self.engine.zrtp_cache = os.path.join(self.storage.directory, 'zrtp.db')
 
         # save settings in case something was modified during startup
         settings.save()
