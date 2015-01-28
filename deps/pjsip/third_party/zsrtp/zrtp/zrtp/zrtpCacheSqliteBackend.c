@@ -44,6 +44,10 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 # define snprintf _snprintf
+#else
+# include <sys/types.h>
+# include <fcntl.h>
+# include <unistd.h>
 #endif
 
 #ifdef TRANSACTIONS
@@ -565,6 +569,14 @@ static int openCache(const char* name, void **vpdb, char *errString)
     int found = 0;
     sqlite3 **pdb = (sqlite3**)vpdb;
     sqlite3 *db;
+
+#if !defined(_WIN32) && !defined(_WIN64)
+    /* try to create the file with 0600 permissions */
+    int fd = open(name, O_CREAT | O_RDWR, 0600);
+    if (fd != -1) {
+        close(fd);
+    }
+#endif
 
 #ifdef SQLITE_USE_V2
     int rc = sqlite3_open_v2(name, pdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
