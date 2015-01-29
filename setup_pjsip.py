@@ -170,7 +170,7 @@ class PJSIP_build_ext(build_ext):
         cmd.extend(["--disable-sdl", "--disable-silk", "--disable-opencore-amr", "--disable-g7221-codec", "--disable-l16-codec"])
         video_libraries_path = env.get("SIPSIMPLE_FFMPEG_PATH", None)
         if video_libraries_path is not None:
-            cmd.append("--with-ffmpeg=%s" % video_libraries_path)
+            cmd.append("--with-ffmpeg=%s" % os.path.abspath(os.path.expanduser(video_libraries_path)))
         self.distutils_exec_process(cmd, silent=not self.pjsip_verbose_build, cwd=self.build_dir, env=env)
         if "#define PJ_HAS_SSL_SOCK 1\n" not in open(os.path.join(self.build_dir, "pjlib", "include", "pj", "compat", "os_auto.h")).readlines():
             os.remove(os.path.join(self.build_dir, "build.mak"))
