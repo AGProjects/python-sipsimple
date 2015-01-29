@@ -2546,7 +2546,7 @@ class Session(object):
         if self.greenlet is not None:
             self._channel.send(notification)
 
-    def _NH_AudioStreamEncryptionEnabled(self, notification):
+    def _NH_AudioStreamDidEnableEncryption(self, notification):
         audio_stream = notification.sender
         if audio_stream.encryption.type == 'ZRTP':
             # start ZRTP on the video stream, if applicable
