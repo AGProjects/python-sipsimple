@@ -26,16 +26,23 @@ from sipsimple.video import IVideoProducer
 
 
 class ZRTPStreamOptions(object):
+    implements(IObserver)
+
     def __init__(self, stream):
         self._stream = stream
+        self.__dict__['master'] = None
         self.__dict__['sas'] = None
         self.__dict__['verified'] = False
 
     @property
     def sas(self):
+        if self.master is not None:
+            return self.master.encryption.zrtp.sas
         return self.__dict__['sas']
 
     def _get_verified(self):
+        if self.master is not None:
+            return self.master.encryption.zrtp.verified
         return self.__dict__['verified']
 
     def _set_verified(self, verified):
@@ -43,9 +50,12 @@ class ZRTPStreamOptions(object):
             return
         if self.sas is None:
             raise AttributeError('Cannot verify peer before SAS is received')
-        rtp_transport = self._stream._rtp_transport
-        if rtp_transport is None or not rtp_transport.set_zrtp_sas_verified(verified):
-            raise AttributeError('Cannot verify peer after stream ended')
+        if self.master is not None:
+            self.master.encryption.zrtp.verified = verified
+        else:
+            rtp_transport = self._stream._rtp_transport
+            if rtp_transport is None or not rtp_transport.set_zrtp_sas_verified(verified):
+                raise AttributeError('Cannot verify peer after stream ended')
         self.__dict__['verified'] = verified
         notification_center = NotificationCenter()
         notification_center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
@@ -55,25 +65,51 @@ class ZRTPStreamOptions(object):
 
     @property
     def peer_id(self):
+        if self.master is not None:
+            return self.master.encryption.zrtp.peer_id
         rtp_transport = self._stream._rtp_transport
         if rtp_transport is None:
             return None
         return rtp_transport.zrtp_peer_id
 
     def _get_peer_name(self):
+        if self.master is not None:
+            return self.master.encryption.zrtp.peer_name
         rtp_transport = self._stream._rtp_transport
         if rtp_transport is None:
             return ''
         return rtp_transport.zrtp_peer_name
 
     def _set_peer_name(self, name):
+        if self.master is not None:
+            self.master.encryption.zrtp.peer_name = name
+            return
         rtp_transport = self._stream._rtp_transport
         if rtp_transport is None:
+            return
+        if rtp_transport.zrtp_peer_name == name:
             return
         rtp_transport.zrtp_peer_name = name
 
     peer_name = property(_get_peer_name, _set_peer_name)
     del _get_peer_name, _set_peer_name
+
+    def _get_master(self):
+        return self.__dict__['master']
+
+    def _set_master(self, master):
+        old_master = self.__dict__['master']
+        if old_master is master:
+            return
+        notification_center = NotificationCenter()
+        if old_master is not None:
+            notification_center.remove_observer(self, sender=old_master)
+        if master is not None:
+            notification_center.add_observer(self, sender=master)
+        self.__dict__['master'] = master
+
+    master = property(_get_master, _set_master)
+    del _get_master, _set_master
 
     def _enable(self, master_stream=None):
         rtp_transport = self._stream._rtp_transport
@@ -82,6 +118,21 @@ class ZRTPStreamOptions(object):
         if master_stream is not None and not (master_stream.encryption.active and master_stream.encryption.type == 'ZRTP'):
             raise RuntimeError('Master stream must have ZRTP encryption activated')
         rtp_transport.set_zrtp_enabled(True, master_stream)
+        self.master = master_stream
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_AudioStreamZRTPReceivedSAS(self, notification):
+        # ZRTP begins on the audio stream, so this notification will only be processed
+        # by the other streams
+        self.__dict__['sas'] = sas = notification.data.sas
+        self.__dict__['verified'] = verified = notification.data.verified
+        notification.center.post_notification('%sStreamZRTPReceivedSAS' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(sas=sas, verified=verified))
+
+    def _NH_MediaStreamDidEnd(self, notification):
+        self.master = None
 
 
 class RTPStreamEncryption(object):
