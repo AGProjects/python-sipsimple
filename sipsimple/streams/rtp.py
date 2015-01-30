@@ -56,9 +56,9 @@ class ZRTPStreamOptions(object):
             rtp_transport = self._stream._rtp_transport
             if rtp_transport is None or not rtp_transport.set_zrtp_sas_verified(verified):
                 raise AttributeError('Cannot verify peer after stream ended')
-        self.__dict__['verified'] = verified
-        notification_center = NotificationCenter()
-        notification_center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
+            self.__dict__['verified'] = verified
+            notification_center = NotificationCenter()
+            notification_center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
 
     verified = property(_get_verified, _set_verified)
     del _get_verified, _set_verified
@@ -130,6 +130,10 @@ class ZRTPStreamOptions(object):
         self.__dict__['sas'] = sas = notification.data.sas
         self.__dict__['verified'] = verified = notification.data.verified
         notification.center.post_notification('%sStreamZRTPReceivedSAS' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(sas=sas, verified=verified))
+
+    def _NH_AudioStreamZRTPVerifiedStateChanged(self, notification):
+        self.__dict__['verified'] = verified = notification.data.verified
+        notification.center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
 
     def _NH_MediaStreamDidEnd(self, notification):
         self.master = None
