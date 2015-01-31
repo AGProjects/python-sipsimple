@@ -111,6 +111,7 @@ Audio and Video
  * SRTP, The Secure Real-time Transport Protocol (RFC 3711)
  * Generation and parsing of telephone-events payload in both RTP and SDP
    (RFC 2833)
+ * ZRTP: Media Path Key Agreement for Unicast Secure RTP (RFC 6189)
 
 Instant Messaging
 
