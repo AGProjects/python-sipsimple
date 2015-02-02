@@ -59,7 +59,7 @@ class ZRTPStreamOptions(object):
                 raise AttributeError('Cannot verify peer after stream ended')
             self.__dict__['verified'] = verified
             notification_center = NotificationCenter()
-            notification_center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
+            notification_center.post_notification('RTPStreamZRTPVerifiedStateChanged', sender=self._stream, data=NotificationData(verified=verified))
 
     verified = property(_get_verified, _set_verified)
     del _get_verified, _set_verified
@@ -90,7 +90,7 @@ class ZRTPStreamOptions(object):
             rtp_transport.zrtp_peer_name = name
             self.__dict__['peer_name'] = name
             notification_center = NotificationCenter()
-            notification_center.post_notification('%sStreamZRTPPeerNameChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(name=name))
+            notification_center.post_notification('RTPStreamZRTPPeerNameChanged', sender=self._stream, data=NotificationData(name=name))
 
     peer_name = property(_get_peer_name, _set_peer_name)
     del _get_peer_name, _set_peer_name
@@ -125,21 +125,21 @@ class ZRTPStreamOptions(object):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
-    def _NH_AudioStreamZRTPReceivedSAS(self, notification):
+    def _NH_RTPStreamZRTPReceivedSAS(self, notification):
         # ZRTP begins on the audio stream, so this notification will only be processed
         # by the other streams
         self.__dict__['sas'] = notification.data.sas
         self.__dict__['verified'] = notification.data.verified
         self.__dict__['peer_name'] = notification.data.peer_name
-        notification.center.post_notification('%sStreamZRTPReceivedSAS' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
+        notification.center.post_notification(notification.name, sender=self._stream, data=notification.data)
 
-    def _NH_AudioStreamZRTPVerifiedStateChanged(self, notification):
+    def _NH_RTPStreamZRTPVerifiedStateChanged(self, notification):
         self.__dict__['verified'] = notification.data.verified
-        notification.center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
+        notification.center.post_notification(notification.name, sender=self._stream, data=notification.data)
 
-    def _NH_AudioStreamZRTPPeerNameChanged(self, notification):
+    def _NH_RTPStreamZRTPPeerNameChanged(self, notification):
         self.__dict__['peer_name'] = notification.data.name
-        notification.center.post_notification('%sStreamZRTPPeerNameChanged' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
+        notification.center.post_notification(notification.name, sender=self._stream, data=notification.data)
 
     def _NH_MediaStreamDidEnd(self, notification):
         self.master = None
@@ -219,10 +219,10 @@ class RTPStreamEncryption(object):
         if self.type == 'SRTP-SDES':
             stream = self._stream
             if self.active:
-                notification.center.post_notification('%sStreamDidEnableEncryption' % stream.type.capitalize(), sender=stream)
+                notification.center.post_notification('RTPStreamDidEnableEncryption', sender=stream)
             else:
                 reason = 'Not supported by remote'
-                notification.center.post_notification('%sStreamDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+                notification.center.post_notification('RTPStreamDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
 
     def _NH_MediaStreamDidEnd(self, notification):
         notification.center.remove_observer(self, sender=self._stream)
@@ -236,7 +236,7 @@ class RTPStreamEncryption(object):
         with stream._lock:
             if stream.state == "ENDED":
                 return
-        notification.center.post_notification('%sStreamDidEnableEncryption' % stream.type.capitalize(), sender=stream)
+        notification.center.post_notification('RTPStreamDidEnableEncryption', sender=stream)
 
     def _NH_RTPTransportZRTPSecureOff(self, notification):
         # We should never get here because we don't allow disabling encryption -Saul
@@ -250,14 +250,14 @@ class RTPStreamEncryption(object):
         self.zrtp.__dict__['sas'] = sas = notification.data.sas
         self.zrtp.__dict__['verified'] = verified = notification.data.verified
         self.zrtp.__dict__['peer_name'] = peer_name = notification.sender.zrtp_peer_name
-        notification.center.post_notification('%sStreamZRTPReceivedSAS' % stream.type.capitalize(), sender=stream, data=NotificationData(sas=sas, verified=verified, peer_name=peer_name))
+        notification.center.post_notification('RTPStreamZRTPReceivedSAS', sender=stream, data=NotificationData(sas=sas, verified=verified, peer_name=peer_name))
 
     def _NH_RTPTransportZRTPLog(self, notification):
         stream = self._stream
         with stream._lock:
             if stream.state == "ENDED":
                 return
-        notification.center.post_notification('%sStreamZRTPLog' % stream.type.capitalize(), sender=stream, data=notification.data)
+        notification.center.post_notification('RTPStreamZRTPLog', sender=stream, data=notification.data)
 
     def _NH_RTPTransportZRTPNegotiationFailed(self, notification):
         stream = self._stream
@@ -265,7 +265,7 @@ class RTPStreamEncryption(object):
             if stream.state == "ENDED":
                 return
         reason = 'Negotiation failed: %s' % notification.data.reason
-        notification.center.post_notification('%sStreamiDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+        notification.center.post_notification('RTPStreamiDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
 
     def _NH_RTPTransportZRTPNotSupportedByRemote(self, notification):
         stream = self._stream
@@ -273,7 +273,7 @@ class RTPStreamEncryption(object):
             if stream.state == "ENDED":
                 return
         reason = 'ZRTP not supported by remote'
-        notification.center.post_notification('%sStreamiDidNotEnableEncryption' % stream.type.capitalize(), sender=stream, data=NotificationData(reason=reason))
+        notification.center.post_notification('RTPStreamiDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
 
 
 class RTPStreamType(ABCMeta, MediaStreamType):
@@ -510,7 +510,7 @@ class RTPStream(object):
         with self._lock:
             if self._ice_state != "NULL" or self.state not in ("INITIALIZING", "INITIALIZED", "WAIT_ICE"):
                 return
-        self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('RTPStreamICENegotiationStateDidChange', sender=self, data=notification.data)
 
     def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
         with self._lock:
@@ -518,7 +518,7 @@ class RTPStream(object):
                 return
             self._ice_state = "IN_USE"
             self.state = 'ESTABLISHED'
-        self.notification_center.post_notification('%sStreamICENegotiationDidSucceed' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('RTPStreamICENegotiationDidSucceed', sender=self, data=notification.data)
         self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     def _NH_RTPTransportICENegotiationDidFail(self, notification):
@@ -527,7 +527,7 @@ class RTPStream(object):
                 return
             self._ice_state = "FAILED"
             self.state = 'ESTABLISHED'
-        self.notification_center.post_notification('%sStreamICENegotiationDidFail' % self.type.capitalize(), sender=self, data=notification.data)
+        self.notification_center.post_notification('RTPStreamICENegotiationDidFail', sender=self, data=notification.data)
         self.notification_center.post_notification('MediaStreamDidStart', sender=self)
 
     # Private methods
@@ -662,7 +662,7 @@ class AudioStream(RTPStream):
                 if connection.address == '0.0.0.0' and remote_sdp.media[stream_index].direction == 'sendrecv':
                     self._transport.update_direction('recvonly')
                 self._check_hold(self._transport.direction, False)
-                self.notification_center.post_notification('AudioStreamDidChangeRTPParameters', sender=self)
+                self.notification_center.post_notification('RTPStreamDidChangeRTPParameters', sender=self)
             else:
                 new_direction = local_sdp.media[stream_index].direction
                 self._transport.update_direction(new_direction)
@@ -763,7 +763,7 @@ class AudioStream(RTPStream):
         self.notification_center.post_notification('AudioStreamGotDTMF', sender=self, data=NotificationData(digit=notification.data.digit))
 
     def _NH_RTPAudioTransportDidTimeout(self, notification):
-        self.notification_center.post_notification('AudioStreamDidTimeout', sender=self)
+        self.notification_center.post_notification('RTPStreamDidTimeout', sender=self)
 
     # Private methods
     #
@@ -779,13 +779,13 @@ class AudioStream(RTPStream):
         if (is_initial or was_on_hold_by_local or was_inactive) and not inactive and not self.on_hold_by_local and self._hold_request != 'hold':
             self._resume()
         if not was_on_hold_by_local and self.on_hold_by_local:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
         if was_on_hold_by_local and not self.on_hold_by_local:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
         if not was_on_hold_by_remote and self.on_hold_by_remote:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
         if was_on_hold_by_remote and not self.on_hold_by_remote:
-            self.notification_center.post_notification('AudioStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
         if self._audio_rec is not None:
             self._check_recording()
 
@@ -937,7 +937,7 @@ class VideoStream(RTPStream):
             self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
 
     def _NH_RTPVideoTransportDidTimeout(self, notification):
-        self.notification_center.post_notification('VideoStreamDidTimeout', sender=self)
+        self.notification_center.post_notification('RTPStreamDidTimeout', sender=self)
 
     def _NH_RTPVideoTransportRemoteFormatDidChange(self, notification):
         self.notification_center.post_notification('VideoStreamRemoteFormatDidChange', sender=self, data=notification.data)
@@ -966,13 +966,13 @@ class VideoStream(RTPStream):
         elif not self.on_hold_by_local and not self.on_hold_by_remote and (was_on_hold_by_local or was_on_hold_by_remote):
             self._resume()
         if not was_on_hold_by_local and self.on_hold_by_local:
-            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=True))
         if was_on_hold_by_local and not self.on_hold_by_local:
-            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="local", on_hold=False))
         if not was_on_hold_by_remote and self.on_hold_by_remote:
-            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=True))
         if was_on_hold_by_remote and not self.on_hold_by_remote:
-            self.notification_center.post_notification('VideoStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
+            self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
 
     def _send_keyframes(self):
         if self._keyframe_timer is None:
