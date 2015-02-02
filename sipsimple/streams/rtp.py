@@ -33,6 +33,7 @@ class ZRTPStreamOptions(object):
         self.__dict__['master'] = None
         self.__dict__['sas'] = None
         self.__dict__['verified'] = False
+        self.__dict__['peer_name'] = ''
 
     @property
     def sas(self):
@@ -75,21 +76,21 @@ class ZRTPStreamOptions(object):
     def _get_peer_name(self):
         if self.master is not None:
             return self.master.encryption.zrtp.peer_name
-        rtp_transport = self._stream._rtp_transport
-        if rtp_transport is None:
-            return ''
-        return rtp_transport.zrtp_peer_name
+        return self.__dict__['peer_name']
 
     def _set_peer_name(self, name):
+        if self.__dict__['peer_name'] == name:
+            return
         if self.master is not None:
             self.master.encryption.zrtp.peer_name = name
-            return
-        rtp_transport = self._stream._rtp_transport
-        if rtp_transport is None:
-            return
-        if rtp_transport.zrtp_peer_name == name:
-            return
-        rtp_transport.zrtp_peer_name = name
+        else:
+            rtp_transport = self._stream._rtp_transport
+            if rtp_transport is None:
+                raise AttributeError('Cannot set peer name after stream ended')
+            rtp_transport.zrtp_peer_name = name
+            self.__dict__['peer_name'] = name
+            notification_center = NotificationCenter()
+            notification_center.post_notification('%sStreamZRTPPeerNameChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(name=name))
 
     peer_name = property(_get_peer_name, _set_peer_name)
     del _get_peer_name, _set_peer_name
@@ -127,13 +128,18 @@ class ZRTPStreamOptions(object):
     def _NH_AudioStreamZRTPReceivedSAS(self, notification):
         # ZRTP begins on the audio stream, so this notification will only be processed
         # by the other streams
-        self.__dict__['sas'] = sas = notification.data.sas
-        self.__dict__['verified'] = verified = notification.data.verified
-        notification.center.post_notification('%sStreamZRTPReceivedSAS' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(sas=sas, verified=verified))
+        self.__dict__['sas'] = notification.data.sas
+        self.__dict__['verified'] = notification.data.verified
+        self.__dict__['peer_name'] = notification.data.peer_name
+        notification.center.post_notification('%sStreamZRTPReceivedSAS' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
 
     def _NH_AudioStreamZRTPVerifiedStateChanged(self, notification):
-        self.__dict__['verified'] = verified = notification.data.verified
-        notification.center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=NotificationData(verified=verified))
+        self.__dict__['verified'] = notification.data.verified
+        notification.center.post_notification('%sStreamZRTPVerifiedStateChanged' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
+
+    def _NH_AudioStreamZRTPPeerNameChanged(self, notification):
+        self.__dict__['peer_name'] = notification.data.name
+        notification.center.post_notification('%sStreamZRTPPeerNameChanged' % self._stream.type.capitalize(), sender=self._stream, data=notification.data)
 
     def _NH_MediaStreamDidEnd(self, notification):
         self.master = None
@@ -243,7 +249,8 @@ class RTPStreamEncryption(object):
                 return
         self.zrtp.__dict__['sas'] = sas = notification.data.sas
         self.zrtp.__dict__['verified'] = verified = notification.data.verified
-        notification.center.post_notification('%sStreamZRTPReceivedSAS' % stream.type.capitalize(), sender=stream, data=NotificationData(sas=sas, verified=verified))
+        self.zrtp.__dict__['peer_name'] = peer_name = notification.sender.zrtp_peer_name
+        notification.center.post_notification('%sStreamZRTPReceivedSAS' % stream.type.capitalize(), sender=stream, data=NotificationData(sas=sas, verified=verified, peer_name=peer_name))
 
     def _NH_RTPTransportZRTPLog(self, notification):
         stream = self._stream
