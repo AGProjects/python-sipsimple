@@ -508,7 +508,7 @@ class RTPStream(object):
 
     def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
         with self._lock:
-            if self.state != "WAIT_ICE":
+            if self._ice_state != "NULL" or self.state not in ("INITIALIZING", "INITIALIZED", "WAIT_ICE"):
                 return
         self.notification_center.post_notification('%sStreamICENegotiationStateDidChange' % self.type.capitalize(), sender=self, data=notification.data)
 
