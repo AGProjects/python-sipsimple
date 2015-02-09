@@ -92,8 +92,6 @@ struct avf_stream
     void		   *user_data;      /**< Application data.     */
 
     pjmedia_rect_size	    size;
-    unsigned		    bytes_per_row;
-    unsigned		    frame_size;         /**< Frame size (bytes)*/
 
     pj_bool_t		    cap_thread_initialized;
     pj_thread_desc	    cap_thread_desc;
@@ -349,6 +347,15 @@ static avf_fmt_info* get_avf_format_info(pjmedia_format_id id)
     pjmedia_frame frame = {0};
     CVImageBufferRef img;
     CVReturn ret;
+    OSType type;
+    size_t width, height;
+
+    /* Register thread if needed */
+    if (stream->cap_thread_initialized == 0 || !pj_thread_is_registered()) {
+        pj_bzero(stream->cap_thread_desc, sizeof(pj_thread_desc));
+        pj_thread_register("avf_cap", stream->cap_thread_desc, &stream->cap_thread);
+        stream->cap_thread_initialized = 1;
+    }
 
     if (!sampleBuffer)
 	return;
@@ -358,24 +365,37 @@ static avf_fmt_info* get_avf_format_info(pjmedia_format_id id)
     if (!img)
         return;
 
+    /* Check for supported formats */
+    type = CVPixelBufferGetPixelFormatType(img);
+    switch(type) {
+        case kCVPixelFormatType_32BGRA:
+        case kCVPixelFormatType_422YpCbCr8_yuvs:
+        case kCVPixelFormatType_422YpCbCr8:
+            break;
+        default:
+            PJ_LOG(4, (THIS_FILE, "Unsupported image format! %c%c%c%c", type>>24, type>>16, type>>8, type>>0));
+            return;
+    }
+
     /* Lock the base address of the pixel buffer */
     ret = CVPixelBufferLockBaseAddress(img, kCVPixelBufferLock_ReadOnly);
     if (ret != kCVReturnSuccess)
         return;
 
+    width = CVPixelBufferGetWidth(img);
+    height = CVPixelBufferGetHeight(img);
+
     /* Prepare frame */
     frame.type = PJMEDIA_FRAME_TYPE_VIDEO;
-    frame.size = stream->frame_size;
     frame.timestamp.u64 = stream->cap_frame_ts.u64;
     frame.buf = CVPixelBufferGetBaseAddress(img);
+    frame.size = CVPixelBufferGetBytesPerRow(img) * height;
+
+    if (stream->size.w != width || stream->size.h != height) {
+        PJ_LOG(4, (THIS_FILE, "AVF image size changed, before: %dx%d, after: %dx%d", stream->size.w, stream->size.h, width, height));
+    }
 
     if (stream->vid_cb.capture_cb) {
-        if (stream->cap_thread_initialized == 0 || !pj_thread_is_registered())
-        {
-            pj_bzero(stream->cap_thread_desc, sizeof(pj_thread_desc));
-            pj_thread_register("avf_cap", stream->cap_thread_desc, &stream->cap_thread);
-            stream->cap_thread_initialized = 1;
-        }
         (*stream->vid_cb.capture_cb)(&stream->base, stream->user_data, &frame);
     }
 
@@ -433,8 +453,6 @@ static void init_avf_stream(struct avf_stream *strm)
     vfd->size.w = supported_size_w[i];
     vfd->size.h = supported_size_h[i];
     strm->size = vfd->size;
-    strm->bytes_per_row = strm->size.w * vfi->bpp / 8;
-    strm->frame_size = strm->bytes_per_row * strm->size.h;
 
     /* Add the video device to the session as a device input */
     strm->dev_input = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error: &error];
@@ -520,8 +538,6 @@ static pj_status_t avf_factory_create_stream(pjmedia_vid_dev_factory *f,
 
     vfd = pjmedia_format_get_video_format_detail(&strm->param.fmt, PJ_TRUE);
     pj_memcpy(&strm->size, &vfd->size, sizeof(vfd->size));
-    strm->bytes_per_row = strm->size.w * vfi->bpp / 8;
-    strm->frame_size = strm->bytes_per_row * strm->size.h;
     pj_assert(vfd->fps.num);
     strm->cap_ts_inc = PJMEDIA_SPF2(strm->param.clock_rate, &vfd->fps, 1);
 
