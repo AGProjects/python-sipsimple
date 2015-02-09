@@ -791,26 +791,26 @@ class AudioStream(RTPStream):
 
     def _check_recording(self):
         if not self._audio_rec.is_active:
-            self.notification_center.post_notification('AudioStreamWillStartRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamWillStartRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             try:
                 self._audio_rec.start()
             except SIPCoreError, e:
                 self._audio_rec = None
-                self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename, reason=e.args[0]))
+                self.notification_center.post_notification('AudioStreamDidStopRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename, reason=e.args[0]))
                 return
-            self.notification_center.post_notification('AudioStreamDidStartRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamDidStartRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename))
         if not self.on_hold:
             self.bridge.add(self._audio_rec)
         elif self._audio_rec in self.bridge:
             self.bridge.remove(self._audio_rec)
 
     def _stop_recording(self):
-        self.notification_center.post_notification('AudioStreamWillStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
+        self.notification_center.post_notification('AudioStreamWillStopRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename))
         try:
             if self._audio_rec.is_active:
                 self._audio_rec.stop()
         finally:
-            self.notification_center.post_notification('AudioStreamDidStopRecordingAudio', sender=self, data=NotificationData(filename=self._audio_rec.filename))
+            self.notification_center.post_notification('AudioStreamDidStopRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             self._audio_rec = None
 
     def _pause(self):
