@@ -1012,6 +1012,8 @@ cdef extern from "pjsip.h":
         PJSIP_MAX_ACCEPT_COUNT
     struct pjsip_msg_body:
         pjsip_media_type content_type
+        void *data
+        unsigned int len
     struct pjsip_request_line:
         pjsip_method method
         pjsip_uri *uri
@@ -1068,6 +1070,7 @@ cdef extern from "pjsip.h":
     pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool) nogil
     pjsip_expires_hdr *pjsip_expires_hdr_create(pj_pool_t *pool, int value) nogil
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text) nogil
+    pjsip_msg_body *pjsip_msg_body_clone(pj_pool_t *pool, const pjsip_msg_body *body) nogil
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem) nogil
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure) nogil
     int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata) nogil
@@ -1812,6 +1815,8 @@ cdef class PJSIPUA(object):
     cdef PJMEDIAEndpoint _pjmedia_endpoint
     cdef pjsip_module _module
     cdef PJSTR _module_name
+    cdef pjsip_module _opus_fix_module
+    cdef PJSTR _opus_fix_module_name
     cdef pjsip_module _trace_module
     cdef PJSTR _trace_module_name
     cdef pjsip_module _ua_tag_module
@@ -1858,6 +1863,7 @@ cdef class PJSIPUA(object):
 
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
+cdef int _cb_opus_fix_tx(pjsip_tx_data *tdata) with gil
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil
 cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil
 cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil

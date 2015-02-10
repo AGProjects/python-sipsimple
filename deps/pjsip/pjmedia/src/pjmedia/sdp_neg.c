@@ -766,10 +766,13 @@ static pj_status_t process_m_answer( pj_pool_t *pool,
 			pjmedia_sdp_rtpmap ar;
 			pjmedia_sdp_attr_get_rtpmap(a, &ar);
 
-			/* See if encoding name and clock rate match
+			/* See if encoding name, clock rate, and channel
+			 * count match 
 			 */
 			if (!pj_stricmp(&or_.enc_name, &ar.enc_name) &&
-			    or_.clock_rate == ar.clock_rate)
+			    or_.clock_rate == ar.clock_rate &&
+			    (pj_stricmp(&or_.param, &ar.param)==0 ||
+			     (ar.param.slen==1 && *ar.param.ptr=='1')))
 			{
 			    /* Call custom format matching callbacks */
 			    if (custom_fmt_match(pool, &or_.enc_name,

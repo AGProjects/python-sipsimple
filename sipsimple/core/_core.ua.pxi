@@ -136,6 +136,17 @@ cdef class PJSIPUA:
         self._trace_sip = int(bool(kwargs["trace_sip"]))
         self._detect_sip_loops = int(bool(kwargs["detect_sip_loops"]))
         self._enable_colorbar_device = int(bool(kwargs["enable_colorbar_device"]))
+        self._opus_fix_module_name = PJSTR("mod-core-opus-fix")
+        self._opus_fix_module.name = self._opus_fix_module_name.pj_str
+        self._opus_fix_module.id = -1
+        self._opus_fix_module.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER+1
+        self._opus_fix_module.on_rx_request = _cb_opus_fix_rx
+        self._opus_fix_module.on_rx_response = _cb_opus_fix_rx
+        self._opus_fix_module.on_tx_request = _cb_opus_fix_tx
+        self._opus_fix_module.on_tx_response = _cb_opus_fix_tx
+        status = pjsip_endpt_register_module(self._pjsip_endpoint._obj, &self._opus_fix_module)
+        if status != 0:
+            raise PJSIPError("Could not load opus-fix module", status)
         self._trace_module_name = PJSTR("mod-core-sip-trace")
         self._trace_module.name = self._trace_module_name.pj_str
         self._trace_module.id = -1
@@ -1045,6 +1056,78 @@ cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil:
         return ua._cb_rx_request(rdata)
     except:
         ua._handle_exception(0)
+
+cdef int _cb_opus_fix_tx(pjsip_tx_data *tdata) with gil:
+    cdef PJSIPUA ua
+    cdef pjsip_msg_body *body
+    cdef pjsip_msg_body *new_body
+    cdef pjmedia_sdp_session *sdp
+    cdef pjmedia_sdp_media *media
+    cdef pjmedia_sdp_attr *attr
+    cdef int i
+    cdef int j
+    cdef pj_str_t new_value
+    try:
+        ua = _get_ua()
+    except:
+        return 0
+    try:
+        if tdata != NULL and tdata.msg != NULL:
+            body = tdata.msg.body
+            if body != NULL and _pj_str_to_str(body.content_type.type).lower() == "application" and _pj_str_to_str(body.content_type.subtype).lower() == "sdp":
+                new_body = pjsip_msg_body_clone(tdata.pool, body)
+                sdp = <pjmedia_sdp_session *> new_body.data
+                for i in range(sdp.media_count):
+                    media = sdp.media[i]
+                    if _pj_str_to_str(media.desc.media).lower() != "audio":
+                        continue
+                    for j in range(media.attr_count):
+                        attr = media.attr[j]
+                        if _pj_str_to_str(attr.name).lower() != "rtpmap":
+                            continue
+                        attr_value = _pj_str_to_str(attr.value).lower()
+                        pos = attr_value.find("opus")
+                        if pos == -1:
+                            continue
+                        # this is the opus rtpmap attribute
+                        opus_line = attr_value[:pos] + "opus/48000/2"
+                        new_value.slen = len(opus_line)
+                        new_value.ptr = <char *> pj_pool_alloc(tdata.pool, new_value.slen)
+                        memcpy(new_value.ptr, PyString_AsString(opus_line), new_value.slen)
+                        attr.value = new_value
+                        break
+                tdata.msg.body = new_body
+    except:
+        ua._handle_exception(0)
+    return 0
+
+cdef int _cb_opus_fix_rx(pjsip_rx_data *rdata) with gil:
+    cdef PJSIPUA ua
+    cdef pjsip_msg_body *body
+    cdef int pos1
+    cdef int pos2
+    cdef char *body_ptr
+    try:
+        ua = _get_ua()
+    except:
+        return 0
+    try:
+        if rdata != NULL and rdata.msg_info.msg != NULL:
+            body = rdata.msg_info.msg.body
+            if body != NULL and _pj_str_to_str(body.content_type.type).lower() == "application" and _pj_str_to_str(body.content_type.subtype).lower() == "sdp":
+                body_ptr = <char*>body.data
+                body_str = PyString_FromStringAndSize(body_ptr, body.len).lower()
+                pos1 = body_str.find("opus/48000")
+                if pos1 != -1:
+                    pos2 = body_str.find("opus/48000/2")
+                    if pos2 != -1:
+                        memcpy(body_ptr + pos2 + 11, '1', 1)
+                    else:
+                        # old opus, we must make it fail
+                        memcpy(body_ptr + pos1 + 5, 'XXXXX', 5)
+    except:
+        ua._handle_exception(0)
+    return 0
 
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil:
     cdef PJSIPUA ua
