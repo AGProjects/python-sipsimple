@@ -1,0 +1,138 @@
+
+Installation procedure for SIP SIMPLE client SDK on MacOSX >= 10.9
+------------------------------------------------------------------
+
+Copyright (c) 2008-2015 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.org
+
+This document describes the installation procedure on MacOSX >= 10.9
+
+The installation procedure consists of the steps described below:
+
+Step 1. Prerequisites
+Step 2. Install Dependencies
+Step 3. Install SIP SIMPLE client SDK
+
+
+Step 1. Prerequisites
+---------------------
+
+ * MacOSX >= 10.9
+ * Apple Developer tools (XCode 5.1)
+ * darcs version control tool from http://www.darcs.net
+ * Homebrew from http://brew.sh
+ * Python virtualenv and virtualenvwrapper modules
+
+The procedure below relies on Python interpreter 2.7 that comes with MacOSX
+Mavericks and Xcode version 5.1. A 64bit build will be produced.
+
+This guide assumes all software is being installed in a virtualenv (except for
+the packages installed with Homebrew, of course). Creating a virtualenv is
+simple:
+
+mkvirtualenv -p python2.7 sipsimple
+
+You'll be dropped right into it. If you want to exit it:
+
+deactivate
+
+And to activate the virtualenv again:
+
+workon sipsimple
+
+
+Step 2. Install Dependencies
+----------------------------
+
+See Dependencies.txt for detailed description of the required libraries and
+their minimum version number.
+
+A. Install the C dependencies, the software will be installed
+under /usr/local folder by default with Homebrew:
+
+brew install gnutls x264 ffmpeg
+
+
+B. Build and install the Python dependencies by using the pip tool.
+The software will be installed in your virtualenv folder.
+
+pip install -U python-gnutls dnspython twisted python-application cython python-dateutil greenlet lxml
+
+
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. python-eventlib
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Eventlet
+if [ -d python-eventlib ]; then
+        cd python-eventlib
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlib
+        cd python-eventlib
+fi
+pip install .
+cd ..
+
+# XCAP library
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+fi
+pip install .
+cd ..
+
+# MSRP library
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+fi
+pip install .
+cd ..
+
+# SIP SIMPLE library
+if [ -d python-sipsimple ]; then
+    cd python-sipsimple
+    darcs pull -a
+else
+    darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
+    cd python-sipsimple
+fi
+
+By default the system version SDK will be used to build SIP SIMPLE SDK.
+This can be overridden by setting the following environment variable:
+
+export SIPSIMPLE_OSX_SDK="10.9"
+
+Build and install SIP SIMPLE library:
+
+python setup.py build_ext --pjsip-clean-compile --pjsip-disable-assertions
+python setup.py install
+
+Additional, you can install the command line interface scripts that can be
+used to test the SDK capabilities.
+
+if [ -d sipclients ]; then
+    cd sipclients
+    darcs pull -a
+else
+    darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/sipclients
+    cd sipclients
+fi
+python setup.py install
+cd ..
+
