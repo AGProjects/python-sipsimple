@@ -842,6 +842,8 @@ class VideoStream(RTPStream):
         stream = super(VideoStream, cls).new_from_sdp(session, remote_sdp, stream_index)
         if stream.device.producer is None:
             raise InvalidStreamError("no video support available")
+        if not stream.validate_update(remote_sdp, stream_index):
+            raise InvalidStreamError("no valid SDP")
         return stream
 
     def initialize(self, session, direction):
@@ -866,7 +868,13 @@ class VideoStream(RTPStream):
 
     def validate_update(self, remote_sdp, stream_index):
         with self._lock:
-            # TODO: implement
+            remote_media = remote_sdp.media[stream_index]
+            if 'H264' in remote_media.codec_list:
+                rtpmap = next(attr for attr in remote_media.attributes if attr.name=='rtpmap' and 'h264' in attr.value.lower())
+                payload_type = rtpmap.value.partition(' ')[0]
+                has_profile_level_id = any('profile-level-id' in attr.value.lower() for attr in remote_media.attributes if attr.name=='fmtp' and attr.value.startswith(payload_type + ' '))
+                if not has_profile_level_id:
+                    return False
             return True
 
     def update(self, local_sdp, remote_sdp, stream_index):
