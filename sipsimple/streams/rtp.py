@@ -166,7 +166,7 @@ class RTPStreamEncryption(object):
         rtp_transport = stream._rtp_transport
         if rtp_transport is None:
             return False
-        if self.type == 'SRTP-SDES':
+        if self.type == 'SRTP/SDES':
             return rtp_transport.srtp_active
         elif self.type == 'ZRTP':
             return rtp_transport.zrtp_active
@@ -184,7 +184,7 @@ class RTPStreamEncryption(object):
         rtp_transport = self._stream._rtp_transport
         if rtp_transport is None:
             return None
-        if self.type == 'SRTP-SDES':
+        if self.type == 'SRTP/SDES':
             return rtp_transport.srtp_cipher
         elif self.type == 'ZRTP':
             return rtp_transport.zrtp_cipher
@@ -206,7 +206,7 @@ class RTPStreamEncryption(object):
         self._rtp_transport = stream._rtp_transport
         notification.center.add_observer(self, sender=self._rtp_transport)
         if stream._srtp_encryption.startswith('sdes'):
-            self.__dict__['type'] = 'SRTP-SDES'
+            self.__dict__['type'] = 'SRTP/SDES'
         elif stream._srtp_encryption == 'zrtp':
             self.__dict__['type'] = 'ZRTP'
             self.__dict__['zrtp'] = ZRTPStreamOptions(self._stream)
@@ -216,7 +216,7 @@ class RTPStreamEncryption(object):
         self._stream = None
 
     def _NH_MediaStreamDidStart(self, notification):
-        if self.type == 'SRTP-SDES':
+        if self.type == 'SRTP/SDES':
             stream = self._stream
             if self.active:
                 notification.center.post_notification('RTPStreamDidEnableEncryption', sender=stream)
@@ -411,9 +411,9 @@ class RTPStream(object):
         if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in %s stream, got %s" % (cls.type, remote_stream.transport))
         if session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation == "sdes_mandatory" and not "crypto" in remote_stream.attributes:
-            raise InvalidStreamError("SRTP-SDES is locally mandatory but it's not remotely enabled")
+            raise InvalidStreamError("SRTP/SDES is locally mandatory but it's not remotely enabled")
         if remote_stream.transport == 'RTP/SAVP' and "crypto" in remote_stream.attributes and not (session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation in ("sdes_optional", "sdes_mandatory")):
-            raise InvalidStreamError("SRTP-SDES is remotely mandatory but it's not locally enabled")
+            raise InvalidStreamError("SRTP/SDES is remotely mandatory but it's not locally enabled")
         account_preferred_codecs = getattr(session.account.rtp, '%s_codec_list' % cls.type)
         general_codecs = getattr(settings.rtp, '%s_codec_list' % cls.type)
         supported_codecs = account_preferred_codecs or general_codecs
