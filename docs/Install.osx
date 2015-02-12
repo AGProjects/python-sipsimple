@@ -32,7 +32,7 @@ This guide assumes all software is being installed in a virtualenv (except for
 the packages installed with Homebrew, of course). Creating a virtualenv is
 simple:
 
-mkvirtualenv -p python2.7 sipsimple
+mkvirtualenv -p $(which python2.7) sipsimple
 
 You'll be dropped right into it. If you want to exit it:
 
