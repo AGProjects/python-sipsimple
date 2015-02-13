@@ -52,12 +52,32 @@ their minimum version number.
 A. Install the C dependencies, the software will be installed
 under /usr/local folder by default with Homebrew:
 
-brew install gnutls x264 ffmpeg
+brew install gnutls yasm
 
 
-B. Build and install the Python dependencies by using the pip tool.
+B. Build FFmpeg and libx264
+
+Download and unpack latest versions of FFmpeg and libx264
+
+export SIPSIMPLE_FFMPEG_PATH=$HOME/work/ag-projects/video/local
+
+cd libx264
+./configure --enable-shared --disable-avs --disable-lavf --disable-ffms --disable-gpac --prefix=$SIPSIMPLE_FFMPEG_PATH
+make
+make install
+cd ..
+
+cd ffmpeg
+export PKG_CONFIG_PATH=$SIPSIMPLE_FFMPEG_PATH/lib/pkgconfig
+./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --prefix=$SIPSIMPLE_FFMPEG_PATH --extra-cflags="`pkg-config --cflags x264`" --extra-ldflags="`pkg-config --libs x264`"
+make
+make install
+
+
+C. Build and install the Python dependencies by using the pip tool.
 The software will be installed in your virtualenv folder.
 
+workon sandbox
 pip install -U python-gnutls dnspython twisted python-application cython python-dateutil greenlet lxml
 
 
