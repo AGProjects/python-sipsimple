@@ -52,7 +52,7 @@ their minimum version number.
 A. Install the C dependencies, the software will be installed
 under /usr/local folder by default with Homebrew:
 
-brew install gnutls yasm
+brew install gnutls yasm pkg-config
 
 
 B. Build FFmpeg and libx264
