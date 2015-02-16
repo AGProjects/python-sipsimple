@@ -205,9 +205,10 @@ class RTPStreamEncryption(object):
         stream = notification.sender
         self._rtp_transport = stream._rtp_transport
         notification.center.add_observer(self, sender=self._rtp_transport)
-        if stream._srtp_encryption.startswith('sdes'):
+        encryption = stream._srtp_encryption or ''
+        if encryption.startswith('sdes'):
             self.__dict__['type'] = 'SRTP/SDES'
-        elif stream._srtp_encryption == 'zrtp':
+        elif encryption == 'zrtp':
             self.__dict__['type'] = 'ZRTP'
             self.__dict__['zrtp'] = ZRTPStreamOptions(self._stream)
 
