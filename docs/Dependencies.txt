@@ -56,6 +56,3 @@ export PKG_CONFIG_PATH=$MY_FFMPEG_LIBS/lib/pkgconfig
 make
 make install
 
-# If a 32bit build is wanted on OSX do:
-./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --prefix=$MY_FFMPEG_LIBS --extra-cflags="`pkg-config --cflags x264`" --extra-ldflags="`pkg-config --libs x264`" --cc="gcc -m32"
-
