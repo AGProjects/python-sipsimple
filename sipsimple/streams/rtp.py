@@ -945,6 +945,18 @@ class VideoStream(RTPStream):
             self.state = "INITIALIZED"
             self.notification_center.post_notification('MediaStreamDidInitialize', sender=self)
 
+    def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
+        with self._lock:
+            if self.state == "WAIT_ICE":
+                self._send_keyframes()
+        super(VideoStream, self)._NH_RTPTransportICENegotiationDidSucceed(notification)
+
+    def _NH_RTPTransportICENegotiationDidFail(self, notification):
+        with self._lock:
+            if self.state == "WAIT_ICE":
+                self._send_keyframes()
+        super(VideoStream, self)._NH_RTPTransportICENegotiationDidFail(notification)
+
     def _NH_RTPVideoTransportDidTimeout(self, notification):
         self.notification_center.post_notification('RTPStreamDidTimeout', sender=self)
 
