@@ -412,9 +412,10 @@ class RTPStream(object):
             raise UnknownStreamError
         if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in %s stream, got %s" % (cls.type, remote_stream.transport))
-        if session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation == "sdes_mandatory" and not "crypto" in remote_stream.attributes:
+        local_encryption_policy = session.account.rtp.encryption.key_negotiation if session.account.rtp.encryption.enabled else None
+        if local_encryption_policy == "sdes_mandatory" and not "crypto" in remote_stream.attributes:
             raise InvalidStreamError("SRTP/SDES is locally mandatory but it's not remotely enabled")
-        if remote_stream.transport == 'RTP/SAVP' and "crypto" in remote_stream.attributes and not (session.account.rtp.encryption.enabled and session.account.rtp.encryption.key_negotiation in ("sdes_optional", "sdes_mandatory")):
+        if remote_stream.transport == 'RTP/SAVP' and "crypto" in remote_stream.attributes and local_encryption_policy not in ("opportunistic", "sdes_optional", "sdes_mandatory"):
             raise InvalidStreamError("SRTP/SDES is remotely mandatory but it's not locally enabled")
         account_preferred_codecs = getattr(session.account.rtp, '%s_codec_list' % cls.type)
         general_codecs = getattr(settings.rtp, '%s_codec_list' % cls.type)
@@ -424,7 +425,9 @@ class RTPStream(object):
         stream = cls()
         stream._incoming_remote_sdp = remote_sdp
         stream._incoming_stream_index = stream_index
-        if "crypto" in remote_stream.attributes:
+        if "zrtp-hash" in remote_stream.attributes:
+            stream._incoming_stream_encryption = 'zrtp'
+        elif "crypto" in remote_stream.attributes:
             stream._incoming_stream_encryption = 'sdes_mandatory' if remote_stream.transport=='RTP/SAVP' else 'sdes_optional'
         else:
             stream._incoming_stream_encryption = None
@@ -436,18 +439,19 @@ class RTPStream(object):
                 raise RuntimeError("%sStream.initialize() may only be called in the NULL state" % self.type.capitalize())
             self.state = "INITIALIZING"
             self.session = session
+            local_encryption_policy = session.account.rtp.encryption.key_negotiation if session.account.rtp.encryption.enabled else None
             if hasattr(self, "_incoming_remote_sdp"):
                 # ICE attributes could come at the session level or at the media level
                 remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
                 self._try_ice = self.session.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
-                if self._incoming_stream_encryption is not None:
+                if self._incoming_stream_encryption is not None and local_encryption_policy == 'opportunistic':
                     self._srtp_encryption = self._incoming_stream_encryption
                 else:
-                    self._srtp_encryption = self.session.account.rtp.encryption.key_negotiation if self.session.account.rtp.encryption.enabled else None
+                    self._srtp_encryption = 'zrtp' if local_encryption_policy == 'opportunistic' else local_encryption_policy
                 del self._incoming_stream_encryption
             else:
                 self._try_ice = self.session.account.nat_traversal.use_ice
-                self._srtp_encryption = self.session.account.rtp.encryption.key_negotiation if self.session.account.rtp.encryption.enabled else None
+                self._srtp_encryption = 'zrtp' if local_encryption_policy == 'opportunistic' else local_encryption_policy
 
             if self._try_ice:
                 if self.session.account.nat_traversal.stun_server_list:

@@ -631,7 +631,7 @@ class SIPTransportList(List):
 
 
 class SRTPKeyNegotiation(str):
-    available_values = ('sdes_optional', 'sdes_mandatory', 'zrtp')
+    available_values = ('opportunistic', 'sdes_optional', 'sdes_mandatory', 'zrtp')
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:

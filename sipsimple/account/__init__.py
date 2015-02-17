@@ -58,7 +58,7 @@ class SIPSettings(SettingsGroup):
 
 class SRTPEncryptionSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    key_negotiation = Setting(type=SRTPKeyNegotiation, default='zrtp')
+    key_negotiation = Setting(type=SRTPKeyNegotiation, default='opportunistic')
 
 
 class RTPSettings(SettingsGroup):
