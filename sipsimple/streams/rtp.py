@@ -21,6 +21,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
+from sipsimple.threading import run_in_twisted_thread
 from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
@@ -995,6 +996,7 @@ class VideoStream(RTPStream):
         if was_on_hold_by_remote and not self.on_hold_by_remote:
             self.notification_center.post_notification('RTPStreamDidChangeHoldState', sender=self, data=NotificationData(originator="remote", on_hold=False))
 
+    @run_in_twisted_thread
     def _send_keyframes(self):
         if self._keyframe_timer is None:
             self._keyframe_timer = ExponentialTimer()
