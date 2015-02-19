@@ -267,7 +267,7 @@ class RTPStreamEncryption(object):
             if stream.state == "ENDED":
                 return
         reason = 'Negotiation failed: %s' % notification.data.reason
-        notification.center.post_notification('RTPStreamiDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
+        notification.center.post_notification('RTPStreamDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
 
     def _NH_RTPTransportZRTPNotSupportedByRemote(self, notification):
         stream = self._stream
@@ -275,7 +275,7 @@ class RTPStreamEncryption(object):
             if stream.state == "ENDED":
                 return
         reason = 'ZRTP not supported by remote'
-        notification.center.post_notification('RTPStreamiDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
+        notification.center.post_notification('RTPStreamDidNotEnableEncryption', sender=stream, data=NotificationData(reason=reason))
 
 
 class RTPStreamType(ABCMeta, MediaStreamType):
