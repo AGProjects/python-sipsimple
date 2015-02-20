@@ -310,12 +310,13 @@ class MSRPStreamBase(object):
 
 
 class Message(object):
-    __slots__ = ('id', 'content', 'content_type', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'failure_report', 'success_report', 'notify_progress')
+    __slots__ = ('id', 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'failure_report', 'success_report', 'notify_progress')
 
-    def __init__(self, id, content, content_type, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
+    def __init__(self, id, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
         self.id = id
         self.content = content
         self.content_type = content_type
+        self.sender = sender
         self.recipients = recipients
         self.courtesy_recipients = courtesy_recipients
         self.subject = subject
@@ -502,9 +503,11 @@ class ChatStream(MSRPStreamBase):
                             message.recipients = [self.remote_identity]
                         elif not self.private_messages_allowed and message.recipients != [self.remote_identity]:
                             raise ChatStreamError('The remote end does not support private messages')
+                        if message.sender is None:
+                            message.sender = self.local_identity
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
-                        msg = CPIMMessage(message.content, message.content_type, sender=self.local_identity,
+                        msg = CPIMMessage(message.content, message.content_type, sender=message.sender,
                                           recipients=message.recipients, courtesy_recipients=message.courtesy_recipients,
                                           subject=message.subject, timestamp=message.timestamp,
                                           required=message.required, additional_headers=message.additional_headers)
