@@ -1,3 +1,21 @@
+python-sipsimple (2.3.0) UNRELEASED; urgency=medium
+
+  * Added ZRTP support
+  * Add setting for opportunistic SRTP encryption
+  * Fix Opus SDP encoding
+  * Reject video streams without a profile-level-id attribute
+  * Renamed RTP stream related notifications
+  * Renamed audio stream recording related notifications
+  * Fix setting FFmpeg libraries path in some cases on OSX
+  * Fix posting ICE state change notifications
+  * Fix sending initial keyframes when ICE is used
+  * Run _send_keyframes on the Twisted thread
+  * Add ability to override the sender for chat messages
+  * pjsip: fix rendering on OSX
+  * pjsip: avoid crashes on OSX if video size changes
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 24 Feb 2015 16:30:18 +0100
+
 python-sipsimple (2.2.0) unstable; urgency=medium
 
   * Make sure ICE status change notification is only sent while waiting for it
