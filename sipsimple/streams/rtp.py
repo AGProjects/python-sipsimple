@@ -21,7 +21,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
-from sipsimple.threading import call_in_thread, run_in_twisted_thread
+from sipsimple.threading import run_in_thread, run_in_twisted_thread
 from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
@@ -56,12 +56,14 @@ class ZRTPStreamOptions(object):
             self.master.encryption.zrtp.verified = verified
         else:
             rtp_transport = self._stream._rtp_transport
-            if rtp_transport is None:
-                return
-            call_in_thread('file-io', rtp_transport.set_zrtp_sas_verified, verified)
-            self.__dict__['verified'] = verified
-            notification_center = NotificationCenter()
-            notification_center.post_notification('RTPStreamZRTPVerifiedStateChanged', sender=self._stream, data=NotificationData(verified=verified))
+            if rtp_transport is not None:
+                @run_in_thread('file-io')
+                def update_verified(rtp_transport, verified):
+                    rtp_transport.set_zrtp_sas_verified(verified)
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('RTPStreamZRTPVerifiedStateChanged', sender=self._stream, data=NotificationData(verified=verified))
+                self.__dict__['verified'] = verified
+                update_verified(rtp_transport, verified)
 
     verified = property(_get_verified, _set_verified)
     del _get_verified, _set_verified
@@ -87,12 +89,14 @@ class ZRTPStreamOptions(object):
             self.master.encryption.zrtp.peer_name = name
         else:
             rtp_transport = self._stream._rtp_transport
-            if rtp_transport is None:
-                return
-            call_in_thread('file-io', setattr, rtp_transport, 'zrtp_peer_name', name)
-            self.__dict__['peer_name'] = name
-            notification_center = NotificationCenter()
-            notification_center.post_notification('RTPStreamZRTPPeerNameChanged', sender=self._stream, data=NotificationData(name=name))
+            if rtp_transport is not None:
+                @run_in_thread('file-io')
+                def update_name(rtp_transport, name):
+                    rtp_transport.zrtp_peer_name = name
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('RTPStreamZRTPPeerNameChanged', sender=self._stream, data=NotificationData(name=name))
+                self.__dict__['peer_name'] = name
+                update_name(rtp_transport, name)
 
     peer_name = property(_get_peer_name, _set_peer_name)
     del _get_peer_name, _set_peer_name
