@@ -89,7 +89,7 @@ class ZRTPStreamOptions(object):
             rtp_transport = self._stream._rtp_transport
             if rtp_transport is None:
                 return
-            call_in_thread(setattr, rtp_transport, 'zrtp_peer_name', name)
+            call_in_thread('file-io', setattr, rtp_transport, 'zrtp_peer_name', name)
             self.__dict__['peer_name'] = name
             notification_center = NotificationCenter()
             notification_center.post_notification('RTPStreamZRTPPeerNameChanged', sender=self._stream, data=NotificationData(name=name))
