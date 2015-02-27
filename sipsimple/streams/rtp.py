@@ -57,7 +57,7 @@ class ZRTPStreamOptions(object):
         else:
             rtp_transport = self._stream._rtp_transport
             if rtp_transport is None:
-                raise AttributeError('Cannot verify peer after stream ended')
+                return
             call_in_thread('file-io', rtp_transport.set_zrtp_sas_verified, verified)
             self.__dict__['verified'] = verified
             notification_center = NotificationCenter()
@@ -88,7 +88,7 @@ class ZRTPStreamOptions(object):
         else:
             rtp_transport = self._stream._rtp_transport
             if rtp_transport is None:
-                raise AttributeError('Cannot set peer name after stream ended')
+                return
             call_in_thread(setattr, rtp_transport, 'zrtp_peer_name', name)
             self.__dict__['peer_name'] = name
             notification_center = NotificationCenter()
