@@ -18,6 +18,7 @@ from cpython.float cimport PyFloat_AsDouble
 from cpython.pycapsule cimport PyCapsule_New
 from cpython.ref cimport Py_INCREF, Py_DECREF
 from cpython.string cimport PyString_FromString, PyString_FromStringAndSize, PyString_AsString, PyString_Size
+from cpython.unicode import PyUnicode_FromString
 
 
 # PJSIP imports

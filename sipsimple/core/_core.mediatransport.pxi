@@ -798,14 +798,14 @@ cdef class RTPTransport:
                 if c_name == NULL:
                     return ''
                 else:
-                    name = PyString_FromString(c_name)
+                    name = PyUnicode_FromString(c_name) or u''
                     free(c_name)
                     return name
             finally:
                 with nogil:
                     pj_mutex_unlock(lock)
 
-        def __set__(self, bytes name):
+        def __set__(self, basestring name):
             cdef int status
             cdef char* c_name
             cdef pj_mutex_t *lock = self._lock
@@ -828,6 +828,7 @@ cdef class RTPTransport:
                 zrtp_info = <pjmedia_zrtp_info *> pjmedia_transport_info_get_spc_info(&info, PJMEDIA_TRANSPORT_TYPE_ZRTP)
                 if zrtp_info == NULL or not bool(zrtp_info.active):
                     return
+                name = name.encode('utf-8')
                 c_name = name
                 with nogil:
                     pjmedia_transport_zrtp_putPeerName(self._obj, c_name)
