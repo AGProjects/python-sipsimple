@@ -21,7 +21,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
-from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading import call_in_thread, run_in_twisted_thread
 from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
@@ -56,8 +56,9 @@ class ZRTPStreamOptions(object):
             self.master.encryption.zrtp.verified = verified
         else:
             rtp_transport = self._stream._rtp_transport
-            if rtp_transport is None or not rtp_transport.set_zrtp_sas_verified(verified):
+            if rtp_transport is None:
                 raise AttributeError('Cannot verify peer after stream ended')
+            call_in_thread('file-io', rtp_transport.set_zrtp_sas_verified, verified)
             self.__dict__['verified'] = verified
             notification_center = NotificationCenter()
             notification_center.post_notification('RTPStreamZRTPVerifiedStateChanged', sender=self._stream, data=NotificationData(verified=verified))
@@ -88,7 +89,7 @@ class ZRTPStreamOptions(object):
             rtp_transport = self._stream._rtp_transport
             if rtp_transport is None:
                 raise AttributeError('Cannot set peer name after stream ended')
-            rtp_transport.zrtp_peer_name = name
+            call_in_thread(setattr, rtp_transport, 'zrtp_peer_name', name)
             self.__dict__['peer_name'] = name
             notification_center = NotificationCenter()
             notification_center.post_notification('RTPStreamZRTPPeerNameChanged', sender=self._stream, data=NotificationData(name=name))
