@@ -824,6 +824,9 @@ static void transport_rtp_cb(void *user_data, void *pkt, pj_ssize_t size)
                         zrtp->cb.show_message(&zrtp->base, zrtp_Warning, zrtp_WarningSRTPreplayError);
                 }
                 zrtp->unprotect_err = rc;
+                /* We failed to decrypt the packet, but forward it regardless to the slave
+                 * transport, it might not have been encrypted after all */
+                zrtp->stream_rtp_cb(zrtp->stream_user_data, pkt, size);
             }
         }
         if (!zrtp->started && zrtp->enableZrtp)
