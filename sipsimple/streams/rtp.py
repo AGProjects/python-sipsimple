@@ -21,7 +21,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioTransport, VideoTransport, PJSIPError, RTPTransport, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup
 from sipsimple.streams import IMediaStream, InvalidStreamError, MediaStreamType, UnknownStreamError
-from sipsimple.threading import run_in_thread, run_in_twisted_thread
+from sipsimple.threading import call_in_thread, run_in_thread, run_in_twisted_thread
 from sipsimple.util import ExponentialTimer
 from sipsimple.video import IVideoProducer
 
@@ -912,11 +912,11 @@ class VideoStream(RTPStream):
             self._keyframe_timer = None
             self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
             if self._transport is not None:
-                self._transport.stop()
-                self.notification_center.remove_observer(self, sender=self._transport)
-                self._transport = None
+                transport, self._transport = self._transport, None
+                self.notification_center.remove_observer(self, sender=transport)
                 self.notification_center.remove_observer(self, sender=self._rtp_transport)
                 self._rtp_transport = None
+                call_in_thread('device-io', transport.stop)
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
             self.session = None
