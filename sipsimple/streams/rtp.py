@@ -912,11 +912,11 @@ class VideoStream(RTPStream):
             self._keyframe_timer = None
             self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
             if self._transport is not None:
-                transport, self._transport = self._transport, None
-                self.notification_center.remove_observer(self, sender=transport)
+                self.notification_center.remove_observer(self, sender=self._transport)
                 self.notification_center.remove_observer(self, sender=self._rtp_transport)
+                call_in_thread('device-io', self._transport.stop)
+                self._transport = None
                 self._rtp_transport = None
-                call_in_thread('device-io', transport.stop)
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
             self.session = None
