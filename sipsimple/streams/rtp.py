@@ -695,10 +695,10 @@ class AudioStream(RTPStream):
             if self._transport is not None:
                 if self._audio_rec is not None:
                     self._stop_recording()
-                self._transport.stop()
                 self.notification_center.remove_observer(self, sender=self._transport)
-                self._transport = None
                 self.notification_center.remove_observer(self, sender=self._rtp_transport)
+                self._transport.stop()
+                self._transport = None
                 self._rtp_transport = None
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
