@@ -2578,7 +2578,6 @@ cdef class AudioTransport(object):
     cdef pj_pool_t *_pool
     cdef pjmedia_stream *_obj
     cdef pjmedia_stream_info _stream_info
-    cdef dict _cached_statistics
     cdef Timer _timer
     cdef readonly object direction
     cdef readonly AudioMixer mixer
@@ -2600,7 +2599,6 @@ cdef class VideoTransport(object):
     cdef pj_pool_t *_pool
     cdef pjmedia_vid_stream *_obj
     cdef pjmedia_vid_stream_info _stream_info
-    cdef dict _cached_statistics
     cdef Timer _timer
     cdef readonly object direction
     cdef readonly RTPTransport transport

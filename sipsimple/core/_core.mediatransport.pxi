@@ -1120,10 +1120,9 @@ cdef class AudioTransport:
             try:
                 stream = self._obj
 
-                if self._cached_statistics is not None:
-                    return self._cached_statistics.copy()
-                if self._obj == NULL:
+                if stream == NULL:
                     return None
+
                 with nogil:
                     status = pjmedia_stream_get_stat(stream, &stat)
                 if status != 0:
@@ -1354,11 +1353,10 @@ cdef class AudioTransport:
                 self._timer = None
             if self._obj == NULL:
                 return
+            self._obj = NULL
             self.mixer._remove_port(ua, self._slot)
-            self._cached_statistics = self.statistics
             with nogil:
                 pjmedia_stream_destroy(stream)
-            self._obj = NULL
             self.transport.set_INIT()
         finally:
             if ua is not None:
@@ -1637,10 +1635,9 @@ cdef class VideoTransport:
             try:
                 stream = self._obj
 
-                if self._cached_statistics is not None:
-                    return self._cached_statistics.copy()
-                if self._obj == NULL:
+                if stream == NULL:
                     return None
+
                 with nogil:
                     status = pjmedia_vid_stream_get_stat(stream, &stat)
                 if status != 0:
@@ -1808,18 +1805,16 @@ cdef class VideoTransport:
                 self._timer = None
             if self._obj == NULL:
                 return
+            self._obj = NULL
             if self.local_video is not None:
                 self.local_video.close()
                 self.local_video = None
             if self.remote_video is not None:
                 self.remote_video.close()
                 self.remote_video = None
-            self._cached_statistics = self.statistics
             with nogil:
                 pjmedia_vid_stream_send_rtcp_bye(stream)
-            with nogil:
                 pjmedia_vid_stream_destroy(stream)
-            self._obj = NULL
             self.transport.set_INIT()
         finally:
             if ua is not None:
