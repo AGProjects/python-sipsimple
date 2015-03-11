@@ -399,7 +399,8 @@ class ChatStream(MSRPStreamBase):
 
     def _NH_MediaStreamDidNotInitialize(self, notification):
         message_queue, self.message_queue = self.message_queue, queue()
-        for message in message_queue.items:
+        while message_queue:
+            message = message_queue.wait()
             data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream was closed')
             notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
@@ -408,7 +409,8 @@ class ChatStream(MSRPStreamBase):
             self.message_queue_thread.kill()
         else:
             message_queue, self.message_queue = self.message_queue, queue()
-            for message in message_queue.items:
+            while message_queue:
+                message = message_queue.wait()
                 data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
                 notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
@@ -555,7 +557,8 @@ class ChatStream(MSRPStreamBase):
         finally:
             self.message_queue_thread = None
             message_queue, self.message_queue = self.message_queue, queue()
-            for message in message_queue.items:
+            while message_queue:
+                message = message_queue.wait()
                 data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
                 notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
