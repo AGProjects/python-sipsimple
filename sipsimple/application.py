@@ -131,14 +131,17 @@ class SIPApplication(object):
         notification_center = NotificationCenter()
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self)
-        if self._stop_pending:
-            self.state = 'stopping'
+        with self._lock:
+            stop_pending = self._stop_pending
+            if stop_pending:
+                self.state = 'stopping'
+        if stop_pending:
             notification_center.post_notification('SIPApplicationWillEnd', sender=self)
         else:
             self._initialize_core()
             reactor.run(installSignalHandlers=False)
-
-        self.state = 'stopped'
+        with self._lock:
+            self.state = 'stopped'
         notification_center.post_notification('SIPApplicationDidEnd', sender=self)
 
     def _initialize_core(self):
@@ -189,8 +192,11 @@ class SIPApplication(object):
     def _initialize_subsystems(self):
         notification_center = NotificationCenter()
 
-        if self._stop_pending:
-            self.state = 'stopping'
+        with self._lock:
+            stop_pending = self._stop_pending
+            if stop_pending:
+                self.state = 'stopping'
+        if stop_pending:
             notification_center.post_notification('SIPApplicationWillEnd', sender=self)
             reactor.stop()
             return
@@ -268,10 +274,13 @@ class SIPApplication(object):
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
-        self.state = 'started'
+        with self._lock:
+            self.state = 'started'
+            stop_pending = self._stop_pending
+
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
 
-        if self._stop_pending:
+        if stop_pending:
             self.stop()
 
     @run_in_green_thread
@@ -327,7 +336,13 @@ class SIPApplication(object):
         self._initialize_subsystems()
 
     def _NH_SIPEngineDidFail(self, notification):
-        self.state = 'stopping'
+        with self._lock:
+            if self.state == 'stopping':
+                return
+            elif self.state == 'starting':
+                self._stop_pending = True
+                return
+            self.state = 'stopping'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
 
