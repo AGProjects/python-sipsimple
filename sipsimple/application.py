@@ -63,7 +63,6 @@ class SIPApplication(object):
     thread = ApplicationAttribute(value=None)
 
     state = ApplicationAttribute(value=None)
-    end_reason = ApplicationAttribute(value=None)
 
     alert_audio_device = ApplicationAttribute(value=None)
     alert_audio_bridge = ApplicationAttribute(value=None)
@@ -74,6 +73,7 @@ class SIPApplication(object):
 
     _lock = ApplicationAttribute(value=RLock())
     _timer = ApplicationAttribute(value=None)
+    _stop_requested = ApplicationAttribute(value=False)
 
     running           = classproperty(lambda cls: cls.state == 'started')
     alert_audio_mixer = classproperty(lambda cls: cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None)
@@ -118,24 +118,28 @@ class SIPApplication(object):
         with self._lock:
             if self.state in (None, 'stopping', 'stopped'):
                 return
-            prev_state = self.state
+            elif self.state == 'starting':
+                self._stop_requested = True
+                return
             self.state = 'stopping'
-
-        self.end_reason = 'application request'
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPApplicationWillEnd', sender=self)
-        if prev_state != 'starting':
-            self._shutdown_subsystems()
+        self._shutdown_subsystems()
 
     def _run_reactor(self):
         from eventlib.twistedutil import join_reactor
         notification_center = NotificationCenter()
 
-        self._initialize_core()
-        reactor.run(installSignalHandlers=False)
+        notification_center.post_notification('SIPApplicationWillStart', sender=self)
+        if self._stop_requested:
+            self.state = 'stopping'
+            notification_center.post_notification('SIPApplicationWillEnd', sender=self)
+        else:
+            self._initialize_core()
+            reactor.run(installSignalHandlers=False)
 
         self.state = 'stopped'
-        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
+        notification_center.post_notification('SIPApplicationDidEnd', sender=self)
 
     def _initialize_core(self):
         notification_center = NotificationCenter()
@@ -183,14 +187,17 @@ class SIPApplication(object):
 
     @run_in_green_thread
     def _initialize_subsystems(self):
-        if self.state == 'stopping':
+        notification_center = NotificationCenter()
+
+        if self._stop_requested:
+            self.state = 'stopping'
+            notification_center.post_notification('SIPApplicationWillEnd', sender=self)
             reactor.stop()
             return
 
         account_manager = AccountManager()
         addressbook_manager = AddressbookManager()
         dns_manager = DNSManager()
-        notification_center = NotificationCenter()
         session_manager = SessionManager()
         settings = SIPSimpleSettings()
 
@@ -243,7 +250,7 @@ class SIPApplication(object):
         if not settings.instance_id:
             settings.instance_id = uuid4().urn
 
-	# initialize path for ZRTP cache file
+        # initialize path for ZRTP cache file
         if isinstance(self.storage, FileStorage):
             self.engine.zrtp_cache = os.path.join(self.storage.directory, 'zrtp.db')
 
@@ -263,6 +270,9 @@ class SIPApplication(object):
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
+
+        if self._stop_requested:
+            self.stop()
 
     @run_in_green_thread
     def _shutdown_subsystems(self):
@@ -317,7 +327,7 @@ class SIPApplication(object):
         self._initialize_subsystems()
 
     def _NH_SIPEngineDidFail(self, notification):
-        self.end_reason = 'engine failed'
+        self.state = 'stopping'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
 
