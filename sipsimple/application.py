@@ -73,7 +73,7 @@ class SIPApplication(object):
 
     _lock = ApplicationAttribute(value=RLock())
     _timer = ApplicationAttribute(value=None)
-    _stop_requested = ApplicationAttribute(value=False)
+    _stop_pending = ApplicationAttribute(value=False)
 
     running           = classproperty(lambda cls: cls.state == 'started')
     alert_audio_mixer = classproperty(lambda cls: cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None)
@@ -119,7 +119,7 @@ class SIPApplication(object):
             if self.state in (None, 'stopping', 'stopped'):
                 return
             elif self.state == 'starting':
-                self._stop_requested = True
+                self._stop_pending = True
                 return
             self.state = 'stopping'
         notification_center = NotificationCenter()
@@ -131,7 +131,7 @@ class SIPApplication(object):
         notification_center = NotificationCenter()
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self)
-        if self._stop_requested:
+        if self._stop_pending:
             self.state = 'stopping'
             notification_center.post_notification('SIPApplicationWillEnd', sender=self)
         else:
@@ -189,7 +189,7 @@ class SIPApplication(object):
     def _initialize_subsystems(self):
         notification_center = NotificationCenter()
 
-        if self._stop_requested:
+        if self._stop_pending:
             self.state = 'stopping'
             notification_center.post_notification('SIPApplicationWillEnd', sender=self)
             reactor.stop()
@@ -271,7 +271,7 @@ class SIPApplication(object):
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self)
 
-        if self._stop_requested:
+        if self._stop_pending:
             self.stop()
 
     @run_in_green_thread
