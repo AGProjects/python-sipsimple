@@ -183,6 +183,10 @@ class SIPApplication(object):
 
     @run_in_green_thread
     def _initialize_subsystems(self):
+        if self.state == 'stopping':
+            reactor.stop()
+            return
+
         account_manager = AccountManager()
         addressbook_manager = AddressbookManager()
         dns_manager = DNSManager()
@@ -191,11 +195,6 @@ class SIPApplication(object):
         settings = SIPSimpleSettings()
 
         xcap_client.DEFAULT_HEADERS = {'User-Agent': settings.user_agent}
-
-        notification_center.post_notification('SIPApplicationWillStart', sender=self)
-        if self.state == 'stopping':
-            reactor.stop()
-            return
 
         # initialize TLS
         self._initialize_tls()
