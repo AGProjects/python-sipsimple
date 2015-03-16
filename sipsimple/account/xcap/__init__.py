@@ -724,13 +724,19 @@ class XCAPManager(object):
 
         for document in self.documents:
             document.load_from_cache()
+
         try:
-            self.journal = cPickle.loads(self.storage.load('journal'))
-        except (ImportError, XCAPStorageError, cPickle.UnpicklingError):
+            journal = self.storage.load('journal')
+        except XCAPStorageError:
             self.journal = []
         else:
-            for operation in self.journal:
-                operation.applied = False
+            try:
+                self.journal = cPickle.loads(journal)
+            except Exception:
+                self.journal = []
+
+        for operation in self.journal:
+            operation.applied = False
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
