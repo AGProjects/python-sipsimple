@@ -26,7 +26,6 @@ from application.python.descriptor import WriteOnceAttribute
 from application.python.types import MarkerType
 from application.system import host
 from functools import partial
-from itertools import chain
 from twisted.internet.error import ConnectionDone
 from zope.interface import implements
 
@@ -381,18 +380,20 @@ class ChatStream(MSRPStreamBase):
 
     @property
     def private_messages_allowed(self):
-        try:
-            return self.cpim_enabled and self.session.remote_focus and 'private-messages' in chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
-        except AttributeError:
-            return False
+        return 'private-messages' in self.chatroom_capabilities
 
     @property
     def nickname_allowed(self):
-        remote_chatroom_capabilities = chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
+        return 'nickname' in self.chatroom_capabilities
+
+    @property
+    def chatroom_capabilities(self):
         try:
-            return self.cpim_enabled and self.session.remote_focus and 'nickname' in remote_chatroom_capabilities
+            if self.cpim_enabled and self.session.remote_focus:
+                return ' '.join(self.remote_media.attributes.getall('chatroom')).split()
         except AttributeError:
-            return False
+            pass
+        return []
 
     def _NH_MediaStreamDidStart(self, notification):
         self.message_queue_thread = spawn(self._message_queue_handler)
