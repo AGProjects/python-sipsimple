@@ -1,4 +1,4 @@
-python-sipsimple (2.3.0) UNRELEASED; urgency=medium
+python-sipsimple (2.3.0) unstable; urgency=medium
 
   * Added ZRTP support
   * Add setting for opportunistic SRTP encryption
@@ -13,8 +13,17 @@ python-sipsimple (2.3.0) UNRELEASED; urgency=medium
   * Add ability to override the sender for chat messages
   * pjsip: fix rendering on OSX
   * pjsip: avoid crashes on OSX if video size changes
+  * Work around issue with the RTP transport lock being hold for too long
+  * Stop the VideoTransport in the device-io thread
+  * Removed caching of statistics on the RTP transports when stopping
+  * Fix draining the message queue in ChatStream
+  * Post SIPApplicationWillStart before starting the core
+  * Make SIPApplication start / stop consistent
+  * Fix race conditions when handling SIPApplication.state
+  * Avoid exceptions when un-pickling XCAP journal
+  * Add chatroom_capabilities property to ChatStream
 
- -- Saul Ibarra <saul@ag-projects.com>  Tue, 24 Feb 2015 16:30:18 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 17 Mar 2015 09:27:02 +0100
 
 python-sipsimple (2.2.0) unstable; urgency=medium
 
