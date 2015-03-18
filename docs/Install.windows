@@ -46,7 +46,6 @@ hasn't been tested.
   https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
 * Install the compiler toolchain: pacman -S mingw-w64-i686-toolchain
 * Install the usual utilities for compiling software: pacman -S make mingw-w64-i686-libtool autoconf automake-wrapper mingw-w64-i686-pkgconf
-* Install some extra useful utilities: pacman -S openssh wget
 
 After MSYS2 was installed a new menu group was created on the Window start menu: "MSYS2 32bit",
 which contains 3 links: MinGW-w64 Win32 Shell, MinGW-w64 Win64 Shell and MSYS2 Shell. We'll
@@ -64,8 +63,7 @@ to compile libraries which are then used by Python modules we are at risk becaus
 the resulting application would load 2 different C runtimes.
 
 * Install Python 2.7 by running: pacman -S mingw-w64-i686-python2
-* Get the pip/setuptools installer: wget https://bootstrap.pypa.io/get-pip.py
-* Install pip/setuptools: python get-pip.py
+* Install pip/setuptools: pacman -S mingw-w64-i686-python2-pip
 
 NOTE: At the time of this writing the Python REPL needs to be started with "python -i" due to
 a problem with the ncurses libraries.
@@ -77,8 +75,24 @@ Step 2. Install dependencies
 See Dependencies.txt for detailed description of the required libraries and
 their minimum version number.
 
-* Install required dependencies with pacman: pacman -S mingw-w64-i686-gnutls mingw-w64-i686-python2-lxml
+* Install required dependencies with pacman: pacman -S mingw-w64-i686-gnutls mingw-w64-i686-python2-lxml mingw-w64-i686-ffmpeg mingw-w64-i686-sqlite3 msys2-w32api-headers
 * Install the Python package dependencies: pip install cython dnspython twisted python-dateutil greenlet python-application python-cjson python-gnutls
+
+
+Step 2.1. Build and install some extra packages
+-----------------------------------------------
+
+mingw-w64-intsafe-headers
+
+* Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-intsafe-headers
+* Enter the directory and build the package: cd mingw-w64-intsafe-headers && makepkg-mingw -L --nocheck
+* Install the package: pacman -U mingw-w64-intsafe-headers*any.pkg.tar.xz
+
+mingw-w64-dshow-baseclasses
+
+* Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-dshow-baseclasses
+* Enter the directory and build the package: cd mingw-w64-dshow-baseclasses && makepkg-mingw -L --nocheck
+* Install the package: pacman -U mingw-w64-dshow-baseclasses*any.pkg.tar.xz
 
 
 Step 3. Install SIP SIMPLE client SDK
