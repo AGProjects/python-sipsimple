@@ -52,6 +52,7 @@ typedef struct vid_tee_port
     unsigned		 dst_port_cnt;
     vid_tee_dst_port	*dst_ports;
     pj_uint8_t		*put_frm_flag;
+    pj_mutex_t          *lock;
     
     struct vid_tee_conv_t {
         pjmedia_converter   *conv;
@@ -86,6 +87,11 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_create( pj_pool_t *pool,
     tee->pf = pool->factory;
     tee->pool = pj_pool_create(tee->pf, "video tee", 500, 500, NULL);
 
+    /* Create lock */
+    status = pj_mutex_create_simple(pool, "vid-tee-mutex", &tee->lock);
+    if (status != PJ_SUCCESS)
+        return status;
+
     /* Initialize video tee structure */
     tee->dst_port_maxcnt = max_dst_cnt;
     tee->dst_ports = (vid_tee_dst_port*)
@@ -100,14 +106,16 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_create( pj_pool_t *pool,
 
     /* Initialize video tee buffer, its size is one frame */
     vfi = pjmedia_get_video_format_info(NULL, fmt->id);
-    if (vfi == NULL)
-	return PJMEDIA_EBADFMT;
+    if (vfi == NULL) {
+	status = PJMEDIA_EBADFMT;
+	goto on_error;
+    }
 
     pj_bzero(&vafp, sizeof(vafp));
     vafp.size = fmt->det.vid.size;
     status = vfi->apply_fmt(vfi, &vafp);
     if (status != PJ_SUCCESS)
-	return status;
+	goto on_error;
 
     tee->buf_size = vafp.framebytes;
 
@@ -118,7 +126,7 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_create( pj_pool_t *pool,
 				     PJMEDIA_DIR_ENCODING,
 				     fmt);
     if (status != PJ_SUCCESS)
-	return status;
+	goto on_error;
 
     tee->base.get_frame = &tee_get_frame;
     tee->base.put_frame = &tee_put_frame;
@@ -128,6 +136,11 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_create( pj_pool_t *pool,
     *p_vid_tee = &tee->base;
 
     return PJ_SUCCESS;
+
+on_error:
+    pj_mutex_destroy(tee->lock);
+    tee->lock = NULL;
+    return status;
 }
 
 static void realloc_buf(vid_tee_port *vid_tee,
@@ -169,23 +182,31 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port(pjmedia_port *vid_tee,
 {
     vid_tee_port *tee = (vid_tee_port*)vid_tee;
     pjmedia_video_format_detail *vfd;
+    pj_status_t status;
 
     PJ_ASSERT_RETURN(vid_tee && vid_tee->info.signature==TEE_PORT_SIGN,
 		     PJ_EINVAL);
 
-    if (tee->dst_port_cnt >= tee->dst_port_maxcnt)
-	return PJ_ETOOMANY;
-    
-    if (vid_tee->info.fmt.id != port->info.fmt.id)
-	return PJMEDIA_EBADFMT;
+    pj_mutex_lock(tee->lock);
+
+    if (tee->dst_port_cnt >= tee->dst_port_maxcnt) {
+	status = PJ_ETOOMANY;
+	goto end;
+    }
+
+    if (vid_tee->info.fmt.id != port->info.fmt.id) {
+	status = PJMEDIA_EBADFMT;
+	goto end;
+    }
 
     vfd = pjmedia_format_get_video_format_detail(&port->info.fmt, PJ_TRUE);
     if (vfd->size.w != vid_tee->info.fmt.det.vid.size.w ||
 	vfd->size.h != vid_tee->info.fmt.det.vid.size.h)
     {
-        return PJMEDIA_EBADFMT;
+        status = PJMEDIA_EBADFMT;
+        goto end;
     }
-    
+
     realloc_buf(tee, (option & PJMEDIA_VID_TEE_DST_DO_IN_PLACE_PROC)?
                 1: 0, tee->buf_size);
 
@@ -194,7 +215,11 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port(pjmedia_port *vid_tee,
     tee->dst_ports[tee->dst_port_cnt].option = option;
     ++tee->dst_port_cnt;
 
-    return PJ_SUCCESS;
+    status = PJ_SUCCESS;
+
+end:
+    pj_mutex_unlock(tee->lock);
+    return status;
 }
 
 
@@ -208,12 +233,17 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port2(pjmedia_port *vid_tee,
 {
     vid_tee_port *tee = (vid_tee_port*)vid_tee;
     pjmedia_video_format_detail *vfd;
+    pj_status_t status;
     
     PJ_ASSERT_RETURN(vid_tee && vid_tee->info.signature==TEE_PORT_SIGN,
 		     PJ_EINVAL);
     
-    if (tee->dst_port_cnt >= tee->dst_port_maxcnt)
-	return PJ_ETOOMANY;
+    pj_mutex_lock(tee->lock);
+
+    if (tee->dst_port_cnt >= tee->dst_port_maxcnt) {
+	status = PJ_ETOOMANY;
+	goto end;
+    }
     
     pj_bzero(&tee->tee_conv[tee->dst_port_cnt], sizeof(tee->tee_conv[0]));
     
@@ -226,17 +256,18 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port2(pjmedia_port *vid_tee,
         const pjmedia_video_format_info *vfi;
         pjmedia_video_apply_fmt_param vafp;
         pjmedia_conversion_param conv_param;
-        pj_status_t status;
 
         vfi = pjmedia_get_video_format_info(NULL, port->info.fmt.id);
-        if (vfi == NULL)
-            return PJMEDIA_EBADFMT;
+        if (vfi == NULL) {
+            status = PJMEDIA_EBADFMT;
+            goto end;
+        }
 
         pj_bzero(&vafp, sizeof(vafp));
         vafp.size = port->info.fmt.det.vid.size;
         status = vfi->apply_fmt(vfi, &vafp);
         if (status != PJ_SUCCESS)
-            return status;
+            goto end;
         
         realloc_buf(tee, (option & PJMEDIA_VID_TEE_DST_DO_IN_PLACE_PROC)?
                     2: 1, vafp.framebytes);
@@ -248,7 +279,7 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port2(pjmedia_port *vid_tee,
                      NULL, tee->pool, &conv_param,
                      &tee->tee_conv[tee->dst_port_cnt].conv);
         if (status != PJ_SUCCESS)
-            return status;
+            goto end;
         
         tee->tee_conv[tee->dst_port_cnt].conv_buf_size = vafp.framebytes;
     } else {
@@ -259,8 +290,12 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_add_dst_port2(pjmedia_port *vid_tee,
     tee->dst_ports[tee->dst_port_cnt].dst = port;
     tee->dst_ports[tee->dst_port_cnt].option = option;
     ++tee->dst_port_cnt;
-    
-    return PJ_SUCCESS;
+
+    status = PJ_SUCCESS;
+
+end:
+    pj_mutex_unlock(tee->lock);
+    return status;
 }
 
 
@@ -276,6 +311,8 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_remove_dst_port(pjmedia_port *vid_tee,
     PJ_ASSERT_RETURN(vid_tee && vid_tee->info.signature==TEE_PORT_SIGN,
 		     PJ_EINVAL);
 
+    pj_mutex_lock(tee->lock);
+
     for (i = 0; i < tee->dst_port_cnt; ++i) {
 	if (tee->dst_ports[i].dst == port) {
             if (tee->tee_conv[i].conv)
@@ -286,10 +323,13 @@ PJ_DEF(pj_status_t) pjmedia_vid_tee_remove_dst_port(pjmedia_port *vid_tee,
             pj_array_erase(tee->tee_conv, sizeof(tee->tee_conv[0]),
 			   tee->dst_port_cnt, i);
 	    --tee->dst_port_cnt;
+
+	    pj_mutex_unlock(tee->lock);
 	    return PJ_SUCCESS;
 	}
     }
 
+    pj_mutex_unlock(tee->lock);
     return PJ_ENOTFOUND;
 }
 
@@ -299,6 +339,11 @@ static pj_status_t tee_put_frame(pjmedia_port *port, pjmedia_frame *frame)
     vid_tee_port *tee = (vid_tee_port*)port;
     unsigned i, j;
     const pj_uint8_t PUT_FRM_DONE = 1;
+
+    if (pj_mutex_trylock(tee->lock) != PJ_SUCCESS) {
+        /* we are busy adding / removing consumers */
+        return PJ_SUCCESS;
+    }
 
     pj_bzero(tee->put_frm_flag, tee->dst_port_cnt *
 				sizeof(tee->put_frm_flag[0]));
@@ -364,6 +409,7 @@ static pj_status_t tee_put_frame(pjmedia_port *port, pjmedia_frame *frame)
         }
     }
 
+    pj_mutex_unlock(tee->lock);
     return PJ_SUCCESS;
 }
 
@@ -382,6 +428,11 @@ static pj_status_t tee_destroy(pjmedia_port *port)
     vid_tee_port *tee = (vid_tee_port*)port;
 
     PJ_ASSERT_RETURN(port && port->info.signature==TEE_PORT_SIGN, PJ_EINVAL);
+
+    if (tee->lock) {
+        pj_mutex_destroy(tee->lock);
+        tee->lock = NULL;
+    }
 
     pj_pool_release(tee->pool);
     if (tee->buf_pool)
