@@ -485,14 +485,12 @@ cdef class VideoCamera(VideoProducer):
                 return
             consumer_port = consumer.consumer_port
             producer_port = self.producer_port
-            _stop_video_port(self._video_port)
             with nogil:
                 status = pjmedia_vid_tee_add_dst_port2(producer_port, 0, consumer_port)
             if status != 0:
                 raise PJSIPError("Could not connect video consumer with producer", status)
             self._consumers.add(consumer)
             if self._started:
-                _start_video_port(self._video_port)
                 self._start()
         finally:
             with nogil:
@@ -515,7 +513,6 @@ cdef class VideoCamera(VideoProducer):
                 return
             consumer_port = consumer.consumer_port
             producer_port = self.producer_port
-            _stop_video_port(self._video_port)
             with nogil:
                 status = pjmedia_vid_tee_remove_dst_port(producer_port, consumer_port)
             if status != 0:
@@ -523,8 +520,6 @@ cdef class VideoCamera(VideoProducer):
             self._consumers.remove(consumer)
             if not self._consumers:
                 self._stop()
-            elif self._started:
-                _start_video_port(self._video_port)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
