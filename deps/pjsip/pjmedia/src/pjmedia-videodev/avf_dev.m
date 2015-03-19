@@ -27,6 +27,7 @@
 #include <Foundation/NSAutoreleasePool.h>
 #include <AVFoundation/AVFoundation.h>
 #include <QuartzCore/QuartzCore.h>
+#include <dispatch/dispatch.h>
 
 #define THIS_FILE		"avf_dev.c"
 #define DEFAULT_CLOCK_RATE	90000
@@ -101,6 +102,8 @@ struct avf_stream
     struct avf_factory      *af;
     pj_status_t             status;
     pj_bool_t               is_running;
+
+    dispatch_queue_t                    video_ops_queue;
 
     AVCaptureSession			*cap_session;
     AVCaptureDeviceInput		*dev_input;
@@ -490,15 +493,11 @@ static void init_avf_stream(struct avf_stream *strm)
     dispatch_release(queue);
 }
 
-static void run_func_on_main_thread(struct avf_stream *strm, func_ptr func)
+static void run_func_on_video_queue(struct avf_stream *strm, func_ptr func)
 {
-    if ([NSThread isMainThread]) {
+    dispatch_sync(strm->video_ops_queue, ^{
         (*func)(strm);
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            (*func)(strm);
-        });
-    }
+    });
 }
 
 /* API: create stream */
@@ -541,11 +540,18 @@ static pj_status_t avf_factory_create_stream(pjmedia_vid_dev_factory *f,
     pj_assert(vfd->fps.num);
     strm->cap_ts_inc = PJMEDIA_SPF2(strm->param.clock_rate, &vfd->fps, 1);
 
+    /* Create dispatch queue */
+    strm->video_ops_queue = dispatch_queue_create("AVF Video Ops", DISPATCH_QUEUE_SERIAL);
+
     /* Create capture stream here */
     strm->status = PJ_SUCCESS;
-    run_func_on_main_thread(strm, init_avf_stream);
-    if ((status = strm->status) != PJ_SUCCESS)
-        goto on_error;
+    run_func_on_video_queue(strm, init_avf_stream);
+    status = strm->status;
+    if (status != PJ_SUCCESS) {
+        dispatch_release(strm->video_ops_queue);
+        avf_stream_destroy((pjmedia_vid_dev_stream *)strm);
+        return status;
+    }
 
     /* Update param as output */
     param->fmt = strm->param.fmt;
@@ -555,10 +561,6 @@ static pj_status_t avf_factory_create_stream(pjmedia_vid_dev_factory *f,
     *p_vid_strm = &strm->base;
 
     return PJ_SUCCESS;
-
-on_error:
-    avf_stream_destroy((pjmedia_vid_dev_stream *)strm);
-    return status;
 }
 
 /* API: Get stream info. */
@@ -623,7 +625,7 @@ static pj_status_t avf_stream_start(pjmedia_vid_dev_stream *strm)
     PJ_LOG(4, (THIS_FILE, "Starting avf video stream"));
 
     if (stream->cap_session) {
-        run_func_on_main_thread(stream, start_avf);
+        run_func_on_video_queue(stream, start_avf);
 	if (![stream->cap_session isRunning])
 	    return PJMEDIA_EVID_NOTREADY;
         stream->is_running = PJ_TRUE;
@@ -642,7 +644,7 @@ static pj_status_t avf_stream_stop(pjmedia_vid_dev_stream *strm)
     if (stream->cap_session && [stream->cap_session isRunning]) {
         int i;
         stream->cap_exited = PJ_FALSE;
-        run_func_on_main_thread(stream, stop_avf);
+        run_func_on_video_queue(stream, stop_avf);
         stream->is_running = PJ_FALSE;
         for (i = 50; i >= 0 && !stream->cap_exited; i--) {
             pj_thread_sleep(10);
@@ -682,8 +684,9 @@ static pj_status_t avf_stream_destroy(pjmedia_vid_dev_stream *strm)
     PJ_ASSERT_RETURN(stream != NULL, PJ_EINVAL);
 
     avf_stream_stop(strm);
-    run_func_on_main_thread(stream, destroy_avf);
+    run_func_on_video_queue(stream, destroy_avf);
 
+    dispatch_release(stream->video_ops_queue);
     pj_pool_release(stream->pool);
 
     return PJ_SUCCESS;
