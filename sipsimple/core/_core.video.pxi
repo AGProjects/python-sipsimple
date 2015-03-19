@@ -457,10 +457,9 @@ cdef class VideoCamera(VideoProducer):
                     pjmedia_vid_port_stop(self._video_port)
                     pjmedia_vid_port_disconnect(self._video_port)
                     pjmedia_vid_port_destroy(self._video_port)
+                    if self._video_tee != NULL:
+                        pjmedia_port_destroy(self._video_tee)
                 self._video_port = NULL
-            if self._video_tee != NULL:
-                with nogil:
-                    pjmedia_port_destroy(self._video_tee)
                 self._video_tee = NULL
         finally:
             with nogil:
