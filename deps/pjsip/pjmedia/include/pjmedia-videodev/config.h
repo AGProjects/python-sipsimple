@@ -113,17 +113,6 @@ PJ_BEGIN_DECL
 
 
 /**
- * This setting controls whether SDL support should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_SDL
-#   define PJMEDIA_VIDEO_DEV_HAS_SDL		0
-#   define PJMEDIA_VIDEO_DEV_SDL_HAS_OPENGL	0
-#endif
-
-
-/**
  * This setting controls whether AVFoundation support should be included.
  *
  * Default: 0 (or detected by configure)
@@ -201,17 +190,6 @@ PJ_BEGIN_DECL
 #   define PJMEDIA_VIDEO_DEV_HAS_FB		1
 #endif
 
-/**
- * Specify the SDL library name to be linked with Visual Studio project. 
- * By default, the name is autodetected based on SDL version ("sdl.lib" or 
- * "sdl2.lib"), but application may explicitly specify the library name if this 
- * autodetection fails. Common names are: "sdl2.lib" or "sdl.lib".
- *
- * Default: undeclared.
- */
-#ifndef PJMEDIA_SDL_LIB
-#   undef PJMEDIA_SDL_LIB
-#endif
 
 #endif /* defined(PJMEDIA_HAS_VIDEO) && (PJMEDIA_HAS_VIDEO != 0) */
 

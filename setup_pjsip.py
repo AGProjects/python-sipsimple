@@ -47,7 +47,6 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 262144",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
-                   "#define PJMEDIA_HAS_L16_CODEC 0",
                    "#define PJMEDIA_AUDIO_DEV_HAS_COREAUDIO %d" % (1 if sys_platform=="darwin" else 0),
                    "#define PJMEDIA_AUDIO_DEV_HAS_ALSA %d" % (1 if sys_platform=="linux" else 0),
                    "#define PJMEDIA_AUDIO_DEV_HAS_WMME %d" % (1 if sys_platform=="win32" else 0),
@@ -166,8 +165,7 @@ class PJSIP_build_ext(build_ext):
             cmd = ["bash", "configure"]
         else:
             cmd = ["./configure"]
-        # TODO: remove these from the actual source tree -Saul
-        cmd.extend(["--disable-sdl", "--disable-silk", "--disable-opencore-amr", "--disable-g7221-codec", "--disable-l16-codec"])
+        cmd.extend(["--disable-g7221-codec"])
         video_libraries_path = env.get("SIPSIMPLE_FFMPEG_PATH", None)
         if video_libraries_path is not None:
             cmd.append("--with-ffmpeg=%s" % os.path.abspath(os.path.expanduser(video_libraries_path)))

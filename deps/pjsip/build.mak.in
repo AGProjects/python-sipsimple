@@ -73,13 +73,6 @@ APP_THIRD_PARTY_LIBS += -lg7221codec-$(TARGET_NAME)
 APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libg7221codec-$(LIB_SUFFIX)
 endif
 
-ifneq ($(findstring pa,@ac_pjmedia_snd@),)
-ifeq (@ac_external_pa@,1)
-# External PA
-APP_THIRD_PARTY_EXT += -lportaudio
-endif
-endif
-
 # Additional flags
 @ac_build_mak_vars@
 
@@ -87,10 +80,6 @@ endif
 # Video
 # Note: there are duplicated macros in pjmedia/os-auto.mak.in (and that's not
 #       good!
-
-# SDL flags
-SDL_CFLAGS = @ac_sdl_cflags@
-SDL_LDFLAGS = @ac_sdl_ldflags@
 
 # FFMPEG flags
 FFMPEG_CFLAGS = @ac_ffmpeg_cflags@ 
@@ -121,9 +110,9 @@ LIBYUV_CFLAGS = @ac_libyuv_cflags@
 LIBYUV_LDFLAGS =  @ac_libyuv_ldflags@
 
 # PJMEDIA features exclusion
-PJ_VIDEO_CFLAGS += $(SDL_CFLAGS) $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(AVF_CFLAGS) \
+PJ_VIDEO_CFLAGS += $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(AVF_CFLAGS) \
 		   $(OPENH264_CFLAGS) $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS)
-PJ_VIDEO_LDFLAGS += $(SDL_LDFLAGS) $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) \
+PJ_VIDEO_LDFLAGS += $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) \
                    $(OPENH264_LDFLAGS) $(DSHOW_LDFLAGS) $(LIBYUV_LDFLAGS)
 
 

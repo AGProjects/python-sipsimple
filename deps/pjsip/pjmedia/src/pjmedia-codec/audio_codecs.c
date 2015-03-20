@@ -86,40 +86,12 @@ pjmedia_codec_register_audio_codecs(pjmedia_endpt *endpt,
 	return status;
 #endif  /* PJMEDIA_HAS_G722_CODEC */
 
-#if PJMEDIA_HAS_INTEL_IPP
-    /* Register IPP codecs */
-    status = pjmedia_codec_ipp_init(endpt);
-    if (status != PJ_SUCCESS)
-	return status;
-#endif /* PJMEDIA_HAS_INTEL_IPP */
-
 #if PJMEDIA_HAS_G7221_CODEC
     /* Register G722.1 codecs */
     status = pjmedia_codec_g7221_init(endpt);
     if (status != PJ_SUCCESS)
 	return status;
 #endif /* PJMEDIA_HAS_G7221_CODEC */
-
-#if PJMEDIA_HAS_L16_CODEC
-    /* Register L16 family codecs */
-    status = pjmedia_codec_l16_init(endpt, 0);
-    if (status != PJ_SUCCESS)
-	return status;
-#endif	/* PJMEDIA_HAS_L16_CODEC */
-
-#if PJMEDIA_HAS_OPENCORE_AMRNB_CODEC || PJMEDIA_HAS_OPENCORE_AMRWB_CODEC
-    /* Register OpenCORE AMR */
-    status = pjmedia_codec_opencore_amr_init(endpt, 0);
-    if (status != PJ_SUCCESS)
-	return status;
-#endif
-
-#if PJMEDIA_HAS_SILK_CODEC
-    /* Register SILK */
-    status = pjmedia_codec_silk_init(endpt);
-    if (status != PJ_SUCCESS)
-	return status;
-#endif
 
 #if PJMEDIA_HAS_OPUS_CODEC
     /* Register opus codecs */

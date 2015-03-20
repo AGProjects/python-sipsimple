@@ -31,27 +31,16 @@
  *	including the setting as detected by autoconf. 
  */
  
-/* L16 codec */
-#ifndef PJMEDIA_HAS_L16_CODEC
-#undef PJMEDIA_HAS_L16_CODEC
-#endif
-
 
 /* GSM codec */
 #ifndef PJMEDIA_HAS_GSM_CODEC
 #undef PJMEDIA_HAS_GSM_CODEC
 #endif
 
-#undef PJMEDIA_EXTERNAL_GSM_CODEC
-#undef PJMEDIA_EXTERNAL_GSM_GSM_H
-#undef PJMEDIA_EXTERNAL_GSM_H
-
 /* Speex codec */
 #ifndef PJMEDIA_HAS_SPEEX_CODEC
 #undef PJMEDIA_HAS_SPEEX_CODEC
 #endif
-
-#undef PJMEDIA_EXTERNAL_SPEEX_CODEC
 
 /* iLBC codec */
 #ifndef PJMEDIA_HAS_ILBC_CODEC
@@ -67,21 +56,6 @@
 /* G7221 codec */
 #ifndef PJMEDIA_HAS_G7221_CODEC
 #undef PJMEDIA_HAS_G7221_CODEC
-#endif
-
-/* OpenCORE AMR-NB codec */
-#ifndef PJMEDIA_HAS_OPENCORE_AMRNB_CODEC
-#undef PJMEDIA_HAS_OPENCORE_AMRNB_CODEC
-#endif
-
-/* OpenCORE AMR-WB codec */
-#ifndef PJMEDIA_HAS_OPENCORE_AMRWB_CODEC
-#undef PJMEDIA_HAS_OPENCORE_AMRWB_CODEC
-#endif
-
-/* SILK codec */
-#ifndef PJMEDIA_HAS_SILK_CODEC
-#undef PJMEDIA_HAS_SILK_CODEC
 #endif
 
 #endif	/* __PJMEDIA_CODEC_CONFIG_AUTO_H_ */
