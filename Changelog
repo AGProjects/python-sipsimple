@@ -1,3 +1,43 @@
+python-sipsimple (2.3.1) unstable; urgency=medium
+
+  * Report sent but unconfirmed chat messages as not delivered
+  * Don't stop and start video ports when accessing the tee
+  * Compile PJSIP with -fno-omit-frame-pointer
+  * Updated Windows compilation instructions
+  * pjsip: fix compilation of ZRTP library on Windows
+  * pjsip: don't run AVFoundation functions in the main thread
+  * pjsip: make the video tee thread-safe
+  * pjsip: remove tons of unneeded code
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 25 Mar 2015 12:40:20 +0100
+
+python-sipsimple (2.3.0) unstable; urgency=medium
+
+  * Added ZRTP support
+  * Add setting for opportunistic SRTP encryption
+  * Fix Opus SDP encoding
+  * Reject video streams without a profile-level-id attribute
+  * Renamed RTP stream related notifications
+  * Renamed audio stream recording related notifications
+  * Fix setting FFmpeg libraries path in some cases on OSX
+  * Fix posting ICE state change notifications
+  * Fix sending initial keyframes when ICE is used
+  * Run _send_keyframes on the Twisted thread
+  * Add ability to override the sender for chat messages
+  * pjsip: fix rendering on OSX
+  * pjsip: avoid crashes on OSX if video size changes
+  * Work around issue with the RTP transport lock being hold for too long
+  * Stop the VideoTransport in the device-io thread
+  * Removed caching of statistics on the RTP transports when stopping
+  * Fix draining the message queue in ChatStream
+  * Post SIPApplicationWillStart before starting the core
+  * Make SIPApplication start / stop consistent
+  * Fix race conditions when handling SIPApplication.state
+  * Avoid exceptions when un-pickling XCAP journal
+  * Add chatroom_capabilities property to ChatStream
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 17 Mar 2015 09:27:02 +0100
+
 python-sipsimple (2.2.0) unstable; urgency=medium
 
   * Make sure ICE status change notification is only sent while waiting for it

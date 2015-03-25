@@ -1,3 +1,16 @@
+python-sipsimple (2.3.1) unstable; urgency=medium
+
+  * Report sent but unconfirmed chat messages as not delivered
+  * Don't stop and start video ports when accessing the tee
+  * Compile PJSIP with -fno-omit-frame-pointer
+  * Updated Windows compilation instructions
+  * pjsip: fix compilation of ZRTP library on Windows
+  * pjsip: don't run AVFoundation functions in the main thread
+  * pjsip: make the video tee thread-safe
+  * pjsip: remove tons of unneeded code
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 25 Mar 2015 12:40:20 +0100
+
 python-sipsimple (2.3.0) unstable; urgency=medium
 
   * Added ZRTP support
