@@ -557,6 +557,10 @@ class ChatStream(MSRPStreamBase):
                         notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
         finally:
             self.message_queue_thread = None
+            while self.sent_messages:
+                message_id = self.sent_messages.pop()
+                data = NotificationData(message_id=message_id, message=None, code=0, reason='Stream ended')
+                notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
             message_queue, self.message_queue = self.message_queue, queue()
             while message_queue:
                 message = message_queue.wait()
