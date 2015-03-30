@@ -10,7 +10,7 @@ from application.python import Null
 from application.python.decorator import decorator, preserve_signature
 from application.python.queue import EventQueue
 from application.python.types import Singleton
-from threading import Lock, currentThread
+from threading import Lock, current_thread
 from twisted.python import threadable
 
 
@@ -36,7 +36,7 @@ class ThreadManager(object):
         try:
             event.function(*event.args, **event.kw)
         except:
-            log.error('Exception occured while calling %r in the %r thread' % (event.function, currentThread().getName()))
+            log.error('Exception occured while calling %r in the %r thread' % (event.function, current_thread().name))
             log.err()
 
     def start(self):
@@ -75,7 +75,7 @@ def run_in_thread(thread_id):
         def wrapper(*args, **kw):
             thread_manager = ThreadManager()
             thread = thread_manager.get_thread(thread_id)
-            if thread is currentThread():
+            if thread is current_thread():
                 function(*args, **kw)
             else:
                 thread.put(CallFunctionEvent(function, args, kw))
@@ -86,7 +86,7 @@ def run_in_thread(thread_id):
 def call_in_thread(thread_id, function, *args, **kw):
     thread_manager = ThreadManager()
     thread = thread_manager.get_thread(thread_id)
-    if thread is currentThread():
+    if thread is current_thread():
         function(*args, **kw)
     else:
         thread.put(CallFunctionEvent(function, args, kw))
