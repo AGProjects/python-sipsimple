@@ -15,6 +15,8 @@ from twisted.python import threadable
 
 
 class CallFunctionEvent(object):
+    __slots__ = ('function', 'args', 'kw')
+
     def __init__(self, function, args, kw):
         self.function = function
         self.args = args
