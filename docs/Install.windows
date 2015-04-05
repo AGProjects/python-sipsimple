@@ -14,6 +14,11 @@ operating systems. Supported versions are Windows XP or higher.
 Step 1. Prerequisites
 ---------------------
 
+
+First download and install darcs version control utility from darcs.net:
+
+http://darcs.net/binaries/windows/darcs-2.8.1-win1.msi
+
 The building process is designed to work with the MSYS2 environment and the
 MinGW-w64 compiler toolchain. Other approaches might work but they are not
 tested nor supported.
@@ -98,19 +103,12 @@ mingw-w64-dshow-baseclasses
 Step 3. Install SIP SIMPLE client SDK
 -------------------------------------
 
-Before we can install the SDK we'll need to install darcs, since some
-packages need to be installed with it.
-
-* Download the installer from darcs.net: http://darcs.net/binaries/windows/darcs-2.8.1-win1.msi
-* Install Darcs and add the directory to the system path
-
-
 The SDK consists of four parts:
 
  1. python-eventlib
  2. XCAP library
  3. MSRP library
- 4. SIP SIMPLE library
+ 4. SIP SIMPLE library itself
 
 Make sure that the path where you download the software below does not
 contain any space in its name.
