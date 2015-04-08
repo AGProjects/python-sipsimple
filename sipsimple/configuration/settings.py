@@ -57,7 +57,7 @@ class ScreenSharingSettings(SettingsGroup):
 
 
 class FileTransferSettings(SettingsGroup):
-    pass
+    directory = Setting(type=Path, default=Path('~/Downloads'))
 
 
 class LogsSettings(SettingsGroup):

@@ -13,19 +13,25 @@ Sharing and handling of the actual media streams.
 __all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'ScreenSharingHandler',
            'ScreenSharingServerHandler', 'ScreenSharingViewerHandler', 'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler']
 
+import errno
 import hashlib
 import mimetypes
 import os
 import random
 import re
+import sys
 import uuid
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.python.descriptor import WriteOnceAttribute
+from application.python.threadpool import ThreadPool, run_in_threadpool
 from application.python.types import MarkerType
-from application.system import host
+from application.system import host, makedirs, unlink
 from functools import partial
+from itertools import count
+from Queue import Queue
+from threading import Event
 from twisted.internet.error import ConnectionDone
 from zope.interface import implements
 
@@ -36,7 +42,7 @@ from eventlib.proc import spawn, ProcExit
 from eventlib.util import tcp_socket, set_reuse_addr
 from msrplib.connect import DirectConnector, DirectAcceptor, RelayConnection, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, UseNicknameHeader, parse_uri
-from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
+from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account, BonjourAccount
@@ -636,7 +642,6 @@ class ChatStream(MSRPStreamBase):
 # File transfer
 #
 
-class ComputeHash: __metaclass__ = MarkerType
 class RandomID:    __metaclass__ = MarkerType
 
 
@@ -682,15 +687,16 @@ class FileSelector(object):
         size_match = cls._size_re.search(string)
         type_match = cls._type_re.search(string)
         hash_match = cls._hash_re.search(string)
-        name = name_match and name_match.group(1)
+        name = name_match and name_match.group(1).decode('utf-8')
         size = size_match and int(size_match.group(1))
         type = type_match and type_match.group(1)
         hash = hash_match and hash_match.group(1)
         return cls(name, type, size, hash)
 
     @classmethod
-    def for_file(cls, path, type=None, hash=ComputeHash):
-        fd = open(path, 'rb')
+    def for_file(cls, path, type=None, hash=None):
+        path = unicode(path)
+        fd = open(path.encode(sys.getfilesystemencoding()), 'rb')
         name = os.path.basename(path)
         size = os.fstat(fd.fileno()).st_size
         if type is None:
@@ -701,22 +707,42 @@ class FileSelector(object):
                 type = mime_type
             else:
                 type = 'application/octet-stream'
-        if hash is ComputeHash:
-            sha1 = hashlib.sha1()
-            while True:
-                content = fd.read(65536)
-                if not content:
-                    break
-                sha1.update(content)
-            fd.seek(0)
-            # unexpected as it may be, using a regular expression is the fastest method to do this
-            hash = 'sha1:' + ':'.join(cls._byte_re.findall(sha1.hexdigest().upper()))
         return cls(name, type, size, hash, fd)
 
     @property
     def sdp_repr(self):
-        items = [('name', self.name and '"%s"' % self.name), ('type', self.type), ('size', self.size), ('hash', self.hash)]
+        items = [('name', self.name and '"%s"' % self.name.encode('utf-8')), ('type', self.type), ('size', self.size), ('hash', self.hash)]
         return ' '.join('%s:%s' % (name, value) for name, value in items if value is not None)
+
+
+class OutgoingFileInfo(object):
+    def __init__(self, content_type):
+        self.stop_event = Event()
+        self.message_id = '%x' % random.getrandbits(64)
+        self.offset = 0
+        self.headers = {ContentTypeHeader.name: ContentTypeHeader(content_type),
+                        SuccessReportHeader.name: SuccessReportHeader('yes'),
+                        FailureReportHeader.name: FailureReportHeader('yes')}
+
+
+class IncomingFileInfo(object):
+    def __init__(self, filename):
+        self.filename = filename
+        self.hash = hashlib.sha1()
+        self.queue = Queue()
+        self.offset = 0
+
+
+class UniqueFilenameGenerator(object):
+    @classmethod
+    def generate(cls, name):
+        yield name
+        prefix, extension = os.path.splitext(name)
+        for x in count(1):
+            yield "%s-%d%s" % (prefix, x, extension)
+
+
+class EndTransfer:    __metaclass__ = MarkerType
 
 
 class FileTransferStream(MSRPStreamBase):
@@ -726,7 +752,13 @@ class FileTransferStream(MSRPStreamBase):
 
     media_type = 'message'
     accept_types = ['*']
-    accept_wrapped_types = ['*']
+    accept_wrapped_types = None
+
+    threadpool = ThreadPool(name='FileTransfers', min_threads=0, max_threads=100)
+    threadpool.start()
+
+    file_part_size = 64*1024
+    tmp_file_suffix = u'.download'
 
     def __init__(self, file_selector, direction, transfer_id=RandomID):
         if direction not in ('sendonly', 'recvonly'):
@@ -734,6 +766,8 @@ class FileTransferStream(MSRPStreamBase):
         super(FileTransferStream, self).__init__(direction=direction)
         self.file_selector = file_selector
         self.transfer_id = transfer_id if transfer_id is not RandomID else str(uuid.uuid4())
+        self.outgoing_file_info = None
+        self.incoming_file_info = None
 
     @classmethod
     def new_from_sdp(cls, session, remote_sdp, stream_index):
@@ -757,11 +791,42 @@ class FileTransferStream(MSRPStreamBase):
         return stream
 
     def initialize(self, session, direction):
-        if self.direction == 'sendonly' and self.file_selector.fd is None:
-            notification_center = NotificationCenter()
-            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='file descriptor not specified'))
-            return
+        notification_center = NotificationCenter()
+        if self.direction == 'sendonly':
+            if self.file_selector.fd is None:
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='file descriptor not specified'))
+                return
+            if self.file_selector.size == 0:
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='file is empty'))
+                return
+            self.outgoing_file_info = OutgoingFileInfo(self.file_selector.type)
+            if self.file_selector.hash is None:
+                self._calculate_file_hash(session, direction)
+                return
+        else:
+            try:
+                settings = SIPSimpleSettings()
+                directory = settings.file_transfer.directory.normalized
+                makedirs(directory)
+                filename = os.path.basename(self.file_selector.name)
+                for name in UniqueFilenameGenerator.generate(os.path.join(directory, filename)):
+                    if not os.path.exists(name) and not os.path.exists(name + self.tmp_file_suffix):
+                        filename = name+self.tmp_file_suffix
+                        break
+                self.file_selector.name = filename
+                self.file_selector.fd = open(filename.encode(sys.getfilesystemencoding()), 'wb+')
+            except Exception, e:
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
+                return
+            self.incoming_file_info = IncomingFileInfo(filename)
         super(FileTransferStream, self).initialize(session, direction)
+
+    def deactivate(self):
+        super(FileTransferStream, self).deactivate()
+        if self.outgoing_file_info is not None:
+            self.outgoing_file_info.stop_event.set()
+        elif self.incoming_file_info is not None:
+            self.incoming_file_info.queue.put(EndTransfer)
 
     def _create_local_media(self, uri_path):
         local_media = super(FileTransferStream, self)._create_local_media(uri_path)
@@ -770,27 +835,141 @@ class FileTransferStream(MSRPStreamBase):
             local_media.attributes.append(SDPAttribute('file-transfer-id', self.transfer_id))
         return local_media
 
+    @run_in_threadpool(threadpool)
+    def _calculate_file_hash(self, session, direction):
+        sha1 = hashlib.sha1()
+        processed = 0
+
+        notification_center = NotificationCenter()
+        notification_center.post_notification('FileTransferStreamHashProgress', sender=self, data=NotificationData(processed=0, total=self.file_selector.size))
+
+        while not self.outgoing_file_info.stop_event.is_set():
+            try:
+                content = self.file_selector.fd.read(self.file_part_size)
+            except EnvironmentError, e:
+                self.file_selector.fd.close()
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
+                return
+            if not content:
+                # unexpected as it may be, using a regular expression is the fastest method to do this
+                self.file_selector.hash = 'sha1:' + ':'.join(FileSelector._byte_re.findall(sha1.hexdigest().upper()))
+                self._initialize_finish(session, direction)
+                break
+            sha1.update(content)
+            processed += len(content)
+            notification_center.post_notification('FileTransferStreamHashProgress', sender=self, data=NotificationData(processed=processed, total=self.file_selector.size))
+
+    @run_in_green_thread
+    def _initialize_finish(self, session, direction):
+        assert self.direction == 'sendonly'
+        if self.outgoing_file_info.stop_event.is_set():
+            self.file_selector.fd.close()
+            return
+        super(FileTransferStream, self).initialize(session, direction)
+
+    @run_in_threadpool(threadpool)
+    def _process_outgoing_file(self):
+        self.file_selector.fd.seek(self.outgoing_file_info.offset)
+        while not self.outgoing_file_info.stop_event.is_set():
+            data = self.file_selector.fd.read(self.file_part_size)
+            if not data:
+                break
+            self._send_chunk(data)
+        self.file_selector.fd.close()
+
+    def _on_transaction_response(self, response):
+        if self.outgoing_file_info.stop_event.is_set():
+            return
+        if response.code != 200:
+            self._failure_reason = response.comment
+            notification_center = NotificationCenter()
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
+            self.outgoing_file_info.stop_event.set()
+
+    @run_in_twisted_thread
+    def _send_chunk(self, data):
+        if self.outgoing_file_info.stop_event.is_set():
+            return
+        data_len = len(data)
+        chunk = self.msrp.make_chunk(data=data,
+                                     start=self.outgoing_file_info.offset+1,
+                                     end=self.outgoing_file_info.offset+data_len,
+                                     length=self.file_selector.size,
+                                     message_id=self.outgoing_file_info.message_id)
+        chunk.headers.update(self.outgoing_file_info.headers)
+        self.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
+        self.outgoing_file_info.offset += data_len
+
+    @run_in_threadpool(threadpool)
+    def _process_incoming_file(self):
+        try:
+            notification_center = NotificationCenter()
+            while True:
+                chunk = self.incoming_file_info.queue.get()
+                if chunk is EndTransfer:
+                    break
+                try:
+                    self.file_selector.fd.write(chunk.data)
+                except EnvironmentError, e:
+                    notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason=str(e)))
+                    return
+                self.incoming_file_info.hash.update(chunk.data)
+                self.incoming_file_info.offset += chunk.size
+        finally:
+            self.file_selector.fd.close()
+
+        # Transfer is finished
+
+        if self.incoming_file_info.offset != self.file_selector.size:
+            notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason='Incomplete file'))
+            return
+        local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.incoming_file_info.hash.hexdigest()))
+        remote_hash = self.file_selector.hash.lower()
+        if local_hash != remote_hash:
+            unlink(self.incoming_file_info.filename)
+            notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason='File hash mismatch'))
+            return
+        filename = os.path.splitext(self.incoming_file_info.filename)[0]
+        for fname in UniqueFilenameGenerator.generate(filename):
+            try:
+                os.rename(self.incoming_file_info.filename, fname)
+            except OSError, e:
+                if e.args[0] == errno.EEXIST:
+                    continue
+                unlink(self.incoming_file_info.filename)
+                notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason=str(e)))
+                return
+            break
+        notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=False, reason=None))
+
+    @run_in_twisted_thread
+    def _NH_FileTransferDidFinish(self, notification):
+        if notification.data.error and not self._done:
+            self._failure_reason = notification.data.reason
+            notification.center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='receiving', reason=self._failure_reason))
+
     def _NH_MediaStreamDidStart(self, notification):
         if self.direction == 'sendonly':
-            outgoing_file = OutgoingFile(self.file_selector.fd, self.file_selector.size, content_type=self.file_selector.type)
-            outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
-            outgoing_file.headers['Failure-Report'] = FailureReportHeader('yes')
-            self.msrp_session.send_file(outgoing_file)
+            self._process_outgoing_file()
+        else:
+            self._process_incoming_file()
+
+    def _NH_MediaStreamDidEnd(self, notification):
+        self.threadpool.compact()
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
         notification_center = NotificationCenter()
-        data = NotificationData(message_id=chunk.message_id, chunk=chunk, code=chunk.status.code, reason=chunk.status.comment)
         if chunk.status.code == 200:
-            # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
-            # only works as long as chunks are delivered in order. -Luci
-            data.transferred_bytes = chunk.byte_range[1]
-            data.file_size = chunk.byte_range[2]
-            notification_center.post_notification('FileTransferStreamDidDeliverChunk', sender=self, data=data)
-            if data.transferred_bytes == data.file_size:
-                notification_center.post_notification('FileTransferStreamDidFinish', sender=self)
+            transferred_bytes = chunk.byte_range[1]
+            total_bytes = chunk.byte_range[2]
+            notification_center.post_notification('FileTransferStreamProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
+            if transferred_bytes == total_bytes:
+                notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=False, reason=None))
         else:
-            notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', sender=self, data=data)
+            self._failure_reason = chunk.status.comment
+            notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
+            self.outgoing_file_info.stop_event.set()
 
     def _handle_SEND(self, chunk):
         notification_center = NotificationCenter()
@@ -807,13 +986,16 @@ class FileTransferStream(MSRPStreamBase):
             self._failure_reason = "CPIM wrapper is not supported"
             notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='reading', reason=self._failure_reason))
             return
-        self.msrp_session.send_report(chunk, 200, 'OK')
-        # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
-        # only works as long as chunks are delivered in order. -Luci
-        ndata = NotificationData(content=chunk.data, content_type=chunk.content_type, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
-        notification_center.post_notification('FileTransferStreamGotChunk', sender=self, data=ndata)
-        if ndata.transferred_bytes == ndata.file_size:
-            notification_center.post_notification('FileTransferStreamDidFinish', sender=self)
+        try:
+            self.msrp_session.send_report(chunk, 200, 'OK')
+        except Exception:
+            pass    # Best effort approach: even if we couldn't send the REPORT keep writing the chunks, we might have them all -Saul
+        self.incoming_file_info.queue.put(chunk)
+        transferred_bytes = chunk.byte_range[0] + chunk.size - 1
+        total_bytes = self.file_selector.size = chunk.byte_range[2]
+        notification_center.post_notification('FileTransferStreamProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
+        if transferred_bytes == total_bytes:
+            self.incoming_file_info.queue.put(EndTransfer)
 
 
 # Screen sharing
