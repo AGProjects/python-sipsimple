@@ -841,7 +841,7 @@ class FileTransferStream(MSRPStreamBase):
         processed = 0
 
         notification_center = NotificationCenter()
-        notification_center.post_notification('FileTransferStreamHashProgress', sender=self, data=NotificationData(processed=0, total=self.file_selector.size))
+        notification_center.post_notification('FileTransferHashProgress', sender=self, data=NotificationData(processed=0, total=self.file_selector.size))
 
         while not self.outgoing_file_info.stop_event.is_set():
             try:
@@ -857,7 +857,7 @@ class FileTransferStream(MSRPStreamBase):
                 break
             sha1.update(content)
             processed += len(content)
-            notification_center.post_notification('FileTransferStreamHashProgress', sender=self, data=NotificationData(processed=processed, total=self.file_selector.size))
+            notification_center.post_notification('FileTransferHashProgress', sender=self, data=NotificationData(processed=processed, total=self.file_selector.size))
 
     @run_in_green_thread
     def _initialize_finish(self, session, direction):
@@ -911,7 +911,7 @@ class FileTransferStream(MSRPStreamBase):
                 try:
                     self.file_selector.fd.write(chunk.data)
                 except EnvironmentError, e:
-                    notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason=str(e)))
+                    notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=True, reason=str(e)))
                     return
                 self.incoming_file_info.hash.update(chunk.data)
                 self.incoming_file_info.offset += chunk.size
@@ -921,13 +921,13 @@ class FileTransferStream(MSRPStreamBase):
         # Transfer is finished
 
         if self.incoming_file_info.offset != self.file_selector.size:
-            notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason='Incomplete file'))
+            notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=True, reason='Incomplete file'))
             return
         local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.incoming_file_info.hash.hexdigest()))
         remote_hash = self.file_selector.hash.lower()
         if local_hash != remote_hash:
             unlink(self.incoming_file_info.filename)
-            notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason='File hash mismatch'))
+            notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=True, reason='File hash mismatch'))
             return
         filename = os.path.splitext(self.incoming_file_info.filename)[0]
         for fname in UniqueFilenameGenerator.generate(filename):
@@ -937,13 +937,13 @@ class FileTransferStream(MSRPStreamBase):
                 if e.args[0] == errno.EEXIST:
                     continue
                 unlink(self.incoming_file_info.filename)
-                notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=True, reason=str(e)))
+                notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=True, reason=str(e)))
                 return
             break
-        notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=False, reason=None))
+        notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=False, reason=None))
 
     @run_in_twisted_thread
-    def _NH_FileTransferDidFinishTransfer(self, notification):
+    def _NH_FileTransferDidEnd(self, notification):
         if notification.data.error and not self._done:
             self._failure_reason = notification.data.reason
             notification.center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='receiving', reason=self._failure_reason))
@@ -963,9 +963,9 @@ class FileTransferStream(MSRPStreamBase):
         if chunk.status.code == 200:
             transferred_bytes = chunk.byte_range[1]
             total_bytes = chunk.byte_range[2]
-            notification_center.post_notification('FileTransferStreamProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
+            notification_center.post_notification('FileTransferProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
             if transferred_bytes == total_bytes:
-                notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=False, reason=None))
+                notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=False, reason=None))
         else:
             self._failure_reason = chunk.status.comment
             notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
@@ -993,7 +993,7 @@ class FileTransferStream(MSRPStreamBase):
         self.incoming_file_info.queue.put(chunk)
         transferred_bytes = chunk.byte_range[0] + chunk.size - 1
         total_bytes = self.file_selector.size = chunk.byte_range[2]
-        notification_center.post_notification('FileTransferStreamProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
+        notification_center.post_notification('FileTransferProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
         if transferred_bytes == total_bytes:
             self.incoming_file_info.queue.put(EndTransfer)
 
