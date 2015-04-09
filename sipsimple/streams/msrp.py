@@ -943,7 +943,7 @@ class FileTransferStream(MSRPStreamBase):
         notification_center.post_notification('FileTransferStreamDidFinishTransfer', sender=self, data=NotificationData(error=False, reason=None))
 
     @run_in_twisted_thread
-    def _NH_FileTransferDidFinish(self, notification):
+    def _NH_FileTransferDidFinishTransfer(self, notification):
         if notification.data.error and not self._done:
             self._failure_reason = notification.data.reason
             notification.center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='receiving', reason=self._failure_reason))
