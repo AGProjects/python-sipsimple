@@ -931,14 +931,15 @@ class FileTransferStream(MSRPStreamBase):
             return
         filename = os.path.splitext(self.incoming_file_info.filename)[0]
         for fname in UniqueFilenameGenerator.generate(filename):
+            if os.path.exists(fname):
+                continue
             try:
                 os.rename(self.incoming_file_info.filename, fname)
-            except OSError, e:
-                if e.args[0] == errno.EEXIST:
-                    continue
+            except OSError:
                 unlink(self.incoming_file_info.filename)
                 notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=True, reason=str(e)))
                 return
+            self.file_selector.name = fname
             break
         notification_center.post_notification('FileTransferDidEnd', sender=self, data=NotificationData(error=False, reason=None))
 
