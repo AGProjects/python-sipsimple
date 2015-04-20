@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import
 
-__all__ = ["All", "Any", "ExponentialTimer", "ISOTimestamp", "MultilingualText", "user_info"]
+__all__ = ["All", "Any", "ExponentialTimer", "ISOTimestamp", "MultilingualText", "user_info", "sha1"]
 
 import os
 import platform
@@ -17,6 +17,8 @@ from application.python.types import Singleton, MarkerType
 from datetime import datetime
 from dateutil.tz import tzlocal, tzutc
 from twisted.internet import reactor
+
+from sipsimple.util._sha1 import sha1
 
 
 # Utility classes

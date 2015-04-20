@@ -209,6 +209,7 @@ class PJSIP_build_ext(build_ext):
         self.libraries = extension.depends[:]
 
     def cython_sources(self, sources, extension):
+        log.info("Compiling Cython extension %s" % extension.name)
         if extension.name == "sipsimple.core._core":
             self.check_cython_version()
             self.build_dir = os.path.join(self.build_temp, "pjsip")

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from Cython.Build import cythonize
 from distutils.core import setup
 from distutils.extension import Extension
 import os
@@ -10,6 +11,7 @@ import sipsimple
 
 def find_packages(toplevel):
     return [directory.replace(os.path.sep, '.') for directory, subdirs, files in os.walk(toplevel) if '__init__.py' in files]
+
 
 setup(name         = "python-sipsimple",
       version      = sipsimple.__version__,
@@ -30,10 +32,11 @@ setup(name         = "python-sipsimple",
       package_data = {
           'sipsimple.payloads' : ['xml-schemas/*']
       },
-      ext_modules  = [
-            Extension(name = "sipsimple.core._core",
-            sources = ["sipsimple/core/_core.pyx", "sipsimple/core/_core.pxd"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi")))
-            ],
+      ext_modules  = cythonize(
+            [Extension(name = "sipsimple.core._core",
+                       sources = ["sipsimple/core/_core.pyx", "sipsimple/core/_core.pxd"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi"))),
+             Extension("sipsimple.util._sha1", ["sipsimple/util/sha1_impl.c", "sipsimple/util/_sha1.pyx"])
+            ]),
       cmdclass = {
             'build_ext': PJSIP_build_ext
       }
