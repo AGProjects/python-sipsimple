@@ -3,7 +3,7 @@
 
 """Definitions and implementations of storage backends"""
 
-__all__ = ['ISIPSimpleStorage', 'FileStorage', 'MemoryStorage']
+__all__ = ['ISIPSimpleStorage', 'ISIPSimpleApplicationDataStorage', 'FileStorage', 'MemoryStorage']
 
 import os
 
@@ -23,10 +23,16 @@ class ISIPSimpleStorage(Interface):
     xcap_storage_factory  = Attribute("The factory used to create XCAP storage backends for each account")
 
 
+class ISIPSimpleApplicationDataStorage(Interface):
+    """Interface describing the directory used for application data storage """
+
+    directory = Attribute("The directory used for application data")
+
+
 class FileStorage(object):
     """Store/read SIP Simple data to/from files"""
 
-    implements(ISIPSimpleStorage)
+    implements(ISIPSimpleStorage, ISIPSimpleApplicationDataStorage)
 
     def __init__(self, directory):
         self.configuration_backend = ConfigurationFileBackend(os.path.join(directory, 'config'))
