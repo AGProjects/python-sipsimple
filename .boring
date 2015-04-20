@@ -11,7 +11,10 @@
 ^build($|/)
 (^|/)dist($|/)
 (^|/)sipsimple/core/_core.c$
+(^|/)sipsimple/util/_sha1.c$
+(^|/)tags($|/)
 (^|/)test($|/)
+(^|/).idea($|/)
 (^|/)\.komodotools($|/)
 (^|/)\autom4te.cache($|/)
 ^MANIFEST$
