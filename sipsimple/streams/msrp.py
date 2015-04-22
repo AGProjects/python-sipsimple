@@ -1256,7 +1256,7 @@ class FileTransferStream(MSRPStreamBase):
 
     @run_in_twisted_thread
     def _NH_FileTransferHandlerError(self, notification):
-        self._failure_reason = notification.data.reason
+        self._failure_reason = notification.data.error
         notification.center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='transferring', reason=self._failure_reason))
 
     def _NH_MediaStreamDidNotInitialize(self, notification):
