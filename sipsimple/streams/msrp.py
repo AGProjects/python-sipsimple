@@ -745,6 +745,8 @@ class FileMetadataEntry(object):
 
 
 class FileTransfersMetadata(object):
+    __filename__ = 'transfer_metadata'
+
     def __init__(self):
         self.data = {}
         self.lock = Lock()
@@ -759,7 +761,7 @@ class FileTransfersMetadata(object):
             self.directory = SIPApplication.storage.directory
         if self.directory is not None:
             try:
-                with open(os.path.join(self.directory, 'file_transfers'), 'rb') as f:
+                with open(os.path.join(self.directory, self.__filename__), 'rb') as f:
                     data = pickle.loads(f.read())
             except Exception:
                 data = {}
@@ -779,7 +781,7 @@ class FileTransfersMetadata(object):
     @run_in_thread('file-io')
     def _save(self, data):
         if self.directory is not None:
-            with open(os.path.join(self.directory, 'file_transfers'), 'wb') as f:
+            with open(os.path.join(self.directory, self.__filename__), 'wb') as f:
                 f.write(data)
 
     def __enter__(self):
