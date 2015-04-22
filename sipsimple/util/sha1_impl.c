@@ -230,7 +230,7 @@ void SHA1_Update(SHA1_CTX* context, const uint8_t* data, const size_t len)
         length -= SHA1_BLOCK_SIZE;
     }
     memcpy(context->block, data, length);
-    context->index += length;
+    context->index = length;
 }
 
 
