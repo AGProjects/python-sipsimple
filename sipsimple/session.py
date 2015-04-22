@@ -1951,8 +1951,22 @@ class Session(object):
             api.kill(self.greenlet, api.GreenletExit())
         self.greenlet = None
         notification_center = NotificationCenter()
-        if self._invitation is None or self._invitation.state is None:
+        if self._invitation is None:
             # The invitation was not yet constructed
+            self.state = 'terminated'
+            notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
+            return
+        elif self._invitation.state is None:
+            # The invitation was built but never sent
+            streams = (self.streams or []) + (self.proposed_streams or [])
+            for stream in streams[:]:
+                try:
+                    notification_center.remove_observer(self, sender=stream)
+                except KeyError:
+                    streams.remove(stream)
+                else:
+                    stream.deactivate()
+                    stream.end()
             self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
             return

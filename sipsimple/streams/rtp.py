@@ -514,6 +514,7 @@ class RTPStream(object):
         self.notification_center.remove_observer(self, sender=notification.sender)
         with self._lock:
             if self.state == "ENDED":
+                self.notification_center.remove_observer(self, sender=rtp_transport)
                 return
         self._try_next_rtp_transport(notification.data.reason)
 
@@ -688,9 +689,13 @@ class AudioStream(RTPStream):
 
     def end(self):
         with self._lock:
-            if not self._initialized or self._done:
+            if self.state == "ENDED" or self._done:
                 return
             self._done = True
+            if not self._initialized:
+                self.state = "ENDED"
+                self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
+                return
             self.notification_center.post_notification('MediaStreamWillEnd', sender=self)
             if self._transport is not None:
                 if self._audio_rec is not None:
@@ -744,6 +749,7 @@ class AudioStream(RTPStream):
         rtp_transport = notification.sender
         with self._lock:
             if self.state == "ENDED":
+                self.notification_center.remove_observer(self, sender=rtp_transport)
                 return
             del self._rtp_args
             del self._stun_servers
@@ -903,9 +909,13 @@ class VideoStream(RTPStream):
 
     def end(self):
         with self._lock:
-            if not self._initialized or self._done:
+            if self.state == "ENDED" or self._done:
                 return
             self._done = True
+            if not self._initialized:
+                self.state = "ENDED"
+                self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
+                return
             if self._keyframe_timer is not None:
                 self._keyframe_timer.stop()
                 self.notification_center.remove_observer(self, sender=self._keyframe_timer)
@@ -929,6 +939,7 @@ class VideoStream(RTPStream):
         rtp_transport = notification.sender
         with self._lock:
             if self.state == "ENDED":
+                self.notification_center.remove_observer(self, sender=rtp_transport)
                 return
             del self._rtp_args
             del self._stun_servers
