@@ -1137,8 +1137,12 @@ class OutgoingFileTransferHandler(FileTransferHandler):
                                             length=self.stream.file_selector.size,
                                             message_id=self.message_id)
         chunk.headers.update(self.headers)
-        self.stream.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
-        self.offset += data_len
+        try:
+            self.stream.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
+        except Exception, e:
+            NotificationCenter().post_notification('FileTransferHandlerError', sender=self, data=NotificationData(error=str(e)))
+        else:
+            self.offset += data_len
 
     @run_in_twisted_thread
     def _send_file_offset_chunk(self):
@@ -1154,8 +1158,12 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         if self.stop_event.is_set():
             self.file_offset_event.set()
             return
+
         chunk = self.stream.msrp.make_chunk(method='FILE_OFFSET')
-        self.stream.msrp_session.send_chunk(chunk, response_cb=response_cb)
+        try:
+            self.stream.msrp_session.send_chunk(chunk, response_cb=response_cb)
+        except Exception, e:
+            NotificationCenter().post_notification('FileTransferHandlerError', sender=self, data=NotificationData(error=str(e)))
 
     def process_chunk(self, chunk):
         # here we process the REPORT chunks
