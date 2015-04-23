@@ -595,7 +595,7 @@ class ChatStream(MSRPStreamBase):
         if self.msrp_session is None:
             # should we generate ChatStreamDidNotSetNickname here?
             return
-        chunk = self.msrp.make_chunk(method='NICKNAME', message_id=message_id)
+        chunk = self.msrp.make_request('NICKNAME')
         chunk.add_header(UseNicknameHeader(nickname or u''))
         try:
             self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_nickname_transaction_response, message_id))
@@ -1131,11 +1131,11 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         if self.stop_event.is_set():
             return
         data_len = len(data)
-        chunk = self.stream.msrp.make_chunk(data=data,
-                                            start=self.offset+1,
-                                            end=self.offset+data_len,
-                                            length=self.stream.file_selector.size,
-                                            message_id=self.message_id)
+        chunk = self.stream.msrp.make_send_request(message_id=self.message_id,
+                                                   data=data,
+                                                   start=self.offset+1,
+                                                   end=self.offset+data_len,
+                                                   length=self.stream.file_selector.size)
         chunk.headers.update(self.headers)
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
@@ -1159,7 +1159,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
             self.file_offset_event.set()
             return
 
-        chunk = self.stream.msrp.make_chunk(method='FILE_OFFSET')
+        chunk = self.stream.msrp.make_request('FILE_OFFSET')
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=response_cb)
         except Exception, e:
@@ -1599,7 +1599,7 @@ class ScreenSharingStream(MSRPStreamBase):
         while True:
             try:
                 data = self.outgoing_queue.wait()
-                chunk = self.msrp.make_chunk(data=data)
+                chunk = self.msrp.make_send_request(data=data)
                 chunk.add_header(SuccessReportHeader('no'))
                 chunk.add_header(FailureReportHeader('partial'))
                 chunk.add_header(ContentTypeHeader('application/x-rfb'))
