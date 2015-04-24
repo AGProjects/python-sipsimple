@@ -1,3 +1,8 @@
+# Copyright (C) 2015 AG Projects. See LICENSE for details.
+#
+
+__all__ = ['sha1']
+
 
 from libc.stddef cimport size_t
 from libc.stdint cimport uint8_t, uint32_t, uint64_t
