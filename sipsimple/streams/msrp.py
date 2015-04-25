@@ -9,7 +9,6 @@ This module provides classes to parse and generate SDP related to SIP
 sessions that negotiate Instant Messsaging, File Transfer and Screen
 Sharing and handling of the actual media streams.
 """
-from sipsimple.storage import ISIPSimpleApplicationDataStorage
 
 __all__ = ['ChatStream', 'FileTransferStream', 'ScreenSharingStream', 'MSRPStreamError', 'ChatStreamError', 'VNCConnectionError', 'FileSelector', 'ScreenSharingHandler',
            'ScreenSharingServerHandler', 'ScreenSharingViewerHandler', 'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler']
@@ -52,6 +51,7 @@ from sipsimple.account import Account, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import SDPAttribute, SDPConnection, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
+from sipsimple.storage import ISIPSimpleApplicationDataStorage
 from sipsimple.streams import IMediaStream, MediaStreamType, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
 from sipsimple.threading import run_in_twisted_thread, run_in_thread
