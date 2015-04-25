@@ -746,6 +746,7 @@ class FileMetadataEntry(object):
 
 class FileTransfersMetadata(object):
     __filename__ = 'transfer_metadata'
+    __lifetime__ = 60*60*24*7
 
     def __init__(self):
         self.data = {}
@@ -772,8 +773,7 @@ class FileTransfersMetadata(object):
                 except OSError:
                     data.pop(hash)
                 else:
-                    if mtime != entry.mtime or now - mtime > 604800:
-                        # discard entry if the file was modified or is a week old
+                    if mtime != entry.mtime or now - mtime > self.__lifetime__:
                         data.pop(hash)
             self.data.update(data)
         self.loaded = True
