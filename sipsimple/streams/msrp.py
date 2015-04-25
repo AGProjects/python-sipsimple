@@ -920,7 +920,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
                     fd = None
                     for name in UniqueFilenameGenerator.generate(os.path.join(directory, os.path.basename(stream.file_selector.name))):
                         try:
-                            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+                            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0644)
                         except OSError, e:
                             if e.args[0] == errno.EEXIST:
                                 continue
