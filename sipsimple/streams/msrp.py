@@ -620,13 +620,6 @@ class ChatStream(MSRPStreamBase):
         - content_type (str) - Content-Type of wrapped message;
           (Content-Type of MSRP message is always Message/CPIM in that case)
           If Message/CPIM is not supported, Content-Type of MSRP message.
-
-        Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
-
-        These MSRP headers are used to enable end-to-end success reports and
-        to disable hop-to-hop successful responses:
-        Failure-Report: partial
-        Success-Report: yes
         """
         if self.direction=='recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
