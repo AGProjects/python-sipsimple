@@ -514,7 +514,6 @@ class RTPStream(object):
         self.notification_center.remove_observer(self, sender=notification.sender)
         with self._lock:
             if self.state == "ENDED":
-                self.notification_center.remove_observer(self, sender=rtp_transport)
                 return
         self._try_next_rtp_transport(notification.data.reason)
 
