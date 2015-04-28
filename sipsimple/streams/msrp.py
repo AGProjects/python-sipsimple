@@ -30,6 +30,7 @@ from application.python.descriptor import WriteOnceAttribute
 from application.python.threadpool import ThreadPool, run_in_threadpool
 from application.python.types import MarkerType
 from application.system import host, makedirs, unlink
+from collections import defaultdict
 from functools import partial
 from itertools import count
 from Queue import Queue
@@ -355,7 +356,7 @@ class ChatStream(MSRPStreamBase):
         super(ChatStream, self).__init__(direction=direction)
         self.message_queue = queue()
         self.sent_messages = set()
-        self.incoming_queue = {}
+        self.incoming_queue = defaultdict(list)
         self.message_queue_thread = None
 
     @classmethod
@@ -449,20 +450,23 @@ class ChatStream(MSRPStreamBase):
         if self.direction=='sendonly':
             self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
             return
-        if chunk.segment is not None:
-            self.incoming_queue.setdefault(chunk.message_id, []).append(chunk.data)
-            if chunk.final:
-                chunk.data = ''.join(self.incoming_queue.pop(chunk.message_id))
-            else:
-                self.msrp_session.send_report(chunk, 200, 'OK')
-                return
+        if chunk.contflag == '#':
+            self.incoming_queue.pop(chunk.message_id, None)
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            return
+        elif chunk.contflag == '+':
+            self.incoming_queue[chunk.message_id].append(chunk.data)
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            return
+        else:
+            data = ''.join(self.incoming_queue.pop(chunk.message_id, [])) + chunk.data
         content_type = chunk.content_type.lower()
         if not contains_mime_type(self.accept_types, content_type):
             self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
             return
         if content_type == 'message/cpim':
             try:
-                message = CPIMMessage.parse(chunk.data)
+                message = CPIMMessage.parse(data)
             except CPIMParserError:
                 self.msrp_session.send_report(chunk, 400, 'CPIM Parser Error')
                 return
@@ -476,7 +480,7 @@ class ChatStream(MSRPStreamBase):
                     message.sender = self.remote_identity
                 private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self.remote_identity
         else:
-            message = ChatMessage(chunk.data.decode('utf-8'), chunk.content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
+            message = ChatMessage(data.decode('utf-8'), content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
             private = False
         self.msrp_session.send_report(chunk, 200, 'OK')
         notification_center = NotificationCenter()
