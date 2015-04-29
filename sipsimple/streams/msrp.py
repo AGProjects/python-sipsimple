@@ -450,6 +450,10 @@ class ChatStream(MSRPStreamBase):
         if self.direction=='sendonly':
             self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
             return
+        content_type = chunk.content_type.lower()
+        if not contains_mime_type(self.accept_types, content_type):
+            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
+            return
         if chunk.contflag == '#':
             self.incoming_queue.pop(chunk.message_id, None)
             self.msrp_session.send_report(chunk, 200, 'OK')
@@ -460,10 +464,6 @@ class ChatStream(MSRPStreamBase):
             return
         else:
             data = ''.join(self.incoming_queue.pop(chunk.message_id, [])) + chunk.data
-        content_type = chunk.content_type.lower()
-        if not contains_mime_type(self.accept_types, content_type):
-            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
-            return
         if content_type == 'message/cpim':
             try:
                 message = CPIMMessage.parse(data)
