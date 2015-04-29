@@ -1,5 +1,6 @@
 include MANIFEST.in AUTHORS LICENSE build_inplace Changelog setup_pjsip.py
 include sipsimple/payloads/xml-schemas/*.xsd
+include sipsimple/util/_sha1.h
 recursive-include debian  changelog compat control copyright rules
 recursive-include debian  pycompat pyversions *.lintian-overrides
 recursive-include debian  dirs docs

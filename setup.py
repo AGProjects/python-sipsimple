@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from Cython.Build import cythonize
 from distutils.core import setup
 from distutils.extension import Extension
 import os
@@ -32,10 +31,10 @@ setup(name         = "python-sipsimple",
       package_data = {
           'sipsimple.payloads' : ['xml-schemas/*']
       },
-      ext_modules  = cythonize([
+      ext_modules  = [
              Extension(name = "sipsimple.core._core", sources = ["sipsimple/core/_core.pyx", "sipsimple/core/_core.pxd"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi"))),
-             Extension(name = "sipsimple.util._sha1", sources = ["sipsimple/util/_sha1.pyx"])
-      ]),
+             Extension(name = "sipsimple.util._sha1", sources = ["sipsimple/util/_sha1.pyx"], depends=["sipsimple/util/_sha1.h"])
+      ],
       cmdclass = {
             'build_ext': PJSIP_build_ext
       }
