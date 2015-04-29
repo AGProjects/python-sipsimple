@@ -1,6 +1,6 @@
 # Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
-__version__ = "2.3.1"
+__version__ = "2.4.0"
 
 
