@@ -628,14 +628,21 @@ static pj_status_t opus_codec_parse(pjmedia_codec *codec, void *pkt, pj_size_t p
 	unsigned char toc;
 	const unsigned char *raw_frames[48];
 	short size[48];
-	int payload_offset, samples_per_frame;
+	int err, payload_offset, samples_per_frame;
 	unsigned i;
 
 	PJ_ASSERT_RETURN(frame_cnt, PJ_EINVAL);
 
 	opus = (struct opus_private*) codec->codec_data;
 
-	*frame_cnt = opus_packet_parse(pkt, pkt_size, &toc, raw_frames, size, &payload_offset);
+	err = opus_packet_parse(pkt, pkt_size, &toc, raw_frames, size, &payload_offset);
+	if (err <= 0) {
+            PJ_LOG(4, (THIS_FILE, "Error parsing Opus packet: %s", opus_strerror(err)));
+            *frame_cnt = 0;
+	    return opus_to_pjsip_error_code(err);
+        }
+
+        *frame_cnt = (unsigned)err;
 	samples_per_frame = opus_packet_get_samples_per_frame(pkt, opus->externalFs);
 
 #if _TRACE_OPUS
