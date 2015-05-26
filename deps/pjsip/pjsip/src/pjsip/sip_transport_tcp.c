@@ -1095,6 +1095,9 @@ static pj_bool_t on_accept_complete(pj_activesock_t *asock,
 
     PJ_ASSERT_RETURN(sock != PJ_INVALID_SOCKET, PJ_TRUE);
 
+    if (!listener->is_registered)
+	return PJ_FALSE;
+
     PJ_LOG(4,(listener->factory.obj_name, 
 	      "TCP listener %.*s:%d: got incoming TCP connection "
 	      "from %s, sock=%d",
@@ -1133,21 +1136,23 @@ static pj_bool_t on_accept_complete(pj_activesock_t *asock,
 	    PJ_LOG(3,(tcp->base.obj_name, "New transport cancelled"));
 	    tcp_destroy(&tcp->base, status);
 	} else {
+	    if (tcp->base.is_shutdown || tcp->base.is_destroying) {
+		return PJ_TRUE;
+	    }
 	    /* Start keep-alive timer */
-	    if (PJSIP_TCP_KEEP_ALIVE_INTERVAL) {
-		pj_time_val delay = {PJSIP_TCP_KEEP_ALIVE_INTERVAL, 0};
+	    if (pjsip_cfg()->tcp.keep_alive_interval) {
+		pj_time_val delay = {pjsip_cfg()->tcp.keep_alive_interval, 0};
 		pjsip_endpt_schedule_timer(listener->endpt, 
 					   &tcp->ka_timer, 
 					   &delay);
 		tcp->ka_timer.id = PJ_TRUE;
 		pj_gettimeofday(&tcp->last_activity);
 	    }
-
 	    /* Notify application of transport state accepted */
 	    state_cb = pjsip_tpmgr_get_state_cb(tcp->base.tpmgr);
 	    if (state_cb) {
 		pjsip_transport_state_info state_info;
-            
+
 		pj_bzero(&state_info, sizeof(state_info));
 		(*state_cb)(&tcp->base, PJSIP_TP_STATE_CONNECTED, &state_info);
 	    }
@@ -1422,6 +1427,9 @@ static pj_bool_t on_connect_complete(pj_activesock_t *asock,
     /* Mark that pending connect() operation has completed. */
     tcp->has_pending_connect = PJ_FALSE;
 
+    if (tcp->base.is_shutdown || tcp->base.is_destroying) 
+	return PJ_FALSE;
+
     /* Check connect() status */
     if (status != PJ_SUCCESS) {
 
@@ -1482,7 +1490,7 @@ static pj_bool_t on_connect_complete(pj_activesock_t *asock,
     state_cb = pjsip_tpmgr_get_state_cb(tcp->base.tpmgr);
     if (state_cb) {
 	pjsip_transport_state_info state_info;
-    
+	
 	pj_bzero(&state_info, sizeof(state_info));
 	(*state_cb)(&tcp->base, PJSIP_TP_STATE_CONNECTED, &state_info);
     }
@@ -1491,8 +1499,8 @@ static pj_bool_t on_connect_complete(pj_activesock_t *asock,
     tcp_flush_pending_tx(tcp);
 
     /* Start keep-alive timer */
-    if (PJSIP_TCP_KEEP_ALIVE_INTERVAL) {
-	pj_time_val delay = { PJSIP_TCP_KEEP_ALIVE_INTERVAL, 0 };
+    if (pjsip_cfg()->tcp.keep_alive_interval) {
+	pj_time_val delay = { pjsip_cfg()->tcp.keep_alive_interval, 0 };
 	pjsip_endpt_schedule_timer(tcp->base.endpt, &tcp->ka_timer, 
 				   &delay);
 	tcp->ka_timer.id = PJ_TRUE;
@@ -1518,9 +1526,9 @@ static void tcp_keep_alive_timer(pj_timer_heap_t *th, pj_timer_entry *e)
     pj_gettimeofday(&now);
     PJ_TIME_VAL_SUB(now, tcp->last_activity);
 
-    if (now.sec > 0 && now.sec < PJSIP_TCP_KEEP_ALIVE_INTERVAL) {
+    if (now.sec > 0 && now.sec < pjsip_cfg()->tcp.keep_alive_interval) {
 	/* There has been activity, so don't send keep-alive */
-	delay.sec = PJSIP_TCP_KEEP_ALIVE_INTERVAL - now.sec;
+	delay.sec = pjsip_cfg()->tcp.keep_alive_interval - now.sec;
 	delay.msec = 0;
 
 	pjsip_endpt_schedule_timer(tcp->base.endpt, &tcp->ka_timer, 
@@ -1547,7 +1555,7 @@ static void tcp_keep_alive_timer(pj_timer_heap_t *th, pj_timer_entry *e)
     }
 
     /* Register next keep-alive */
-    delay.sec = PJSIP_TCP_KEEP_ALIVE_INTERVAL;
+    delay.sec = pjsip_cfg()->tcp.keep_alive_interval;
     delay.msec = 0;
 
     pjsip_endpt_schedule_timer(tcp->base.endpt, &tcp->ka_timer, 

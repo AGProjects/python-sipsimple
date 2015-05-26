@@ -1085,7 +1085,7 @@ PJ_DEF(pj_status_t) pjsip_inv_verify_request3(pjsip_rx_data *rdata,
     if (r_sdp==NULL && msg && msg->body) {
 
 	/* Check if body really contains SDP. */
-	if (sdp_info->body.ptr == NULL) {
+	if (sdp_info->body.ptr == NULL && !PJSIP_INV_ACCEPT_UNKNOWN_BODY) {
 	    /* Couldn't find "application/sdp" */
 	    code = PJSIP_SC_UNSUPPORTED_MEDIA_TYPE;
 	    status = PJSIP_ERRNO_FROM_SIP_STATUS(code);
@@ -1579,7 +1579,10 @@ PJ_DEF(pj_status_t) pjsip_inv_terminate( pjsip_inv_session *inv,
 
     /* Forcefully terminate the session if state is not DISCONNECTED */
     if (inv->state != PJSIP_INV_STATE_DISCONNECTED) {
-	inv_set_state(inv, PJSIP_INV_STATE_DISCONNECTED, NULL);
+	pjsip_event usr_event;
+
+	PJSIP_EVENT_INIT_USER(usr_event, NULL, NULL, NULL, NULL);
+	inv_set_state(inv, PJSIP_INV_STATE_DISCONNECTED, &usr_event);
     }
 
     /* Done.
@@ -1904,6 +1907,9 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
 	tsx->mod_data[mod_inv.mod.id] = tsx_inv_data;
     }
 
+    /* Initialize info that we are following forked media */
+    inv->following_fork = PJ_FALSE;
+
     /* MUST NOT do multiple SDP offer/answer in a single transaction,
      * EXCEPT if:
      *	- this is an initial UAC INVITE transaction (i.e. not re-INVITE), and
@@ -1956,6 +1962,8 @@ static pj_status_t inv_check_sdp_in_incoming_msg( pjsip_inv_session *inv,
 			  "forked 2xx/18x response (err=%d)", status));
 		return status;
 	    }
+
+	    inv->following_fork = PJ_TRUE;
 
 	} else {
 
@@ -2113,7 +2121,7 @@ static pj_status_t process_answer( pjsip_inv_session *inv,
 
 
      /* If SDP negotiator is ready, start negotiation. */
-    if (st_code/100==2 || (st_code/10==18 && st_code!=180)) {
+    if (st_code/100==2 || (st_code/10==18 && st_code!=180 && st_code!=181)) {
 
 	pjmedia_sdp_neg_state neg_state;
 
@@ -2145,8 +2153,8 @@ static pj_status_t process_answer( pjsip_inv_session *inv,
 	}
     }
 
-    /* Include SDP when it's available for 2xx and 18x (but not 180) response.
-     * Subsequent response will include this SDP.
+    /* Include SDP when it's available for 2xx and 18x (but not 180 and 181)
+     * response. Subsequent response will include this SDP.
      *
      * Note note:
      *	- When offer/answer has been completed in reliable 183, we MUST NOT
@@ -3641,8 +3649,9 @@ static pj_bool_t inv_check_secure_dlg(pjsip_inv_session *inv,
 
     if (pjsip_cfg()->endpt.disable_secure_dlg_check == PJ_FALSE &&
 	dlg->secure && e->body.tsx_state.type==PJSIP_EVENT_RX_MSG &&
-	(tsx->role==PJSIP_ROLE_UAC && tsx->status_code/100 == 2 ||
-	 tsx->role==PJSIP_ROLE_UAS && tsx->state == PJSIP_TSX_STATE_TRYING) &&
+	((tsx->role==PJSIP_ROLE_UAC && tsx->status_code/100 == 2) ||
+	 (tsx->role==PJSIP_ROLE_UAS && tsx->state == PJSIP_TSX_STATE_TRYING))
+	&&
 	(tsx->method.id==PJSIP_INVITE_METHOD || 
 	 pjsip_method_cmp(&tsx->method, &pjsip_update_method)==0))
     {

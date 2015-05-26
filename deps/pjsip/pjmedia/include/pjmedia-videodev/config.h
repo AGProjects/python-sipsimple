@@ -45,10 +45,10 @@ PJ_BEGIN_DECL
  * This setting controls the maximum number of formats that can be
  * supported by a video device.
  *
- * Default: 16
+ * Default: 64
  */
 #ifndef PJMEDIA_VID_DEV_INFO_FMT_CNT
-#   define PJMEDIA_VID_DEV_INFO_FMT_CNT 16
+#   define PJMEDIA_VID_DEV_INFO_FMT_CNT 64
 #endif
 
 

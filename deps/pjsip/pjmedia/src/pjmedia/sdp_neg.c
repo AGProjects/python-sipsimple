@@ -84,7 +84,7 @@ static pj_status_t custom_fmt_match( pj_pool_t *pool,
  */
 PJ_DEF(const char*) pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state)
 {
-    if (state >=0 && state < (pjmedia_sdp_neg_state)PJ_ARRAY_SIZE(state_str))
+    if ((int)state >=0 && state < (pjmedia_sdp_neg_state)PJ_ARRAY_SIZE(state_str))
 	return state_str[state];
 
     return "<?UNKNOWN?>";
@@ -426,6 +426,8 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_send_local_offer( pj_pool_t *pool,
 	neg->state = PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER;
 	neg->neg_local_sdp = pjmedia_sdp_session_clone(pool, 
 						       neg->active_local_sdp);
+	neg->initial_sdp = pjmedia_sdp_session_clone(pool,
+						     neg->active_local_sdp);
 	*offer = neg->active_local_sdp;
 
     } else {
@@ -518,6 +520,7 @@ PJ_DEF(pj_status_t) pjmedia_sdp_neg_set_local_answer( pj_pool_t *pool,
 	}
     } else {
 	PJ_ASSERT_RETURN(neg->initial_sdp, PJMEDIA_SDPNEG_ENOINITIAL);
+	neg->initial_sdp = pjmedia_sdp_session_clone(pool, neg->initial_sdp);
 	neg->neg_local_sdp = pjmedia_sdp_session_clone(pool, neg->initial_sdp);
     }
 
@@ -1504,7 +1507,7 @@ static pj_status_t custom_fmt_match(pj_pool_t *pool,
 }
 
 /* Register customized SDP format negotiation callback function. */
-PJ_DECL(pj_status_t) pjmedia_sdp_neg_register_fmt_match_cb(
+PJ_DEF(pj_status_t) pjmedia_sdp_neg_register_fmt_match_cb(
 					const pj_str_t *fmt_name,
 					pjmedia_sdp_neg_fmt_match_cb cb)
 {

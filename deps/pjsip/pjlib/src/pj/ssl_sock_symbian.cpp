@@ -859,8 +859,21 @@ PJ_DEF(pj_status_t) pj_ssl_cert_load_from_files(pj_pool_t *pool,
                                         	const pj_str_t *privkey_pass,
                                         	pj_ssl_cert_t **p_cert)
 {
+    return pj_ssl_cert_load_from_files2(pool, CA_file, NULL, cert_file,
+					privkey_file, privkey_pass, p_cert);
+}
+
+PJ_DEF(pj_status_t) pj_ssl_cert_load_from_files2(pj_pool_t *pool,
+                                        	 const pj_str_t *CA_file,
+                                        	 const pj_str_t *CA_path,
+                                        	 const pj_str_t *cert_file,
+                                        	 const pj_str_t *privkey_file,
+                                        	 const pj_str_t *privkey_pass,
+                                        	 pj_ssl_cert_t **p_cert)
+{
     PJ_UNUSED_ARG(pool);
     PJ_UNUSED_ARG(CA_file);
+    PJ_UNUSED_ARG(CA_path);
     PJ_UNUSED_ARG(cert_file);
     PJ_UNUSED_ARG(privkey_file);
     PJ_UNUSED_ARG(privkey_pass);
@@ -1383,14 +1396,11 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_connect (pj_ssl_sock_t *ssock,
 	ssock->proto = PJ_SSL_SOCK_PROTO_TLS1;
 
     /* CSecureSocket only support TLS1.0 and SSL3.0 */
-    switch(ssock->proto) {
-    case PJ_SSL_SOCK_PROTO_TLS1:
+    if (ssock->proto & PJ_SSL_SOCK_PROTO_TLS1==PJ_SSL_SOCK_PROTO_TLS1) {
 	proto.Set((const TUint8*)"TLS1.0", 6);
-	break;
-    case PJ_SSL_SOCK_PROTO_SSL3:
+    } else if (ssock->proto & PJ_SSL_SOCK_PROTO_SSL3==PJ_SSL_SOCK_PROTO_SSL3) {
 	proto.Set((const TUint8*)"SSL3.0", 6);
-	break;
-    default:
+    } else {
 	return PJ_ENOTSUP;
     }
 

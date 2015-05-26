@@ -185,6 +185,43 @@ static void sockaddr_to_host_port( pj_pool_t *pool,
 }
 
 
+static pj_uint32_t ssl_get_proto(pjsip_ssl_method ssl_method, pj_uint32_t proto)
+{
+    pj_uint32_t out_proto;
+
+    if (proto)
+	return proto;
+
+    if (ssl_method == PJSIP_SSL_UNSPECIFIED_METHOD)
+	ssl_method = PJSIP_SSL_DEFAULT_METHOD;
+
+    switch(ssl_method) {
+    case PJSIP_SSLV2_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_SSL2;
+	break;
+    case PJSIP_SSLV3_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_SSL3;
+	break;
+    case PJSIP_TLSV1_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_TLS1;
+	break;
+    case PJSIP_TLSV1_1_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_TLS1_1;
+	break;
+    case PJSIP_TLSV1_2_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_TLS1_2;
+	break;
+    case PJSIP_SSLV23_METHOD:
+	out_proto = PJ_SSL_SOCK_PROTO_SSL23;
+	break;
+    default:
+	out_proto = PJ_SSL_SOCK_PROTO_DEFAULT;
+	break;
+    }   
+    return out_proto;
+}
+
+
 static void tls_init_shutdown(struct tls_transport *tls, pj_status_t status)
 {
     pjsip_tp_state_callback state_cb;
@@ -275,6 +312,7 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_start2( pjsip_endpoint *endpt,
     pj_pool_t *pool;
     pj_bool_t is_ipv6;
     int af, sip_ssl_method;
+    pj_uint32_t sip_ssl_proto;
     struct tls_listener *listener;
     pj_ssl_sock_param ssock_param;
     pj_sockaddr *listener_addr;
@@ -368,26 +406,8 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_start2( pjsip_endpoint *endpt,
     has_listener = PJ_FALSE;
 
     sip_ssl_method = listener->tls_setting.method;
-    if (sip_ssl_method==PJSIP_SSL_UNSPECIFIED_METHOD)
-	sip_ssl_method = PJSIP_SSL_DEFAULT_METHOD;
-
-    switch(sip_ssl_method) {
-    case PJSIP_TLSV1_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_TLS1;
-	break;
-    case PJSIP_SSLV2_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL2;
-	break;
-    case PJSIP_SSLV3_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL3;
-	break;
-    case PJSIP_SSLV23_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL23;
-	break;
-    default:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_DEFAULT;
-	break;
-    }
+    sip_ssl_proto = listener->tls_setting.proto;
+    ssock_param.proto = ssl_get_proto(sip_ssl_method, sip_ssl_proto); 
 
     /* Create group lock */
     status = pj_grp_lock_create(pool, NULL, &listener->grp_lock);
@@ -421,10 +441,12 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_start2( pjsip_endpoint *endpt,
 
     /* Check if certificate/CA list for SSL socket is set */
     if (listener->tls_setting.cert_file.slen ||
-	listener->tls_setting.ca_list_file.slen) 
+	listener->tls_setting.ca_list_file.slen ||
+	listener->tls_setting.ca_list_path.slen) 
     {
-	status = pj_ssl_cert_load_from_files(pool,
+	status = pj_ssl_cert_load_from_files2(pool,
 			&listener->tls_setting.ca_list_file,
+			&listener->tls_setting.ca_list_path,
 			&listener->tls_setting.cert_file,
 			&listener->tls_setting.privkey_file,
 			&listener->tls_setting.password,
@@ -963,6 +985,7 @@ static pj_status_t lis_create_transport(pjsip_tpfactory *factory,
     struct tls_listener *listener;
     struct tls_transport *tls;
     int sip_ssl_method;
+    pj_uint32_t sip_ssl_proto;
     pj_pool_t *pool;
     pj_grp_lock_t *glock;
     pj_ssl_sock_t *ssock;
@@ -1027,26 +1050,8 @@ static pj_status_t lis_create_transport(pjsip_tpfactory *factory,
 	      sizeof(listener->tls_setting.sockopt_params));
 
     sip_ssl_method = listener->tls_setting.method;
-    if (sip_ssl_method==PJSIP_SSL_UNSPECIFIED_METHOD)
-	sip_ssl_method = PJSIP_SSL_DEFAULT_METHOD;
-
-    switch(sip_ssl_method) {
-    case PJSIP_TLSV1_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_TLS1;
-	break;
-    case PJSIP_SSLV2_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL2;
-	break;
-    case PJSIP_SSLV3_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL3;
-	break;
-    case PJSIP_SSLV23_METHOD:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_SSL23;
-	break;
-    default:
-	ssock_param.proto = PJ_SSL_SOCK_PROTO_DEFAULT;
-	break;
-    }
+    sip_ssl_proto = listener->tls_setting.proto;
+    ssock_param.proto = ssl_get_proto(sip_ssl_method, sip_ssl_proto);
 
     /* Create group lock */
     status = pj_grp_lock_create(pool, NULL, &glock);
@@ -1174,6 +1179,9 @@ static pj_bool_t on_accept_complete(pj_ssl_sock_t *ssock,
 
     PJ_ASSERT_RETURN(new_ssock, PJ_TRUE);
 
+    if (!listener->is_registered)
+	return PJ_FALSE;
+
     PJ_LOG(4,(listener->factory.obj_name, 
 	      "TLS listener %.*s:%d: got incoming TLS connection "
 	      "from %s, sock=%d",
@@ -1231,7 +1239,6 @@ static pj_bool_t on_accept_complete(pj_ssl_sock_t *ssock,
 	    tls->close_reason = PJSIP_TLS_ECERTVERIF;
 	pjsip_transport_shutdown(&tls->base);
     }
-
     /* Notify transport state to application */
     state_cb = pjsip_tpmgr_get_state_cb(tls->base.tpmgr);
     if (state_cb) {
@@ -1274,8 +1281,8 @@ static pj_bool_t on_accept_complete(pj_ssl_sock_t *ssock,
 	tls_destroy(&tls->base, status);
     } else {
 	/* Start keep-alive timer */
-	if (PJSIP_TLS_KEEP_ALIVE_INTERVAL) {
-	    pj_time_val delay = {PJSIP_TLS_KEEP_ALIVE_INTERVAL, 0};
+	if (pjsip_cfg()->tls.keep_alive_interval) {
+	    pj_time_val delay = {pjsip_cfg()->tls.keep_alive_interval, 0};
 	    pjsip_endpt_schedule_timer(listener->endpt, 
 				       &tls->ka_timer, 
 				       &delay);
@@ -1550,6 +1557,9 @@ static pj_bool_t on_connect_complete(pj_ssl_sock_t *ssock,
 
     tls = (struct tls_transport*) pj_ssl_sock_get_user_data(ssock);
 
+    if (tls->base.is_shutdown || tls->base.is_destroying) 
+	return PJ_FALSE;
+
     /* Check connect() status */
     if (status != PJ_SUCCESS) {
 
@@ -1737,8 +1747,8 @@ static pj_bool_t on_connect_complete(pj_ssl_sock_t *ssock,
     tls_flush_pending_tx(tls);
 
     /* Start keep-alive timer */
-    if (PJSIP_TLS_KEEP_ALIVE_INTERVAL) {
-	pj_time_val delay = { PJSIP_TLS_KEEP_ALIVE_INTERVAL, 0 };
+    if (pjsip_cfg()->tls.keep_alive_interval) {
+	pj_time_val delay = { pjsip_cfg()->tls.keep_alive_interval, 0 };
 	pjsip_endpt_schedule_timer(tls->base.endpt, &tls->ka_timer, 
 				   &delay);
 	tls->ka_timer.id = PJ_TRUE;
@@ -1770,9 +1780,9 @@ static void tls_keep_alive_timer(pj_timer_heap_t *th, pj_timer_entry *e)
     pj_gettimeofday(&now);
     PJ_TIME_VAL_SUB(now, tls->last_activity);
 
-    if (now.sec > 0 && now.sec < PJSIP_TLS_KEEP_ALIVE_INTERVAL) {
+    if (now.sec > 0 && now.sec < pjsip_cfg()->tls.keep_alive_interval) {
 	/* There has been activity, so don't send keep-alive */
-	delay.sec = PJSIP_TLS_KEEP_ALIVE_INTERVAL - now.sec;
+	delay.sec = pjsip_cfg()->tls.keep_alive_interval - now.sec;
 	delay.msec = 0;
 
 	pjsip_endpt_schedule_timer(tls->base.endpt, &tls->ka_timer, 
@@ -1800,7 +1810,7 @@ static void tls_keep_alive_timer(pj_timer_heap_t *th, pj_timer_entry *e)
     }
 
     /* Register next keep-alive */
-    delay.sec = PJSIP_TLS_KEEP_ALIVE_INTERVAL;
+    delay.sec = pjsip_cfg()->tls.keep_alive_interval;
     delay.msec = 0;
 
     pjsip_endpt_schedule_timer(tls->base.endpt, &tls->ka_timer, 

@@ -14,7 +14,7 @@ export SHLIB_SUFFIX := @ac_shlib_suffix@
 
 export ac_prefix := @prefix@
 
-LIB_SUFFIX = $(TARGET_NAME).a
+LIB_SUFFIX := $(TARGET_NAME).a
 
 # Determine which party libraries to use
 export APP_THIRD_PARTY_LIBS := -lsrtp-$(TARGET_NAME)
@@ -105,6 +105,9 @@ AC_PJMEDIA_VIDEO_HAS_DSHOW = @ac_pjmedia_video_has_dshow@
 DSHOW_CFLAGS = @ac_dshow_cflags@
 DSHOW_LDFLAGS = @ac_dshow_ldflags@
 
+# Android
+ANDROID_CFLAGS = @ac_android_cflags@
+
 # libyuv
 LIBYUV_CFLAGS = @ac_libyuv_cflags@ 
 LIBYUV_LDFLAGS =  @ac_libyuv_ldflags@
@@ -151,7 +154,7 @@ export APP_LDLIBS := \
 	$(APP_THIRD_PARTY_EXT)\
 	-lpj-$(TARGET_NAME)\
 	@LIBS@
-export APP_LIB_FILES = \
+export APP_LIB_FILES := \
 	$(PJ_DIR)/pjsip/lib/libpjsip-ua-$(LIB_SUFFIX) \
 	$(PJ_DIR)/pjsip/lib/libpjsip-simple-$(LIB_SUFFIX) \
 	$(PJ_DIR)/pjsip/lib/libpjsip-$(LIB_SUFFIX) \

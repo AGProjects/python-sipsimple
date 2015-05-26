@@ -4,6 +4,7 @@
 # Valid values are:
 #   - mac_os
 #   - iphone_os
+#   - android_os
 AC_PJMEDIA_VIDEO = @ac_pjmedia_video@
 
 # FFMPEG dlags
@@ -30,12 +31,16 @@ DSHOW_LDFLAGS = @ac_dshow_ldflags@
 LIBYUV_CFLAGS = @ac_libyuv_cflags@
 LIBYUV_LDFLAGS = @ac_libyuv_ldflags@
 
+# openh264
+OPENH264_CFLAGS = @ac_openh264_cflags@
+OPENH264_LDFLAGS = @ac_openh264_ldflags@
+
 # PJMEDIA features exclusion
 export CFLAGS += @ac_no_small_filter@ @ac_no_large_filter@ @ac_no_speex_aec@ \
 		 $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(AVF_CFLAGS) \
-		 $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS)
+		 $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS) $(OPENH264_CFLAGS)
 export LDFLAGS += $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) $(DSHOW_LDFLAGS) \
-    		  $(LIBYUV_LDFLAGS)
+    		  $(LIBYUV_LDFLAGS) $(OPENH264_LDFLAGS)
 
 
 #

@@ -5752,6 +5752,7 @@ $as_echo "Checking if DirectShow is available... yes" >&6; }
 	  { $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if DirectShow is available... no" >&5
 $as_echo "Checking if DirectShow is available... no" >&6; }
 	fi
+	ac_android_cflags="$ac_android_cflags -DPJMEDIA_VIDEO_DEV_HAS_ANDROID=1"
 	;;
  esac
 fi
@@ -6116,8 +6117,8 @@ $as_echo "Using OpenH264 prefix... $with_openh264" >&6; }
 			OPENH264_LDFLAGS=""
 		  fi
 
-		  { $as_echo "$as_me:${as_lineno-$LINENO}: checking OpenH264 availability" >&5
-$as_echo_n "checking OpenH264 availability... " >&6; }
+		  { $as_echo "$as_me:${as_lineno-$LINENO}: checking OpenH264 usability" >&5
+$as_echo_n "checking OpenH264 usability... " >&6; }
 
 		  OPENH264_LIBS="-lopenh264"
 
@@ -6154,8 +6155,8 @@ else
 				   LIBS="$SAVED_LIBS"
 				   LDFLAGS="$SAVED_LDFLAGS"
 				   CFLAGS="$SAVED_CFLAGS"
-		  		   { $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
-$as_echo "failed" >&6; }
+		  		   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext \
@@ -6382,7 +6383,7 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_ERR_load_BIO_strings" >&5
 $as_echo "$ac_cv_lib_crypto_ERR_load_BIO_strings" >&6; }
 if test "x$ac_cv_lib_crypto_ERR_load_BIO_strings" = xyes; then :
-  libcrypto_present=1 && LIBS="$LIBS -lcrypto"
+  libcrypto_present=1 && LIBS="-lcrypto $LIBS"
 fi
 
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_library_init in -lssl" >&5
@@ -6422,7 +6423,7 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_library_init" >&5
 $as_echo "$ac_cv_lib_ssl_SSL_library_init" >&6; }
 if test "x$ac_cv_lib_ssl_SSL_library_init" = xyes; then :
-  libssl_present=1 && LIBS="$LIBS -lssl"
+  libssl_present=1 && LIBS="-lssl $LIBS"
 fi
 
 		if test "x$openssl_h_present" = "x1" -a "x$libssl_present" = "x1" -a "x$libcrypto_present" = "x1"; then
@@ -6432,49 +6433,6 @@ $as_echo "OpenSSL library found, SSL support enabled" >&6; }
 			#AC_DEFINE(PJSIP_HAS_TLS_TRANSPORT, 1)
 			$as_echo "#define PJ_HAS_SSL_SOCK 1" >>confdefs.h
 
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSLv2_method in -lssl" >&5
-$as_echo_n "checking for SSLv2_method in -lssl... " >&6; }
-if ${ac_cv_lib_ssl_SSLv2_method+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lssl  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char SSLv2_method ();
-int
-main ()
-{
-return SSLv2_method ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ssl_SSLv2_method=yes
-else
-  ac_cv_lib_ssl_SSLv2_method=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSLv2_method" >&5
-$as_echo "$ac_cv_lib_ssl_SSLv2_method" >&6; }
-if test "x$ac_cv_lib_ssl_SSLv2_method" = xyes; then :
-  libssl_no_ssl2=1
-fi
-
-			if test "x$libssl_no_ssl2" != "x1"; then
-				CFLAGS="$CFLAGS -DOPENSSL_NO_SSL2=1"
-			fi
 		else
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: ** OpenSSL libraries not found, disabling SSL support **" >&5
 $as_echo "** OpenSSL libraries not found, disabling SSL support **" >&6; }

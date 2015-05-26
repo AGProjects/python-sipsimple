@@ -469,6 +469,7 @@ PJ_DEF(pj_status_t) pjmedia_codec_g7221_deinit(void)
     if (!codec_mgr) {
 	pj_pool_release(codec_factory.pool);
 	codec_factory.pool = NULL;
+	pj_mutex_unlock(codec_factory.mutex);
 	return PJ_EINVALIDOP;
     }
 
@@ -477,7 +478,9 @@ PJ_DEF(pj_status_t) pjmedia_codec_g7221_deinit(void)
 						  &codec_factory.base);
     
     /* Destroy mutex. */
+    pj_mutex_unlock(codec_factory.mutex);
     pj_mutex_destroy(codec_factory.mutex);
+    codec_factory.mutex = NULL;
 
     /* Destroy pool. */
     pj_pool_release(codec_factory.pool);
@@ -675,7 +678,10 @@ static pj_status_t codec_open( pjmedia_codec *codec,
 	    fmtp_bitrate = (pj_uint16_t)pj_strtoul(&fmtp->param[tmp].val);
     }
 
-    /* Validation mode first! */
+    if (fmtp_bitrate == 0)
+	fmtp_bitrate = (pj_uint16_t)attr->info.avg_bps;
+
+    /* Validate bitrate */
     if (!fmtp_bitrate || !validate_mode(attr->info.clock_rate, fmtp_bitrate))
 	return PJMEDIA_CODEC_EINMODE;
 
