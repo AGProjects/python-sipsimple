@@ -280,6 +280,7 @@ PJ_DEF(pj_status_t) pjmedia_codec_opus_deinit(void) {
 	opus_factory.endpt = NULL;
 
 	/* Destroy mutex. */
+        pj_mutex_unlock(opus_factory.mutex);
 	pj_mutex_destroy(opus_factory.mutex);
 	opus_factory.mutex = NULL;
 
