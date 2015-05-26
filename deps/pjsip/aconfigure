@@ -638,7 +638,6 @@ PKG_CONFIG
 SAVED_PKG_CONFIG_PATH
 ac_ffmpeg_ldflags
 ac_ffmpeg_cflags
-ac_has_ffmpeg
 ac_resample_dll
 ac_no_g7221_codec
 ac_no_speex_aec
@@ -746,7 +745,6 @@ enable_g7221_codec
 enable_libsamplerate
 enable_resample_dll
 with_ffmpeg
-enable_ffmpeg
 enable_v4l2
 with_openh264
 enable_openh264
@@ -1390,7 +1388,6 @@ Optional Features:
   --enable-libsamplerate  Link with libsamplerate when available. Note that
                           PJMEDIA_RESAMPLE_IMP must also be configured
   --enable-resample-dll   Build libresample as shared library
-  --disable-ffmpeg        Disable ffmpeg (default: not disabled)
   --disable-v4l2          Disable Video4Linux2 (default: not disabled)
   --disable-openh264      Disable OpenH264 (default: not disabled)
   --disable-libyuv        Exclude libyuv in the build
@@ -5896,36 +5893,20 @@ else
 fi
 
 
-if test "x$ac_cross_compile" != "x" -a "x$with_ffmpeg" = "xno"; then
-    enable_ffmpeg=no
+
+
+
+FFMPEG_PREFIX=""
+
+SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
+if test "x$with_ffmpeg" != "xno" -a "x$with_ffmpeg" != "x"; then
+	FFMPEG_PREFIX=$with_ffmpeg
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using ffmpeg prefix... $FFMPEG_PREFIX" >&5
+$as_echo "Using ffmpeg prefix... $FFMPEG_PREFIX" >&6; }
+	export PKG_CONFIG_PATH=$FFMPEG_PREFIX/lib/pkgconfig
 fi
 
-# Check whether --enable-ffmpeg was given.
-if test "${enable_ffmpeg+set}" = set; then :
-  enableval=$enable_ffmpeg;
-	        ac_has_ffmpeg=0
-
-		if test "$enable_ffmpeg" = "no"; then
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Checking if ffmpeg is disabled... yes" >&5
-$as_echo "Checking if ffmpeg is disabled... yes" >&6; }
-		fi
-
-else
-
-
-
-
-		FFMPEG_PREFIX=""
-
-		SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-    		if test "x$with_ffmpeg" != "xno" -a "x$with_ffmpeg" != "x"; then
-			FFMPEG_PREFIX=$with_ffmpeg
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using ffmpeg prefix... $FFMPEG_PREFIX" >&5
-$as_echo "Using ffmpeg prefix... $FFMPEG_PREFIX" >&6; }
-			export PKG_CONFIG_PATH=$FFMPEG_PREFIX/lib/pkgconfig
-		fi
-
-		for ac_prog in pkg-config
+for ac_prog in pkg-config
 do
   # Extract the first word of "$ac_prog", so it can be a program name with args.
 set dummy $ac_prog; ac_word=$2
@@ -5969,55 +5950,51 @@ done
 test -n "$PKG_CONFIG" || PKG_CONFIG="none"
 
 
-		if test "$PKG_CONFIG" != "none"; then
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking ffmpeg packages" >&5
+if test "$PKG_CONFIG" != "none"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking ffmpeg packages" >&5
 $as_echo_n "checking ffmpeg packages... " >&6; }
-			av_pkg=""
-			if $PKG_CONFIG --exists libdevice; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVDEVICE=1"
-				av_pkg="$av_pkg libdevice"
-			fi
-			if $PKG_CONFIG --exists libavformat; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVFORMAT=1"
-				av_pkg="$av_pkg libavformat"
-			fi
-			if $PKG_CONFIG --exists libavcodec; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCODEC=1"
-				av_pkg="$av_pkg libavcodec"
-			fi
-			if $PKG_CONFIG --exists libswscale; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBSWSCALE=1"
-				av_pkg="$av_pkg libswscale"
-			fi
-			if $PKG_CONFIG --exists libavutil; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVUTIL=1"
-				av_pkg="$av_pkg libavutil"
-			fi
-			if $PKG_CONFIG --exists libavcore; then
-				ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCORE=1"
-				av_pkg="$av_pkg libavcore"
-			fi
+	av_pkg=""
+	if $PKG_CONFIG --exists libavdevice; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVDEVICE=1"
+		av_pkg="$av_pkg libavdevice"
+	fi
+	if $PKG_CONFIG --exists libavformat; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVFORMAT=1"
+		av_pkg="$av_pkg libavformat"
+	fi
+	if $PKG_CONFIG --exists libavcodec; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCODEC=1"
+		av_pkg="$av_pkg libavcodec"
+	fi
+	if $PKG_CONFIG --exists libswscale; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBSWSCALE=1"
+		av_pkg="$av_pkg libswscale"
+	fi
+	if $PKG_CONFIG --exists libavutil; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVUTIL=1"
+		av_pkg="$av_pkg libavutil"
+	fi
+	if $PKG_CONFIG --exists libavcore; then
+		ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCORE=1"
+		av_pkg="$av_pkg libavcore"
+	fi
 
-			if test "x$av_pkg" == "x"; then
-			   { $as_echo "$as_me:${as_lineno-$LINENO}: result: none detected (check the prefix)! **" >&5
-$as_echo "none detected (check the prefix)! **" >&6; }
-			else
-			   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $av_pkg" >&5
+	if test "x$av_pkg" == "x"; then
+	   as_fn_error $? "*** Error: no ffmpeg libraries detected  ***" "$LINENO" 5
+	else
+	   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $av_pkg" >&5
 $as_echo "$av_pkg" >&6; }
-			fi
+	fi
 
-			ac_ffmpeg_cflags="$ac_ffmpeg_cflags `$PKG_CONFIG --cflags $av_pkg`"
-			ac_ffmpeg_ldflags="$ac_ffmpeg_ldflags `$PKG_CONFIG --libs $av_pkg`"
+	ac_ffmpeg_cflags="$ac_ffmpeg_cflags `$PKG_CONFIG --cflags $av_pkg`"
+	ac_ffmpeg_ldflags="$ac_ffmpeg_ldflags `$PKG_CONFIG --libs $av_pkg`"
 
-		else
-			as_fn_error $? "*** Error: pkg-config not found  ***" "$LINENO" 5
-		fi
-
-		LIBS="$LIBS $ac_ffmpeg_ldflags"
-		export PKG_CONFIG_PATH=$SAVED_PKG_CONFIG_PATH
-
-
+else
+	as_fn_error $? "*** Error: pkg-config not found  ***" "$LINENO" 5
 fi
+
+LIBS="$LIBS $ac_ffmpeg_ldflags"
+export PKG_CONFIG_PATH=$SAVED_PKG_CONFIG_PATH
 
 
 # Check whether --enable-v4l2 was given.
