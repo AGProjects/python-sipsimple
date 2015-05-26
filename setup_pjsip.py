@@ -65,8 +65,6 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_TRANSPORT_IDLE_TIME 7200",
                    "#define PJ_ENABLE_EXTRA_CHECK 1",
                    "#define PJSIP_DONT_SWITCH_TO_TCP 1",
-                   "#define PJMEDIA_HAS_VIDEO 1",
-                   "#define PJMEDIA_HAS_FFMPEG 1",
                    "#define PJMEDIA_VIDEO_DEV_HAS_SDL 0",
                    "#define PJMEDIA_VIDEO_DEV_HAS_FB 1",
                    "#define PJMEDIA_VIDEO_DEV_HAS_FFMPEG 0",
