@@ -221,52 +221,37 @@ cdef class PJMEDIAEndpoint:
         self._pool = pjmedia_endpt_create_pool(self._obj, "PJMEDIAEndpoint", 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
-        status = pjmedia_codec_speex_init(self._obj, PJMEDIA_SPEEX_NO_NB, -1, -1)
-        if status != 0:
-            raise PJSIPError("Could not initialize speex codec", status)
-        self._has_speex = 1
-        status = pjmedia_codec_g722_init(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not initialize G.722 codec", status)
-        self._has_g722 = 1
-        pjmedia_codec_g711_init(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not initialize G.711 codecs", status)
-        self._has_g711 = 1
-        status = pjmedia_codec_ilbc_init(self._obj, 20)
-        if status != 0:
-            raise PJSIPError("Could not initialize iLBC codec", status)
-        self._has_ilbc = 1
-        status = pjmedia_codec_gsm_init(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not initialize GSM codec", status)
-        self._has_gsm = 1
-        status = pjmedia_codec_opus_init(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not initialize opus codec", status)
-        self._has_opus = 1
+
+        self._audio_subsystem_init(caching_pool)
         self._video_subsystem_init(caching_pool)
 
     def __dealloc__(self):
+        self._audio_subsystem_shutdown()
         self._video_subsystem_shutdown()
-        if self._has_opus:
-            pjmedia_codec_opus_deinit()
-        if self._has_gsm:
-            pjmedia_codec_gsm_deinit()
-        if self._has_ilbc:
-            pjmedia_codec_ilbc_deinit()
-        if self._has_g711:
-            pjmedia_codec_g711_deinit()
-        if self._has_g722:
-            pjmedia_codec_g722_deinit()
-        if self._has_speex:
-            pjmedia_codec_speex_deinit()
         if self._pool != NULL:
             pj_pool_release(self._pool)
         if self._obj != NULL:
             pjmedia_endpt_destroy(self._obj)
 
+    cdef void _audio_subsystem_init(self, PJCachingPool caching_pool):
+        cdef int status
+        cdef pjmedia_audio_codec_config audio_codec_cfg
+
+        pjmedia_audio_codec_config_default(&audio_codec_cfg)
+        audio_codec_cfg.speex.option = PJMEDIA_SPEEX_NO_NB
+        audio_codec_cfg.ilbc.mode = 30
+
+        status = pjmedia_codec_register_audio_codecs(self._obj, &audio_codec_cfg)
+        if status != 0:
+            raise PJSIPError("Could not initialize audio codecs", status)
+        self._has_audio_codecs = 1
+
+    cdef void _audio_subsystem_shutdown(self):
+        pass
+
     cdef void _video_subsystem_init(self, PJCachingPool caching_pool):
+        cdef int status
+
         status = pjmedia_video_format_mgr_create(self._pool, 64, 0, NULL)
         if status != 0:
             raise PJSIPError("Could not initialize video format manager", status)

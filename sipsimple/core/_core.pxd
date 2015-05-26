@@ -889,18 +889,18 @@ cdef extern from "pjmedia-codec.h":
     # codecs
     enum:
         PJMEDIA_SPEEX_NO_NB
-    int pjmedia_codec_g711_init(pjmedia_endpt *endpt) nogil
-    int pjmedia_codec_g711_deinit() nogil
-    int pjmedia_codec_gsm_init(pjmedia_endpt *endpt) nogil
-    int pjmedia_codec_gsm_deinit() nogil
-    int pjmedia_codec_g722_init(pjmedia_endpt *endpt) nogil
-    int pjmedia_codec_g722_deinit() nogil
-    int pjmedia_codec_opus_init(pjmedia_endpt *endpt) nogil
-    int pjmedia_codec_opus_deinit() nogil
-    int pjmedia_codec_ilbc_init(pjmedia_endpt *endpt, int mode) nogil
-    int pjmedia_codec_ilbc_deinit() nogil
-    int pjmedia_codec_speex_init(pjmedia_endpt *endpt, int options, int quality, int complexity) nogil
-    int pjmedia_codec_speex_deinit() nogil
+    struct speex_options:
+        unsigned int option
+        int quality
+        int complexity
+    struct ilbc_options:
+        unsigned mode
+    struct pjmedia_audio_codec_config:
+        speex_options speex
+        ilbc_options ilbc
+
+    void pjmedia_audio_codec_config_default(pjmedia_audio_codec_config *cfg)
+    int pjmedia_codec_register_audio_codecs(pjmedia_endpt *endpt, const pjmedia_audio_codec_config *c) nogil
     int pjmedia_codec_ffmpeg_vid_init(pjmedia_vid_codec_mgr *mgr, pj_pool_factory *pf) nogil
     int pjmedia_codec_ffmpeg_vid_deinit() nogil
 
@@ -1447,12 +1447,7 @@ cdef class PJMEDIAEndpoint(object):
     # attributes
     cdef pjmedia_endpt *_obj
     cdef pj_pool_t *_pool
-    cdef int _has_speex
-    cdef int _has_g722
-    cdef int _has_g711
-    cdef int _has_ilbc
-    cdef int _has_gsm
-    cdef int _has_opus
+    cdef int _has_audio_codecs
     cdef int _has_video
     cdef int _has_ffmpeg_video
 
@@ -1465,6 +1460,8 @@ cdef class PJMEDIAEndpoint(object):
     cdef list _get_all_video_codecs(self)
     cdef list _get_current_video_codecs(self)
     cdef int _set_video_codecs(self, list req_codecs) except -1
+    cdef void _audio_subsystem_init(self, PJCachingPool caching_pool)
+    cdef void _audio_subsystem_shutdown(self)
     cdef void _video_subsystem_init(self, PJCachingPool caching_pool)
     cdef void _video_subsystem_shutdown(self)
     cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, float max_bitrate)
