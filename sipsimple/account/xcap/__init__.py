@@ -10,6 +10,7 @@ import base64
 import cPickle
 import os
 import random
+import socket
 import weakref
 
 from cStringIO import StringIO
@@ -135,7 +136,7 @@ class Document(object):
             self.content = self.payload_type.parse(document)
             self.etag = document.etag
             self.__dict__['dirty'] = False
-        except (BadStatusLine, ConnectionLost, URLError), e:
+        except (BadStatusLine, ConnectionLost, URLError, socket.error), e:
             raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
         except HTTPError, e:
             if e.status == 404: # Not Found
