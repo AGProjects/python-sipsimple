@@ -1132,12 +1132,13 @@ static pj_status_t decode_frame(pjmedia_vid_stream *stream,
 		stream->info.codec_param->dec_fmt.det.vid.fps = vfd->fps;
 
 		/* Publish PJMEDIA_EVENT_FMT_CHANGED event if frame rate
-		 * increased and not exceeding 100fps.
+		 * increased and not exceeding 60fps.
 		 */
-		if (vfd->fps.num/vfd->fps.denum <= 100 &&
+		if (vfd->fps.num/vfd->fps.denum <= 60.0 &&
 		    vfd->fps.num * stream->dec_max_fps.denum >
 		    stream->dec_max_fps.num * vfd->fps.denum)
 		{
+		    /*printf("FPS CHANGED: %d/%d -> %d/%d\n", stream->dec_max_fps.num, stream->dec_max_fps.denum, vfd->fps.num, vfd->fps.denum);*/
 		    pjmedia_event *event = &stream->fmt_event;
 
 		    /* Update max fps of decoding dir */
