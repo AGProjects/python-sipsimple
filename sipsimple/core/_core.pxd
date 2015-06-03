@@ -413,6 +413,8 @@ cdef extern from "pjmedia.h":
     enum pjmedia_event_type:
         PJMEDIA_EVENT_FMT_CHANGED
         PJMEDIA_EVENT_KEYFRAME_FOUND
+        PJMEDIA_EVENT_KEYFRAME_MISSING
+        PJMEDIA_EVENT_KEYFRAME_REQUESTED
     struct pjmedia_event_fmt_changed_data:
         pjmedia_dir dir
         pjmedia_format new_fmt
@@ -587,6 +589,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_vid_stream_send_keyframe(pjmedia_vid_stream *stream) nogil
     int pjmedia_vid_stream_send_rtcp_sdes(pjmedia_vid_stream *stream) nogil
     int pjmedia_vid_stream_send_rtcp_bye(pjmedia_vid_stream *stream) nogil
+    int pjmedia_vid_stream_send_rtcp_pli(pjmedia_vid_stream *stream) nogil
 
     # video port
     struct pjmedia_vid_port

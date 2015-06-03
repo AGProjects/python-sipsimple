@@ -1033,7 +1033,7 @@ cdef int RemoteVideoStream_on_event(pjmedia_event *event, void *user_data) with 
     if user_data == NULL:
         return 0
     stream = <object>user_data
-    if (event.type == PJMEDIA_EVENT_FMT_CHANGED or event.type == PJMEDIA_EVENT_KEYFRAME_FOUND) and stream._event_handler is not None:
+    if stream._event_handler is not None:
         if event.type == PJMEDIA_EVENT_FMT_CHANGED:
             fmt = event.data.fmt_changed.new_fmt
             size = (fmt.det.vid.size.w, fmt.det.vid.size.h)
@@ -1041,5 +1041,12 @@ cdef int RemoteVideoStream_on_event(pjmedia_event *event, void *user_data) with 
             stream._event_handler('FORMAT_CHANGED', (size, fps))
         elif event.type == PJMEDIA_EVENT_KEYFRAME_FOUND:
             stream._event_handler('RECEIVED_KEYFRAME', None)
+        elif event.type == PJMEDIA_EVENT_KEYFRAME_MISSING:
+            stream._event_handler('MISSED_KEYFRAME', None)
+        elif event.type == PJMEDIA_EVENT_KEYFRAME_REQUESTED:
+            stream._event_handler('REQUESTED_KEYFRAME', None)
+        else:
+            # Pacify compiler
+            pass
     return 0
 

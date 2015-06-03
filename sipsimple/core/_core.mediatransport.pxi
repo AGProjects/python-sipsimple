@@ -1953,6 +1953,25 @@ cdef class VideoTransport:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def request_keyframe(self):
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_vid_stream *stream
+
+        _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            stream = self._obj
+            if stream != NULL:
+                # Do not check for errors, it's OK if we can't send it
+                pjmedia_vid_stream_send_rtcp_pli(stream)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil:
         cdef int status
         cdef pj_mutex_t *lock = self._lock
@@ -1989,6 +2008,10 @@ cdef class VideoTransport:
             _add_event("RTPVideoTransportRemoteFormatDidChange", dict(obj=self, size=size, framerate=framerate))
         elif name == "RECEIVED_KEYFRAME":
             _add_event("RTPVideoTransportReceivedKeyFrame", dict(obj=self))
+        elif name == "MISSED_KEYFRAME":
+            _add_event("RTPVideoTransportMissedKeyFrame", dict(obj=self))
+        elif name == "REQUESTED_KEYFRAME":
+            _add_event("RTPVideoTransportRequestedKeyFrame", dict(obj=self))
 
 
 cdef class ICECandidate:

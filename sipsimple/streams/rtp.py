@@ -955,6 +955,14 @@ class VideoStream(RTPStream):
     def _NH_RTPVideoTransportReceivedKeyFrame(self, notification):
         self.notification_center.post_notification('VideoStreamReceivedKeyFrame', sender=self, data=notification.data)
 
+    def _NH_RTPVideoTransportMissedKeyFrame(self, notification):
+        self._transport.request_keyframe()
+        self.notification_center.post_notification('VideoStreamMissedKeyFrame', sender=self, data=notification.data)
+
+    def _NH_RTPVideoTransportRequestedKeyFrame(self, notification):
+        self._transport.send_keyframe()
+        self.notification_center.post_notification('VideoStreamRequestedKeyFrame', sender=self, data=notification.data)
+
     def _NH_VideoDeviceDidChangeCamera(self, notification):
         new_camera = notification.data.new_camera
         if self._transport is not None and self._transport.local_video is not None:
@@ -1002,4 +1010,5 @@ class VideoStream(RTPStream):
     def _resume(self):
         self._transport.resume()
         self._send_keyframes()
+        self._transport.request_keyframe()
 
