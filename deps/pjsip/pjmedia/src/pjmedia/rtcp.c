@@ -31,6 +31,7 @@
 #define RTCP_RR   201
 #define RTCP_SDES 202
 #define RTCP_BYE  203
+#define RTCP_PSFB 206    /* Payload-specific FB message (RFC 4585) */
 #define RTCP_XR   207
 
 enum {
@@ -764,11 +765,28 @@ static void parse_rtcp_bye(pjmedia_rtcp_session *sess,
 }
 
 
+static void parse_rtcp_psfb(pjmedia_rtcp_session *sess,
+			    const void *pkt,
+			    pj_size_t size)
+{
+    pjmedia_rtcp_common *common = (pjmedia_rtcp_common*)pkt;
+    pj_assert(common->pt == RTCP_PSFB);
+
+    if (common->count == 1) {
+        /* It's a PLI */
+        PJ_LOG(5, (sess->name, "Received RTCP PLI"));
+        sess->keyframe_requested = PJ_TRUE;
+    }
+}
+
+
 PJ_DEF(void) pjmedia_rtcp_rx_rtcp( pjmedia_rtcp_session *sess,
 				   const void *pkt,
 				   pj_size_t size)
 {
     pj_uint8_t *p, *p_end;
+
+    sess->keyframe_requested = PJ_FALSE;
 
     p = (pj_uint8_t*)pkt;
     p_end = p + size;
@@ -788,6 +806,9 @@ PJ_DEF(void) pjmedia_rtcp_rx_rtcp( pjmedia_rtcp_session *sess,
 	    break;
 	case RTCP_BYE:
 	    parse_rtcp_bye(sess, p, len);
+	    break;
+	case RTCP_PSFB:
+	    parse_rtcp_psfb(sess, p, len);
 	    break;
 	default:
 	    /* Ignore unknown RTCP */
@@ -1068,6 +1089,34 @@ PJ_DEF(pj_status_t) pjmedia_rtcp_build_rtcp_bye(pjmedia_rtcp_session *session,
     pj_assert((int)len == p-(pj_uint8_t*)buf);
     *length = len;
 
+    return PJ_SUCCESS;
+}
+
+
+PJ_DEF(pj_status_t) pjmedia_rtcp_build_rtcp_pli(pjmedia_rtcp_session *session,
+						void *buf,
+						pj_size_t *length)
+{
+    pjmedia_rtcp_common *hdr;
+    pj_uint8_t *p;
+    pj_size_t len = 12;    /* pjmedia_rtcp_common + media SSRC (uint32_t) */
+
+    PJ_ASSERT_RETURN(session && buf && length, PJ_EINVAL);
+
+    /* Verify buffer length */
+    if (len > *length)
+	return PJ_ETOOSMALL;
+
+    /* Build RTCP PLI */
+    hdr = (pjmedia_rtcp_common*)buf;
+    pj_memcpy(hdr, &session->rtcp_sr_pkt.common,  sizeof(*hdr));
+    hdr->pt = RTCP_PSFB;
+    hdr->count = 1;    /* FMT: 1 == Picture Loss Indication (PLI) */
+    hdr->length = pj_htons((pj_uint16_t)(len/4 - 1));
+
+    p = (pj_uint8_t*)hdr + sizeof(*hdr);
+    pj_memset(p, 0, (pj_uint8_t*)hdr + len - p);
+    *length = len;
     return PJ_SUCCESS;
 }
 

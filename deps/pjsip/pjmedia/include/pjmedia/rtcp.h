@@ -256,6 +256,8 @@ typedef struct pjmedia_rtcp_session
     
     pjmedia_rtcp_stat	    stat;	/**< Bidirectional stream stat.	    */
 
+    pj_bool_t               keyframe_requested;    /** Set to true when RTCP PLI is received */
+
 #if defined(PJMEDIA_HAS_RTCP_XR) && (PJMEDIA_HAS_RTCP_XR != 0)
     /**
      * Specify whether RTCP XR processing is enabled on this session.
@@ -462,6 +464,22 @@ PJ_DECL(pj_status_t) pjmedia_rtcp_build_rtcp_bye(
 					    pj_size_t *length,
 					    const pj_str_t *reason);
 
+/**
+ * Build an RTCP PLI packet. This packet can be appended to other RTCP
+ * packets, e.g: RTCP RR/SR, to compose a compound RTCP packet.
+ *
+ * @param session   The RTCP session.
+ * @param buf	    The buffer to receive RTCP PLI packet.
+ * @param length    On input, it will contain the buffer length.
+ *		    On output, it will contain the generated RTCP PLI
+ *		    packet length.
+ *
+ * @return	    PJ_SUCCESS on success.
+ */
+PJ_DECL(pj_status_t) pjmedia_rtcp_build_rtcp_pli(
+					    pjmedia_rtcp_session *session, 
+					    void *buf,
+					    pj_size_t *length);
 
 /**
  * Call this function if RTCP XR needs to be enabled/disabled in the 

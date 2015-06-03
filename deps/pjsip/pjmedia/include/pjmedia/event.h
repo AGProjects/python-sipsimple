@@ -80,6 +80,11 @@ typedef enum pjmedia_event_type
     PJMEDIA_EVENT_KEYFRAME_MISSING = PJMEDIA_FOURCC('I', 'F', 'R', 'M'),
 
     /**
+     * Remote video decoder asked for a keyframe.
+     */
+    PJMEDIA_EVENT_KEYFRAME_REQUESTED = PJMEDIA_FOURCC('I', 'F', 'R', 'R'),
+
+    /**
      * Video orientation has been changed event.
      */
     PJMEDIA_EVENT_ORIENT_CHANGED = PJMEDIA_FOURCC('O', 'R', 'N', 'T')

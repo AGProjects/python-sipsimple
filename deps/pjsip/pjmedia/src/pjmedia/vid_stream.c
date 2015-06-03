@@ -150,6 +150,10 @@ struct pjmedia_vid_stream
 					    /**< Buffered missing keyframe
                                                  event for delayed republish*/
 
+    pjmedia_event            keyframe_req_event; 
+					    /**< Buffered keyframe request
+                                                 event for delayed republish*/
+
     unsigned		     frame_size;    /**< Size of encoded base frame.*/
     unsigned		     frame_ts_len;  /**< Frame length in timestamp. */
 
@@ -792,6 +796,13 @@ static void on_rx_rtcp( void *data,
     }
 
     pjmedia_rtcp_rx_rtcp(&stream->rtcp, pkt, bytes_read);
+
+    /* XXX: posting some event from the RTCP session might be a better option */
+    if (stream->rtcp.keyframe_requested) {
+        pjmedia_event event;
+        pjmedia_event_init(&event, PJMEDIA_EVENT_KEYFRAME_REQUESTED, NULL, stream);
+	pj_memcpy(&stream->keyframe_req_event, &event, sizeof(event));
+    }
 }
 
 static pj_status_t put_frame(pjmedia_port *port,
@@ -1234,6 +1245,12 @@ static pj_status_t get_frame(pjmedia_port *port,
 	pjmedia_event_publish(NULL, port, &stream->miss_keyframe_event,
 			      PJMEDIA_EVENT_PUBLISH_POST_EVENT);
 	stream->miss_keyframe_event.type = PJMEDIA_EVENT_NONE;
+    }
+
+    if (stream->keyframe_req_event.type != PJMEDIA_EVENT_NONE) {
+	pjmedia_event_publish(NULL, port, &stream->keyframe_req_event,
+			      PJMEDIA_EVENT_PUBLISH_POST_EVENT);
+	stream->keyframe_req_event.type = PJMEDIA_EVENT_NONE;
     }
 
     pj_mutex_lock( stream->jb_mutex );
@@ -1998,6 +2015,47 @@ PJ_DEF(pj_status_t) pjmedia_vid_stream_send_rtcp_bye(
 
     if (stream->enc && stream->transport) {
 	return send_rtcp(stream, PJ_TRUE, PJ_TRUE);
+    }
+
+    return PJ_SUCCESS;
+}
+
+
+/*
+ * Send RTCP PLI.
+ */
+PJ_DEF(pj_status_t) pjmedia_vid_stream_send_rtcp_pli(
+						pjmedia_vid_stream *stream)
+{
+    PJ_ASSERT_RETURN(stream, PJ_EINVAL);
+
+    if (stream->enc && stream->transport) {
+        void *sr_rr_pkt;
+        pj_uint8_t *pkt;
+        int len, max_len;
+        pj_status_t status;
+        pj_size_t pli_len;
+
+        /* Build RTCP RR/SR packet */
+        pjmedia_rtcp_build_rtcp(&stream->rtcp, &sr_rr_pkt, &len);
+
+        pkt = (pj_uint8_t*) stream->out_rtcp_pkt;
+        pj_memcpy(pkt, sr_rr_pkt, len);
+        max_len = stream->out_rtcp_pkt_size;
+
+        /* Build RTCP PLI packet */
+        pli_len = max_len - len;
+        status = pjmedia_rtcp_build_rtcp_pli(&stream->rtcp, pkt+len, &pli_len);
+        if (status != PJ_SUCCESS) {
+            PJ_PERROR(4,(stream->name.ptr, status, "Error generating RTCP PLI"));
+        } else {
+            len += (int)pli_len;
+        }
+
+        /* Send! */
+        status = pjmedia_transport_send_rtcp(stream->transport, pkt, len);
+
+        return status;
     }
 
     return PJ_SUCCESS;
