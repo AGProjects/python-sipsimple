@@ -38,7 +38,7 @@ class Engine(Thread):
                              "rtp_port_range": (50000, 50500),
 			     "zrtp_cache": None,
                              "codecs": ["G722", "speex", "PCMU", "PCMA"],
-                             "video_codecs": ["H264", "H263-1998"],
+                             "video_codecs": ["H264", "H263-1998", "VP8"],
                              "enable_colorbar_device": False,
                              "events": {"conference":      ["application/conference-info+xml"],
                                         "message-summary": ["application/simple-message-summary"],

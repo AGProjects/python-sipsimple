@@ -246,11 +246,10 @@ class SIPApplication(object):
         self.video_device = VideoDevice(settings.video.device, settings.video.resolution, settings.video.framerate)
         self.video_device.muted = settings.video.muted
         settings.video.device = self.video_device.name
-        self.engine.set_h264_options(settings.video.h264.profile,
-                                     settings.video.h264.level,
-                                     settings.video.resolution,
-                                     settings.video.framerate,
-                                     settings.video.max_bitrate)
+        self.engine.set_video_options(settings.video.resolution,
+                                      settings.video.framerate,
+                                      settings.video.max_bitrate)
+        self.engine.set_h264_options(settings.video.h264.profile, settings.video.h264.level)
 
         # initialize instance id
         if not settings.instance_id:
@@ -408,16 +407,16 @@ class SIPApplication(object):
                         self.alert_audio_bridge.mixer.output_volume = 100
             if 'video.muted' in notification.data.modified:
                 self.video_device.muted = settings.video.muted
-            if {'video.device', 'video.resolution', 'video.framerate', 'video.max_bitrate', 'video.h264.profile', 'video.h264.level'}.intersection(notification.data.modified):
+            if {'video.h264.profile', 'video.h264.level'}.intersection(notification.data.modified):
+                self.engine.set_h264_options(settings.video.h264.profile, settings.video.h264.level)
+            if {'video.device', 'video.resolution', 'video.framerate', 'video.max_bitrate'}.intersection(notification.data.modified):
                 if {'video.device', 'video.resolution', 'video.framerate'}.intersection(notification.data.modified) or settings.video.device != self.video_device.name:
                     self.video_device.set_camera(settings.video.device, settings.video.resolution, settings.video.framerate)
                     settings.video.device = self.video_device.name
                     settings.save()
-                self.engine.set_h264_options(settings.video.h264.profile,
-                                             settings.video.h264.level,
-                                             settings.video.resolution,
-                                             settings.video.framerate,
-                                             settings.video.max_bitrate)
+                self.engine.set_video_options(settings.video.resolution,
+                                              settings.video.framerate,
+                                              settings.video.max_bitrate)
             if 'user_agent' in notification.data.modified:
                 self.engine.user_agent = settings.user_agent
             if 'sip.udp_port' in notification.data.modified:

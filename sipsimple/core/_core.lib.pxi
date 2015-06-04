@@ -268,6 +268,10 @@ cdef class PJMEDIAEndpoint:
         if status != 0:
             raise PJSIPError("Could not initialize ffmpeg video codecs", status)
         self._has_ffmpeg_video = 1
+        status = pjmedia_codec_vpx_init(NULL, &caching_pool._obj.factory)
+        if status != 0:
+            raise PJSIPError("Could not initialize vpx video codecs", status)
+        self._has_vpx = 1
         status = pjmedia_vid_dev_subsys_init(&caching_pool._obj.factory)
         if status != 0:
             raise PJSIPError("Could not initialize video subsystem", status)
@@ -278,6 +282,8 @@ cdef class PJMEDIAEndpoint:
             pjmedia_vid_dev_subsys_shutdown()
         if self._has_ffmpeg_video:
             pjmedia_codec_ffmpeg_vid_deinit()
+        if self._has_vpx:
+            pjmedia_codec_vpx_deinit()
         if pjmedia_vid_codec_mgr_instance() != NULL:
             pjmedia_vid_codec_mgr_destroy(NULL)
         if pjmedia_event_mgr_instance() != NULL:
@@ -428,7 +434,7 @@ cdef class PJMEDIAEndpoint:
                     raise PJSIPError("Could not set video codec priority", status)
         return 0
 
-    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, float max_bitrate):
+    cdef void _set_h264_options(self, str profile, int level):
         global h264_profiles_map, h264_profile_level_id, h264_packetization_mode
 
         cdef unsigned int count = PJMEDIA_VID_CODEC_MGR_MAX_CODECS
@@ -445,42 +451,68 @@ cdef class PJMEDIAEndpoint:
         except KeyError:
             raise ValueError("invalid profile specified: %s" % profile)
         h264_profile_level_id_value = PJSTR("%xe0%x" % (profile_n, level))    # use common subset (e0)
+
+        status = pjmedia_vid_codec_mgr_enum_codecs(NULL, &count, info, prio)
+        if status != 0:
+            raise PJSIPError("Could not get available video codecs", status)
+        for i from 0 <= i < count:
+            if not (info[i].packings & PJMEDIA_VID_PACKING_PACKETS):
+                continue
+            if _pj_str_to_str(info[i].encoding_name) != 'H264':
+                continue
+            status = pjmedia_vid_codec_mgr_get_default_param(NULL, &info[i], &vparam)
+            if status != 0:
+                continue
+            # 2 format parameters are currently defined for H264: profile-level-id and packetization-mode
+            vparam.dec_fmtp.param[0].name = h264_profile_level_id.pj_str
+            vparam.dec_fmtp.param[0].val = h264_profile_level_id_value.pj_str
+            vparam.dec_fmtp.param[1].name = h264_packetization_mode.pj_str
+            vparam.dec_fmtp.param[1].val = h264_packetization_mode_value.pj_str
+            vparam.dec_fmtp.cnt = 2
+
+            status = pjmedia_vid_codec_mgr_set_default_param(NULL, &info[i], &vparam)
+            if status != 0:
+                raise PJSIPError("Could not set H264 options", status)
+
+
+    cdef void _set_video_options(self, tuple max_resolution, int max_framerate, float max_bitrate):
+        cdef unsigned int count = PJMEDIA_VID_CODEC_MGR_MAX_CODECS
+        cdef pjmedia_vid_codec_info info[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef pjmedia_vid_codec_param vparam
+        cdef unsigned int prio[PJMEDIA_VID_CODEC_MGR_MAX_CODECS]
+        cdef int i
+        cdef int status
+
         max_width, max_height = max_resolution
 
         status = pjmedia_vid_codec_mgr_enum_codecs(NULL, &count, info, prio)
         if status != 0:
             raise PJSIPError("Could not get available video codecs", status)
         for i from 0 <= i < count:
-            if info[i].packings & PJMEDIA_VID_PACKING_PACKETS:
-                if _pj_str_to_str(info[i].encoding_name) == 'H264':
-                    status = pjmedia_vid_codec_mgr_get_default_param(NULL, &info[i], &vparam)
-                    if status != 0:
-                        continue
-                    # 2 format parameters are currently defined for H264: profile-level-id and packetization-mode
-                    vparam.dec_fmtp.param[0].name = h264_profile_level_id.pj_str
-                    vparam.dec_fmtp.param[0].val = h264_profile_level_id_value.pj_str
-                    vparam.dec_fmtp.param[1].name = h264_packetization_mode.pj_str
-                    vparam.dec_fmtp.param[1].val = h264_packetization_mode_value.pj_str
-                    vparam.dec_fmtp.cnt = 2
-                    # Max resolution
-                    vparam.enc_fmt.det.vid.size.w = max_width
-                    vparam.enc_fmt.det.vid.size.h = max_height
-                    vparam.dec_fmt.det.vid.size.w = max_width
-                    vparam.dec_fmt.det.vid.size.h = max_height
-                    # Max framerate
-                    vparam.enc_fmt.det.vid.fps.num = max_framerate
-                    vparam.enc_fmt.det.vid.fps.denum = 1
-                    vparam.dec_fmt.det.vid.fps.num = 10
-                    vparam.dec_fmt.det.vid.fps.denum = 1
-                    # Average and max bitrate (set to 0 for 'unlimited')
-                    vparam.enc_fmt.det.vid.avg_bps = int(max_bitrate * 1e6)
-                    vparam.enc_fmt.det.vid.max_bps = int(max_bitrate * 1e6)
-                    vparam.dec_fmt.det.vid.avg_bps = 0
-                    vparam.dec_fmt.det.vid.max_bps = 0
+            if not (info[i].packings & PJMEDIA_VID_PACKING_PACKETS):
+                continue
+            status = pjmedia_vid_codec_mgr_get_default_param(NULL, &info[i], &vparam)
+            if status != 0:
+                continue
+            # Max resolution
+            vparam.enc_fmt.det.vid.size.w = max_width
+            vparam.enc_fmt.det.vid.size.h = max_height
+            vparam.dec_fmt.det.vid.size.w = max_width
+            vparam.dec_fmt.det.vid.size.h = max_height
+            # Max framerate
+            vparam.enc_fmt.det.vid.fps.num = max_framerate
+            vparam.enc_fmt.det.vid.fps.denum = 1
+            vparam.dec_fmt.det.vid.fps.num = 10
+            vparam.dec_fmt.det.vid.fps.denum = 1
+            # Average and max bitrate (set to 0 for 'unlimited')
+            vparam.enc_fmt.det.vid.avg_bps = int(max_bitrate * 1e6)
+            vparam.enc_fmt.det.vid.max_bps = int(max_bitrate * 1e6)
+            vparam.dec_fmt.det.vid.avg_bps = 0
+            vparam.dec_fmt.det.vid.max_bps = 0
 
-                    status = pjmedia_vid_codec_mgr_set_default_param(NULL, &info[i], &vparam)
-                    if status != 0:
-                        raise PJSIPError("Could not set H264 options", status)
+            status = pjmedia_vid_codec_mgr_set_default_param(NULL, &info[i], &vparam)
+            if status != 0:
+                raise PJSIPError("Could not set video options", status)
 
 
 cdef void _transport_state_cb(pjsip_transport *tp, pjsip_transport_state state, pjsip_transport_state_info_ptr_const info) with gil:

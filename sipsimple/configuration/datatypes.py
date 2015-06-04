@@ -267,7 +267,7 @@ class VideoResolution(tuple):
 
 
 class VideoCodecList(CodecList):
-    available_values = {'H264'}
+    available_values = {'H264', 'VP8'}
 
 
 ## Address and transport datatypes

@@ -906,6 +906,8 @@ cdef extern from "pjmedia-codec.h":
     int pjmedia_codec_register_audio_codecs(pjmedia_endpt *endpt, const pjmedia_audio_codec_config *c) nogil
     int pjmedia_codec_ffmpeg_vid_init(pjmedia_vid_codec_mgr *mgr, pj_pool_factory *pf) nogil
     int pjmedia_codec_ffmpeg_vid_deinit() nogil
+    int pjmedia_codec_vpx_init(pjmedia_vid_codec_mgr *mgr, pj_pool_factory *pf) nogil
+    int pjmedia_codec_vpx_deinit() nogil
 
 cdef extern from "pjsip.h":
 
@@ -1453,6 +1455,7 @@ cdef class PJMEDIAEndpoint(object):
     cdef int _has_audio_codecs
     cdef int _has_video
     cdef int _has_ffmpeg_video
+    cdef int _has_vpx
 
     # private methods
     cdef list _get_codecs(self)
@@ -1467,7 +1470,8 @@ cdef class PJMEDIAEndpoint(object):
     cdef void _audio_subsystem_shutdown(self)
     cdef void _video_subsystem_init(self, PJCachingPool caching_pool)
     cdef void _video_subsystem_shutdown(self)
-    cdef void _set_h264_options(self, str profile, int level, tuple max_resolution, int max_framerate, float max_bitrate)
+    cdef void _set_h264_options(self, str profile, int level)
+    cdef void _set_video_options(self, tuple max_resolution, int max_framerate, float max_bitrate)
 
 # core.helper
 
