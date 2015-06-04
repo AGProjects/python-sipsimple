@@ -666,14 +666,12 @@ static pj_status_t opus_codec_parse(pjmedia_codec *codec, void *pkt, pj_size_t p
 
 static pj_status_t opus_codec_decode(pjmedia_codec *codec, const struct pjmedia_frame *input, unsigned output_buf_len, struct pjmedia_frame *output) {
     struct opus_private *opus;
-    int frm_cnt;
     unsigned pkt_info, frm_info, frm_size;
 
     PJ_ASSERT_RETURN(codec && input && output_buf_len && output, PJ_EINVAL);
 
     opus = (struct opus_private*) codec->codec_data;
 
-    frm_cnt = opus_packet_get_nb_frames(input->buf, input->size);
     pkt_info = input->bit_info & 0xFFFFFF00;
     frm_info = input->bit_info & 0xF;
     if (opus->pkt_info != pkt_info || input->bit_info == 0) {
