@@ -225,6 +225,14 @@
 #endif
 
 /**
+ * Compile VPX support, unless explicitly disabled
+ */
+#ifndef PJMEDIA_HAS_VPX_CODEC
+#   define PJMEDIA_HAS_VPX_CODEC                PJMEDIA_HAS_LIBVPX
+#endif
+
+
+/**
  * @}
  */
 

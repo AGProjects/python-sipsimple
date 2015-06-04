@@ -604,6 +604,8 @@ AC_ARG_ENABLE(resample_dll,
 	      )
 
 
+dnl # FFmpeg
+
 AC_ARG_WITH(ffmpeg,
     AC_HELP_STRING([--with-ffmpeg=DIR],
 		   [Specify alternate FFMPEG prefix]),
@@ -667,6 +669,46 @@ else
 fi
 
 LIBS="$LIBS $ac_ffmpeg_ldflags"
+export PKG_CONFIG_PATH=$SAVED_PKG_CONFIG_PATH
+
+
+dnl # libvpx
+
+AC_ARG_WITH(vpx,
+    AC_HELP_STRING([--with-vpx=DIR],
+		   [Specify alternate libVPX prefix]),
+    [],
+    [with_vpx=no]
+)
+
+AC_SUBST(ac_vpx_cflags)
+AC_SUBST(ac_vpx_ldflags)
+
+VPX_PREFIX=""
+AC_SUBST(SAVED_PKG_CONFIG_PATH)
+SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
+if test "x$with_vpx" != "xno" -a "x$with_vpx" != "x"; then
+	VPX_PREFIX=$with_vpx
+	AC_MSG_RESULT([Using libVPX prefix... $VPX_PREFIX])
+	export PKG_CONFIG_PATH=$VPX_PREFIX
+fi
+
+AC_CHECK_PROGS(PKG_CONFIG,pkg-config,none)
+
+if test "$PKG_CONFIG" != "none"; then
+	AC_MSG_CHECKING([libvpx packages])
+	if $PKG_CONFIG --exists vpx; then
+	        ac_vpx_cflags="`$PKG_CONFIG --cflags vpx` -DPJMEDIA_HAS_LIBVPX=1"
+        	ac_vpx_ldflags="`$PKG_CONFIG --libs vpx`"
+	        AC_MSG_RESULT(yes)
+        else
+	   AC_MSG_ERROR([*** Error: VPX library not detected  ***])
+	fi
+else
+	AC_MSG_ERROR([*** Error: pkg-config not found  ***])
+fi
+
+LIBS="$LIBS $ac_vpx_ldflags"
 export PKG_CONFIG_PATH=$SAVED_PKG_CONFIG_PATH
 
 

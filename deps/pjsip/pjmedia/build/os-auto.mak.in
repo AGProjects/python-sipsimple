@@ -11,6 +11,10 @@ AC_PJMEDIA_VIDEO = @ac_pjmedia_video@
 FFMPEG_CFLAGS = @ac_ffmpeg_cflags@ 
 FFMPEG_LDFLAGS =  @ac_ffmpeg_ldflags@
 
+# VPX flags
+VPX_CFLAGS = @ac_vpx_cflags@
+VPX_LDFLAGS =  @ac_vpx_ldflags@
+
 # Video4Linux2
 V4L2_CFLAGS = @ac_v4l2_cflags@
 V4L2_LDFLAGS = @ac_v4l2_ldflags@
@@ -38,9 +42,10 @@ OPENH264_LDFLAGS = @ac_openh264_ldflags@
 # PJMEDIA features exclusion
 export CFLAGS += @ac_no_small_filter@ @ac_no_large_filter@ @ac_no_speex_aec@ \
 		 $(FFMPEG_CFLAGS) $(V4L2_CFLAGS) $(AVF_CFLAGS) \
-		 $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS) $(OPENH264_CFLAGS)
+		 $(IOS_CFLAGS) $(DSHOW_CFLAGS) $(LIBYUV_CFLAGS) $(OPENH264_CFLAGS) \
+		 $(VPX_CFLAGS)
 export LDFLAGS += $(FFMPEG_LDFLAGS) $(V4L2_LDFLAGS) $(DSHOW_LDFLAGS) \
-    		  $(LIBYUV_LDFLAGS) $(OPENH264_LDFLAGS)
+    		  $(LIBYUV_LDFLAGS) $(OPENH264_LDFLAGS) $(VPX_LDFLAGS)
 
 
 #

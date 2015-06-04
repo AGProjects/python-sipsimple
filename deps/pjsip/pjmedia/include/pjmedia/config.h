@@ -1131,6 +1131,15 @@
 #endif
 
 /**
+ * Specify if libvpx is available.
+ *
+ * Default: 0 (or detected by configure)
+ */
+#ifndef PJMEDIA_HAS_LIBVPX
+#   define PJMEDIA_HAS_LIBVPX			        0
+#endif
+
+/**
  * Maximum video planes.
  *
  * Default: 4

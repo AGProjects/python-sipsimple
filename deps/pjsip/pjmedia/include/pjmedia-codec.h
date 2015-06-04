@@ -27,6 +27,7 @@
 
 #include <pjmedia-codec/audio_codecs.h>
 #include <pjmedia-codec/ffmpeg_vid_codecs.h>
+#include <pjmedia-codec/vpx.h>
 #include <pjmedia-codec/gsm.h>
 #include <pjmedia-codec/speex.h>
 #include <pjmedia-codec/ilbc.h>
