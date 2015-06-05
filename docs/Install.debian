@@ -62,14 +62,14 @@ debhelper python-all-dev python-all-dbg libasound2-dev libssl-dev
 For adding Video support:
 
 sudo apt-get install libv4l-dev libavcodec-dev libavformat-dev libavutil-dev \
-libswscale-dev libswresample-dev libx264-dev libavcodec-extra
+libswscale-dev libswresample-dev libx264-dev libvpx-dev libavcodec-extra
 
 If using the Debian-Multimedia repositories, do not install libavcodec-extra.
 
 For Ubuntu variants:
 
 sudo apt-get install libv4l-dev libavcodec-dev libavformat-dev libavutil-dev \
-libswscale-dev libswresample-dev libx264-dev libavcodec-extra53
+libswscale-dev libswresample-dev libx264-dev libvpx-dev libavcodec-extra53
 
 Obtain the source code using darcs as described in Install.linux document.
 

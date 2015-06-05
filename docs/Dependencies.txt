@@ -25,34 +25,23 @@ Home page: http://sipsimpleclient.org
 For Video support:
 
  * ffmpeg (libavformat, libswscale, libavcodec, libavutil) (2.0 release)
- * libx264 (snapshot-20130806-2245-stable)
+ * libx264 (recent snapshot)
+ * libvpx
 
 To compile the video dependencies:
 
-export MY_FFMPEG_LIBS=$HOME/work/ag-projects/video/local
+export SIPSIMPLE_FFMPEG_PATH=$HOME/work/ag-projects/video/local
 
 NOTE: yasm is required in order to enable asm optimizations. It does not
 come preinstalled on OSX, so it has to be manually installed. (brew install
-yams or apt-get install yams (fink) will do)
+yasm will do)
 
-For libx264:
+NOTE: libx264 and libvpx can be installed also using Homebrew on OSX.
 
-./configure --enable-shared --disable-avs --disable-lavf --disable-ffms
---disable-gpac --prefix=$MY_FFMPEG_LIBS
-make
-make install
-
-# If a 32bit build is wanted on OSX, then run this configure instead:
-./configure --host=i386-apple-darwin --enable-shared --disable-avs
-# --disable-lavf --disable-ffms --disable-gpac --prefix=$MY_FFMPEG_LIBS
 
 For ffmpeg:
 
-# Some exports
-export PKG_CONFIG_PATH=$MY_FFMPEG_LIBS/lib/pkgconfig
-
-./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --prefix=$MY_FFMPEG_LIBS --extra-cflags="`pkg-config --cflags x264`" --extra-ldflags="`pkg-config --libs x264`" 
-
+./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --disable-avdevice --disable-swresample --disable-postproc --prefix=$SIPSIMPLE_FFMPEG_PATH
 make
 make install
 
