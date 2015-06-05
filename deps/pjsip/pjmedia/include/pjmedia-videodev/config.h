@@ -153,16 +153,6 @@ PJ_BEGIN_DECL
 
 
 /**
- * This setting controls whether ffmpeg support should be included.
- *
- * Default: 0 (unfinished)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_FFMPEG
-#   define PJMEDIA_VIDEO_DEV_HAS_FFMPEG	        0
-#endif
-
-
-/**
  * Video4Linux2
  *
  * Default: 0 (or detected by configure)

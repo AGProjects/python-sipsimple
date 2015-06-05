@@ -1113,15 +1113,6 @@
 #endif
 
 /**
- * Specify if FFMPEG libavdevice is available.
- *
- * Default: PJMEDIA_HAS_FFMPEG (or detected by configure)
- */
-#ifndef PJMEDIA_HAS_LIBAVDEVICE
-#   define PJMEDIA_HAS_LIBAVDEVICE			PJMEDIA_HAS_FFMPEG
-#endif
-
-/**
  * Specify if FFMPEG libavcore is available.
  *
  * Default: PJMEDIA_HAS_FFMPEG (or detected by configure)
