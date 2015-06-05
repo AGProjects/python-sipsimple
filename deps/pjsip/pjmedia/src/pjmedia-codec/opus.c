@@ -301,7 +301,7 @@ static pj_status_t opus_test_alloc(pjmedia_codec_factory *factory, const pjmedia
 	PJ_ASSERT_RETURN(factory==&opus_factory.base, PJ_EINVAL);
 
 	/* Type MUST be audio. */
-	if (info->type != PJMEDIA_TYPE_AUDIO)
+	if (info->type != PJMEDIA_FRAME_TYPE_AUDIO)
 		return PJMEDIA_CODEC_EUNSUP;
 
 	/* Check encoding name. */
@@ -710,12 +710,12 @@ static pj_status_t opus_codec_decode(pjmedia_codec *codec, const struct pjmedia_
 	}
 
 	if (output->size == 0) {
-		output->type = PJMEDIA_TYPE_NONE;
+		output->type = PJMEDIA_FRAME_TYPE_NONE;
 		output->buf = NULL;
 		return PJMEDIA_CODEC_EFAILED;
 	}
 
-	output->type = PJMEDIA_TYPE_AUDIO;
+	output->type = PJMEDIA_FRAME_TYPE_AUDIO;
 	output->timestamp = input->timestamp;
 
 #if _TRACE_OPUS
