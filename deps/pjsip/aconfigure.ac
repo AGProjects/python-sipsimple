@@ -617,7 +617,7 @@ AC_ARG_WITH(ffmpeg,
     AC_HELP_STRING([--with-ffmpeg=DIR],
 		   [Specify alternate FFMPEG prefix]),
     [],
-    [with_ffmpeg=no]
+    [with_ffmpeg=check]
 )
 
 AC_SUBST(ac_ffmpeg_cflags)
@@ -626,7 +626,7 @@ AC_SUBST(ac_ffmpeg_ldflags)
 FFMPEG_PREFIX=""
 AC_SUBST(SAVED_PKG_CONFIG_PATH)
 SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-if test "x$with_ffmpeg" != "xno" -a "x$with_ffmpeg" != "x"; then
+if test "x$with_ffmpeg" != "xcheck" -a "x$with_ffmpeg" != "x"; then
 	FFMPEG_PREFIX=$with_ffmpeg
 	AC_MSG_RESULT([Using ffmpeg prefix... $FFMPEG_PREFIX])
 	export PKG_CONFIG_PATH=$FFMPEG_PREFIX/lib/pkgconfig
@@ -634,36 +634,36 @@ fi
 
 AC_MSG_CHECKING([ffmpeg packages])
 av_pkg=""
-if $PKG_CONFIG --exists libavdevice; then
-        ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVDEVICE=1"
-        av_pkg="$av_pkg libavdevice"
-fi
 if $PKG_CONFIG --exists libavformat; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVFORMAT=1"
         av_pkg="$av_pkg libavformat"
+else
+    AC_MSG_ERROR([*** Error: libavformat not detected  ***])
 fi
 if $PKG_CONFIG --exists libavcodec; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCODEC=1"
         av_pkg="$av_pkg libavcodec"
+else
+    AC_MSG_ERROR([*** Error: libavcodec not detected  ***])
 fi
 if $PKG_CONFIG --exists libswscale; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBSWSCALE=1"
         av_pkg="$av_pkg libswscale"
+else
+    AC_MSG_ERROR([*** Error: libswscale not detected  ***])
 fi
 if $PKG_CONFIG --exists libavutil; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVUTIL=1"
         av_pkg="$av_pkg libavutil"
+else
+    AC_MSG_ERROR([*** Error: libavutil not detected  ***])
 fi
 if $PKG_CONFIG --exists libavcore; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCORE=1"
         av_pkg="$av_pkg libavcore"
 fi
 
-if test "x$av_pkg" == "x"; then
-    AC_MSG_ERROR([*** Error: no ffmpeg libraries detected  ***])
-else
-    AC_MSG_RESULT([$av_pkg])
-fi
+AC_MSG_RESULT([$av_pkg])
 
 ac_ffmpeg_cflags="$ac_ffmpeg_cflags `$PKG_CONFIG --cflags $av_pkg`"
 ac_ffmpeg_ldflags="$ac_ffmpeg_ldflags `$PKG_CONFIG --libs $av_pkg`"
@@ -678,7 +678,7 @@ AC_ARG_WITH(vpx,
     AC_HELP_STRING([--with-vpx=DIR],
 		   [Specify alternate libVPX prefix]),
     [],
-    [with_vpx=no]
+    [with_vpx=check]
 )
 
 AC_SUBST(ac_vpx_cflags)
@@ -687,7 +687,7 @@ AC_SUBST(ac_vpx_ldflags)
 VPX_PREFIX=""
 AC_SUBST(SAVED_PKG_CONFIG_PATH)
 SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-if test "x$with_vpx" != "xno" -a "x$with_vpx" != "x"; then
+if test "x$with_vpx" != "xcheck" -a "x$with_vpx" != "x"; then
 	VPX_PREFIX=$with_vpx
 	AC_MSG_RESULT([Using libVPX prefix... $VPX_PREFIX])
 	export PKG_CONFIG_PATH=$VPX_PREFIX

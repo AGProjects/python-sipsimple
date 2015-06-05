@@ -5922,7 +5922,7 @@ fi
 if test "${with_ffmpeg+set}" = set; then :
   withval=$with_ffmpeg;
 else
-  with_ffmpeg=no
+  with_ffmpeg=check
 
 fi
 
@@ -5933,7 +5933,7 @@ fi
 FFMPEG_PREFIX=""
 
 SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-if test "x$with_ffmpeg" != "xno" -a "x$with_ffmpeg" != "x"; then
+if test "x$with_ffmpeg" != "xcheck" -a "x$with_ffmpeg" != "x"; then
 	FFMPEG_PREFIX=$with_ffmpeg
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using ffmpeg prefix... $FFMPEG_PREFIX" >&5
 $as_echo "Using ffmpeg prefix... $FFMPEG_PREFIX" >&6; }
@@ -5943,37 +5943,37 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking ffmpeg packages" >&5
 $as_echo_n "checking ffmpeg packages... " >&6; }
 av_pkg=""
-if $PKG_CONFIG --exists libavdevice; then
-        ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVDEVICE=1"
-        av_pkg="$av_pkg libavdevice"
-fi
 if $PKG_CONFIG --exists libavformat; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVFORMAT=1"
         av_pkg="$av_pkg libavformat"
+else
+    as_fn_error $? "*** Error: libavformat not detected  ***" "$LINENO" 5
 fi
 if $PKG_CONFIG --exists libavcodec; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCODEC=1"
         av_pkg="$av_pkg libavcodec"
+else
+    as_fn_error $? "*** Error: libavcodec not detected  ***" "$LINENO" 5
 fi
 if $PKG_CONFIG --exists libswscale; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBSWSCALE=1"
         av_pkg="$av_pkg libswscale"
+else
+    as_fn_error $? "*** Error: libswscale not detected  ***" "$LINENO" 5
 fi
 if $PKG_CONFIG --exists libavutil; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVUTIL=1"
         av_pkg="$av_pkg libavutil"
+else
+    as_fn_error $? "*** Error: libavutil not detected  ***" "$LINENO" 5
 fi
 if $PKG_CONFIG --exists libavcore; then
         ac_ffmpeg_cflags="$ac_ffmpeg_cflags -DPJMEDIA_HAS_LIBAVCORE=1"
         av_pkg="$av_pkg libavcore"
 fi
 
-if test "x$av_pkg" == "x"; then
-    as_fn_error $? "*** Error: no ffmpeg libraries detected  ***" "$LINENO" 5
-else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $av_pkg" >&5
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $av_pkg" >&5
 $as_echo "$av_pkg" >&6; }
-fi
 
 ac_ffmpeg_cflags="$ac_ffmpeg_cflags `$PKG_CONFIG --cflags $av_pkg`"
 ac_ffmpeg_ldflags="$ac_ffmpeg_ldflags `$PKG_CONFIG --libs $av_pkg`"
@@ -5988,7 +5988,7 @@ export PKG_CONFIG_PATH=$SAVED_PKG_CONFIG_PATH
 if test "${with_vpx+set}" = set; then :
   withval=$with_vpx;
 else
-  with_vpx=no
+  with_vpx=check
 
 fi
 
@@ -5999,7 +5999,7 @@ fi
 VPX_PREFIX=""
 
 SAVED_PKG_CONFIG_PATH=$PKG_CONFIG_PATH
-if test "x$with_vpx" != "xno" -a "x$with_vpx" != "x"; then
+if test "x$with_vpx" != "xcheck" -a "x$with_vpx" != "x"; then
 	VPX_PREFIX=$with_vpx
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using libVPX prefix... $VPX_PREFIX" >&5
 $as_echo "Using libVPX prefix... $VPX_PREFIX" >&6; }
