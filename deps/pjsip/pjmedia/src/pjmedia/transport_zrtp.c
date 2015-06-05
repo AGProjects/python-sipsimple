@@ -750,7 +750,7 @@ PJ_DEF(void) pjmedia_transport_zrtp_setMultiStreamParameters(pjmedia_transport *
     pj_assert(tp);
     pj_assert(master_tp);
 
-    zrtp_setMultiStrParams(zrtp->zrtpCtx, parameters, length, master_zrtp->zrtpCtx);
+    zrtp_setMultiStrParams(zrtp->zrtpCtx, (char*) parameters, length, master_zrtp->zrtpCtx);
 }
 
 /*
