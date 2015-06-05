@@ -40,6 +40,11 @@
 
 #include <crypto/sha384.h>
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 void sha384(unsigned char *data, unsigned int data_length,
 	    unsigned char *digest )
 {
@@ -113,3 +118,7 @@ void sha384Ctx(void* ctx, unsigned char* dataChunks[],
         dataChunkLength++;
     }
 }
+
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif

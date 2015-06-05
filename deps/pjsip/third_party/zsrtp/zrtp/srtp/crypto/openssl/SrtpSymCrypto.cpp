@@ -43,6 +43,11 @@
 #include <stdio.h>
 #include <common/osSpecifics.h>
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 SrtpSymCrypto::SrtpSymCrypto(int algo):key(NULL), algorithm(algo) {
 }
 
@@ -313,3 +318,6 @@ int SrtpSymCrypto::processBlock(F8_CIPHER_CTX *f8ctx, const uint8_t* in, int32_t
     return length;
 }
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif

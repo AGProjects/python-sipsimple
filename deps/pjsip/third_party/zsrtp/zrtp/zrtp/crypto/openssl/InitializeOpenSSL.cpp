@@ -35,6 +35,12 @@
 #undef  const
 #endif
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+
 static void threadLockSetup(void);
 static void threadLockCleanup(void);
 static void myLockingCallback(int, int, const char *, int);
@@ -235,3 +241,6 @@ static unsigned long pthreads_thread_id(void)
 }
 */
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif

@@ -40,8 +40,12 @@
 
 #include <zrtp/crypto/aesCFB.h>
 
-// extern void initializeOpenSSL();
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
+// extern void initializeOpenSSL();
 
 void aesCfbEncrypt(uint8_t* key, int32_t keyLength, uint8_t* IV, uint8_t *data,
                    int32_t dataLength)
@@ -87,3 +91,7 @@ void aesCfbDecrypt(uint8_t* key, int32_t keyLength, uint8_t* IV, uint8_t *data,
     AES_cfb128_encrypt(data, data, dataLength, &aesKey,
                        IV, &usedBytes, AES_DECRYPT);
 }
+
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif

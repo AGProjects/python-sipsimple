@@ -38,6 +38,11 @@
 #include <openssl/hmac.h>
 #include <crypto/hmac256.h>
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 void hmac_sha256(uint8_t* key, uint32_t key_length,
 		uint8_t* data, int32_t data_length,
                 uint8_t* mac, uint32_t* mac_length)
@@ -65,3 +70,7 @@ void hmac_sha256(uint8_t* key, uint32_t key_length,
     *mac_length = tmp;
     HMAC_CTX_cleanup( &ctx );
 }
+
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif

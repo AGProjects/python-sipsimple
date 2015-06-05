@@ -49,7 +49,11 @@
 extern "C"
 {
 #endif
+#ifdef __cplusplus
+    typedef class CryptoContext CryptoContext;
+#else
     typedef struct CryptoContext CryptoContext;
+#endif
 
     typedef struct zsrtpContext
     {
@@ -253,8 +257,11 @@ extern "C"
      */                                    
     void zsrtp_deriveSrtpKeys(ZsrtpContext* ctx, uint64_t index);
 
-
+#ifdef __cplusplus
+    typedef class CryptoContextCtrl CryptoContextCtrl;
+#else
     typedef struct CryptoContextCtrl CryptoContextCtrl;
+#endif
 
     typedef struct zsrtcpContext
     {

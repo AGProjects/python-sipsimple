@@ -49,6 +49,11 @@
 #include <zrtp/crypto/zrtpDH.h>
 #include <zrtp/libzrtpcpp/ZrtpTextData.h>
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 // extern void initializeOpenSSL();
 
 static BIGNUM* bnP2048 = NULL;
@@ -416,6 +421,10 @@ const char* ZrtpDH::getDHtype()
     }
     return NULL;
 }
+
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif
 
 /** EMACS **
  * Local variables:

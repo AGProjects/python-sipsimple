@@ -40,6 +40,11 @@
 
 #include <crypto/sha256.h>
 
+#if defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 void sha256(unsigned char *data, unsigned int data_length,
 	    unsigned char *digest )
 {
@@ -112,3 +117,7 @@ void sha256Ctx(void* ctx, unsigned char* dataChunks[],
         dataChunkLength++;
     }
 }
+
+#if defined(__APPLE__)
+#  pragma GCC diagnostic pop
+#endif
