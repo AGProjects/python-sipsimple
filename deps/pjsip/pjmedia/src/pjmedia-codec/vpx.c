@@ -513,7 +513,9 @@ static pj_status_t pj_vpx_encoder_open(vpx_private *vpx) {
     vpx_codec_control(&vpx->encoder, VP8E_SET_CPUUSED, -6);   // XXX: test
     vpx_codec_control(&vpx->encoder, VP8E_SET_TOKEN_PARTITIONS, VP8_ONE_TOKENPARTITION);
     vpx_codec_control(&vpx->encoder, VP8E_SET_MAX_INTRA_BITRATE_PCT, vpx->rc_max_intra_target);
+#ifdef VP8E_SET_SCREEN_CONTENT_MODE
     vpx_codec_control(&vpx->encoder, VP8E_SET_SCREEN_CONTENT_MODE, 0);
+#endif
     vpx->enc_iter = NULL;
 
     vpx->enc_buf_size = vpx->enc_vafp.framebytes;

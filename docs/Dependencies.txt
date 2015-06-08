@@ -26,7 +26,7 @@ For Video support:
 
  * ffmpeg (libavformat, libswscale, libavcodec, libavutil) (2.0 release)
  * libx264 (recent snapshot)
- * libvpx
+ * libvpx (>= 1.3.0)
 
 To compile the video dependencies:
 
