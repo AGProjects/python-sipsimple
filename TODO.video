@@ -5,15 +5,9 @@
 - Use OpenH264 implementation
     - We need the binaries?!
 
-- VP8 (csipsimple has it)
-    - Decoder is known not to be very resilient
-    - Integrate with ffmpeg video codecs?
-
 - Ability to start stream deactivated / on-hold
     - VideoStream(direction='sendrecv') like MSRP?
     - Review stream API, s/deactivate/shutdown/ ?
-
-- Support asking for keyframes using in-dialog INFO
 
 - Open the camera at its native framerate
 
