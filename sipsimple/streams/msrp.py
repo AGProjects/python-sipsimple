@@ -910,6 +910,8 @@ class IncomingFileTransferHandler(FileTransferHandler):
                         stream.file_selector.name = filename
                         unlink(prev_file.filename)
                     stream.file_selector.fd = open(stream.file_selector.name.encode(sys.getfilesystemencoding()), 'ab')
+                    if sys.platform == 'win32':
+                        stream.file_selector.fd.seek(0, os.SEEK_END)
                     self.offset = stream.file_selector.fd.tell()
                     self.hash = prev_file.partial_hash
                 except (KeyError, EnvironmentError, ValueError):
