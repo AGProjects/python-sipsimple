@@ -63,11 +63,11 @@ General
  * Answering machine
  * Wide-band Internet audio codecs: Opus and Speex
  * PSTN compatible codecs: G722, G711, iLBC, GSM
- * Video codecs: H.264
+ * Video codecs: H.264, VP8
 
 Supported media
 
- * Audio and Video (RTP/sRTP)
+ * Audio and Video (RTP/SRTP/ZRTP)
  * Instant Messaging (MSRP and its relay extension)
  * File Transfer (MSRP and its relay extension)
  * Screen Sharing (VNC over MSRP)
@@ -99,7 +99,7 @@ NAT Traversal
 
  * SIP Signaling: Symmetric Response Routing Symmetric media (RFC 3581)
  * RTP media (Audio and Video): ICE, Interactive Connectivity Establishment
-   (draft-ietf-mmusic-ice-19)
+   (RFC 5245)
  * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay
    extension (RFC 4976)
 
