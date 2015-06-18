@@ -917,9 +917,12 @@ class IncomingFileTransferHandler(FileTransferHandler):
                 except (KeyError, EnvironmentError, ValueError):
                     filename = None
                     fd = None
+                    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                    if sys.platform == 'win32':
+                        flags |= os.O_BINARY
                     for name in UniqueFilenameGenerator.generate(os.path.join(directory, os.path.basename(stream.file_selector.name))):
                         try:
-                            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0644)
+                            fd = os.open(name, flags, 0644)
                         except OSError, e:
                             if e.args[0] == errno.EEXIST:
                                 continue
