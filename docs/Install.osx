@@ -24,6 +24,7 @@ Step 1. Prerequisites
  * darcs version control tool from http://www.darcs.net
  * Homebrew from http://brew.sh
  * Python virtualenv and virtualenvwrapper modules
+ * Python pip installer
 
 The procedure below relies on Python interpreter 2.7 that comes with MacOSX
 Mavericks and Xcode version 5.1. A 64bit build will be produced.
@@ -72,10 +73,17 @@ make
 make install
 
 
-D. Build and install the Python dependencies by using the pip tool.
-The software will be installed in your virtualenv folder.
+D.  Build and install the Python dependencies by using the pip tool.  The
+software will be installed in your virtualenv folder.
 
 workon sandbox
+
+Install pip tool:
+
+easy_install pip
+
+Install python dependencies:
+
 pip install -U python-gnutls dnspython twisted python-application cython python-dateutil greenlet lxml
 
 
