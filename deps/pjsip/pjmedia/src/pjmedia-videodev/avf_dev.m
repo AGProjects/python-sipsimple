@@ -250,26 +250,31 @@ static pj_status_t avf_factory_refresh(pjmedia_vid_dev_factory *f)
         di->info.fmt_cnt = 0;
         di->info.caps = PJMEDIA_VID_DEV_CAP_FORMAT;
 
+        PJ_LOG(4, (THIS_FILE, " dev: %s", di->info.name));
+
         for (AVCaptureDeviceFormat* f in [device formats]) {
             unsigned i;
             CMFormatDescriptionRef desc = [f formatDescription];
             for (i = 0; i < PJ_ARRAY_SIZE(avf_fmts); i++) {
                 if (CMFormatDescriptionGetMediaSubType(desc) == avf_fmts[i].avf_format) {
+                    char fmt_name[5];
+                    CMVideoDimensions dim = CMVideoFormatDescriptionGetDimensions(desc);
+                    if (dim.width < 640)
+                        continue;
+                    pjmedia_fourcc_name(avf_fmts[i].pjmedia_format, fmt_name);
+                    PJ_LOG(4, (THIS_FILE, "  detected resolution %dx%d (%s)", dim.width, dim.height, fmt_name));
                     pjmedia_format *fmt = &di->info.fmt[di->info.fmt_cnt++];
                     pjmedia_format_init_video(fmt,
                                               avf_fmts[i].pjmedia_format,
-                                              DEFAULT_WIDTH,
-                                              DEFAULT_HEIGHT,
+                                              dim.width,
+                                              dim.height,
                                               DEFAULT_FPS, 1);
-                    break;
                 }
             }
         }
 
-        PJ_LOG(4, (THIS_FILE, " dev: %s", di->info.name));
-
         if (di->info.fmt_cnt == 0) {
-            PJ_LOG(4, (THIS_FILE, " there are no compatible formats, using default"));
+            PJ_LOG(4, (THIS_FILE, "  there are no compatible formats, using default"));
             pjmedia_format *fmt = &di->info.fmt[di->info.fmt_cnt++];
             pjmedia_format_init_video(fmt,
                                       avf_fmts[0].pjmedia_format,
@@ -456,6 +461,8 @@ static void init_avf_stream(struct avf_stream *strm)
     vfd->size.w = supported_size_w[i];
     vfd->size.h = supported_size_h[i];
     strm->size = vfd->size;
+
+    PJ_LOG(4, (THIS_FILE, "Opening video device at %dx%d resolution", vfd->size.w, vfd->size.h));
 
     /* Add the video device to the session as a device input */
     strm->dev_input = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error: &error];
