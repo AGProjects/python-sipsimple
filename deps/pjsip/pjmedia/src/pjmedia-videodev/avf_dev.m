@@ -428,43 +428,23 @@ static void init_avf_stream(struct avf_stream *strm)
         return;
     }
 
-    NSString *size_preset_str[] = {
-        AVCaptureSessionPreset640x480,
-        AVCaptureSessionPreset960x540,
-        AVCaptureSessionPreset1280x720
-    };
-    pj_size_t supported_size_w[] = { 640, 960, 1280 };
-    pj_size_t supported_size_h[] = { 480,  540, 720 };
-    pj_size_t supported_size[] = { 640*480, 960*540, 1280*720 };
-    pj_size_t requested_size = strm->size.w * strm->size.h;
-    int i;
-
     strm->cap_session = [[AVCaptureSession alloc] init];
     if (!strm->cap_session) {
         strm->status = PJ_ENOMEM;
         return;
     }
 
-    AVCaptureDevice *videoDevice = strm->af->dev_info[strm->param.cap_id].dev;
-
-    for(i = PJ_ARRAY_SIZE(supported_size)-1; i > 0; --i) {
-        if (![videoDevice supportsAVCaptureSessionPreset: size_preset_str[i]])
-            continue;
-        if (supported_size[i-1] < requested_size)
-            break;
-    }
-    strm->cap_session.sessionPreset = size_preset_str[i];
+    strm->cap_session.sessionPreset = AVCaptureSessionPresetHigh;
     vfd = pjmedia_format_get_video_format_detail(&strm->param.fmt, PJ_TRUE);
     pj_assert(vfd);
     vfi = pjmedia_get_video_format_info(NULL, strm->param.fmt.id);
     pj_assert(vfi);
-    vfd->size.w = supported_size_w[i];
-    vfd->size.h = supported_size_h[i];
-    strm->size = vfd->size;
+    vfd->size = strm->size;
 
     PJ_LOG(4, (THIS_FILE, "Opening video device at %dx%d resolution", vfd->size.w, vfd->size.h));
 
     /* Add the video device to the session as a device input */
+    AVCaptureDevice *videoDevice = strm->af->dev_info[strm->param.cap_id].dev;
     strm->dev_input = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error: &error];
     if (!strm->dev_input) {
         status = PJMEDIA_EVID_SYSERR;
