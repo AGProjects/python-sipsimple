@@ -128,7 +128,7 @@ class MSRPStreamBase(object):
         attributes.append(SDPAttribute("setup", self.local_role))
         local_ip = uri_path[-1].host
         connection = SDPConnection(local_ip)
-        return SDPMediaStream(self.media_type, uri_path[-1].port or 12345, transport, connection=connection, formats=["*"], attributes=attributes)
+        return SDPMediaStream(self.media_type, uri_path[-1].port or 2855, transport, connection=connection, formats=["*"], attributes=attributes)
 
     ## The public API (the IMediaStream interface)
 
