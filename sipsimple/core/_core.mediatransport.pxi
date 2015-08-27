@@ -3,7 +3,6 @@
 
 # python imports
 
-import struct
 import sys
 
 from errno import EADDRINUSE
@@ -866,8 +865,7 @@ cdef class RTPTransport:
                 if status <= 0:
                     return None
                 else:
-                    name_str = PyString_FromStringAndSize(<char*>name, 12)
-                    return ':'.join(map(str, struct.unpack("12B", name_str)))
+                    return PyString_FromStringAndSize(<char*>name, 12)
             finally:
                 with nogil:
                     pj_mutex_unlock(lock)
