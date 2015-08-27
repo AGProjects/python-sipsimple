@@ -867,7 +867,7 @@ cdef class RTPTransport:
                     return None
                 else:
                     name_str = PyString_FromStringAndSize(<char*>name, 12)
-                    return ':'.join(map(str, struct.unpack("B"*12, name_str)))
+                    return ':'.join(map(str, struct.unpack("12B", name_str)))
             finally:
                 with nogil:
                     pj_mutex_unlock(lock)
