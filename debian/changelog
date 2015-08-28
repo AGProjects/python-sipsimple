@@ -1,3 +1,15 @@
+python-sipsimple (2.5.1) unstable; urgency=medium
+
+  * Fixed opening files in binary mode when using os.open
+  * pjsip: enumerate supported resolutions in AVF video backend
+  * pjsip: fix opening camera with the right resolution on AVF backend
+  * Made stream fetch the local uri from the MSRP transport or connector
+  * Updated dependency to latest python-msrplib
+  * Return the ZRTP peer id as is and let the application format it as it
+    needs
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 28 Aug 2015 12:59:49 +0200
+
 python-sipsimple (2.5.0) unstable; urgency=medium
 
   * Added VP8 video codec support
