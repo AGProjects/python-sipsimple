@@ -19,7 +19,7 @@ class IVideoProducer(Interface):
     All attributes of this interface are read-only.
     """
 
-    producer   = Attribute("The core producer object which can be connected to a consumer")
+    producer = Attribute("The core producer object which can be connected to a consumer")
 
 
 class VideoError(Exception): pass
