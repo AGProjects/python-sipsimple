@@ -173,6 +173,7 @@ struct pj_ssl_sock_t
     send_buf_t		  send_buf;
     write_data_t	  send_pending;	/* list of pending write to network */
     pj_lock_t		 *write_mutex;	/* protect write BIO and send_buf   */
+    pj_lock_t		 *state_mutex;	/* protect the socket state (sending on one thread, destroying it in another   */
 
     SSL_CTX		 *ossl_ctx;
     SSL			 *ossl_ssl;
@@ -809,6 +810,8 @@ static void destroy_ssl(pj_ssl_sock_t *ssock)
 /* Reset SSL socket state */
 static void reset_ssl_sock_state(pj_ssl_sock_t *ssock)
 {
+    pj_lock_acquire(ssock->state_mutex);
+
     ssock->ssl_state = SSL_STATE_NULL;
 
     destroy_ssl(ssock);
@@ -830,6 +833,8 @@ static void reset_ssl_sock_state(pj_ssl_sock_t *ssock)
      * For now, just clear thread error queue here.
      */
     ERR_clear_error();
+
+    pj_lock_release(ssock->state_mutex);
 }
 
 
@@ -2182,6 +2187,12 @@ PJ_DEF(pj_status_t) pj_ssl_sock_create (pj_pool_t *pool,
     if (status != PJ_SUCCESS)
 	return status;
 
+    /* Create socket state mutex */
+    status = pj_lock_create_recursive_mutex(pool, pool->obj_name,
+					    &ssock->state_mutex);
+    if (status != PJ_SUCCESS)
+	return status;
+
     /* Init secure socket param */
     ssock->param = *param;
     ssock->param.read_buffer_size = ((ssock->param.read_buffer_size+7)>>3)<<3;
@@ -2225,6 +2236,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_close(pj_ssl_sock_t *ssock)
 
     reset_ssl_sock_state(ssock);
     pj_lock_destroy(ssock->write_mutex);
+    pj_lock_destroy(ssock->state_mutex);
     
     pool = ssock->pool;
     ssock->pool = NULL;
@@ -2555,8 +2567,12 @@ PJ_DEF(pj_status_t) pj_ssl_sock_send (pj_ssl_sock_t *ssock,
 
     PJ_ASSERT_RETURN(ssock && data && size && (*size>0), PJ_EINVAL);
 
-    if (ssock->ssl_state != SSL_STATE_ESTABLISHED) 
-	return PJ_EINVALIDOP;
+    pj_lock_acquire(ssock->state_mutex);
+
+    if (ssock->ssl_state != SSL_STATE_ESTABLISHED) {
+        status = PJ_EINVALIDOP;
+        goto on_return;
+    }
 
     // Ticket #1573: Don't hold mutex while calling PJLIB socket send().
     //pj_lock_acquire(ssock->write_mutex);
@@ -2582,6 +2598,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_send (pj_ssl_sock_t *ssock,
 
 on_return:
     //pj_lock_release(ssock->write_mutex);
+    pj_lock_release(ssock->state_mutex);
     return status;
 }
 
