@@ -634,7 +634,7 @@ class ChatStream(MSRPStreamBase):
             raise ChatStreamError('Cannot send message on recvonly stream')
         message_id = '%x' % random.getrandbits(64)
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
-        message = Message(message_id, content, IsComposingDocument.content_type, recipients=recipients, failure_report='partial', success_report='no', notify_progress=False)
+        message = Message(message_id, content, IsComposingDocument.content_type, recipients=recipients, failure_report='no', success_report='no', notify_progress=False)
         self._enqueue_message(message)
         return message_id
 
