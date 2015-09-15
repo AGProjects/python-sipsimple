@@ -649,7 +649,7 @@ class ChatStream(MSRPStreamBase):
 # File transfer
 #
 
-class RandomID:    __metaclass__ = MarkerType
+class RandomID: __metaclass__ = MarkerType
 
 
 class FileSelector(object):
