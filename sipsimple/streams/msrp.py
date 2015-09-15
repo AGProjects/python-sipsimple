@@ -622,7 +622,7 @@ class ChatStream(MSRPStreamBase):
           (Content-Type of MSRP message is always Message/CPIM in that case)
           If Message/CPIM is not supported, Content-Type of MSRP message.
         """
-        if self.direction=='recvonly':
+        if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
         message_id = '%x' % random.getrandbits(64)
         message = Message(message_id, content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, failure_report='yes', success_report='yes', notify_progress=True)
