@@ -326,9 +326,9 @@ class MSRPStreamBase(object):
 
 
 class Message(object):
-    __slots__ = ('id', 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'failure_report', 'success_report', 'notify_progress')
+    __slots__ = ('id', 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'notify_progress')
 
-    def __init__(self, content, content_type, id=None, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
+    def __init__(self, content, content_type, id=None, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, notify_progress=True):
         self.id = id or '%x' % random.getrandbits(64)
         self.content = content
         self.content_type = content_type
@@ -339,8 +339,6 @@ class Message(object):
         self.timestamp = timestamp
         self.required = required
         self.additional_headers = additional_headers
-        self.failure_report = failure_report
-        self.success_report = success_report
         self.notify_progress = notify_progress
 
 
@@ -553,15 +551,13 @@ class ChatStream(MSRPStreamBase):
                     continue
 
                 message_id = message.id
-                failure_report = message.failure_report
-                success_report = message.success_report
                 notify_progress = message.notify_progress
+                report = 'yes' if notify_progress else 'no'
 
                 chunk = self.msrp_session.make_message(content, content_type=content_type, message_id=message_id)
-                if failure_report is not None:
-                    chunk.add_header(FailureReportHeader(failure_report))
-                if success_report is not None:
-                    chunk.add_header(SuccessReportHeader(success_report))
+                chunk.add_header(FailureReportHeader(report))
+                chunk.add_header(SuccessReportHeader(report))
+
                 try:
                     self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
                 except Exception, e:
@@ -572,7 +568,7 @@ class ChatStream(MSRPStreamBase):
                     notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     raise
                 else:
-                    if notify_progress and success_report == 'yes' and failure_report != 'no':
+                    if notify_progress:
                         self.sent_messages.add(message_id)
                         notification_center.post_notification('ChatStreamDidSendMessage', sender=self, data=NotificationData(message=chunk))
         finally:
@@ -624,7 +620,7 @@ class ChatStream(MSRPStreamBase):
         """
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
-        message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, failure_report='yes', success_report='yes', notify_progress=True)
+        message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, notify_progress=True)
         self._enqueue_message(message)
         return message.id
 
@@ -632,7 +628,7 @@ class ChatStream(MSRPStreamBase):
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
-        message = Message(content, IsComposingDocument.content_type, recipients=recipients, failure_report='no', success_report='no', notify_progress=False)
+        message = Message(content, IsComposingDocument.content_type, recipients=recipients, notify_progress=False)
         self._enqueue_message(message)
         return message.id
 
