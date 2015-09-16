@@ -328,8 +328,8 @@ class MSRPStreamBase(object):
 class Message(object):
     __slots__ = ('id', 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'failure_report', 'success_report', 'notify_progress')
 
-    def __init__(self, id, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
-        self.id = id
+    def __init__(self, content, content_type, id=None, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, failure_report='yes', success_report='yes', notify_progress=False):
+        self.id = id or '%x' % random.getrandbits(64)
         self.content = content
         self.content_type = content_type
         self.sender = sender
@@ -624,19 +624,17 @@ class ChatStream(MSRPStreamBase):
         """
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
-        message_id = '%x' % random.getrandbits(64)
-        message = Message(message_id, content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, failure_report='yes', success_report='yes', notify_progress=True)
+        message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, failure_report='yes', success_report='yes', notify_progress=True)
         self._enqueue_message(message)
-        return message_id
+        return message.id
 
     def send_composing_indication(self, state, refresh=None, last_active=None, recipients=None):
         if self.direction == 'recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
-        message_id = '%x' % random.getrandbits(64)
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
-        message = Message(message_id, content, IsComposingDocument.content_type, recipients=recipients, failure_report='no', success_report='no', notify_progress=False)
+        message = Message(content, IsComposingDocument.content_type, recipients=recipients, failure_report='no', success_report='no', notify_progress=False)
         self._enqueue_message(message)
-        return message_id
+        return message.id
 
     def set_local_nickname(self, nickname):
         if not self.nickname_allowed:
