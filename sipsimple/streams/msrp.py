@@ -514,15 +514,20 @@ class ChatStream(MSRPStreamBase):
                     notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     break
                 try:
-                    if self.cpim_enabled:
+                    message.sender = message.sender or self.local_identity
+                    message.recipients = message.recipients or [self.remote_identity]
+
+                    # check if we MUST use CPIM
+                    need_cpim = (message.sender != self.local_identity or message.recipients != [self.remote_identity] or
+                                 message.courtesy_recipients or message.subject or message.timestamp or message.required or message.additional_headers)
+
+                    if need_cpim or not contains_mime_type(self.remote_accept_types, message.content_type):
+                        if not self.cpim_enabled:
+                            raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
                         if not contains_mime_type(self.remote_accept_wrapped_types, message.content_type):
-                            raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
-                        if not message.recipients:
-                            message.recipients = [self.remote_identity]
-                        elif not self.private_messages_allowed and message.recipients != [self.remote_identity]:
+                            raise ChatStreamError('Unsupported content_type for outgoing message: %r' % message.content_type)
+                        if not self.private_messages_allowed and message.recipients != [self.remote_identity]:
                             raise ChatStreamError('The remote end does not support private messages')
-                        if message.sender is None:
-                            message.sender = self.local_identity
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
                         msg = CPIMMessage(message.content, message.content_type, sender=message.sender,
@@ -533,11 +538,7 @@ class ChatStream(MSRPStreamBase):
                         content_type = 'message/cpim'
                     else:
                         if not contains_mime_type(self.remote_accept_types, message.content_type):
-                            raise ChatStreamError('Invalid content_type for outgoing message: %r' % message.content_type)
-                        if message.recipients is not None and message.recipients != [self.remote_identity]:
-                            raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-                        if message.courtesy_recipients or message.subject or message.timestamp or message.required or message.additional_headers:
-                            raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
+                            raise ChatStreamError('Unsupported content_type for outgoing message: %r' % message.content_type)
                         if isinstance(message.content, unicode):
                             message.content = message.content.encode('utf-8')
                         content = message.content
