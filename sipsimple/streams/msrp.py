@@ -351,8 +351,8 @@ class ChatStream(MSRPStreamBase):
     accept_types = ['message/cpim', 'text/*', 'image/*', 'application/im-iscomposing+xml']
     accept_wrapped_types = ['text/*', 'image/*', 'application/im-iscomposing+xml']
 
-    def __init__(self, direction='sendrecv'):
-        super(ChatStream, self).__init__(direction=direction)
+    def __init__(self):
+        super(ChatStream, self).__init__(direction='sendrecv')
         self.message_queue = queue()
         self.sent_messages = set()
         self.incoming_queue = defaultdict(list)
@@ -370,8 +370,8 @@ class ChatStream(MSRPStreamBase):
             raise InvalidStreamError("wrong format list specified")
         stream = cls()
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
-        if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
-            raise InvalidStreamError("mismatching directions in chat stream")
+        if remote_stream.direction != 'sendrecv':
+            raise InvalidStreamError("Unsupported direction for chat stream: %s" % remote_stream.direction)
         remote_accept_types = remote_stream.attributes.getfirst('accept-types')
         if remote_accept_types is None:
             raise InvalidStreamError("remote SDP media does not have 'accept-types' attribute")
@@ -445,9 +445,6 @@ class ChatStream(MSRPStreamBase):
         if chunk.size == 0:
             # keep-alive
             self.msrp_session.send_report(chunk, 200, 'OK')
-            return
-        if self.direction=='sendonly':
-            self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
             return
         content_type = chunk.content_type.lower()
         if not contains_mime_type(self.accept_types, content_type):
@@ -618,15 +615,11 @@ class ChatStream(MSRPStreamBase):
           (Content-Type of MSRP message is always Message/CPIM in that case)
           If Message/CPIM is not supported, Content-Type of MSRP message.
         """
-        if self.direction == 'recvonly':
-            raise ChatStreamError('Cannot send message on recvonly stream')
         message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, notify_progress=True)
         self._enqueue_message(message)
         return message.id
 
     def send_composing_indication(self, state, refresh=None, last_active=None, recipients=None):
-        if self.direction == 'recvonly':
-            raise ChatStreamError('Cannot send message on recvonly stream')
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
         message = Message(content, IsComposingDocument.content_type, recipients=recipients, notify_progress=False)
         self._enqueue_message(message)
