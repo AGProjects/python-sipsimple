@@ -12,6 +12,7 @@ export OPUS_LIB := ../../lib/libopuscodec-$(TARGET_NAME)$(LIBEXT)
 #
 OPUS_DEFS := \
 	-DOPUS_BUILD \
+	-DHAVE_LRINT \
 	-DVAR_ARRAYS
 
 OPUS_SRC_BASE := ../../opus
