@@ -207,8 +207,8 @@ class MSRPStreamBase(object):
     def start(self, local_sdp, remote_sdp, stream_index):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
+        context = 'sdp_negotiation'
         try:
-            context = 'sdp_negotiation'
             remote_media = remote_sdp.media[stream_index]
             self.remote_media = remote_media
             self.remote_accept_types = remote_media.attributes.getfirst('accept-types', '').split()
