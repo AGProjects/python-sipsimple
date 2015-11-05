@@ -436,7 +436,7 @@ class CPIMHeader(object):
 
 
 class CPIMIdentity(ChatIdentity):
-    _re_format = re.compile(r'^("?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>sips?:.+)>$')
+    _re_format = re.compile(r'^(?:"?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>sips?:.+)>$')
 
     @classmethod
     def parse(cls, value):
