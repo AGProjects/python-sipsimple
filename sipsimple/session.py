@@ -713,10 +713,9 @@ class TransferHandler(object):
                     except SIPInvitationTransferDidFail:
                         return
             self.new_session = Session(account)
-            stream_registry = MediaStreamRegistry()
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=self.new_session)
-            self.new_session.connect(ToHeader(target), routes=routes, streams=[stream_registry.AudioStream()], transfer_info=transfer_info)
+            self.new_session.connect(ToHeader(target), routes=routes, streams=[MediaStreamRegistry.AudioStream()], transfer_info=transfer_info)
             while True:
                 try:
                     notification = self._data_channel.wait()
@@ -926,7 +925,7 @@ class Session(object):
         if remote_sdp:
             for index, media_stream in enumerate(remote_sdp.media):
                 if media_stream.port != 0:
-                    for stream_type in MediaStreamRegistry():
+                    for stream_type in MediaStreamRegistry:
                         try:
                             stream = stream_type.new_from_sdp(self, remote_sdp, index)
                         except InvalidStreamError:
@@ -2376,7 +2375,7 @@ class Session(object):
                             for index in added_media_indexes | reused_media_indexes:
                                 media_stream = proposed_remote_sdp.media[index]
                                 if media_stream.port != 0:
-                                    for stream_type in MediaStreamRegistry():
+                                    for stream_type in MediaStreamRegistry:
                                         try:
                                             stream = stream_type.new_from_sdp(self, proposed_remote_sdp, index)
                                         except InvalidStreamError:

@@ -14,7 +14,6 @@ implementations based on their respective RTP and MSRP protocols.
 __all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamType']
 
 from operator import attrgetter
-from application.python.types import Singleton
 from zope.interface import Interface, Attribute
 
 
@@ -85,8 +84,6 @@ class StreamDescriptor(object):
 
 
 class MediaStreamRegistry(object):
-    __metaclass__ = Singleton
-
     def __init__(self):
         self.__types__ = []
 
@@ -105,6 +102,8 @@ class MediaStreamRegistry(object):
         except StopIteration:
             raise UnknownStreamError("unknown stream type: %s" % type)
 
+MediaStreamRegistry = MediaStreamRegistry()
+
 
 class MediaStreamType(type):
     """Metaclass for MediaStream classes that automatically adds them to the media stream registry"""
@@ -114,7 +113,7 @@ class MediaStreamType(type):
 
     def __init__(cls, name, bases, dictionary):
         super(MediaStreamType, cls).__init__(name, bases, dictionary)
-        MediaStreamRegistry().add(cls)
+        MediaStreamRegistry.add(cls)
 
 
 # Import the submodules in order for them to register the streams they define in MediaStreamRegistry
