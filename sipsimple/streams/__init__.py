@@ -112,8 +112,8 @@ class MediaStreamType(type):
     type = None
     priority = None
 
-    def __init__(cls, name, bases, dic):
-        super(MediaStreamType, cls).__init__(name, bases, dic)
+    def __init__(cls, name, bases, dictionary):
+        super(MediaStreamType, cls).__init__(name, bases, dictionary)
         MediaStreamRegistry().add(cls)
 
 
