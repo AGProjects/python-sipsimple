@@ -124,8 +124,7 @@ class UserInfo(object):
     __metaclass__ = Singleton
 
     def __repr__(self):
-        attribs = ', '.join('%s=%r' % (attr, getattr(self, attr)) for attr in ('username', 'fullname'))
-        return '%s(%s)' % (self.__class__.__name__, attribs)
+        return '<username={0.username!r}, fullname={0.fullname!r}>'.format(self)
 
     @property
     def username(self):
