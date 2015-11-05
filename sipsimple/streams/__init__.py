@@ -1,16 +1,17 @@
-# Copyright (C) 2009-2011 AG Projects. See LICENSE for details.
+# Copyright (C) 2009-2015 AG Projects. See LICENSE for details.
 #
 
 """
 This module automatically registers media streams to a stream registry
 allowing for a plug and play mechanism of various types of media
-negoticated in a SIP session that can be added to this library by using
+negotiated in a SIP session that can be added to this library by using
 a generic API.
 
-For actual usage see rtp.py and msrp.py that implement media streams
-based on their respective RTP and MSRP protocols.
+For actual implementations see rtp/* and msrp/* that have media stream
+implementations based on their respective RTP and MSRP protocols.
 """
 
+__all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamType']
 
 from operator import attrgetter
 from application.python.types import Singleton
@@ -69,12 +70,13 @@ class IMediaStream(Interface):
     def reset(self, stream_index):
         pass
 
+
 # The MediaStream registry
 #
 class StreamDescriptor(object):
     def __init__(self, type):
         self.type = type
-    def __get__(self, obj, objtype):
+    def __get__(self, obj, owner):
         return self if obj is None else obj.get(self.type)
     def __set__(self, obj, value):
         raise AttributeError('cannot set attribute')
@@ -105,17 +107,12 @@ class MediaStreamRegistry(object):
 
 
 class MediaStreamType(type):
-    """Metaclass for adding a MediaStream to the media stream's class registry"""
+    """Metaclass for MediaStream classes that automatically adds them to the media stream registry"""
     def __init__(cls, name, bases, dic):
         super(MediaStreamType, cls).__init__(name, bases, dic)
         MediaStreamRegistry().add(cls)
 
 
-# Import the streams defined in submodules
-#
-from sipsimple.streams import rtp, msrp
-from sipsimple.streams.rtp import *
-from sipsimple.streams.msrp import *
-
-__all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamType'] + rtp.__all__ + msrp.__all__
+# Import the submodules in order for them to register the streams they define in MediaStreamRegistry
+from sipsimple.streams import msrp, rtp
 
