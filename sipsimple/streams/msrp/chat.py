@@ -371,9 +371,9 @@ class ChatIdentity(object):
 
     def __unicode__(self):
         if self.display_name:
-            return u'%s <%s>' % (self.display_name, self.uri)
+            return u'{0.display_name} <{0.uri}>'.format(self)
         else:
-            return u'<%s>' % self.uri
+            return u'<{0.uri}>'.format(self)
 
 
 class ChatMessage(object):
