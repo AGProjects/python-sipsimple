@@ -108,6 +108,10 @@ class MediaStreamRegistry(object):
 
 class MediaStreamType(type):
     """Metaclass for MediaStream classes that automatically adds them to the media stream registry"""
+
+    type = None
+    priority = None
+
     def __init__(cls, name, bases, dic):
         super(MediaStreamType, cls).__init__(name, bases, dic)
         MediaStreamRegistry().add(cls)
