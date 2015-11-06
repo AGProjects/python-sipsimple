@@ -496,7 +496,6 @@ class CPIMMessage(ChatMessage):
                 headers.append(u'%s.%s: %s' % (header.namespace.prefix, header.name, header.value))
             else:
                 headers.append(u'%s: %s' % (header.name, header.value))
-        headers.append(u'')
         headers = '\r\n'.join(s.encode('cpim-headers') for s in headers)
 
         mime_message = EmailMessage()
@@ -507,7 +506,7 @@ class CPIMMessage(ChatMessage):
         else:
             mime_message.set_payload(self.body)
 
-        return headers + '\r\n' + mime_message.as_string()
+        return headers + '\r\n\r\n' + mime_message.as_string()
 
     @classmethod
     def parse(cls, string):
