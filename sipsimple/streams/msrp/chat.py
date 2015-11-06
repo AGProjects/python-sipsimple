@@ -560,7 +560,7 @@ class CPIMMessage(ChatMessage):
 
         if None in subjects:
             message.subject = MultilingualText(subjects.pop(None), **subjects)
-        else:
+        elif subjects:
             message.subject = MultilingualText(**subjects)
         mime_message = EmailParser().parsestr(body)
         message.content_type = mime_message.get_content_type()
