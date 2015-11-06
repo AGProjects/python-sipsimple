@@ -106,11 +106,29 @@ cdef object BaseSIPURI_richcmp(object self, object other, int op) with gil:
         return not eq
 
 cdef class BaseSIPURI:
-    def __init__(self, *args, **kwargs):
-        raise TypeError("BaseSIPURI cannot be instantiated directly")
+    def __init__(self, object host not None, object user=None, object password=None, object port=None, bint secure=False, dict parameters=None, dict headers=None):
+        if self.__class__ is BaseSIPURI:
+            raise TypeError("BaseSIPURI cannot be instantiated directly")
+        self.host = host
+        self.user = user
+        self.password = password
+        self.port = port
+        self.secure = secure
+        self.parameters = parameters if parameters is not None else {}
+        self.headers = headers if headers is not None else {}
+
+    property transport:
+        def __get__(self):
+            return self.parameters.get('transport', 'udp')
+
+        def __set__(self, str transport not None):
+            if transport.lower() == 'udp':
+                self.parameters.pop('transport', None)
+            else:
+                self.parameters['transport'] = transport
 
     def __reduce__(self):
-        return (self.__class__, (self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers), None)
+        return self.__class__, (self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers), None
 
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers)
@@ -138,18 +156,6 @@ cdef class BaseSIPURI:
 
     def __richcmp__(self, other, op):
         return BaseSIPURI_richcmp(self, other, op)
-
-    property transport:
-        def __get__(self):
-            return self.parameters.get('transport', 'udp')
-
-        def __set__(self, str transport not None):
-            if isinstance(self, FrozenSIPURI):
-                raise AttributeError("can't set readonly attribute")
-            if transport.lower() == 'udp':
-                self.parameters.pop('transport', None)
-            else:
-                self.parameters['transport'] = transport
 
     def matches(self, address):
         match = re.match(r'^((?P<scheme>sip|sips):)?(?P<username>.+?)(@(?P<domain>.+?)(:(?P<port>\d+?))?)?(;(?P<parameters>.+?))?(\?(?P<headers>.+?))?$', address)
@@ -200,18 +206,7 @@ def SIPURI_parse(cls, object uri_str):
     return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class SIPURI(BaseSIPURI):
-    def __init__(self, object host not None, object user=None, object password=None, object port=None,
-                 bint secure=False, dict parameters=None, dict headers=None):
-        self.host = host
-        self.user = user
-        self.password = password
-        self.port = port
-        self.secure = secure
-        self.parameters = parameters if parameters is not None else {}
-        self.headers = headers if headers is not None else {}
-
     property port:
-
         def __get__(self):
             return self._port
 
@@ -252,8 +247,7 @@ def FrozenSIPURI_parse(cls, object uri_str):
     return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class FrozenSIPURI(BaseSIPURI):
-    def __init__(self, object host not None, object user=None, object password=None, object port=None,
-                 bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
+    def __init__(self, object host not None, object user=None, object password=None, object port=None, bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
         if not self.initialized:
             if port is not None:
                 port = int(port)
@@ -267,6 +261,12 @@ cdef class FrozenSIPURI(BaseSIPURI):
             self.parameters = parameters
             self.headers = headers
             self.initialized = 1
+        else:
+            raise TypeError("{0.__class__.__name__} is read-only".format(self))
+
+    property transport:
+        def __get__(self):
+            return self.parameters.get('transport', 'udp')
 
     def __hash__(self):
         return hash((self.user, self.password, self.host, self.port, self.secure, self.parameters, self.headers))
