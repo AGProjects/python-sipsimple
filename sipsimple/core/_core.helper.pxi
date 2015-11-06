@@ -30,8 +30,6 @@ cdef class BaseCredentials:
     cdef pjsip_cred_info* get_cred_info(self):
         return &self._credentials
 
-def Credentials_new(cls, BaseCredentials credentials):
-    return cls(credentials.username, credentials.password, credentials.realm)
 
 cdef class Credentials(BaseCredentials):
     property username:
@@ -58,14 +56,10 @@ cdef class Credentials(BaseCredentials):
             _str_to_pj_str(password, &self._credentials.data)
             self._password = password
 
-    new = classmethod(Credentials_new)
+    @classmethod
+    def new(cls, BaseCredentials credentials):
+        return cls(credentials.username, credentials.password, credentials.realm)
 
-del Credentials_new
-
-def FrozenCredentials_new(cls, BaseCredentials credentials):
-    if isinstance(credentials, FrozenCredentials):
-        return credentials
-    return cls(credentials.username, credentials.password, credentials.realm)
 
 cdef class FrozenCredentials(BaseCredentials):
     def __init__(self, str username not None, str password not None, str realm='*'):
@@ -83,25 +77,12 @@ cdef class FrozenCredentials(BaseCredentials):
     def __hash__(self):
         return hash((self.username, self.realm, self.password))
 
-    new = classmethod(FrozenCredentials_new)
+    @classmethod
+    def new(cls, BaseCredentials credentials):
+        if isinstance(credentials, FrozenCredentials):
+            return credentials
+        return cls(credentials.username, credentials.password, credentials.realm)
 
-del FrozenCredentials_new
-
-
-cdef object BaseSIPURI_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
-        return NotImplemented
-    if not isinstance(other, BaseSIPURI):
-        return NotImplemented
-    for attr in ("user", "password", "host", "port", "secure", "parameters", "headers"):
-        if getattr(self, attr) != getattr(other, attr):
-            eq = 0
-            break
-    if op == 2:
-        return bool(eq)
-    else:
-        return not eq
 
 cdef class BaseSIPURI:
     def __init__(self, object host not None, object user=None, object password=None, object port=None, bint secure=False, dict parameters=None, dict headers=None):
@@ -153,7 +134,14 @@ cdef class BaseSIPURI:
         return string
 
     def __richcmp__(self, other, op):
-        return BaseSIPURI_richcmp(self, other, op)
+        if not isinstance(other, BaseSIPURI):
+            return NotImplemented
+        if op == 2:    # 2 is ==
+            return all(getattr(self, name) == getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
+        elif op == 3:  # 3 is !=
+            return any(getattr(self, name) != getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
+        else:
+            return NotImplemented
 
     def matches(self, address):
         match = re.match(r'^((?P<scheme>sip|sips):)?(?P<username>.+?)(@(?P<domain>.+?)(:(?P<port>\d+?))?)?(;(?P<parameters>.+?))?(\?(?P<headers>.+?))?$', address)
@@ -183,26 +171,6 @@ cdef class BaseSIPURI:
         return True
 
 
-def SIPURI_new(cls, BaseSIPURI sipuri):
-    return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=dict(sipuri.parameters), headers=dict(sipuri.headers))
-
-def SIPURI_parse(cls, object uri_str):
-    if not isinstance(uri_str, basestring):
-        raise TypeError('a string or unicode is required')
-    cdef bytes uri_bytes = str(uri_str)
-    cdef pjsip_uri *uri = NULL
-    cdef pj_pool_t *pool = NULL
-    cdef pj_str_t tmp
-    cdef char buffer[4096]
-    pool = pj_pool_create_on_buf("SIPURI_parse", buffer, sizeof(buffer))
-    if pool == NULL:
-        raise SIPCoreError("Could not allocate memory pool")
-    pj_strdup2_with_null(pool, &tmp, uri_bytes)
-    uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
-    if uri == NULL:
-        raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
-    return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
-
 cdef class SIPURI(BaseSIPURI):
     property port:
         def __get__(self):
@@ -215,34 +183,28 @@ cdef class SIPURI(BaseSIPURI):
                     raise ValueError("Invalid port: %d" % port)
             self._port = port
 
-    new = classmethod(SIPURI_new)
-    parse = classmethod(SIPURI_parse)
+    @classmethod
+    def new(cls, BaseSIPURI sipuri):
+        return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=dict(sipuri.parameters), headers=dict(sipuri.headers))
 
-del SIPURI_new
-del SIPURI_parse
+    @classmethod
+    def parse(cls, object uri_str):
+        if not isinstance(uri_str, basestring):
+            raise TypeError('a string or unicode is required')
+        cdef bytes uri_bytes = str(uri_str)
+        cdef pjsip_uri *uri = NULL
+        cdef pj_pool_t *pool = NULL
+        cdef pj_str_t tmp
+        cdef char buffer[4096]
+        pool = pj_pool_create_on_buf("SIPURI_parse", buffer, sizeof(buffer))
+        if pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+        pj_strdup2_with_null(pool, &tmp, uri_bytes)
+        uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
+        if uri == NULL:
+            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+        return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
-
-def FrozenSIPURI_new(cls, BaseSIPURI sipuri):
-    if isinstance(sipuri, FrozenSIPURI):
-        return sipuri
-    return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=frozendict(sipuri.parameters), headers=frozendict(sipuri.headers))
-
-def FrozenSIPURI_parse(cls, object uri_str):
-    if not isinstance(uri_str, basestring):
-        raise TypeError('a string or unicode is required')
-    cdef bytes uri_bytes = str(uri_str)
-    cdef pjsip_uri *uri = NULL
-    cdef pj_pool_t *pool = NULL
-    cdef pj_str_t tmp
-    cdef char buffer[4096]
-    pool = pj_pool_create_on_buf("FrozenSIPURI_parse", buffer, sizeof(buffer))
-    if pool == NULL:
-        raise SIPCoreError("Could not allocate memory pool")
-    pj_strdup2_with_null(pool, &tmp, uri_bytes)
-    uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
-    if uri == NULL:
-        raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
-    return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class FrozenSIPURI(BaseSIPURI):
     def __init__(self, object host not None, object user=None, object password=None, object port=None, bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
@@ -269,14 +231,39 @@ cdef class FrozenSIPURI(BaseSIPURI):
     def __hash__(self):
         return hash((self.user, self.password, self.host, self.port, self.secure, self.parameters, self.headers))
 
-    def __richcmp__(self, other, op):
-        return BaseSIPURI_richcmp(self, other, op)
+    def __richcmp__(self, other, op):  # todo: For some reason this is not inherited. Why? -Dan
+        if not isinstance(other, BaseSIPURI):
+            return NotImplemented
+        if op == 2:    # 2 is ==
+            return all(getattr(self, name) == getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
+        elif op == 3:  # 3 is !=
+            return any(getattr(self, name) != getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
+        else:
+            return NotImplemented
 
-    new = classmethod(FrozenSIPURI_new)
-    parse = classmethod(FrozenSIPURI_parse)
+    @classmethod
+    def new(cls, BaseSIPURI sipuri):
+        if isinstance(sipuri, FrozenSIPURI):
+            return sipuri
+        return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=frozendict(sipuri.parameters), headers=frozendict(sipuri.headers))
 
-del FrozenSIPURI_new
-del FrozenSIPURI_parse
+    @classmethod
+    def parse(cls, object uri_str):
+        if not isinstance(uri_str, basestring):
+            raise TypeError('a string or unicode is required')
+        cdef bytes uri_bytes = str(uri_str)
+        cdef pjsip_uri *uri = NULL
+        cdef pj_pool_t *pool = NULL
+        cdef pj_str_t tmp
+        cdef char buffer[4096]
+        pool = pj_pool_create_on_buf("FrozenSIPURI_parse", buffer, sizeof(buffer))
+        if pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+        pj_strdup2_with_null(pool, &tmp, uri_bytes)
+        uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
+        if uri == NULL:
+            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+        return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 
 # Factory functions
