@@ -189,7 +189,7 @@ class ChatStream(MSRPStreamBase):
         self.msrp_session.send_report(chunk, 200, 'OK')
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
-            data = IsComposingDocument.parse(message.body)
+            data = IsComposingDocument.parse(message.content)
             ndata = NotificationData(state=data.state.value,
                                      refresh=data.refresh.value if data.refresh is not None else 120,
                                      content_type=data.content_type.value if data.content_type is not None else None,
@@ -377,8 +377,8 @@ class ChatIdentity(object):
 
 
 class ChatMessage(object):
-    def __init__(self, body, content_type, sender=None, recipient=None, timestamp=None):
-        self.body = body
+    def __init__(self, content, content_type, sender=None, recipient=None, timestamp=None):
+        self.content = content
         self.content_type = content_type
         self.sender = sender
         self.recipients = [recipient] if recipient is not None else []
@@ -455,9 +455,9 @@ class CPIMMessage(ChatMessage):
     subject_re = re.compile(r'^(?:;lang=([a-z]{1,8}(?:-[a-z0-9]{1,8})*)\s+)?(.*)$')
     namespace_re = re.compile(r'^(?:(\S+) ?)?<(.*)>$')
 
-    def __init__(self, body, content_type, sender=None, recipients=None, courtesy_recipients=None,
+    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None,
                  subject=None, timestamp=None, required=None, additional_headers=None):
-        self.body = body
+        self.content = content
         self.content_type = content_type
         self.sender = sender
         self.recipients = recipients if recipients is not None else []
@@ -500,11 +500,11 @@ class CPIMMessage(ChatMessage):
 
         mime_message = EmailMessage()
         mime_message.set_type(self.content_type)
-        if isinstance(self.body, unicode):
+        if isinstance(self.content, unicode):
             mime_message.set_param('charset', 'utf-8')
-            mime_message.set_payload(self.body.encode('utf-8'))
+            mime_message.set_payload(self.content.encode('utf-8'))
         else:
-            mime_message.set_payload(self.body)
+            mime_message.set_payload(self.content)
 
         return headers + '\r\n\r\n' + mime_message.as_string()
 
@@ -567,10 +567,10 @@ class CPIMMessage(ChatMessage):
         if message.content_type is None:
             raise CPIMParserError("CPIM message missing Content-Type MIME header")
         if message.content_type.startswith('multipart/') or message.content_type == 'message/rfc822':
-            message.body = mime_message.get_payload()
+            message.content = mime_message.get_payload()
         elif message.content_type.startswith('text/'):
-            message.body = mime_message.get_payload().decode(mime_message.get_content_charset() or 'utf-8')
+            message.content = mime_message.get_payload().decode(mime_message.get_content_charset() or 'utf-8')
         else:
-            message.body = mime_message.get_payload()
+            message.content = mime_message.get_payload()
         return message
 
