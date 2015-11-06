@@ -14,8 +14,12 @@ cdef class BaseCredentials:
         self._credentials.scheme = _Credentials_scheme_digest.pj_str
         self._credentials.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
-    def __init__(self, *args, **kwargs):
-        raise TypeError("BaseCredentials cannot be instantiated directly")
+    def __init__(self, str username not None, str password not None, str realm='*'):
+        if self.__class__ is BaseCredentials:
+            raise TypeError("BaseCredentials cannot be instantiated directly")
+        self.username = username
+        self.realm = realm
+        self.password = password
 
     def __repr__(self):
         return "%s(%r, %r, %r)" % (self.__class__.__name__, self.username, self.password, self.realm)
@@ -30,13 +34,7 @@ def Credentials_new(cls, BaseCredentials credentials):
     return cls(credentials.username, credentials.password, credentials.realm)
 
 cdef class Credentials(BaseCredentials):
-    def __init__(self, str username not None, str password not None, str realm='*'):
-        self.username = username
-        self.realm = realm
-        self.password = password
-
     property username:
-
         def __get__(self):
             return self._username
 
@@ -45,7 +43,6 @@ cdef class Credentials(BaseCredentials):
             self._username = username
 
     property realm:
-
         def __get__(self):
             return self._realm
 
@@ -54,7 +51,6 @@ cdef class Credentials(BaseCredentials):
             self._realm = realm
 
     property password:
-
         def __get__(self):
             return self._password
 
@@ -81,6 +77,8 @@ cdef class FrozenCredentials(BaseCredentials):
             _str_to_pj_str(self.realm, &self._credentials.realm)
             _str_to_pj_str(self.password, &self._credentials.data)
             self.initialized = 1
+        else:
+            raise TypeError("{0.__class__.__name__} is read-only".format(self))
 
     def __hash__(self):
         return hash((self.username, self.realm, self.password))
