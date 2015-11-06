@@ -80,7 +80,7 @@ cdef class FrozenCredentials(BaseCredentials):
             _str_to_pj_str(self.username, &self._credentials.username)
             _str_to_pj_str(self.realm, &self._credentials.realm)
             _str_to_pj_str(self.password, &self._credentials.data)
-            initialized = 1
+            self.initialized = 1
 
     def __hash__(self):
         return hash((self.username, self.realm, self.password))
