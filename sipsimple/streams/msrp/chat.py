@@ -311,19 +311,6 @@ class ChatStream(MSRPStreamBase):
             NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
 
     def send_message(self, content, content_type='text/plain', recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
-        """Send IM message. Prefer Message/CPIM wrapper if it is supported.
-        If called before the connection was established, the messages will be
-        queued until MediaStreamDidStart notification.
-
-        - content (str) - content of the message;
-        - remote_identity (CPIMIdentity) - "To" header of CPIM wrapper;
-          if None, use the default obtained from the session
-          'remote_identity' may only differ from the one obtained from the session if the remote
-          party supports private messages. If it does not, ChatStreamError will be raised;
-        - content_type (str) - Content-Type of wrapped message;
-          (Content-Type of MSRP message is always Message/CPIM in that case)
-          If Message/CPIM is not supported, Content-Type of MSRP message.
-        """
         message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, notify_progress=True)
         self._enqueue_message(message)
         return message.id
