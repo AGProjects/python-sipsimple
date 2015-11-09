@@ -217,7 +217,7 @@ class ChatStream(MSRPStreamBase):
 
                     if need_cpim or not contains_mime_type(self.remote_accept_types, message.content_type):
                         if not self.cpim_enabled:
-                            raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
+                            raise ChatStreamError('Additional message meta-data cannot be sent, because the CPIM wrapper is not used')
                         if not contains_mime_type(self.remote_accept_wrapped_types, message.content_type):
                             raise ChatStreamError('Unsupported content_type for outgoing message: %r' % message.content_type)
                         if not self.private_messages_allowed and message.recipients != [self.remote_identity]:
