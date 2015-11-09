@@ -42,6 +42,8 @@ class ChatStream(MSRPStreamBase):
     accept_types = ['message/cpim', 'text/*', 'image/*', 'application/im-iscomposing+xml']
     accept_wrapped_types = ['text/*', 'image/*', 'application/im-iscomposing+xml']
 
+    prefer_cpim = False
+
     def __init__(self):
         super(ChatStream, self).__init__(direction='sendrecv')
         self.message_queue = queue()
@@ -222,6 +224,10 @@ class ChatStream(MSRPStreamBase):
                             raise ChatStreamError('Additional message meta-data cannot be sent, because the CPIM wrapper is not used')
                         if not self.private_messages_allowed and message.recipients != [self.remote_identity]:
                             raise ChatStreamError('The remote end does not support private messages')
+                        if message.timestamp is None:
+                            message.timestamp = ISOTimestamp.now()
+                        payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
+                    elif self.prefer_cpim and self.cpim_enabled and contains_mime_type(self.remote_accept_wrapped_types, message.content_type):
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
                         payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
