@@ -226,8 +226,6 @@ class ChatStream(MSRPStreamBase):
                             message.timestamp = ISOTimestamp.now()
                         payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
                     else:
-                        if not contains_mime_type(self.remote_accept_types, message.content_type):
-                            raise ChatStreamError('Unsupported content_type for outgoing message: %r' % message.content_type)
                         payload = SimplePayload(message.content, message.content_type)
                     content, content_type = payload.encode()
                 except ChatStreamError, e:
