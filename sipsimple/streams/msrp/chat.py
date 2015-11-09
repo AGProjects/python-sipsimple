@@ -5,7 +5,7 @@
 This module provides classes to parse and generate SDP related to SIP sessions that negotiate Instant Messaging, including CPIM as defined in RFC3862
 """
 
-__all__ = ['ChatStream', 'ChatStreamError', 'ChatIdentity', 'ChatMessage', 'CPIMIdentity', 'CPIMHeader', 'CPIMMessage', 'CPIMParserError']
+__all__ = ['ChatStream', 'ChatStreamError', 'ChatIdentity', 'CPIMPayload', 'CPIMHeader', 'CPIMNamespace', 'CPIMParserError']
 
 import codecs
 import random
@@ -31,23 +31,6 @@ from sipsimple.util import MultilingualText, ISOTimestamp
 
 
 class ChatStreamError(MSRPStreamError): pass
-
-
-class Message(object):
-    __slots__ = ('id', 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers', 'notify_progress')
-
-    def __init__(self, content, content_type, id=None, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, notify_progress=True):
-        self.id = id or '%x' % random.getrandbits(64)
-        self.content = content
-        self.content_type = content_type
-        self.sender = sender
-        self.recipients = recipients
-        self.courtesy_recipients = courtesy_recipients
-        self.subject = subject
-        self.timestamp = timestamp
-        self.required = required
-        self.additional_headers = additional_headers
-        self.notify_progress = notify_progress
 
 
 class ChatStream(MSRPStreamBase):
@@ -170,11 +153,13 @@ class ChatStream(MSRPStreamBase):
             data = ''.join(self.incoming_queue.pop(chunk.message_id, [])) + chunk.data
         if content_type == 'message/cpim':
             try:
-                message = CPIMMessage.parse(data)
+                payload = CPIMPayload.decode(data)
             except CPIMParserError:
                 self.msrp_session.send_report(chunk, 400, 'CPIM Parser Error')
                 return
             else:
+                message = Message(**payload.__dict__)
+                # message = Message(**{name: getattr(payload, name) for name in Message.__slots__})
                 if not contains_mime_type(self.accept_wrapped_types, message.content_type):
                     self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
                     return
@@ -184,7 +169,8 @@ class ChatStream(MSRPStreamBase):
                     message.sender = self.remote_identity
                 private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0] != self.remote_identity
         else:
-            message = ChatMessage(data.decode('utf-8'), content_type, self.remote_identity, self.local_identity, ISOTimestamp.now())
+            payload = SimplePayload.decode(data, content_type)
+            message = Message(payload.content, payload.content_type, sender=self.remote_identity, recipients=[self.local_identity], timestamp=ISOTimestamp.now())
             private = False
         self.msrp_session.send_report(chunk, 200, 'OK')
         notification_center = NotificationCenter()
@@ -238,19 +224,12 @@ class ChatStream(MSRPStreamBase):
                             raise ChatStreamError('The remote end does not support private messages')
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
-                        msg = CPIMMessage(message.content, message.content_type, sender=message.sender,
-                                          recipients=message.recipients, courtesy_recipients=message.courtesy_recipients,
-                                          subject=message.subject, timestamp=message.timestamp,
-                                          required=message.required, additional_headers=message.additional_headers)
-                        content = str(msg)
-                        content_type = 'message/cpim'
+                        payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
                     else:
                         if not contains_mime_type(self.remote_accept_types, message.content_type):
                             raise ChatStreamError('Unsupported content_type for outgoing message: %r' % message.content_type)
-                        if isinstance(message.content, unicode):
-                            message.content = message.content.encode('utf-8')
-                        content = message.content
-                        content_type = message.content_type
+                        payload = SimplePayload(message.content, message.content_type)
+                    content, content_type = payload.encode()
                 except ChatStreamError, e:
                     data = NotificationData(message_id=message.id, message=None, code=0, reason=e.args[0])
                     notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
@@ -311,13 +290,13 @@ class ChatStream(MSRPStreamBase):
             NotificationCenter().post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='sending', reason=self._failure_reason))
 
     def send_message(self, content, content_type='text/plain', recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
-        message = Message(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, notify_progress=True)
+        message = QueuedMessage(content, content_type, recipients=recipients, courtesy_recipients=courtesy_recipients, subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers, notify_progress=True)
         self._enqueue_message(message)
         return message.id
 
     def send_composing_indication(self, state, refresh=None, last_active=None, recipients=None):
         content = IsComposingDocument.create(state=State(state), refresh=Refresh(refresh) if refresh is not None else None, last_active=LastActive(last_active) if last_active is not None else None, content_type=ContentType('text'))
-        message = Message(content, IsComposingDocument.content_type, recipients=recipients, notify_progress=False)
+        message = QueuedMessage(content, IsComposingDocument.content_type, recipients=recipients, notify_progress=False)
         self._enqueue_message(message)
         return message.id
 
@@ -333,6 +312,8 @@ class ChatStream(MSRPStreamBase):
 #
 
 class ChatIdentity(object):
+    _format_re = re.compile(r'^(?:"?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>sips?:.+)>$')
+
     def __init__(self, uri, display_name=None):
         self.uri = uri
         self.display_name = display_name
@@ -353,8 +334,13 @@ class ChatIdentity(object):
             return NotImplemented
 
     def __ne__(self, other):
-        equal = self.__eq__(other)
-        return NotImplemented if equal is NotImplemented else not equal
+        return not (self == other)
+
+    def __repr__(self):
+        return '{0.__class__.__name__}(uri={0.uri!r}, display_name={0.display_name!r})'.format(self)
+
+    def __str__(self):
+        return self.__unicode__().encode('utf-8')
 
     def __unicode__(self):
         if self.display_name:
@@ -362,54 +348,193 @@ class ChatIdentity(object):
         else:
             return u'<{0.uri}>'.format(self)
 
+    @classmethod
+    def parse(cls, value):
+        match = cls._format_re.match(value)
+        if match is None:
+            raise ValueError('Cannot parse identity value: %r' % value)
+        return cls(SIPURI.parse(match.group('uri')), match.group('display_name'))
 
-class ChatMessage(object):
-    def __init__(self, content, content_type, sender=None, recipient=None, timestamp=None):
+
+class Message(object):
+    __slots__ = 'content', 'content_type', 'sender', 'recipients', 'courtesy_recipients', 'subject', 'timestamp', 'required', 'additional_headers'
+
+    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
         self.content = content
         self.content_type = content_type
         self.sender = sender
-        self.recipients = [recipient] if recipient is not None else []
-        self.courtesy_recipients = []
-        self.subject = None
-        self.timestamp = timestamp
-        self.required = []
-        self.additional_headers = []
+        self.recipients = recipients or []
+        self.courtesy_recipients = courtesy_recipients or []
+        self.subject = subject
+        self.timestamp = ISOTimestamp(timestamp) if timestamp is not None else None
+        self.required = required or []
+        self.additional_headers = additional_headers or []
 
 
-# CPIM support
-#
+class QueuedMessage(Message):
+    __slots__ = 'id', 'notify_progress'
 
-class CPIMParserError(Exception): pass
+    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None, id=None, notify_progress=True):
+        super(QueuedMessage, self).__init__(content, content_type, sender, recipients, courtesy_recipients, subject, timestamp, required, additional_headers)
+        self.id = id or '%x' % random.getrandbits(64)
+        self.notify_progress = notify_progress
 
 
-class CPIMCodec(codecs.Codec):
-    character_map = dict((c, u'\\u%04x' % c) for c in range(32) + [127])
-    character_map[ord(u'\\')] = u'\\\\'
+class SimplePayload(object):
+    def __init__(self, content, content_type):
+        self.content = content
+        self.content_type = content_type
+
+    def encode(self):
+        if isinstance(self.content, unicode):
+            return self.content.encode('utf-8'), '{}; charset="utf-8"'.format(str(self.content_type))
+        else:
+            return self.content, str(self.content_type)
 
     @classmethod
-    def encode(cls, input, errors='strict'):
-        return input.translate(cls.character_map).encode('utf-8', errors), len(input)
+    def decode(cls, message, content_type):
+        type_helper = EmailParser().parsestr('Content-Type: {}'.format(content_type))
+        content_type = type_helper.get_content_type()
+        charset = type_helper.get_content_charset(failobj='utf-8' if content_type.startswith('text/') else None)
+        content = message.decode(charset) if charset is not None else message
+        return cls(content, content_type)
+
+
+class CPIMPayload(object):
+    standard_namespace = u'urn:ietf:params:cpim-headers:'
+
+    headers_re = re.compile(r'(?:([^:]+?)\.)?(.+?):\s*(.+?)(?:\r\n|$)')
+    subject_re = re.compile(r'^(?:;lang=([a-z]{1,8}(?:-[a-z0-9]{1,8})*)\s+)?(.*)$')
+    namespace_re = re.compile(r'^(?:(\S+) ?)?<(.*)>$')
+
+    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
+        self.content = content
+        self.content_type = content_type
+        self.sender = sender
+        self.recipients = recipients or []
+        self.courtesy_recipients = courtesy_recipients or []
+        self.subject = subject if isinstance(subject, (MultilingualText, type(None))) else MultilingualText(subject)
+        self.timestamp = ISOTimestamp(timestamp) if timestamp is not None else None
+        self.required = required or []
+        self.additional_headers = additional_headers or []
+
+    def encode(self):
+        namespaces = {u'': CPIMNamespace(self.standard_namespace)}
+        header_list = []
+
+        if self.sender is not None:
+            header_list.append(u'From: {}'.format(self.sender))
+        header_list.extend(u'To: {}'.format(recipient) for recipient in self.recipients)
+        header_list.extend(u'cc: {}'.format(recipient) for recipient in self.courtesy_recipients)
+        if self.subject is not None:
+            header_list.append(u'Subject: {}'.format(self.subject))
+            header_list.extend(u'Subject:;lang={} {}'.format(language, translation) for language, translation in self.subject.translations.iteritems())
+        if self.timestamp is not None:
+            header_list.append(u'DateTime: {}'.format(self.timestamp))
+        if self.required:
+            header_list.append(u'Required: {}'.format(','.join(self.required)))
+
+        for header in self.additional_headers:
+            if namespaces.get(header.namespace.prefix) != header.namespace:
+                if header.namespace.prefix:
+                    header_list.append(u'NS: {0.namespace.prefix} <{0.namespace}>'.format(header.namespace.prefix, header.namespace))
+                else:
+                    header_list.append(u'NS: <{0.namespace}>'.format(header.namespace))
+                namespaces[header.namespace.prefix] = header.namespace
+            if header.namespace.prefix:
+                header_list.append(u'{0.namespace.prefix}.{0.name}: {0.value}'.format(header))
+            else:
+                header_list.append(u'{0.name}: {0.value}'.format(header))
+
+        headers = '\r\n'.join(header.encode('cpim-header') for header in header_list)
+
+        mime_message = EmailMessage()
+        mime_message.set_type(self.content_type)
+        if isinstance(self.content, unicode):
+            mime_message.set_param('charset', 'utf-8')
+            mime_message.set_payload(self.content.encode('utf-8'))
+        else:
+            mime_message.set_payload(self.content)
+
+        return headers + '\r\n\r\n' + mime_message.as_string(), 'message/cpim'
 
     @classmethod
-    def decode(cls, input, errors='strict'):
-        return input.decode('utf-8', errors).encode('raw-unicode-escape', errors).decode('unicode-escape', errors), len(input)
+    def decode(cls, message):
+        headers, separator, body = message.partition('\r\n\r\n')
+        if not separator:
+            raise CPIMParserError('Invalid CPIM message')
+
+        sender = None
+        recipients = []
+        courtesy_recipients = []
+        subject = None
+        timestamp = None
+        required = []
+        additional_headers = []
+
+        namespaces = {u'': CPIMNamespace(cls.standard_namespace)}
+        subjects = {}
+
+        for prefix, name, value in cls.headers_re.findall(headers):
+            namespace = namespaces.get(prefix)
+
+            if namespace is None or '.' in name:
+                continue
+
+            try:
+                value = value.decode('cpim-header')
+                if namespace == cls.standard_namespace:
+                    if name == 'From':
+                        sender = ChatIdentity.parse(value)
+                    elif name == 'To':
+                        recipients.append(ChatIdentity.parse(value))
+                    elif name == 'cc':
+                        courtesy_recipients.append(ChatIdentity.parse(value))
+                    elif name == 'Subject':
+                        match = cls.subject_re.match(value)
+                        if match is None:
+                            raise ValueError('Illegal Subject header: %r' % value)
+                        lang, subject = match.groups()
+                        # language tags must be ASCII
+                        subjects[str(lang) if lang is not None else None] = subject
+                    elif name == 'DateTime':
+                        timestamp = ISOTimestamp(value)
+                    elif name == 'Required':
+                        required.extend(re.split(r'\s*,\s*', value))
+                    elif name == 'NS':
+                        match = cls.namespace_re.match(value)
+                        if match is None:
+                            raise ValueError('Illegal NS header: %r' % value)
+                        prefix, uri = match.groups()
+                        namespaces[prefix] = CPIMNamespace(uri, prefix)
+                    else:
+                        additional_headers.append(CPIMHeader(name, namespace, value))
+                else:
+                    additional_headers.append(CPIMHeader(name, namespace, value))
+            except ValueError:
+                pass
+
+        if None in subjects:
+            subject = MultilingualText(subjects.pop(None), **subjects)
+        elif subjects:
+            subject = MultilingualText(**subjects)
+
+        mime_message = EmailParser().parsestr(body)
+        content_type = mime_message.get_content_type()
+        if content_type is None:
+            raise CPIMParserError("CPIM message missing Content-Type MIME header")
+        charset = mime_message.get_content_charset(failobj='utf-8' if content_type.startswith('text/') else None)
+        payload = mime_message.get_payload()
+        content = payload.decode(charset) if charset is not None else payload
+
+        return cls(content, content_type, sender, recipients, courtesy_recipients, subject, timestamp, required, additional_headers)
 
 
-def cpim_codec_search(name):
-    if name.lower() in ('cpim-headers', 'cpim_headers'):
-        return codecs.CodecInfo(name='CPIM-headers',
-                                encode=CPIMCodec.encode,
-                                decode=CPIMCodec.decode,
-                                incrementalencoder=codecs.IncrementalEncoder,
-                                incrementaldecoder=codecs.IncrementalDecoder,
-                                streamwriter=codecs.StreamWriter,
-                                streamreader=codecs.StreamReader)
-codecs.register(cpim_codec_search)
-del cpim_codec_search
+class CPIMParserError(StandardError): pass
 
 
-class Namespace(unicode):
-    def __new__(cls, value, prefix=''):
+class CPIMNamespace(unicode):
+    def __new__(cls, value, prefix=u''):
         obj = unicode.__new__(cls, value)
         obj.prefix = prefix
         return obj
@@ -422,142 +547,29 @@ class CPIMHeader(object):
         self.value = value
 
 
-class CPIMIdentity(ChatIdentity):
-    _re_format = re.compile(r'^(?:"?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>sips?:.+)>$')
+class CPIMCodec(codecs.Codec):
+    character_map = {c: u'\\u{:04x}'.format(c) for c in range(32) + [127]}
+    character_map[ord(u'\\')] = u'\\\\'
 
     @classmethod
-    def parse(cls, value):
-        if isinstance(value, str):
-            value = value.decode('cpim-headers')
-        match = cls._re_format.match(value)
-        if not match:
-            raise ValueError('Cannot parse message/cpim identity header value: %r' % value)
-        return cls(SIPURI.parse(match.group('uri')), match.group('display_name'))
-
-
-class CPIMMessage(ChatMessage):
-    standard_namespace = u'urn:ietf:params:cpim-headers:'
-
-    headers_re = re.compile(r'(?:([^:]+?)\.)?(.+?):\s*(.+?)\r\n')
-    subject_re = re.compile(r'^(?:;lang=([a-z]{1,8}(?:-[a-z0-9]{1,8})*)\s+)?(.*)$')
-    namespace_re = re.compile(r'^(?:(\S+) ?)?<(.*)>$')
-
-    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None,
-                 subject=None, timestamp=None, required=None, additional_headers=None):
-        self.content = content
-        self.content_type = content_type
-        self.sender = sender
-        self.recipients = recipients if recipients is not None else []
-        self.courtesy_recipients = courtesy_recipients if courtesy_recipients is not None else []
-        self.subject = subject if isinstance(subject, (MultilingualText, type(None))) else MultilingualText(subject)
-        self.timestamp = ISOTimestamp(timestamp) if timestamp is not None else None
-        self.required = required if required is not None else []
-        self.additional_headers = additional_headers if additional_headers is not None else []
-
-    def __str__(self):
-        headers = []
-        if self.sender:
-            headers.append(u'From: %s' % self.sender)
-        for recipient in self.recipients:
-            headers.append(u'To: %s' % recipient)
-        for recipient in self.courtesy_recipients:
-            headers.append(u'Cc: %s' % recipient)
-        if self.subject:
-            headers.append(u'Subject: %s' % self.subject)
-        if self.subject is not None:
-            for lang, translation in self.subject.translations.iteritems():
-                headers.append(u'Subject:;lang=%s %s' % (lang, translation))
-        if self.timestamp:
-            headers.append(u'DateTime: %s' % self.timestamp)
-        if self.required:
-            headers.append(u'Required: %s' % ','.join(self.required))
-        namespaces = {u'': self.standard_namespace}
-        for header in self.additional_headers:
-            if namespaces.get(header.namespace.prefix, None) != header.namespace:
-                if header.namespace.prefix:
-                    headers.append(u'NS: %s <%s>' % (header.namespace.prefix, header.namespace))
-                else:
-                    headers.append(u'NS: <%s>' % header.namespace)
-                namespaces[header.namespace.prefix] = header.namespace
-            if header.namespace.prefix:
-                headers.append(u'%s.%s: %s' % (header.namespace.prefix, header.name, header.value))
-            else:
-                headers.append(u'%s: %s' % (header.name, header.value))
-        headers = '\r\n'.join(s.encode('cpim-headers') for s in headers)
-
-        mime_message = EmailMessage()
-        mime_message.set_type(self.content_type)
-        if isinstance(self.content, unicode):
-            mime_message.set_param('charset', 'utf-8')
-            mime_message.set_payload(self.content.encode('utf-8'))
-        else:
-            mime_message.set_payload(self.content)
-
-        return headers + '\r\n\r\n' + mime_message.as_string()
+    def encode(cls, input, errors='strict'):
+        return input.translate(cls.character_map).encode('utf-8', errors), len(input)
 
     @classmethod
-    def parse(cls, string):
-        message = cls('', None)
+    def decode(cls, input, errors='strict'):
+        return input.decode('utf-8', errors).encode('raw-unicode-escape', errors).decode('unicode-escape', errors), len(input)
 
-        try:
-            headers_end = string.index('\r\n\r\n')
-        except ValueError:
-            raise CPIMParserError('Invalid CPIM message')
-        else:
-            headers = cls.headers_re.findall(buffer(string, 0, headers_end+2))
-            body = buffer(string, headers_end+4)
 
-        namespaces = {u'': Namespace(cls.standard_namespace)}
-        subjects = {}
-        for prefix, name, value in headers:
-            if '.' in name:
-                continue
-            namespace = namespaces.get(prefix)
-            if not namespace:
-                continue
-            try:
-                value = value.decode('cpim-headers')
-                if name == 'From' and namespace == cls.standard_namespace:
-                    message.sender = CPIMIdentity.parse(value)
-                elif name == 'To' and namespace == cls.standard_namespace:
-                    message.recipients.append(CPIMIdentity.parse(value))
-                elif name == 'cc' and namespace == cls.standard_namespace:
-                    message.courtesy_recipients.append(CPIMIdentity.parse(value))
-                elif name == 'Subject' and namespace == cls.standard_namespace:
-                    match = cls.subject_re.match(value)
-                    if match is None:
-                        raise ValueError('Illegal Subject header: %r' % value)
-                    lang, subject = match.groups()
-                    # language tags must be ASCII
-                    subjects[str(lang) if lang is not None else None] = subject
-                elif name == 'DateTime' and namespace == cls.standard_namespace:
-                    message.timestamp = ISOTimestamp(value)
-                elif name == 'Required' and namespace == cls.standard_namespace:
-                    message.required.extend(re.split(r'\s*,\s*', value))
-                elif name == 'NS' and namespace == cls.standard_namespace:
-                    match = cls.namespace_re.match(value)
-                    if match is None:
-                        raise ValueError('Illegal NS header: %r' % value)
-                    prefix, uri = match.groups()
-                    namespaces[prefix] = Namespace(uri, prefix)
-                else:
-                    message.additional_headers.append(CPIMHeader(name, namespace, value))
-            except ValueError:
-                pass
+def cpim_codec_search(name):
+    if name.lower() in ('cpim-header', 'cpim_header'):
+        return codecs.CodecInfo(name='CPIM-header',
+                                encode=CPIMCodec.encode,
+                                decode=CPIMCodec.decode,
+                                incrementalencoder=codecs.IncrementalEncoder,
+                                incrementaldecoder=codecs.IncrementalDecoder,
+                                streamwriter=codecs.StreamWriter,
+                                streamreader=codecs.StreamReader)
+codecs.register(cpim_codec_search)
+del cpim_codec_search
 
-        if None in subjects:
-            message.subject = MultilingualText(subjects.pop(None), **subjects)
-        elif subjects:
-            message.subject = MultilingualText(**subjects)
-        mime_message = EmailParser().parsestr(body)
-        message.content_type = mime_message.get_content_type()
-        if message.content_type is None:
-            raise CPIMParserError("CPIM message missing Content-Type MIME header")
-        if message.content_type.startswith('multipart/') or message.content_type == 'message/rfc822':
-            message.content = mime_message.get_payload()
-        elif message.content_type.startswith('text/'):
-            message.content = mime_message.get_payload().decode(mime_message.get_content_charset() or 'utf-8')
-        else:
-            message.content = mime_message.get_payload()
-        return message
 
