@@ -287,13 +287,57 @@ class MSRPStreamBase(object):
 
 
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
+#
+
+class ChunkInfo(object):
+    __slots__ = 'content_type', 'header', 'footer', 'data'
+
+    def __init__(self, content_type, header='', footer='', data=''):
+        self.content_type = content_type
+        self.header = header
+        self.footer = footer
+        self.data = data
+
+    def __repr__(self):
+        return "{0.__class__.__name__}(content_type={0.content_type!r}, header={0.header!r}, footer={0.footer!r}, data={0.data!r})".format(self)
+
+    @property
+    def content(self):
+        return self.header + self.data + self.footer
+
+    @property
+    def normalized_content(self):
+        if not self.data:
+            return self.header + self.footer
+        elif self.content_type == 'message/cpim':
+            headers, sep, body = self.data.partition('\r\n\r\n')
+            if not sep:
+                return self.header + self.data + self.footer
+            mime_headers, mime_sep, mime_body = body.partition('\n\n')
+            if not mime_sep:
+                return self.header + self.data + self.footer
+            for mime_header in mime_headers.lower().splitlines():
+                if mime_header.startswith('content-type:'):
+                    wrapped_content_type = mime_header[13:].partition(';')[0].strip()
+                    break
+            else:
+                wrapped_content_type = None
+            if wrapped_content_type is None or wrapped_content_type == 'application/im-iscomposing+xml' or wrapped_content_type.startswith(('text/', 'message/')):
+                data = self.data
+            else:
+                data = headers + sep + mime_headers + mime_sep + '<<<stripped data>>>'
+            return self.header + data + self.footer
+        elif self.content_type is None or self.content_type == 'application/im-iscomposing+xml' or self.content_type.startswith(('text/', 'message/')):
+            return self.header + self.data + self.footer
+        else:
+            return self.header + '<<<stripped data>>>' + self.footer
+
+
 class NotificationProxyLogger(object):
     def __init__(self):
         from application import log
         self.level = log.level
-        self.stripped_data_transactions = set()
-        self.text_transactions = set()
-        self.transaction_data = {}
+        self.chunks = {}
         self.notification_center = NotificationCenter()
         self.log_settings = SIPSimpleSettings().logs
 
@@ -304,45 +348,29 @@ class NotificationProxyLogger(object):
         pass
 
     def received_new_chunk(self, data, transport, chunk):
-        content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
-        if chunk.method != 'SEND' or (chunk.content_type and content_type in ('text', 'message')):
-            self.text_transactions.add(chunk.transaction_id)
-        self.transaction_data[chunk.transaction_id] = data
+        self.chunks[chunk.transaction_id] = ChunkInfo(chunk.content_type, header=data)
 
     def received_chunk_data(self, data, transport, transaction_id):
-        if transaction_id in self.text_transactions:
-            self.transaction_data[transaction_id] += data
-        elif transaction_id not in self.stripped_data_transactions:
-            self.transaction_data[transaction_id] += '<stripped data>'
-            self.stripped_data_transactions.add(transaction_id)
+        self.chunks[transaction_id].data += data
 
     def received_chunk_end(self, data, transport, transaction_id):
-        chunk = self.transaction_data.pop(transaction_id) + data
-        self.stripped_data_transactions.discard(transaction_id)
-        self.text_transactions.discard(transaction_id)
+        chunk_info = self.chunks.pop(transaction_id)
+        chunk_info.footer = data
         if self.log_settings.trace_msrp:
-            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk)
+            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content)
             self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
     def sent_new_chunk(self, data, transport, chunk):
-        content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
-        if chunk.method != 'SEND' or (chunk.content_type and content_type in ('text', 'message')):
-            self.text_transactions.add(chunk.transaction_id)
-        self.transaction_data[chunk.transaction_id] = data
+        self.chunks[chunk.transaction_id] = ChunkInfo(chunk.content_type, header=data)
 
     def sent_chunk_data(self, data, transport, transaction_id):
-        if transaction_id in self.text_transactions:
-            self.transaction_data[transaction_id] += data
-        elif transaction_id not in self.stripped_data_transactions:
-            self.transaction_data[transaction_id] += '<stripped data>'
-            self.stripped_data_transactions.add(transaction_id)
+        self.chunks[transaction_id].data += data
 
     def sent_chunk_end(self, data, transport, transaction_id):
-        chunk = self.transaction_data.pop(transaction_id) + data
-        self.stripped_data_transactions.discard(transaction_id)
-        self.text_transactions.discard(transaction_id)
+        chunk_info = self.chunks.pop(transaction_id)
+        chunk_info.footer = data
         if self.log_settings.trace_msrp:
-            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk)
+            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content)
             self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
     def debug(self, message, **context):
