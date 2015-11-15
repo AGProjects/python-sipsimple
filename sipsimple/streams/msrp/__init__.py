@@ -8,6 +8,7 @@ Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547 and RFC399
 __all__ = ['MSRPStreamError', 'MSRPStreamBase']
 
 from application.notification import NotificationCenter, NotificationData, IObserver
+from application.python import Null
 from application.system import host
 from twisted.internet.error import ConnectionDone
 from zope.interface import implements
@@ -261,9 +262,8 @@ class MSRPStreamBase(object):
     # Internal IObserver interface
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
 
     # Internal message handlers
 
