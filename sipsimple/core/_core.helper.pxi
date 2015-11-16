@@ -231,7 +231,7 @@ cdef class FrozenSIPURI(BaseSIPURI):
     def __hash__(self):
         return hash((self.user, self.password, self.host, self.port, self.secure, self.parameters, self.headers))
 
-    def __richcmp__(self, other, op):  # todo: For some reason this is not inherited. Why? -Dan
+    def __richcmp__(self, other, op):  # since we define __hash__, __richcmp__ is not inherited (see https://docs.python.org/2/c-api/typeobj.html#c.PyTypeObject.tp_richcompare)
         if not isinstance(other, BaseSIPURI):
             return NotImplemented
         if op == 2:    # 2 is ==
