@@ -141,7 +141,8 @@ cdef class BaseSIPURI:
         elif op == 3:  # 3 is !=
             return any(getattr(self, name) != getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
         else:
-            return NotImplemented
+            operator_map = {0: '<', 1: '<=', 2: '==', 3: '!=', 4: '>', 5: '>='}
+            raise TypeError("unorderable types: {0.__class__.__name__}() {2} {1.__class__.__name__}()".format(self, other, operator_map[op]))
 
     def matches(self, address):
         match = re.match(r'^((?P<scheme>sip|sips):)?(?P<username>.+?)(@(?P<domain>.+?)(:(?P<port>\d+?))?)?(;(?P<parameters>.+?))?(\?(?P<headers>.+?))?$', address)
@@ -239,7 +240,8 @@ cdef class FrozenSIPURI(BaseSIPURI):
         elif op == 3:  # 3 is !=
             return any(getattr(self, name) != getattr(other, name) for name in ("user", "password", "host", "port", "secure", "parameters", "headers"))
         else:
-            return NotImplemented
+            operator_map = {0: '<', 1: '<=', 2: '==', 3: '!=', 4: '>', 5: '>='}
+            raise TypeError("unorderable types: {0.__class__.__name__}() {2} {1.__class__.__name__}()".format(self, other, operator_map[op]))
 
     @classmethod
     def new(cls, BaseSIPURI sipuri):
