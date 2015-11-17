@@ -194,13 +194,17 @@ class FileTransferHandler(object):
 
     def __init__(self):
         self.stream = None
+        self.session = None
         self._started = False
+        self._session_started = False
         self._initialize_done = False
 
-    def initialize(self, stream):
+    def initialize(self, stream, session):
         self.stream = stream
+        self.session = session
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=stream)
+        notification_center.add_observer(self, sender=session)
         notification_center.add_observer(self, sender=self)
 
     @property
@@ -222,10 +226,12 @@ class FileTransferHandler(object):
     def __terminate(self):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=self.stream)
+        notification_center.remove_observer(self, sender=self.session)
         notification_center.remove_observer(self, sender=self)
         if self.stream.file_selector.fd is not None:
             self.stream.file_selector.fd.close()
         self.stream = None
+        self.session = None
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
@@ -245,8 +251,16 @@ class FileTransferHandler(object):
     def _NH_MediaStreamWillEnd(self, notification):
         if self._started:
             self.end()
-        else:
-            notification.center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='Cancelled'))
+        elif self._session_started:
+            notification.center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='Refused'))
+
+    def _NH_SIPSessionWillStart(self, notification):
+        self._session_started = True
+
+    def _NH_SIPSessionDidFail(self, notification):
+        if not self._session_started and self.stream is not None and self.stream._initialized:
+            reason = 'Cancelled' if notification.data.code == 487 else notification.data.reason
+            notification.center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason=reason))
 
     def _NH_FileTransferHandlerDidInitialize(self, notification):
         self._initialize_done = True
@@ -282,8 +296,8 @@ class IncomingFileTransferHandler(FileTransferHandler):
     save_directory = property(_get_save_directory, _set_save_directory)
     del _get_save_directory, _set_save_directory
 
-    def initialize(self, stream):
-        super(IncomingFileTransferHandler, self).initialize(stream)
+    def initialize(self, stream, session):
+        super(IncomingFileTransferHandler, self).initialize(stream, session)
         try:
             directory = self.save_directory or SIPSimpleSettings().file_transfer.directory.normalized
             makedirs(directory)
@@ -423,8 +437,8 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         self.offset = 0
         self.headers = {}
 
-    def initialize(self, stream):
-        super(OutgoingFileTransferHandler, self).initialize(stream)
+    def initialize(self, stream, session):
+        super(OutgoingFileTransferHandler, self).initialize(stream, session)
         if stream.file_selector.fd is None:
             NotificationCenter().post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason='file descriptor not specified'))
             return
@@ -626,7 +640,7 @@ class FileTransferStream(MSRPStreamBase):
     def initialize(self, session, direction):
         self._initialize_args = session, direction
         NotificationCenter().add_observer(self, sender=self.handler)
-        self.handler.initialize(self)
+        self.handler.initialize(self, session)
 
     def _create_local_media(self, uri_path):
         local_media = super(FileTransferStream, self)._create_local_media(uri_path)
