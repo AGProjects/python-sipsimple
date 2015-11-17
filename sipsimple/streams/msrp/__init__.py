@@ -221,7 +221,7 @@ class MSRPStreamBase(object):
             if self.greenlet is not None:
                 # we are in the middle of initialize()
                 api.kill(self.greenlet)
-            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
             return
         notification_center.post_notification('MediaStreamWillEnd', sender=self)
         msrp = self.msrp
