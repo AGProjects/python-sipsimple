@@ -110,8 +110,9 @@ class ChatStream(MSRPStreamBase):
         message_queue, self.message_queue = self.message_queue, queue()
         while message_queue:
             message = message_queue.wait()
-            data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream was closed')
-            notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+            if message.notify_progress:
+                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream was closed')
+                notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _NH_MediaStreamDidEnd(self, notification):
         if self.message_queue_thread is not None:
@@ -120,8 +121,9 @@ class ChatStream(MSRPStreamBase):
             message_queue, self.message_queue = self.message_queue, queue()
             while message_queue:
                 message = message_queue.wait()
-                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
-                notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                if message.notify_progress:
+                    data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                    notification.center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
@@ -206,8 +208,9 @@ class ChatStream(MSRPStreamBase):
             while True:
                 message = self.message_queue.wait()
                 if self.msrp_session is None:
-                    data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
-                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    if message.notify_progress:
+                        data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                        notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     break
                 try:
                     message.sender = message.sender or self.local_identity
@@ -235,8 +238,9 @@ class ChatStream(MSRPStreamBase):
                         payload = SimplePayload(message.content, message.content_type)
                     content, content_type = payload.encode()
                 except ChatStreamError, e:
-                    data = NotificationData(message_id=message.id, message=None, code=0, reason=e.args[0])
-                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    if message.notify_progress:
+                        data = NotificationData(message_id=message.id, message=None, code=0, reason=e.args[0])
+                        notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     continue
 
                 message_id = message.id
@@ -250,11 +254,13 @@ class ChatStream(MSRPStreamBase):
                 try:
                     self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
                 except Exception, e:
-                    data = NotificationData(message_id=message_id, message=None, code=0, reason=str(e))
-                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    if notify_progress:
+                        data = NotificationData(message_id=message_id, message=None, code=0, reason=str(e))
+                        notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                 except ProcExit:
-                    data = NotificationData(message_id=message_id, message=None, code=0, reason='Stream ended')
-                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                    if notify_progress:
+                        data = NotificationData(message_id=message_id, message=None, code=0, reason='Stream ended')
+                        notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     raise
                 else:
                     if notify_progress:
@@ -269,14 +275,16 @@ class ChatStream(MSRPStreamBase):
             message_queue, self.message_queue = self.message_queue, queue()
             while message_queue:
                 message = message_queue.wait()
-                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
-                notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+                if message.notify_progress:
+                    data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                    notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     @run_in_twisted_thread
     def _enqueue_message(self, message):
         if self._done:
-            data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
-            NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
+            if message.notify_progress:
+                data = NotificationData(message_id=message.id, message=None, code=0, reason='Stream ended')
+                NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
         else:
             self.message_queue.send(message)
 
