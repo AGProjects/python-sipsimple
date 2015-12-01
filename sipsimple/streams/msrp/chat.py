@@ -449,9 +449,9 @@ class CPIMPayload(object):
         for header in self.additional_headers:
             if namespaces.get(header.namespace.prefix) != header.namespace:
                 if header.namespace.prefix:
-                    header_list.append(u'NS: {0.namespace.prefix} <{0.namespace}>'.format(header.namespace.prefix, header.namespace))
+                    header_list.append(u'NS: {0.namespace.prefix} <{0.namespace}>'.format(header))
                 else:
-                    header_list.append(u'NS: <{0.namespace}>'.format(header.namespace))
+                    header_list.append(u'NS: <{0.namespace}>'.format(header))
                 namespaces[header.namespace.prefix] = header.namespace
             if header.namespace.prefix:
                 header_list.append(u'{0.namespace.prefix}.{0.name}: {0.value}'.format(header))
