@@ -23,7 +23,7 @@ from sipsimple.threading.green import Command, run_in_green_thread
 
 
 
-Command.register_defaults('register',  refresh_interval=None)
+Command.register_defaults('register', refresh_interval=None)
 
 
 class SIPRegistrationDidFail(Exception):
