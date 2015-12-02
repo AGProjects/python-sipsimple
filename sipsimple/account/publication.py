@@ -347,7 +347,7 @@ class Publisher(object):
                 self.activate()
             else:
                 self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.publish_interval']).intersection(notification.data.modified):
+        elif self.active and {'__id__', 'auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.publish_interval'}.intersection(notification.data.modified):
             self._command_channel.send(Command('unpublish'))
             self._command_channel.send(Command('publish', state=self.state))
 

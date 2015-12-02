@@ -293,7 +293,7 @@ class Registrar(object):
                 self.activate()
             else:
                 self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'nat_traversal.use_ice', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']).intersection(notification.data.modified):
+        elif self.active and {'__id__', 'auth.password', 'auth.username', 'nat_traversal.use_ice', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval'}.intersection(notification.data.modified):
             self._command_channel.send(Command('unregister'))
             self._command_channel.send(Command('register'))
 
