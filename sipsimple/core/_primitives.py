@@ -21,11 +21,11 @@ from sipsimple.core._core import ContactHeader, Header, Request, RouteHeader, SI
 class Registration(object):
     implements(IObserver)
 
-    def __init__(self, from_header, credentials=None, duration=300, extra_headers=[]):
+    def __init__(self, from_header, credentials=None, duration=300, extra_headers=None):
         self.from_header = from_header
         self.credentials = credentials
         self.duration = duration
-        self.extra_headers = extra_headers
+        self.extra_headers = extra_headers or []
         self._current_request = None
         self._last_request = None
         self._unregistering = False
@@ -146,7 +146,7 @@ class Registration(object):
 class Message(object):
     implements(IObserver)
 
-    def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None, extra_headers=[]):
+    def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None, extra_headers=None):
         self._request = Request("MESSAGE", to_header.uri, from_header, to_header, route_header, credentials=credentials, extra_headers=extra_headers, content_type=content_type, body=body)
         self._lock = RLock()
 
@@ -196,13 +196,13 @@ class PublicationETagError(PublicationError): pass
 class Publication(object):
     implements(IObserver)
 
-    def __init__(self, from_header, event, content_type, credentials=None, duration=300, extra_headers=[]):
+    def __init__(self, from_header, event, content_type, credentials=None, duration=300, extra_headers=None):
         self.from_header = from_header
         self.event = event
         self.content_type = content_type
         self.credentials = credentials
         self.duration = duration
-        self.extra_headers = extra_headers
+        self.extra_headers = extra_headers or []
         self._last_etag = None
         self._current_request = None
         self._last_request = None
