@@ -239,6 +239,8 @@ class Publisher(object):
                             notification = self._data_channel.wait()
                             if notification.name == 'SIPPublicationDidSucceed':
                                 break
+                            if notification.name == 'SIPPublicationDidEnd':
+                                raise PublicationError('Publication expired', retry_after=0)  # publication expired while we were trying to re-publish
                     except SIPPublicationDidFail, e:
                         if e.data.code == 407:
                             # Authentication failed, so retry the publication in some time
