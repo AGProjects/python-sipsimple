@@ -42,7 +42,7 @@ class ChatStream(MSRPStreamBase):
     accept_types = ['message/cpim', 'text/*', 'image/*', 'application/im-iscomposing+xml']
     accept_wrapped_types = ['text/*', 'image/*', 'application/im-iscomposing+xml']
 
-    prefer_cpim = False
+    prefer_cpim = True
 
     def __init__(self):
         super(ChatStream, self).__init__(direction='sendrecv')
