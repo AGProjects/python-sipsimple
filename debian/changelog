@@ -1,4 +1,4 @@
-python-sipsimple (2.6.0) UNRELEASED; urgency=medium
+python-sipsimple (2.6.0) unstable; urgency=medium
 
   * pjsip: fix crash when TLS transport is reset while data is being sent
   * Switched is-composing failure_report to no
@@ -10,8 +10,12 @@ python-sipsimple (2.6.0) UNRELEASED; urgency=medium
   * Fixed stripping data in the MSRP trace
   * Only post chat delivery notifications when notify_progress is True
   * Do not post MediaStreamDidNotInitialize twice in some cases
+  * Fixed file transfer failure reasons
+  * Only post chat delivery notifications when notify_progress is True
+  * Prefer CPIM for chat messages for the time being
+  * Fixed Registrar/Publisher getting stuck under certain conditions
 
- -- Saul Ibarra <saul@ag-projects.com>  Tue, 01 Dec 2015 18:18:23 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 04 Dec 2015 12:15:35 +0100
 
 python-sipsimple (2.5.1) unstable; urgency=medium
 

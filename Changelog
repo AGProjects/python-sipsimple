@@ -1,3 +1,22 @@
+python-sipsimple (2.6.0) unstable; urgency=medium
+
+  * pjsip: fix crash when TLS transport is reset while data is being sent
+  * Switched is-composing failure_report to no
+  * Refactor CPIM envelope usage
+  * Enable lrint functions on Opus
+  * Refactored sipsimple.streams package structure
+  * Changed MediaStreamRegistry from being a class to being an instance
+  * Added prefer_cpim boolean class attribute to ChatStream
+  * Fixed stripping data in the MSRP trace
+  * Only post chat delivery notifications when notify_progress is True
+  * Do not post MediaStreamDidNotInitialize twice in some cases
+  * Fixed file transfer failure reasons
+  * Only post chat delivery notifications when notify_progress is True
+  * Prefer CPIM for chat messages for the time being
+  * Fixed Registrar/Publisher getting stuck under certain conditions
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 04 Dec 2015 12:15:35 +0100
+
 python-sipsimple (2.5.1) unstable; urgency=medium
 
   * Fixed opening files in binary mode when using os.open
