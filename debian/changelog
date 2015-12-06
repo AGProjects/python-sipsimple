@@ -11,7 +11,6 @@ python-sipsimple (2.6.0) unstable; urgency=medium
   * Only post chat delivery notifications when notify_progress is True
   * Do not post MediaStreamDidNotInitialize twice in some cases
   * Fixed file transfer failure reasons
-  * Only post chat delivery notifications when notify_progress is True
   * Prefer CPIM for chat messages for the time being
   * Fixed Registrar/Publisher getting stuck under certain conditions
 
