@@ -2,7 +2,7 @@
 #
 
 """
-Implements a high-level application responsable for starting and stopping
+Implements a high-level application responsible for starting and stopping
 various sub-systems required to implement a fully featured SIP User Agent
 application.
 """
