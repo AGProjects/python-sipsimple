@@ -378,7 +378,7 @@ class SIPApplication(object):
                 settings.audio.alert_device = alert_mixer.output_device
                 settings.save()
             else:
-                if set(['audio.input_device', 'audio.output_device', 'audio.alert_device', 'audio.echo_canceller.enabled', 'audio.echo_canceller.tail_length']).intersection(notification.data.modified):
+                if {'audio.input_device', 'audio.output_device', 'audio.alert_device', 'audio.echo_canceller.enabled', 'audio.echo_canceller.tail_length'}.intersection(notification.data.modified):
                     input_device = settings.audio.input_device
                     if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
                         input_device = u'system_default'
@@ -423,7 +423,7 @@ class SIPApplication(object):
                 self.engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
                 self.engine.set_tcp_port(settings.sip.tcp_port)
-            if set(('sip.tls_port', 'tls.ca_list', 'default_account')).intersection(notification.data.modified):
+            if {'sip.tls_port', 'tls.ca_list', 'default_account'}.intersection(notification.data.modified):
                 self._initialize_tls()
             if 'rtp.port_range' in notification.data.modified:
                 self.engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
@@ -431,10 +431,10 @@ class SIPApplication(object):
                 self.engine.codecs = list(settings.rtp.audio_codec_list)
             if 'logs.trace_sip' in notification.data.modified:
                 self.engine.trace_sip = settings.logs.trace_sip
-            if set(('logs.trace_pjsip', 'logs.pjsip_level')).intersection(notification.data.modified):
+            if {'logs.trace_pjsip', 'logs.pjsip_level'}.intersection(notification.data.modified):
                 self.engine.log_level = settings.logs.pjsip_level if settings.logs.trace_pjsip else 0
         elif notification.sender is account_manager.default_account:
-            if set(('tls.verify_server', 'tls.certificate')).intersection(notification.data.modified):
+            if {'tls.verify_server', 'tls.certificate'}.intersection(notification.data.modified):
                 self._initialize_tls()
 
     @run_in_thread('device-io')
