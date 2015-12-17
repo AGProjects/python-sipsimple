@@ -127,7 +127,8 @@ class SIPApplication(object):
         self._shutdown_subsystems()
 
     def _run_reactor(self):
-        from eventlib.twistedutil import join_reactor
+        from eventlib.twistedutil import join_reactor; del join_reactor  # imported for the side effect of making the twisted reactor green
+
         notification_center = NotificationCenter()
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self)
