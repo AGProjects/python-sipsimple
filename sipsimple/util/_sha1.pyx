@@ -37,6 +37,10 @@ cdef class sha1(object):
     def __init__(self, data=''):
         self.update(data)
 
+    property name:
+        def __get__(self):
+            return 'sha1'
+
     property block_size:
         def __get__(self):
             return SHA1_BLOCK_SIZE
