@@ -52,7 +52,7 @@ class Remote(object):
 
 class Setting(AbstractSetting):
     """
-    Descriptor represeting a setting in an addressbook object.
+    Descriptor representing a setting in an addressbook object.
 
     Unlike a standard Setting, this one will only use the default value as a
     template to fill in a missing value and explicitly set it when saving if
