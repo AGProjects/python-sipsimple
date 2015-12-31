@@ -48,7 +48,7 @@ cdef class sha1(object):
     def __reduce__(self):
         state_variables = [self.context.state[i] for i in range(sizeof(self.context.state)/4)]
         block = PyString_FromStringAndSize(<char*>self.context.block, self.context.index)
-        return (self.__class__, (), (state_variables, self.context.count, block))
+        return self.__class__, (), (state_variables, self.context.count, block)
 
     def __setstate__(self, state):
         state_variables, count, block = state
