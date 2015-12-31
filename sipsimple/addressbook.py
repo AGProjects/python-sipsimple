@@ -67,7 +67,7 @@ class Setting(AbstractSetting):
         self.nillable = nillable
         self.values = defaultweakobjectmap(lambda: default)
         self.oldvalues = defaultweakobjectmap(lambda: default)
-        self.dirty = defaultweakobjectmap(lambda: False)
+        self.dirty = defaultweakobjectmap(bool)
         self.lock = Lock()
 
     def __get__(self, obj, objtype):
