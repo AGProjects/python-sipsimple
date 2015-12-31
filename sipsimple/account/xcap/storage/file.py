@@ -10,7 +10,7 @@ import os
 import platform
 import random
 
-from application.system import makedirs, unlink
+from application.system import makedirs, openfile, unlink
 from zope.interface import implements
 
 from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
@@ -43,7 +43,7 @@ class FileStorage(object):
         tmp_filename = '%s.%d.%08X' % (filename, os.getpid(), random.getrandbits(32))
         try:
             makedirs(os.path.join(self.directory, self.account_id))
-            file = os.fdopen(os.open(tmp_filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0600), 'wb')
+            file = openfile(tmp_filename, 'wb', permissions=0600)
             file.write(data)
             file.close()
             if platform.system() == 'Windows':

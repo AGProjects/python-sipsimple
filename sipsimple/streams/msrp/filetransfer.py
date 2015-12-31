@@ -8,7 +8,6 @@ This module provides classes to parse and generate SDP related to SIP sessions t
 __all__ = ['FileTransferStream', 'FileSelector']
 
 import cPickle as pickle
-import errno
 import hashlib
 import mimetypes
 import os
@@ -22,7 +21,7 @@ from abc import ABCMeta, abstractmethod
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.python.threadpool import ThreadPool, run_in_threadpool
 from application.python.types import MarkerType
-from application.system import makedirs, unlink
+from application.system import FileExistsError, makedirs, openfile, unlink
 from itertools import count
 from msrplib.protocol import MSRPHeader, FailureReportHeader, SuccessReportHeader, ContentTypeHeader
 from msrplib.session import MSRPSession
@@ -321,22 +320,14 @@ class IncomingFileTransferHandler(FileTransferHandler):
                     self.offset = stream.file_selector.fd.tell()
                     self.hash = prev_file.partial_hash
                 except (KeyError, EnvironmentError, ValueError):
-                    filename = None
-                    fd = None
-                    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                    if sys.platform == 'win32':
-                        flags |= os.O_BINARY
                     for name in UniqueFilenameGenerator.generate(os.path.join(directory, os.path.basename(stream.file_selector.name))):
                         try:
-                            fd = os.open(name, flags, 0644)
-                        except OSError, e:
-                            if e.args[0] == errno.EEXIST:
-                                continue
-                            raise
-                        filename = name
-                        break
-                    stream.file_selector.name = filename
-                    stream.file_selector.fd = os.fdopen(fd, 'wb')
+                            stream.file_selector.fd = openfile(name, 'xb')
+                        except FileExistsError:
+                            continue
+                        else:
+                            stream.file_selector.name = name
+                            break
         except Exception, e:
             NotificationCenter().post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
         else:

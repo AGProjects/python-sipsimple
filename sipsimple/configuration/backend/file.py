@@ -12,7 +12,7 @@ import platform
 import random
 from collections import deque
 
-from application.system import makedirs, unlink
+from application.system import makedirs, openfile, unlink
 from zope.interface import implements
 
 from sipsimple.configuration.backend import IConfigurationBackend, ConfigurationBackendError
@@ -111,7 +111,7 @@ class FileBackend(object):
         try:
             if config_directory:
                 makedirs(config_directory)
-            file = os.fdopen(os.open(tmp_filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0600), 'wb')
+            file = openfile(tmp_filename, 'wb', permissions=0600)
             file.write((os.linesep.join(lines)+os.linesep).encode(self.encoding))
             file.close()
             if platform.system() == 'Windows':
