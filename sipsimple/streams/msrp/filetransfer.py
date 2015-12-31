@@ -461,8 +461,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
                 notification_center.post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
                 return
             if not content:
-                # unexpected as it may be, using a regular expression is the fastest method to do this
-                file_selector.hash = 'sha1:' + ':'.join(FileSelector._byte_re.findall(file_hash.hexdigest().upper()))
+                file_selector.hash = file_hash
                 notification_center.post_notification('FileTransferHandlerDidInitialize', sender=self)
                 break
             file_hash.update(content)
