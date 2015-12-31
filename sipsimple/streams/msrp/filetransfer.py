@@ -13,7 +13,6 @@ import mimetypes
 import os
 import random
 import re
-import sys
 import time
 import uuid
 
@@ -93,7 +92,7 @@ class FileSelector(object):
     @classmethod
     def for_file(cls, path, type=None, hash=None):
         name = unicode(path)
-        fd = open(name.encode(sys.getfilesystemencoding()), 'rb')
+        fd = open(name, 'rb')
         size = os.fstat(fd.fileno()).st_size
         if type is None:
             mime_type, encoding = mimetypes.guess_type(name)
@@ -314,7 +313,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
                     else:
                         stream.file_selector.name = filename
                         unlink(prev_file.filename)
-                    stream.file_selector.fd = openfile(stream.file_selector.name.encode(sys.getfilesystemencoding()), 'ab')  # open doesn't seek to END in append mode on win32, but openfile does
+                    stream.file_selector.fd = openfile(stream.file_selector.name, 'ab')  # open doesn't seek to END in append mode on win32, but openfile does
                     self.offset = stream.file_selector.fd.tell()
                     self.hash = prev_file.partial_hash
                 except (KeyError, EnvironmentError, ValueError):
