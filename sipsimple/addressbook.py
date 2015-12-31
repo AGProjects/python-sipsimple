@@ -19,7 +19,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python import Null
 from application.python.decorator import execute_once
 from application.python.types import Singleton, MarkerType
-from application.python.weakref import weakobjectmap
+from application.python.weakref import defaultweakobjectmap
 
 from sipsimple.account import xcap, AccountManager
 from sipsimple.configuration import ConfigurationManager, ObjectNotFoundError, DuplicateIDError, PersistentKey, ModifiedValue, ModifiedList
@@ -48,14 +48,6 @@ class Remote(object):
         self.xcap_object = xcap_object
     def __repr__(self):
         return "%s(%r, %r)" % (self.__class__.__name__, self.account, self.xcap_object)
-
-
-class defaultweakobjectmap(weakobjectmap):
-    def __init__(self, factory, *args, **kw):
-        self.default_factory = factory
-        super(defaultweakobjectmap, self).__init__(*args, **kw)
-    def __missing__(self, key):
-        return self.setdefault(key.object, self.default_factory())
 
 
 class Setting(AbstractSetting):
