@@ -49,8 +49,8 @@ class FileSelector(object):
     _byte_re = re.compile('..')
 
     def __init__(self, name=None, type=None, size=None, hash=None, fd=None):
-        ## If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
-        ## According to the specification, only sha1 is supported ATM.
+        # If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
+        # According to the specification, only sha1 is supported ATM.
         self.name = name
         self.type = type
         self.size = size
