@@ -313,7 +313,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
                     else:
                         stream.file_selector.name = filename
                         unlink(prev_file.filename)
-                    stream.file_selector.fd = openfile(stream.file_selector.name, 'ab')  # open doesn't seek to END in append mode on win32, but openfile does
+                    stream.file_selector.fd = openfile(stream.file_selector.name, 'ab')  # open doesn't seek to END in append mode on win32 until first write, but openfile does
                     self.offset = stream.file_selector.fd.tell()
                     self.hash = prev_file.partial_hash
                 except (KeyError, EnvironmentError, ValueError):
