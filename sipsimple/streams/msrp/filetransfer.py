@@ -384,10 +384,9 @@ class IncomingFileTransferHandler(FileTransferHandler):
         if self.offset != self.stream.file_selector.size:
             notification_center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='Incomplete file'))
             return
-        local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest()))
-        remote_hash = self.stream.file_selector.hash.lower()
-        if local_hash != remote_hash:
-            unlink(self.filename)    # something got corrupted, better delete the file
+        computed_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
+        if computed_hash != self.stream.file_selector.hash:
+            unlink(self.filename)   # something got corrupted, better delete the file
             notification_center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='File hash mismatch'))
             return
 
