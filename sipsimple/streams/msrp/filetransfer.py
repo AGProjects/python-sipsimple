@@ -42,12 +42,11 @@ class RandomID: __metaclass__ = MarkerType
 
 
 class FileSelector(object):
-    class __metaclass__(type):
-        _name_re = re.compile('name:"([^"]+)"')
-        _size_re = re.compile('size:(\d+)')
-        _type_re = re.compile('type:([^ ]+)')
-        _hash_re = re.compile('hash:([^ ]+)')
-        _byte_re = re.compile('..')
+    _name_re = re.compile('name:"([^"]+)"')
+    _size_re = re.compile('size:(\d+)')
+    _type_re = re.compile('type:([^ ]+)')
+    _hash_re = re.compile('hash:([^ ]+)')
+    _byte_re = re.compile('..')
 
     def __init__(self, name=None, type=None, size=None, hash=None, fd=None):
         ## If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
@@ -70,7 +69,7 @@ class FileSelector(object):
             if value.name != 'sha1':
                 raise TypeError("Invalid hash type: '%s'. Only sha1 hashes are supported" % value.name)
             # unexpected as it may be, using a regular expression is the fastest method to do this
-            self.__dict__['hash'] = 'sha1:' + ':'.join(self.__class__._byte_re.findall(value.hexdigest().upper()))
+            self.__dict__['hash'] = 'sha1:' + ':'.join(self._byte_re.findall(value.hexdigest().upper()))
         else:
             raise ValueError("Invalid hash value")
 
