@@ -38,7 +38,43 @@ from sipsimple.threading import run_in_twisted_thread, run_in_thread
 from sipsimple.util import sha1
 
 
+HASH = type(hashlib.sha1())
+
+
 class RandomID: __metaclass__ = MarkerType
+
+
+class FileSelectorHash(str):
+    _hash_re = re.compile('^sha-1(:[0-9A-F]{2}){20}$')
+    _byte_re = re.compile('..')
+
+    def __new__(cls, value):
+        if isinstance(value, str):
+            if not cls._hash_re.match(value):
+                raise ValueError("Invalid hash value: {!r}".format(value))
+            return super(FileSelectorHash, cls).__new__(cls, value)
+        elif isinstance(value, (HASH, sha1)):
+            return super(FileSelectorHash, cls).__new__(cls, cls.encode_hash(value))
+        else:
+            raise ValueError("Invalid hash value: {!r}".format(value))
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return super(FileSelectorHash, self).__eq__(other)
+        elif isinstance(other, (HASH, sha1)) and other.name.lower() == 'sha1':
+            return super(FileSelectorHash, self).__eq__(self.encode_hash(other))
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    @classmethod
+    def encode_hash(cls, hash_instance):
+        if hash_instance.name.lower() != 'sha1':
+            raise TypeError("Invalid hash type: {.name} (only sha1 hashes are supported).".format(hash_instance))
+        # unexpected as it may be, using a regular expression is the fastest method to do this
+        return 'sha-1:' + ':'.join(cls._byte_re.findall(hash_instance.hexdigest().upper()))
 
 
 class FileSelector(object):
@@ -46,7 +82,6 @@ class FileSelector(object):
     _size_re = re.compile('size:(\d+)')
     _type_re = re.compile('type:([^ ]+)')
     _hash_re = re.compile('hash:([^ ]+)')
-    _byte_re = re.compile('..')
 
     def __init__(self, name=None, type=None, size=None, hash=None, fd=None):
         # If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
@@ -61,17 +96,7 @@ class FileSelector(object):
         return self.__dict__['hash']
 
     def _set_hash(self, value):
-        if value is None:
-            self.__dict__['hash'] = value
-        elif isinstance(value, str) and value.startswith('sha1:'):
-            self.__dict__['hash'] = value
-        elif hasattr(value, 'hexdigest') and hasattr(value, 'name'):
-            if value.name != 'sha1':
-                raise TypeError("Invalid hash type: '%s'. Only sha1 hashes are supported" % value.name)
-            # unexpected as it may be, using a regular expression is the fastest method to do this
-            self.__dict__['hash'] = 'sha1:' + ':'.join(self._byte_re.findall(value.hexdigest().upper()))
-        else:
-            raise ValueError("Invalid hash value")
+        self.__dict__['hash'] = None if value is None else FileSelectorHash(value)
 
     hash = property(_get_hash, _set_hash)
     del _get_hash, _set_hash
@@ -383,9 +408,8 @@ class IncomingFileTransferHandler(FileTransferHandler):
         if self.offset != self.stream.file_selector.size:
             notification_center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='Incomplete file'))
             return
-        computed_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
-        if computed_hash != self.stream.file_selector.hash:
-            unlink(self.filename)   # something got corrupted, better delete the file
+        if self.hash != self.stream.file_selector.hash:
+            unlink(self.filename)  # something got corrupted, better delete the file
             notification_center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason='File hash mismatch'))
             return
 
