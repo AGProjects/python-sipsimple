@@ -712,6 +712,7 @@ class TransferHandler(object):
                         self._data_channel.wait()
                     except SIPInvitationTransferDidFail:
                         return
+                return
             self.new_session = Session(account)
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=self.new_session)
@@ -1266,8 +1267,9 @@ class Session(object):
                 stream.initialize(self, direction='outgoing')
         self.proposed_streams = streams
 
+        wait_count = len(self.proposed_streams)
+
         try:
-            wait_count = len(self.proposed_streams)
             while wait_count > 0:
                 notification = self._channel.wait()
                 if notification.name == 'MediaStreamDidInitialize':
