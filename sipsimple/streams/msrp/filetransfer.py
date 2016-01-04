@@ -635,7 +635,10 @@ class FileTransferStream(MSRPStreamBase):
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
-        file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
+        try:
+            file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
+        except Exception as e:
+            raise InvalidStreamError("error parsing file-selector: {}".format(e))
         transfer_id = remote_stream.attributes.getfirst('file-transfer-id', None)
         if remote_stream.direction == 'sendonly':
             stream = cls(file_selector, 'recvonly', transfer_id)
