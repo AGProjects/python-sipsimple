@@ -702,7 +702,7 @@ class TransferHandler(object):
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
             except DNSLookupError, e:
                 self.state = 'failed'
-                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=NotificationData(code=e.data.code, reason=e.data.reason))
+                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=NotificationData(code=0, reason="DNS lookup failed: {}".format(e)))
                 try:
                     self.session._invitation.notify_transfer_progress(480)
                 except SIPCoreError:
