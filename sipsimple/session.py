@@ -2513,7 +2513,7 @@ class Session(object):
                         notification.center = NotificationCenter()
                         self.handle_notification(notification)
                     except SIPCoreError:
-                        raise #FIXME
+                        raise  # FIXME
                     else:
                         self.state = 'connected'
                 elif notification.data.prev_state == notification.data.state == 'connected' and notification.data.prev_sub_state == 'received_proposal' and notification.data.sub_state == 'normal':
