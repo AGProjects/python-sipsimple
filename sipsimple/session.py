@@ -709,7 +709,7 @@ class TransferHandler(object):
                     return
                 while True:
                     try:
-                        notification = self._data_channel.wait()
+                        self._data_channel.wait()
                     except SIPInvitationTransferDidFail:
                         return
             self.new_session = Session(account)
