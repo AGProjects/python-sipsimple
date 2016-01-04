@@ -2458,7 +2458,7 @@ class Session(object):
                                     notification.center.post_notification('SIPSessionDidRenegotiateStreams', self, NotificationData(originator='remote', added_streams=[], removed_streams=removed_streams))
                     except InvitationDisconnectedError, e:
                         self.greenlet = None
-                        self.state == 'connected'
+                        self.state = 'connected'
                         notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
                         notification.center = NotificationCenter()
                         self.handle_notification(notification)
@@ -2506,7 +2506,7 @@ class Session(object):
                                 unhandled_notifications.append(notification)
                     except InvitationDisconnectedError, e:
                         self.greenlet = None
-                        self.state == 'connected'
+                        self.state = 'connected'
                         notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
                         notification.center = NotificationCenter()
                         self.handle_notification(notification)
