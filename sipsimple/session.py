@@ -16,6 +16,7 @@ import random
 from threading import RLock
 from time import time
 
+from application import log
 from application.notification import IObserver, Notification, NotificationCenter, NotificationData
 from application.python import Null, limit
 from application.python.decorator import decorator, preserve_signature
@@ -929,10 +930,15 @@ class Session(object):
                     for stream_type in MediaStreamRegistry:
                         try:
                             stream = stream_type.new_from_sdp(self, remote_sdp, index)
-                        except InvalidStreamError:
-                            break
                         except UnknownStreamError:
                             continue
+                        except InvalidStreamError as e:
+                            log.error("Invalid stream: {}".format(e))
+                            break
+                        except Exception as e:
+                            log.error("Exception occurred while setting up stream from SDP: {}".format(e))
+                            log.err()
+                            break
                         else:
                             stream.index = index
                             self.proposed_streams.append(stream)
@@ -2380,10 +2386,15 @@ class Session(object):
                                     for stream_type in MediaStreamRegistry:
                                         try:
                                             stream = stream_type.new_from_sdp(self, proposed_remote_sdp, index)
-                                        except InvalidStreamError:
-                                            break
                                         except UnknownStreamError:
                                             continue
+                                        except InvalidStreamError as e:
+                                            log.error("Invalid stream: {}".format(e))
+                                            break
+                                        except Exception as e:
+                                            log.error("Exception occurred while setting up stream from SDP: {}".format(e))
+                                            log.err()
+                                            break
                                         else:
                                             stream.index = index
                                             self.proposed_streams.append(stream)
