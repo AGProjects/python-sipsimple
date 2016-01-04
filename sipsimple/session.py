@@ -706,7 +706,7 @@ class TransferHandler(object):
                 try:
                     self.session._invitation.notify_transfer_progress(480)
                 except SIPCoreError:
-                    pass
+                    return
                 while True:
                     try:
                         notification = self._data_channel.wait()
