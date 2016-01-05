@@ -50,6 +50,8 @@ class FileSelectorHash(str):
 
     def __new__(cls, value):
         if isinstance(value, str):
+            if value.startswith('sha1:'):  # backward compatibility hack (sort of).
+                value = 'sha-1' + value[len('sha1'):]
             if not cls._hash_re.match(value):
                 raise ValueError("Invalid hash value: {!r}".format(value))
             return super(FileSelectorHash, cls).__new__(cls, value)
