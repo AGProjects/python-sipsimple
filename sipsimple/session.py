@@ -1603,14 +1603,12 @@ class Session(object):
                         wait_count -= 1
                     else:
                         unhandled_notifications.append(notification)
-        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
-            if isinstance(e, api.TimeoutError):
-                error = 'media stream timed out while starting'
-            elif isinstance(e, MediaStreamDidNotInitializeError):
-                error = 'media stream did not initialize: %s' % e.data.reason
-            else:
-                error = 'media stream failed: %s' % e.data.reason
-            self._fail_proposal(originator='remote', error=error)
+        except api.TimeoutError:
+            self._fail_proposal(originator='remote', error='media stream timed out while starting')
+        except MediaStreamDidNotInitializeError as e:
+            self._fail_proposal(originator='remote', error='media stream did not initialize: {.data.reason}'.format(e))
+        except MediaStreamDidFailError as e:
+            self._fail_proposal(originator='remote', error='media stream failed: {.data.reason}'.format(e))
         except InvitationDisconnectedError, e:
             self._fail_proposal(originator='remote', error='session ended')
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
@@ -1769,14 +1767,12 @@ class Session(object):
                     notification = self._channel.wait()
                     if notification.name == 'MediaStreamDidStart':
                         wait_count -= 1
-        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
-            if isinstance(e, api.TimeoutError):
-                error = 'media stream timed out while starting'
-            elif isinstance(e, MediaStreamDidNotInitializeError):
-                error = 'media stream did not initialize: %s' % e.data.reason
-            else:
-                error = 'media stream failed: %s' % e.data.reason
-            self._fail_proposal(originator='local', error=error)
+        except api.TimeoutError:
+            self._fail_proposal(originator='local', error='media stream timed out while starting')
+        except MediaStreamDidNotInitializeError as e:
+            self._fail_proposal(originator='local', error='media stream did not initialize: {.data.reason}'.format(e))
+        except MediaStreamDidFailError as e:
+            self._fail_proposal(originator='local', error='media stream failed: {.data.reason}'.format(e))
         except InvitationDisconnectedError, e:
             self._fail_proposal(originator='local', error='session ended')
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
