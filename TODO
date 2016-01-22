@@ -15,7 +15,7 @@
 
 + there is a race condition that can prevent an account to start if it is
   created while the start method of SIPApplication runs and it passed the
-  point where it called AccountManager.start. A quick worksaround is to
+  point where it called AccountManager.start. A quick workaround is to
   never create an account before SIPApplicationDidStart is posted
 
 + SIPApplication.start attempts to be restartable in case of errors, but
