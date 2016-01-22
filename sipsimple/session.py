@@ -1137,7 +1137,7 @@ class Session(object):
                 stream.deactivate()
                 stream.end()
             if isinstance(e, api.TimeoutError):
-                error = 'media stream timed out while starting'
+                error = 'media stream timed-out while starting'
             elif isinstance(e, MediaStreamDidNotInitializeError):
                 error = 'media stream did not initialize: %s' % e.data.reason
             else:
@@ -1408,7 +1408,7 @@ class Session(object):
             reason_header = None
             if isinstance(e, api.TimeoutError):
                 if wait_count > 0:
-                    error = 'media stream timed out while starting'
+                    error = 'media stream timed-out while starting'
                 else:
                     error = 'No ACK received'
                     reason_header = ReasonHeader('SIP')
@@ -1604,7 +1604,7 @@ class Session(object):
                     else:
                         unhandled_notifications.append(notification)
         except api.TimeoutError:
-            self._fail_proposal(originator='remote', error='media stream timed out while starting')
+            self._fail_proposal(originator='remote', error='media stream timed-out while starting')
         except MediaStreamDidNotInitializeError as e:
             self._fail_proposal(originator='remote', error='media stream did not initialize: {.data.reason}'.format(e))
         except MediaStreamDidFailError as e:
@@ -1768,7 +1768,7 @@ class Session(object):
                     if notification.name == 'MediaStreamDidStart':
                         wait_count -= 1
         except api.TimeoutError:
-            self._fail_proposal(originator='local', error='media stream timed out while starting')
+            self._fail_proposal(originator='local', error='media stream timed-out while starting')
         except MediaStreamDidNotInitializeError as e:
             self._fail_proposal(originator='local', error='media stream did not initialize: {.data.reason}'.format(e))
         except MediaStreamDidFailError as e:
