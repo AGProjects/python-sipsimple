@@ -1,3 +1,5 @@
+- 202 is deprecated (see https://tools.ietf.org/html/rfc6665#page-43)
+
 - After ICE negotiation completed we do not save state and later re-INVITEs
   can fail, we must send re-INVITE or UPDATE with chosen candidate
 
