@@ -1769,9 +1769,11 @@ class Session(object):
                     notification = self._channel.wait()
                     if notification.name == 'MediaStreamDidStart':
                         wait_count -= 1
-        except (MediaStreamDidFailError, api.TimeoutError), e:
+        except (MediaStreamDidNotInitializeError, MediaStreamDidFailError, api.TimeoutError), e:
             if isinstance(e, api.TimeoutError):
                 error = 'media stream timed out while starting'
+            elif isinstance(e, MediaStreamDidNotInitializeError):
+                error = 'media stream did not initialize: %s' % e.data.reason
             else:
                 error = 'media stream failed: %s' % e.data.reason
             self._fail_proposal(originator='local', error=error)
