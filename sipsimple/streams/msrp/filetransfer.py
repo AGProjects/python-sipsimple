@@ -283,7 +283,10 @@ class FileTransferHandler(object):
 
     def _NH_SIPSessionDidFail(self, notification):
         if not self._session_started and self.stream is not None and self.stream._initialized:
-            reason = 'Cancelled' if notification.data.code == 487 else notification.data.reason
+            if notification.data.code == 487:
+                reason = 'Cancelled'
+            else:
+                reason = notification.data.reason or 'Failed'
             notification.center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason=reason))
 
     def _NH_FileTransferHandlerDidInitialize(self, notification):
