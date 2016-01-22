@@ -162,8 +162,7 @@ class ChatStream(MSRPStreamBase):
                 self.msrp_session.send_report(chunk, 400, 'CPIM Parser Error')
                 return
             else:
-                message = Message(**payload.__dict__)
-                # message = Message(**{name: getattr(payload, name) for name in Message.__slots__})
+                message = Message(**{name: getattr(payload, name) for name in Message.__slots__})
                 if not contains_mime_type(self.accept_wrapped_types, message.content_type):
                     self.msrp_session.send_report(chunk, 413, 'Unwanted Message')
                     return
@@ -176,7 +175,14 @@ class ChatStream(MSRPStreamBase):
             payload = SimplePayload.decode(data, content_type)
             message = Message(payload.content, payload.content_type, sender=self.remote_identity, recipients=[self.local_identity], timestamp=ISOTimestamp.now())
             private = False
+
         self.msrp_session.send_report(chunk, 200, 'OK')
+
+        if payload.charset is not None:
+            message.content = message.content.decode(payload.charset)
+        elif payload.content_type.startswith('text/'):
+            message.content.decode('utf8')
+
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
             data = IsComposingDocument.parse(message.content)
@@ -213,6 +219,12 @@ class ChatStream(MSRPStreamBase):
                         notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     break
                 try:
+                    if isinstance(message.content, unicode):
+                        message.content = message.content.encode('utf8')
+                        charset = 'utf8'
+                    else:
+                        charset = None
+
                     message.sender = message.sender or self.local_identity
                     message.recipients = message.recipients or [self.remote_identity]
 
@@ -229,19 +241,20 @@ class ChatStream(MSRPStreamBase):
                             raise ChatStreamError('The remote end does not support private messages')
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
-                        payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
+                        payload = CPIMPayload(charset=charset, **{name: getattr(message, name) for name in Message.__slots__})
                     elif self.prefer_cpim and self.cpim_enabled and contains_mime_type(self.remote_accept_wrapped_types, message.content_type):
                         if message.timestamp is None:
                             message.timestamp = ISOTimestamp.now()
-                        payload = CPIMPayload(**{name: getattr(message, name) for name in Message.__slots__})
+                        payload = CPIMPayload(charset=charset, **{name: getattr(message, name) for name in Message.__slots__})
                     else:
-                        payload = SimplePayload(message.content, message.content_type)
-                    content, content_type = payload.encode()
+                        payload = SimplePayload(message.content, message.content_type, charset)
                 except ChatStreamError, e:
                     if message.notify_progress:
                         data = NotificationData(message_id=message.id, message=None, code=0, reason=e.args[0])
                         notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
                     continue
+                else:
+                    content, content_type = payload.encode()
 
                 message_id = message.id
                 notify_progress = message.notify_progress
@@ -393,23 +406,27 @@ class QueuedMessage(Message):
 
 
 class SimplePayload(object):
-    def __init__(self, content, content_type):
+    def __init__(self, content, content_type, charset=None):
+        if not isinstance(content, bytes):
+            raise TypeError("content should be an instance of bytes")
         self.content = content
         self.content_type = content_type
+        self.charset = charset
 
     def encode(self):
-        if isinstance(self.content, unicode):
-            return self.content.encode('utf-8'), '{}; charset="utf-8"'.format(str(self.content_type))
+        if self.charset is not None:
+            return self.content, '{0.content_type}; charset="{0.charset}"'.format(self)
         else:
             return self.content, str(self.content_type)
 
     @classmethod
-    def decode(cls, message, content_type):
+    def decode(cls, content, content_type):
+        if not isinstance(content, bytes):
+            raise TypeError("content should be an instance of bytes")
         type_helper = EmailParser().parsestr('Content-Type: {}'.format(content_type))
         content_type = type_helper.get_content_type()
-        charset = type_helper.get_content_charset(failobj='utf-8' if content_type.startswith('text/') else None)
-        content = message.decode(charset) if charset is not None else message
-        return cls(content, content_type)
+        charset = type_helper.get_content_charset()
+        return cls(content, content_type, charset)
 
 
 class CPIMPayload(object):
@@ -419,9 +436,12 @@ class CPIMPayload(object):
     subject_re = re.compile(r'^(?:;lang=([a-z]{1,8}(?:-[a-z0-9]{1,8})*)\s+)?(.*)$')
     namespace_re = re.compile(r'^(?:(\S+) ?)?<(.*)>$')
 
-    def __init__(self, content, content_type, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
+    def __init__(self, content, content_type, charset=None, sender=None, recipients=None, courtesy_recipients=None, subject=None, timestamp=None, required=None, additional_headers=None):
+        if not isinstance(content, bytes):
+            raise TypeError("content should be an instance of bytes")
         self.content = content
         self.content_type = content_type
+        self.charset = charset
         self.sender = sender
         self.recipients = recipients or []
         self.courtesy_recipients = courtesy_recipients or []
@@ -461,17 +481,18 @@ class CPIMPayload(object):
         headers = '\r\n'.join(header.encode('cpim-header') for header in header_list)
 
         mime_message = EmailMessage()
+        mime_message.set_payload(self.content)
         mime_message.set_type(self.content_type)
-        if isinstance(self.content, unicode):
-            mime_message.set_param('charset', 'utf-8')
-            mime_message.set_payload(self.content.encode('utf-8'))
-        else:
-            mime_message.set_payload(self.content)
+        if self.charset is not None:
+            mime_message.set_param('charset', self.charset)
 
         return headers + '\r\n\r\n' + mime_message.as_string(), 'message/cpim'
 
     @classmethod
     def decode(cls, message):
+        if not isinstance(message, bytes):
+            raise TypeError("message should be an instance of bytes")
+
         headers, separator, body = message.partition('\r\n\r\n')
         if not separator:
             raise CPIMParserError('Invalid CPIM message')
@@ -535,11 +556,10 @@ class CPIMPayload(object):
         content_type = mime_message.get_content_type()
         if content_type is None:
             raise CPIMParserError("CPIM message missing Content-Type MIME header")
-        charset = mime_message.get_content_charset(failobj='utf-8' if content_type.startswith('text/') else None)
-        payload = mime_message.get_payload()
-        content = payload.decode(charset) if charset is not None else payload
+        content = mime_message.get_payload()
+        charset = mime_message.get_content_charset()
 
-        return cls(content, content_type, sender, recipients, courtesy_recipients, subject, timestamp, required, additional_headers)
+        return cls(content, content_type, charset, sender, recipients, courtesy_recipients, subject, timestamp, required, additional_headers)
 
 
 class CPIMParserError(StandardError): pass
