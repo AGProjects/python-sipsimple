@@ -22,6 +22,7 @@ from msrplib.protocol import FailureReportHeader, SuccessReportHeader, UseNickna
 from msrplib.session import MSRPSession, contains_mime_type
 
 from sipsimple.core import SIPURI, BaseSIPURI
+from sipsimple.payloads import ParserError
 from sipsimple.payloads.iscomposing import IsComposingDocument, State, LastActive, Refresh, ContentType
 from sipsimple.streams import InvalidStreamError, UnknownStreamError
 from sipsimple.streams.msrp import MSRPStreamError, MSRPStreamBase
@@ -176,8 +177,6 @@ class ChatStream(MSRPStreamBase):
             message = Message(payload.content, payload.content_type, sender=self.remote_identity, recipients=[self.local_identity], timestamp=ISOTimestamp.now())
             private = False
 
-        self.msrp_session.send_report(chunk, 200, 'OK')
-
         if payload.charset is not None:
             message.content = message.content.decode(payload.charset)
         elif payload.content_type.startswith('text/'):
@@ -185,15 +184,22 @@ class ChatStream(MSRPStreamBase):
 
         notification_center = NotificationCenter()
         if message.content_type.lower() == IsComposingDocument.content_type:
-            data = IsComposingDocument.parse(message.content)
-            ndata = NotificationData(state=data.state.value,
-                                     refresh=data.refresh.value if data.refresh is not None else 120,
-                                     content_type=data.content_type.value if data.content_type is not None else None,
-                                     last_active=data.last_active.value if data.last_active is not None else None,
-                                     sender=message.sender, recipients=message.recipients, private=private)
-            notification_center.post_notification('ChatStreamGotComposingIndication', sender=self, data=ndata)
+            try:
+                document = IsComposingDocument.parse(message.content)
+            except ParserError as e:
+                self.msrp_session.send_report(chunk, 400, str(e))
+                return
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            data = NotificationData(state=document.state.value,
+                                    refresh=document.refresh.value if document.refresh is not None else 120,
+                                    content_type=document.content_type.value if document.content_type is not None else None,
+                                    last_active=document.last_active.value if document.last_active is not None else None,
+                                    sender=message.sender, recipients=message.recipients, private=private)
+            notification_center.post_notification('ChatStreamGotComposingIndication', sender=self, data=data)
         else:
-            notification_center.post_notification('ChatStreamGotMessage', sender=self, data=NotificationData(message=message, private=private))
+            self.msrp_session.send_report(chunk, 200, 'OK')
+            data = NotificationData(message=message, private=private)
+            notification_center.post_notification('ChatStreamGotMessage', sender=self, data=data)
 
     def _on_transaction_response(self, message_id, response):
         if message_id in self.sent_messages and response.code != 200:
