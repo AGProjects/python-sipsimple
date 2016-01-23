@@ -138,8 +138,7 @@ class ChatStream(MSRPStreamBase):
                 notification_center.post_notification('ChatStreamDidNotDeliverMessage', sender=self, data=data)
 
     def _handle_SEND(self, chunk):
-        if chunk.size == 0:
-            # keep-alive
+        if chunk.size == 0:  # keep-alive
             self.msrp_session.send_report(chunk, 200, 'OK')
             return
         content_type = chunk.content_type.lower()
