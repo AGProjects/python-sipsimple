@@ -1,5 +1,3 @@
-# Copyright (C) 2011 AG Projects. See LICENSE for details.
-#
 
 """XCAP backend for storing data in memory"""
 

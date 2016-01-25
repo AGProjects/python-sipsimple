@@ -1,10 +1,6 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
 
 # Classes
 #
-
 
 cdef object BaseHeader_richcmp(object self, object other, int op) with gil:
     if op not in (2, 3):

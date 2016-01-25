@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2011 AG Projects. See LICENSE for details.
-#
 
 """Parses and produces dialog-info messages according to RFC4235."""
 

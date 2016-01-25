@@ -1,6 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
 
 """Data types used for simple XML elements and for XML attributes"""
 

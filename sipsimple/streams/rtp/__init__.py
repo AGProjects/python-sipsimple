@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2015 AG Projects. See LICENSE for details.
-#
 
 """
 Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,

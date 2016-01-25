@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """
 This module allows parsing and building xcap-diff documents according to

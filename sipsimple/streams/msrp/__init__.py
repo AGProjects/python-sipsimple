@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2015 AG Projects. See LICENSE for details.
-#
 
 """
 Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547 and RFC3994.

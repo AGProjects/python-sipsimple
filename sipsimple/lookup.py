@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """
 Implements DNS lookups in the context of SIP, STUN and MSRP relay based

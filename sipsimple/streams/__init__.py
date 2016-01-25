@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2015 AG Projects. See LICENSE for details.
-#
 
 """
 This module automatically registers media streams to a stream registry

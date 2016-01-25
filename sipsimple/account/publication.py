@@ -1,5 +1,3 @@
-# Copyright (C) 2012 AG Projects. See LICENSE for details.
-#
 
 """Implements the publisher handlers"""
 

@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """Implements utilities commonly used in various parts of the library"""
 

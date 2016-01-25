@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2011 AG Projects. See LICENSE for details.
-#
 
 """Parses xcap-directory messages according to OMA TS XDM Core 1.1"""
 

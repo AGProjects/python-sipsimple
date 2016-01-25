@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """
 Implements a high-level mechanism for SIP methods that can be used for

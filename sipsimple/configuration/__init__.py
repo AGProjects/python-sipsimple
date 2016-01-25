@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2013 AG Projects. See LICENSE for details.
-#
 
 """Generic configuration management"""
 

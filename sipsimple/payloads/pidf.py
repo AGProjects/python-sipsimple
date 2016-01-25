@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """PIDF handling according to RFC3863 and RFC4479"""
 

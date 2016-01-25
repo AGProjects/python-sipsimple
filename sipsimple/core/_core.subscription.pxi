@@ -1,9 +1,6 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 import re
 
-# main class
 
 cdef class Subscription:
     expire_warning_time = 30

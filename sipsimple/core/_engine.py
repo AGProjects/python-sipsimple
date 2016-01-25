@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """
 Implements a mechanism for starting the SIP core engine based on PJSIP

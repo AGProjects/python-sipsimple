@@ -1,11 +1,6 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
-
-# Classes
-#
 
 import re
+
 from application.python.descriptor import WriteOnceAttribute
 
 

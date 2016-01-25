@@ -1,5 +1,3 @@
-# Copyright (C) 2010-2011 AG Projects. See LICENSE for details.
-#
 
 # This module is currently broken. It breaks the core assumption of the
 # payloads infrastructure, that there is only one element with a given qname

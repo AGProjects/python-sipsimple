@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 cdef extern from *:
     ctypedef char *char_ptr_const "const char *"

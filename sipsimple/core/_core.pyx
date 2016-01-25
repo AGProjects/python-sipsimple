@@ -1,7 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
-# includes
 
 include "_core.error.pxi"
 include "_core.lib.pxi"

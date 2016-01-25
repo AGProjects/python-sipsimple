@@ -1,7 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
-# python imports
 
 import errno
 import heapq
@@ -13,8 +9,6 @@ import traceback
 import os
 import tempfile
 
-
-# classes
 
 cdef class Timer:
     cdef int schedule(self, float delay, timer_callback callback, object obj) except -1:

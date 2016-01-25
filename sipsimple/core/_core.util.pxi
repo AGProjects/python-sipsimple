@@ -1,7 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
-# python imports
 
 import platform
 import re
@@ -9,7 +5,6 @@ import sys
 
 from application.version import Version
 
-# classes
 
 cdef class PJSTR:
     def __cinit__(self, str):

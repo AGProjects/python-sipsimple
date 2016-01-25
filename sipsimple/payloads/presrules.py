@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """Parses and produces Presence Authorization Rules documents according to RFC5025."""
 

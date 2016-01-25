@@ -1,7 +1,5 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
-# c types
+# C types
 
 cdef struct _core_event:
     _core_event *prev

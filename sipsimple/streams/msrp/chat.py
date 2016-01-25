@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2015 AG Projects. See LICENSE for details.
-#
 
 """
 This module provides classes to parse and generate SDP related to SIP sessions that negotiate Instant Messaging, including CPIM as defined in RFC3862

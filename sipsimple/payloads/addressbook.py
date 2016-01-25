@@ -1,5 +1,3 @@
-# Copyright (C) 2012-2013 AG Projects. See LICENSE for details.
-#
 
 """Addressbook related payload elements"""
 

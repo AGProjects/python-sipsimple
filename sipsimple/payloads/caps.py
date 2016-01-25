@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 # This module is partially broken. It breaks the core assumption of the
 # payloads infrastructure, that an element qname is unique inside a given

@@ -1,5 +1,3 @@
-# Copyright (C) 2010-2011 AG Projects. See LICENSE for details.
-#
 
 from sipsimple.core._core import *
 from sipsimple.core._engine import *

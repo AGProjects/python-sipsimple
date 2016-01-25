@@ -1,5 +1,3 @@
-# Copyright (C) 2012 AG Projects. See LICENSE for details.
-#
 
 """RLMI document handling as described in RFC 4662"""
 

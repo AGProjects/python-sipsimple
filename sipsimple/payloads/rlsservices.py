@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """RFC4826 compliant parser/builder for application/rls-services+xml documents."""
 

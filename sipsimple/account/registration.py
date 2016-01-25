@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2012 AG Projects. See LICENSE for details.
-#
 
 """Implements the registration handler"""
 

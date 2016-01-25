@@ -1,5 +1,3 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
 
 """
 Conditions extension handling according to OMA-TS-Presence_SIMPLE_XDM-V1_1

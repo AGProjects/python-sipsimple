@@ -1,11 +1,6 @@
-# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
-#
-
-# python imports
 
 from datetime import datetime, timedelta
 
-# main classes
 
 cdef class EndpointAddress:
 

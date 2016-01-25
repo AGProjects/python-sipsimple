@@ -1,5 +1,3 @@
-# Copyright (C) 2009-2011 AG Projects. See LICENSE for details.
-#
 
 """Generates presence content application documents according to OMA TS Presence SIMPLE Content"""
 

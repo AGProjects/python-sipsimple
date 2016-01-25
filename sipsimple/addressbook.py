@@ -1,5 +1,3 @@
-# Copyright (C) 2011 AG Projects. See LICENSE for details.
-#
 
 """Implementation of an addressbook management system"""
 

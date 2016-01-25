@@ -1,6 +1,3 @@
-# Copyright (C) 2010-2011 AG Projects. See LICENSE for details
-#
-
 
 """Support for parsing and building xcap-caps documents, as defined by RFC4825."""
 
