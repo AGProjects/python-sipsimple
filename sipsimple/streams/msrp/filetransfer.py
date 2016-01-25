@@ -220,6 +220,7 @@ class FileTransferHandler(object):
         self._started = False
         self._session_started = False
         self._initialize_done = False
+        self._initialize_successful = False
 
     def initialize(self, stream, session):
         self.stream = stream
@@ -280,7 +281,7 @@ class FileTransferHandler(object):
         self._session_started = True
 
     def _NH_SIPSessionDidFail(self, notification):
-        if not self._session_started and self.stream is not None and self.stream._initialized:
+        if not self._session_started and self._initialize_successful:
             if notification.data.code == 487:
                 reason = 'Cancelled'
             else:
@@ -289,9 +290,11 @@ class FileTransferHandler(object):
 
     def _NH_FileTransferHandlerDidInitialize(self, notification):
         self._initialize_done = True
+        self._initialize_successful = True
 
     def _NH_FileTransferHandlerDidNotInitialize(self, notification):
         self._initialize_done = True
+        self._initialize_successful = False
 
     def _NH_FileTransferHandlerDidEnd(self, notification):
         self.__terminate()

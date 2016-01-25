@@ -68,7 +68,7 @@ class MSRPStreamBase(object):
         self.remote_accept_types = None
         self.remote_accept_wrapped_types = None
 
-        self._initialized = False
+        self._initialize_done = False
         self._done = False
         self._failure_reason = None
 
@@ -158,9 +158,9 @@ class MSRPStreamBase(object):
         except Exception, e:
             notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
         else:
-            self._initialized = True
             notification_center.post_notification('MediaStreamDidInitialize', sender=self)
         finally:
+            self._initialize_done = True
             self.greenlet = None
 
     @run_in_green_thread
@@ -215,11 +215,11 @@ class MSRPStreamBase(object):
             return
         self._done = True
         notification_center = NotificationCenter()
-        if not self._initialized:
+        if not self._initialize_done:
             if self.greenlet is not None:
                 # we are in the middle of initialize()
                 api.kill(self.greenlet)
-                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
+            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
             return
         notification_center.post_notification('MediaStreamWillEnd', sender=self)
         msrp = self.msrp
