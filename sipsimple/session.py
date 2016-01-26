@@ -660,7 +660,7 @@ class TransferHandler(object):
                         refer_to_uri = SIPURI.new(target)
                         refer_to_uri.headers = {}
                         refer_to_uri.parameters = {}
-                        notification_center.post_notification('SIPSessionTransferNewIncoming', self.session, NotificationData(transfer_destination=refer_to_uri, transfer_source=origin))
+                        notification_center.post_notification('SIPSessionTransferNewIncoming', self.session, NotificationData(transfer_destination=refer_to_uri))
                     elif notification.name == 'SIPSessionTransferDidStart':
                         break
                     elif notification.name == 'SIPSessionTransferDidFail':
@@ -2059,7 +2059,7 @@ class Session(object):
     @run_in_twisted_thread
     def transfer(self, target_uri, replaced_session=None):
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPSessionTransferNewOutgoing', self, NotificationData(transfer_destination=target_uri, transfer_source=self.local_identity.uri))
+        notification_center.post_notification('SIPSessionTransferNewOutgoing', self, NotificationData(transfer_destination=target_uri))
         try:
             self._invitation.transfer(target_uri, replaced_session._invitation.dialog_id if replaced_session is not None else None)
         except SIPCoreError, e:
