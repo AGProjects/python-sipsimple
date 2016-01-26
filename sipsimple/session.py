@@ -646,7 +646,7 @@ class TransferHandler(object):
         if referred_by_hdr is not None:
             origin = referred_by_hdr.body
         else:
-            origin = None
+            origin = str(self.session.remote_identity.uri)
         try:
             while True:
                 try:
