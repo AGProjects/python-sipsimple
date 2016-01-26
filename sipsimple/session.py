@@ -1034,7 +1034,7 @@ class Session(object):
             if is_focus:
                 contact_header.parameters['isfocus'] = None
             if self.transfer_info is not None:
-                if self.transfer_info.referred_by is not None
+                if self.transfer_info.referred_by is not None:
                     extra_headers.append(Header('Referred-By', self.transfer_info.referred_by))
                 if self.transfer_info.replaced_dialog_id is not None:
                     dialog_id = self.transfer_info.replaced_dialog_id
