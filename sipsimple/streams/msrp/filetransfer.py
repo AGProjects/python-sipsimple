@@ -251,8 +251,12 @@ class FileTransferHandler(object):
         notification_center.remove_observer(self, sender=self.stream)
         notification_center.remove_observer(self, sender=self.session)
         notification_center.remove_observer(self, sender=self)
-        if self.stream.file_selector.fd is not None:
+        try:
             self.stream.file_selector.fd.close()
+        except AttributeError:  # when self.stream.file_selector.fd is None
+            pass
+        except IOError:         # we can get this if we try to close while another thread is reading from it
+            pass
         self.stream = None
         self.session = None
 
