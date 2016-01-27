@@ -86,7 +86,7 @@ class SIPReferralDidFail(Exception):
 class IllegalStateError(RuntimeError):
     pass
 
-class IllegalDirectionError(Exception):
+class IllegalDirectionError(RuntimeError):
     pass
 
 class SIPInvitationTransferDidFail(Exception):
