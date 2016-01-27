@@ -2057,6 +2057,7 @@ class Session(object):
             self.state = 'terminated'
 
     @check_state(['connected'])
+    @check_transfer_state(None, None)
     @run_in_twisted_thread
     def transfer(self, target_uri, replaced_session=None):
         notification_center = NotificationCenter()
