@@ -45,15 +45,18 @@ class InvitationDisconnectedError(Exception):
         self.invitation = invitation
         self.data = data
 
+
 class MediaStreamDidNotInitializeError(Exception):
     def __init__(self, stream, data):
         self.stream = stream
         self.data = data
 
+
 class MediaStreamDidFailError(Exception):
     def __init__(self, stream, data):
         self.stream = stream
         self.data = data
+
 
 class SubscriptionError(Exception):
     def __init__(self, error, timeout, **attributes):
@@ -61,33 +64,42 @@ class SubscriptionError(Exception):
         self.timeout = timeout
         self.attributes = attributes
 
+
 class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
         self.data = data
 
+
 class InterruptSubscription(Exception):
     pass
 
+
 class TerminateSubscription(Exception):
     pass
+
 
 class ReferralError(Exception):
     def __init__(self, error, code=0):
         self.error = error
         self.code = code
 
+
 class TerminateReferral(Exception):
     pass
+
 
 class SIPReferralDidFail(Exception):
     def __init__(self, data):
         self.data = data
 
+
 class IllegalStateError(RuntimeError):
     pass
 
+
 class IllegalDirectionError(RuntimeError):
     pass
+
 
 class SIPInvitationTransferDidFail(Exception):
     def __init__(self, data):
