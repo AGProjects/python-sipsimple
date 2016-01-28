@@ -2087,7 +2087,7 @@ class Session(object):
 
     @check_state(['connected', 'received_proposal', 'sending_proposal', 'accepting_proposal', 'rejecting_proposal', 'cancelling_proposal'])
     @check_transfer_state('incoming', 'starting')
-    def reject_transfer(self, code=486, reason=None):
+    def reject_transfer(self, code=603, reason=None):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPSessionTransferDidFail', self, NotificationData(code=code, reason=reason or sip_status_messages[code]))
 
