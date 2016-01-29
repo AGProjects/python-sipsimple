@@ -1599,9 +1599,9 @@ class Session(object):
                                                       partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
 
             for stream in streams:
-                # TODO: check if port is 0 in local_sdp. In that case PJSIP disabled the stream becuase it couldn't
+                # TODO: check if port is 0 in local_sdp. In that case PJSIP disabled the stream because it couldn't
                 # negotiation failed. If there are more streams, however, the negotiation is considered successful as a
-                # whole, so while we built a normal SDP, PJSIP modified it and sent it to the other side. That's kind io
+                # whole, so while we built a normal SDP, PJSIP modified it and sent it to the other side. That's kind of
                 # OK, but we cannot really start the stream. -Saul
                 stream.start(local_sdp, remote_sdp, stream.index)
             with api.timeout(self.media_stream_timeout):
