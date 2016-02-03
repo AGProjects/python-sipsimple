@@ -435,12 +435,12 @@ class ChatStream(MSRPStreamBase):
         except EncryptedMessageError, e:
             self.msrp_session.send_report(chunk, 400, str(e))
             notification_center = NotificationCenter()
-            notification_center.post_notification('ChatStreamGotOTRError', sender=self, data=NotificationData(error=str(e)))
+            notification_center.post_notification('ChatStreamOTRError', sender=self, data=NotificationData(error=str(e)))
             return
         except OTRError, e:
             self.msrp_session.send_report(chunk, 200, 'OK')
             notification_center = NotificationCenter()
-            notification_center.post_notification('ChatStreamGotOTRError', sender=self, data=NotificationData(error=str(e)))
+            notification_center.post_notification('ChatStreamOTRError', sender=self, data=NotificationData(error=str(e)))
             return
         else:
             encrypted = encryption_active = self.encryption.active
