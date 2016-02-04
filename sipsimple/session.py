@@ -1095,7 +1095,7 @@ class Session(object):
                 remote_media = remote_sdp.media[index]
                 stream = stream_map[index]
                 if remote_media.port:
-                    # TODO: check if port is also 0 in local_sdp. In that case PJSIP disabled the stream becuase it couldn't
+                    # TODO: check if port is also 0 in local_sdp. In that case PJSIP disabled the stream because
                     # negotiation failed. If there are more streams, however, the negotiation is considered successful as a
                     # whole, so while we built a normal SDP, PJSIP modified it and sent it to the other side. That's kind io
                     # OK, but we cannot really start the stream. -Saul
