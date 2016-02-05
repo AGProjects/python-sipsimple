@@ -222,6 +222,8 @@ class Publisher(object):
                     try:
                         try:
                             self._publication.publish(body, RouteHeader(route.uri), timeout=limit(remaining_time, min=1, max=10))
+                        except ValueError as e:  # this happens for an initial PUBLISH with body=None
+                            raise PublicationError(str(e), retry_after=0)
                         except PublicationETagError:
                             state = self.state # access self.state only once to avoid race conditions
                             if state is not None:
