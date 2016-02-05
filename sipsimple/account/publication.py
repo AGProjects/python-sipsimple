@@ -332,7 +332,8 @@ class Publisher(object):
             self._data_channel.send_exception(SIPPublicationDidNotEnd(notification.data))
 
     def _NH_SIPPublicationWillExpire(self, notification):
-        self._publish(SameState)
+        if notification.sender is self._publication:
+            self._publish(SameState)
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
