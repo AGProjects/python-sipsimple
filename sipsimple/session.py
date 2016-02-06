@@ -632,6 +632,7 @@ class TransferHandler(object):
     implements(IObserver)
 
     def __init__(self, session):
+        self.state = None
         self.direction = None
         self.new_session = None
         self.session = session
