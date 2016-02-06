@@ -627,6 +627,7 @@ class TransferInfo(object):
         self.referred_by = referred_by
         self.replaced_dialog_id = replaced_dialog_id
 
+
 class TransferHandler(object):
     implements(IObserver)
 
