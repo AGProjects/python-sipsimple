@@ -1,3 +1,7 @@
+- Warning header takes a code (300-399) a hostname (not user agent) and a
+  message. Class allows any code (100-999) and we use engine.user_agent
+  for the hostname where we use this header in session.py
+
 - 202 is deprecated (see https://tools.ietf.org/html/rfc6665#page-43)
 
 - After ICE negotiation completed we do not save state and later re-INVITEs
