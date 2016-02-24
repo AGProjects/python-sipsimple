@@ -45,19 +45,6 @@ from sipsimple.threading.green import Command, Worker, run_in_green_thread
 class XCAPError(Exception): pass
 class FetchRequiredError(XCAPError): pass
 
-class SubscriptionError(Exception):
-    def __init__(self, error, timeout, refresh_interval=None):
-        self.error = error
-        self.refresh_interval = refresh_interval
-        self.timeout = timeout
-
-class SIPSubscriptionDidFail(Exception):
-    def __init__(self, data):
-        self.data = data
-
-class InterruptSubscription(Exception): pass
-class TerminateSubscription(Exception): pass
-
 
 class Document(object):
     name               = None
