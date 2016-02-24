@@ -172,6 +172,10 @@ class OTREncryption(object):
             return False
 
     @property
+    def cipher(self):
+        return 'AES-128-CTR' if self.active else None
+
+    @property
     def key_fingerprint(self):
         try:
             return self.otr_session.local_private_key.public_key.fingerprint
