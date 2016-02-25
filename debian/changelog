@@ -1,3 +1,32 @@
+python-sipsimple (3.0.0) UNRELEASED; urgency=medium
+
+  * Added OTR encryption support in the chat stream
+  * Use openfile where we need control over the file creation
+  * Use defaultweakobjectmap defined in python-application
+  * Simplified verifying the transfered file's hash
+  * Added FileSelectorHash class to simplify code and improve readability
+  * Fixed recovering session state in certain failure conditions
+  * Do not wait for notifications if we couldn't notify transfer progress
+  * Capture unhandled exceptions and log errors from new_from_sdp
+  * Capture errors while parsing the file selector
+  * Handle the MedisStreamDidNotInitialize notification when adding streams
+  * Read code and reason from the notification when posting SIPSessionDidFail
+  * Don't rely on the failure reason being set for failed transfers
+  * Modified the SimplePayload and CPIMPayload to only work with bytes
+  * Handle parsing errors for is-composing documents
+  * Added package info module
+  * Fixed MediaStreamBase not posting MediaStreamDidNotInitialize sometimes
+  * Remove transfer_source from notifications
+  * Set transfer origin to the remote identity if no Referred-By header is present
+  * Don't add a Referred-By header if it wasn't specified
+  * Handle exception when closing a file that is being read in another thread
+  * Prevent Session.transfer from being called while a transfer is in progress
+  * Changed default transfer reject code from 486 (Busy) to 603 (Decline)
+  * Protect SIPPublicationWillExpire from being called by an older publication
+  * Handle race condition where state is SameState for initial PUBLISH
+
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 25 Feb 2016 16:21:36 +0100
+
 python-sipsimple (2.6.0) unstable; urgency=medium
 
   * pjsip: fix crash when TLS transport is reset while data is being sent
