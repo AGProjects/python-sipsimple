@@ -15,6 +15,7 @@ Home page: http://sipsimpleclient.org
  * python-greenlet          http://pypi.python.org/pypi/greenlet              >=0.3.2
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
+ * python-otr               http://pypi.python.org/pypi/python-otr/           >=1.1.0
  * python-msrplib           http://download.ag-projects.com/MSRP             >=0.15.0
  * python-xcaplib           http://download.ag-projects.com/XCAP             >=1.0.17
  * cython                   http://www.cython.org                            >=0.19.0

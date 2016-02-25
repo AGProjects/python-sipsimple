@@ -19,11 +19,7 @@ environment, Python 2.7 and the development version for the following
 packages:
 
  * openssl
- * gnutls >=2.4.1
- * libxml2 >=2.6.32
- * libxslt >=1.1.24
- * python-setuptools >=0.6c9
- * darcs version control tool
+ * ffmpeg
 
 
 Step 2. Install dependencies
@@ -38,7 +34,7 @@ the following packages, notice the minimum version numbers.
 You can use the easy_install script provided by the python-setuptools
 package to install the packages:
 
-sudo easy_install -U cython dnspython twisted lxml python-gnutls \
+sudo pip install -U cython dnspython lxml python-gnutls python-otr \
 python-application dnspython twisted python-dateutil greenlet
 
 

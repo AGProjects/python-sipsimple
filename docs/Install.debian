@@ -64,7 +64,7 @@ For adding Video support:
 sudo apt-get install libv4l-dev libavcodec-dev libavformat-dev libavutil-dev \
 libswscale-dev libswresample-dev libx264-dev libvpx-dev libavcodec-extra
 
-If using the Debian-Multimedia repositories, do not install libavcodec-extra.
+Note: do NOT use the Debian-Multimedia repositories.
 
 For Ubuntu variants:
 

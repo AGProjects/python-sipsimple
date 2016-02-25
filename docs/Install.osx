@@ -84,7 +84,7 @@ easy_install pip
 
 Install python dependencies:
 
-pip install -U python-gnutls dnspython twisted python-application cython python-dateutil greenlet lxml
+pip install -U python-gnutls python-otr dnspython twisted python-application cython python-dateutil greenlet lxml
 
 
 Step 3. Install SIP SIMPLE client SDK
