@@ -3,7 +3,7 @@ python-sipsimple (3.0.0) UNRELEASED; urgency=medium
   * Added OTR encryption support in the chat stream
   * Use openfile where we need control over the file creation
   * Use defaultweakobjectmap defined in python-application
-  * Simplified verifying the transfered file's hash
+  * Simplified verifying the transferred file's hash
   * Added FileSelectorHash class to simplify code and improve readability
   * Fixed recovering session state in certain failure conditions
   * Do not wait for notifications if we couldn't notify transfer progress
@@ -17,7 +17,8 @@ python-sipsimple (3.0.0) UNRELEASED; urgency=medium
   * Added package info module
   * Fixed MediaStreamBase not posting MediaStreamDidNotInitialize sometimes
   * Remove transfer_source from notifications
-  * Set transfer origin to the remote identity if no Referred-By header is present
+  * Set transfer origin to the remote identity if no Referred-By header
+    is present
   * Don't add a Referred-By header if it wasn't specified
   * Handle exception when closing a file that is being read in another thread
   * Prevent Session.transfer from being called while a transfer is in progress
