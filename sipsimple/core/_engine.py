@@ -10,6 +10,7 @@ import sys
 import traceback
 import atexit
 
+from application import log
 from application.notification import NotificationCenter, NotificationData
 from application.python.types import Singleton
 from threading import Thread, RLock
@@ -98,6 +99,7 @@ class Engine(Thread):
         try:
             self._ua = PJSIPUA(self._handle_event, **init_options)
         except Exception:
+            log.exception('Exception occurred while starting the Engine')
             exc_type, exc_val, exc_tb = sys.exc_info()
             exc_tb = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
             self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback=exc_tb))
@@ -110,6 +112,7 @@ class Engine(Thread):
             try:
                 failed = self._ua.poll()
             except:
+                log.exception('Exception occurred while running the Engine')
                 exc_type, exc_val, exc_tb = sys.exc_info()
                 self.notification_center.post_notification('SIPEngineGotException', sender=self, data=NotificationData(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
                 failed = True
