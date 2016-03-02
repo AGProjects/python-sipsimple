@@ -141,7 +141,6 @@ class PJSIP_build_ext(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
-        self.pjsip_disable_assertions = 0
         self.pjsip_verbose_build = 0
         self.pjsip_dir = os.path.join(os.path.dirname(__file__), "deps", "pjsip")
 
@@ -149,14 +148,12 @@ class PJSIP_build_ext(build_ext):
         log.info("Configuring PJSIP")
         with open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb") as f:
             f.write("\n".join(self.config_site+[""]))
-        cflags = "-g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label"
+        cflags = "-DNDEBUG -g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label"
         if self.debug or hasattr(sys, 'gettotalrefcount'):
-            log.info("PJSIP will be built with debugging symbols")
+            log.info("PJSIP will be built without optimizations")
             cflags += " -O0"
         else:
             cflags += " -O2"
-        if self.pjsip_disable_assertions:
-            cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys_platform == "win32":
