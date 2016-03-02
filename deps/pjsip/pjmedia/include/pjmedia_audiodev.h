@@ -27,7 +27,6 @@
 
 #include <pjmedia-audiodev/audiodev.h>
 #include <pjmedia-audiodev/audiodev_imp.h>
-#include <pjmedia-audiodev/audiotest.h>
 
 #endif	/* __PJMEDIA_AUDIODEV_H__ */
 

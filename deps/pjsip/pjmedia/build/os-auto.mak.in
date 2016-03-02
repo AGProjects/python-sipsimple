@@ -96,10 +96,3 @@ ifeq ($(AC_PJMEDIA_VIDEO_HAS_AVF),yes)
 export PJMEDIA_VIDEODEV_OBJS += avf_dev.o
 endif
 
-#
-# iOS video device
-#
-ifeq ($(AC_PJMEDIA_VIDEO),iphone_os)
-export PJMEDIA_VIDEODEV_OBJS += ios_dev.o ios_opengl_dev.o
-endif
-

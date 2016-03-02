@@ -74,80 +74,12 @@ PJ_BEGIN_DECL
 
 
 /**
- * This setting controls whether OpenGL for iOS should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_IOS_OPENGL
-#  define PJMEDIA_VIDEO_DEV_HAS_IOS_OPENGL	0
-#else
-#  if defined(PJMEDIA_VIDEO_DEV_HAS_IOS_OPENGL) && \
-	      PJMEDIA_VIDEO_DEV_HAS_IOS_OPENGL != 0
-#    undef  PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES
-#    define PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES	1
-#  endif
-#endif
-
-
-/**
- * This setting controls whether OpenGL for Android should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_ANDROID_OPENGL
-#  define PJMEDIA_VIDEO_DEV_HAS_ANDROID_OPENGL	0
-#else
-#  if defined(PJMEDIA_VIDEO_DEV_HAS_ANDROID_OPENGL) && \
-	      PJMEDIA_VIDEO_DEV_HAS_ANDROID_OPENGL != 0
-#    undef  PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES
-#    define PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES	1
-#  endif
-#endif
-
-
-/**
- * This setting controls whether OpenGL ES support should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES
-#  define PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES	0
-#else
-#  if defined(PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES) && \
-	      PJMEDIA_VIDEO_DEV_HAS_OPENGL_ES != 0
-#    undef  PJMEDIA_VIDEO_DEV_HAS_OPENGL
-#    define PJMEDIA_VIDEO_DEV_HAS_OPENGL	1
-#  endif
-#endif
-
-
-/**
- * This setting controls whether OpenGL support should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_OPENGL
-#   define PJMEDIA_VIDEO_DEV_HAS_OPENGL		0
-#endif
-
-
-/**
  * This setting controls whether AVFoundation support should be included.
  *
  * Default: 0 (or detected by configure)
  */
 #ifndef PJMEDIA_VIDEO_DEV_HAS_AVF
 #   define PJMEDIA_VIDEO_DEV_HAS_AVF		0
-#endif
-
-
-/**
- * This setting controls whether IOS support should be included.
- *
- * Default: 0 (or detected by configure)
- */
-#ifndef PJMEDIA_VIDEO_DEV_HAS_IOS
-#   define PJMEDIA_VIDEO_DEV_HAS_IOS		0
 #endif
 
 

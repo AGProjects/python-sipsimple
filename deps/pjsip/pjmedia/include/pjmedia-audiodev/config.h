@@ -43,30 +43,6 @@ PJ_BEGIN_DECL
  */
 
 /**
- * This setting controls whether Android OpenSL audio support should be
- * included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_OPENSL
-#   define PJMEDIA_AUDIO_DEV_HAS_OPENSL		0
-#endif
-
-/**
- * This setting controls whether Android JNI audio support should be
- * included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_ANDROID_JNI
-#   define PJMEDIA_AUDIO_DEV_HAS_ANDROID_JNI    0
-#endif
-
-/**
- * This setting controls whether BlackBerry 10 (BB10) audio support
- * should be included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_BB10
-#   define PJMEDIA_AUDIO_DEV_HAS_BB10		0
-#endif
-
-/**
  * This setting controls whether native ALSA support should be included.
  */
 #ifndef PJMEDIA_AUDIO_DEV_HAS_ALSA
@@ -95,102 +71,6 @@ PJ_BEGIN_DECL
  */
 #ifndef PJMEDIA_AUDIO_DEV_HAS_WMME
 #   define PJMEDIA_AUDIO_DEV_HAS_WMME		0
-#endif
-
- 
-/**
- * This setting controls whether BDIMAD support should be included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_BDIMAD
-#	define PJMEDIA_AUDIO_DEV_HAS_BDIMAD	0
-#endif
-
-
-/**
- * This setting controls whether Symbian APS support should be included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_SYMB_APS
-#   define PJMEDIA_AUDIO_DEV_HAS_SYMB_APS	0
-#endif
-
-
-/**
- * This setting controls whether Symbian APS should perform codec
- * detection in its factory initalization. Note that codec detection 
- * may take few seconds and detecting more codecs will take more time.
- * Possible values are:
- * - 0: no codec detection, all APS codec (AMR-NB, G.711, G.729, and
- *      iLBC) will be assumed as supported.
- * - 1: minimal codec detection, i.e: only detect for AMR-NB and G.711,
- *      (G.729 and iLBC are considered to be supported/unsupported when
- *      G.711 is supported/unsupported).
- * - 2: full codec detection, i.e: detect AMR-NB, G.711, G.729, and iLBC.
- * 
- * Default: 1 (minimal codec detection)
- */
-#ifndef PJMEDIA_AUDIO_DEV_SYMB_APS_DETECTS_CODEC
-#   define PJMEDIA_AUDIO_DEV_SYMB_APS_DETECTS_CODEC 1
-#endif
-
-
-/**
- * This setting controls whether Symbian VAS support should be included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_SYMB_VAS
-#   define PJMEDIA_AUDIO_DEV_HAS_SYMB_VAS	0
-#endif
-
-/**
- * This setting controls Symbian VAS version to be used. Currently, valid
- * values are only 1 (for VAS 1.0) and 2 (for VAS 2.0).
- *
- * Default: 1 (VAS version 1.0)
- */
-#ifndef PJMEDIA_AUDIO_DEV_SYMB_VAS_VERSION
-#   define PJMEDIA_AUDIO_DEV_SYMB_VAS_VERSION	1
-#endif
-
-
-/**
- * This setting controls whether Symbian audio (using built-in multimedia 
- * framework) support should be included.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_SYMB_MDA
-#   define PJMEDIA_AUDIO_DEV_HAS_SYMB_MDA	PJ_SYMBIAN
-#endif
-
-
-/**
- * This setting controls whether the Symbian audio with built-in multimedia
- * framework backend should be started synchronously. Note that synchronous
- * start will block the application/UI, e.g: about 40ms for each direction
- * on N95. While asynchronous start may cause invalid value (always zero)
- * returned in input/output volume query, if the query is performed when
- * the internal start procedure is not completely finished.
- * 
- * Default: 1 (yes)
- */
-#ifndef PJMEDIA_AUDIO_DEV_MDA_USE_SYNC_START
-#   define PJMEDIA_AUDIO_DEV_MDA_USE_SYNC_START	1
-#endif
-
-
-/**
- * This setting controls whether the Audio Device API should support
- * device implementation that is based on the old sound device API
- * (sound.h). 
- *
- * Enable this API if:
- *  - you have implemented your own sound device using the old sound
- *    device API (sound.h), and
- *  - you wish to be able to use your sound device implementation
- *    using the new Audio Device API.
- *
- * Please see http://trac.pjsip.org/repos/wiki/Audio_Dev_API for more
- * info.
- */
-#ifndef PJMEDIA_AUDIO_DEV_HAS_LEGACY_DEVICE
-#   define PJMEDIA_AUDIO_DEV_HAS_LEGACY_DEVICE	0
 #endif
 
 
