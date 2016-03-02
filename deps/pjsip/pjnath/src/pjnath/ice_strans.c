@@ -360,6 +360,30 @@ static pj_status_t add_update_turn(pj_ice_strans *ice_st,
     return PJ_SUCCESS;
 }
 
+static pj_bool_t ice_cand_equals(pj_ice_sess_cand *lcand, 
+		    	         pj_ice_sess_cand *rcand)
+{
+    if (lcand == NULL && rcand == NULL){
+        return PJ_TRUE;
+    }
+    if (lcand == NULL || rcand == NULL){
+        return PJ_FALSE;
+    }
+    
+    if (lcand->type != rcand->type
+        || lcand->status != rcand->status
+        || lcand->comp_id != rcand->comp_id
+        || lcand->transport_id != rcand->transport_id
+        || lcand->local_pref != rcand->local_pref
+        || lcand->prio != rcand->prio
+        || pj_sockaddr_cmp(&lcand->addr, &rcand->addr) != 0
+        || pj_sockaddr_cmp(&lcand->base_addr, &rcand->base_addr) != 0)
+    {
+        return PJ_FALSE;
+    }
+    
+    return PJ_TRUE;
+}
 
 /*
  * Create the component.
@@ -491,6 +515,8 @@ static pj_status_t create_comp(pj_ice_strans *ice_st, unsigned comp_id)
 	    for (i=0; i<stun_sock_info.alias_cnt &&
 		      i<ice_st->cfg.stun.max_host_cands; ++i)
 	    {
+		unsigned j;
+		pj_bool_t cand_duplicate = PJ_FALSE;
 		char addrinfo[PJ_INET6_ADDRSTRLEN+10];
 		const pj_sockaddr *addr = &stun_sock_info.aliases[i];
 
@@ -508,7 +534,7 @@ static pj_status_t create_comp(pj_ice_strans *ice_st, unsigned comp_id)
 			continue;
 		}
 
-		cand = &comp->cand_list[comp->cand_cnt++];
+		cand = &comp->cand_list[comp->cand_cnt];
 
 		cand->type = PJ_ICE_CAND_TYPE_HOST;
 		cand->status = PJ_SUCCESS;
@@ -518,6 +544,28 @@ static pj_status_t create_comp(pj_ice_strans *ice_st, unsigned comp_id)
 		pj_sockaddr_cp(&cand->addr, addr);
 		pj_sockaddr_cp(&cand->base_addr, addr);
 		pj_bzero(&cand->rel_addr, sizeof(cand->rel_addr));
+            
+		/* Check if not already in list */
+		for (j=0; j<comp->cand_cnt; j++) {
+		    if (ice_cand_equals(cand, &comp->cand_list[j])) {
+			cand_duplicate = PJ_TRUE;
+			break;
+		    }
+		}
+
+		if (cand_duplicate) {
+		    PJ_LOG(4, (ice_st->obj_name,
+			   "Comp %d: host candidate %s is a duplicate",
+			   comp_id, pj_sockaddr_print(&cand->addr, addrinfo,
+			   sizeof(addrinfo), 3)));
+
+		    pj_bzero(&cand->addr, sizeof(cand->addr));
+		    pj_bzero(&cand->base_addr, sizeof(cand->base_addr));
+		    continue;
+		} else {
+		    comp->cand_cnt+=1;
+		}
+            
 		pj_ice_calc_foundation(ice_st->pool, &cand->foundation,
 				       cand->type, &cand->base_addr);
 
@@ -1181,6 +1229,12 @@ pj_ice_strans_get_start_time(const pj_ice_strans *ice_st)
 PJ_DEF(pj_status_t) pj_ice_strans_stop_ice(pj_ice_strans *ice_st)
 {
     PJ_ASSERT_RETURN(ice_st, PJ_EINVAL);
+    
+    /* Protect with group lock, since this may cause race condition with
+     * pj_ice_strans_sendto().
+     * See ticket #1877.
+     */
+    pj_grp_lock_acquire(ice_st->grp_lock);
 
     if (ice_st->ice) {
 	pj_ice_sess_destroy(ice_st->ice);
@@ -1188,6 +1242,9 @@ PJ_DEF(pj_status_t) pj_ice_strans_stop_ice(pj_ice_strans *ice_st)
     }
 
     set_ice_state(ice_st, PJ_ICE_STRANS_STATE_INIT);
+
+    pj_grp_lock_release(ice_st->grp_lock);
+
     return PJ_SUCCESS;
 }
 
@@ -1215,6 +1272,12 @@ PJ_DEF(pj_status_t) pj_ice_strans_sendto( pj_ice_strans *ice_st,
     if (def_cand >= comp->cand_cnt)
 	return PJ_EINVALIDOP;
 
+    /* Protect with group lock, since this may cause race condition with
+     * pj_ice_strans_stop_ice().
+     * See ticket #1877.
+     */
+    pj_grp_lock_acquire(ice_st->grp_lock);
+
     /* If ICE is available, send data with ICE, otherwise send with the
      * default candidate selected during initialization.
      *
@@ -1222,16 +1285,16 @@ PJ_DEF(pj_status_t) pj_ice_strans_sendto( pj_ice_strans *ice_st,
      * Once ICE has failed, also send data with the default candidate.
      */
     if (ice_st->ice && ice_st->state == PJ_ICE_STRANS_STATE_RUNNING) {
-	if (comp->turn_sock) {
-	    pj_turn_sock_lock(comp->turn_sock);
-	}
 	status = pj_ice_sess_send_data(ice_st->ice, comp_id, data, data_len);
-	if (comp->turn_sock) {
-	    pj_turn_sock_unlock(comp->turn_sock);
-	}
+	
+	pj_grp_lock_release(ice_st->grp_lock);
+	
 	return status;
-
-    } else if (comp->cand_list[def_cand].status == PJ_SUCCESS) {
+    } 
+    
+    pj_grp_lock_release(ice_st->grp_lock);
+    
+    if (comp->cand_list[def_cand].status == PJ_SUCCESS) {
 
 	if (comp->cand_list[def_cand].type == PJ_ICE_CAND_TYPE_RELAYED) {
 

@@ -1311,6 +1311,15 @@
 #   define PJMEDIA_HAS_LIBYUV				0
 #endif
 
+
+/**
+ * Specify if dtmf flash in RFC 2833 is available.
+ */
+#ifndef PJMEDIA_HAS_DTMF_FLASH
+#   define PJMEDIA_HAS_DTMF_FLASH			1
+#endif
+
+
 /**
  * @}
  */

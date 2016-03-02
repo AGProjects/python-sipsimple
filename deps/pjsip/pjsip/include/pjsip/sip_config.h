@@ -315,8 +315,6 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
 
 /**
  * Specify maximum URL size.
- * This constant is used mainly when printing the URL for logging purpose 
- * only.
  */
 #ifndef PJSIP_MAX_URL_SIZE
 #   define PJSIP_MAX_URL_SIZE		256
@@ -666,6 +664,46 @@ PJ_INLINE(pjsip_cfg_t*) pjsip_cfg(void)
 # else
 #   define PJSIP_TCP_TRANSPORT_REUSEADDR	1
 # endif
+#endif
+
+
+/**
+ * Specify whether TCP transport should skip creating the listener.
+ * Not having a listener means that application will not be able to
+ * function in server mode and accept incoming connections.
+ *
+ * When enabling this setting, if you use PJSUA, it is recommended to set 
+ * pjsua_acc_config.contact_use_src_port to PJ_TRUE.
+ * Warning: If contact_use_src_port is disabled or failed (because it's
+ * unsupported in some platforms or automatically turned off due to
+ * DNS server resolution), Contact header will be generated from
+ * pj_getipinterface()/pj_gethostip(), but the address will not be
+ * able to accept connections. 
+ *
+ * Default is FALSE (listener will be created).
+ */
+#ifndef PJSIP_TCP_TRANSPORT_DONT_CREATE_LISTENER
+#   define PJSIP_TCP_TRANSPORT_DONT_CREATE_LISTENER 0
+#endif
+
+
+/**
+ * Specify whether TLS transport should skip creating the listener.
+ * Not having a listener means that application will not be able to
+ * function in server mode and accept incoming connections.
+ *
+ * When enabling this setting, if you use PJSUA, it is recommended to set 
+ * pjsua_acc_config.contact_use_src_port to PJ_TRUE.
+ * Warning: If contact_use_src_port is disabled or failed (because it's
+ * unsupported in some platforms or automatically turned off due to
+ * DNS server resolution), Contact header will be generated from
+ * pj_getipinterface()/pj_gethostip(), but the address will not be
+ * able to accept connections.
+ *
+ * Default is FALSE (listener will be created).
+ */
+#ifndef PJSIP_TLS_TRANSPORT_DONT_CREATE_LISTENER
+#   define PJSIP_TLS_TRANSPORT_DONT_CREATE_LISTENER 0
 #endif
 
 

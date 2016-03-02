@@ -1099,6 +1099,13 @@ static pj_status_t generate_crypto_attr_value(pj_pool_t *pool,
 
 
 #if defined(PJ_HAS_SSL_SOCK) && (PJ_HAS_SSL_SOCK != 0)
+
+/* Include OpenSSL libraries for MSVC */
+#  ifdef _MSC_VER
+#    pragma comment( lib, "libeay32")
+#    pragma comment( lib, "ssleay32")
+#  endif
+
 	    err = RAND_bytes((unsigned char*)key,
 			     crypto_suites[cs_idx].cipher_key_len);
 	    if (err != 1) {
@@ -1367,8 +1374,17 @@ static pj_status_t transport_encode_sdp(pjmedia_transport *tp,
 
 	/* Generate crypto attribute if not yet */
 	if (pjmedia_sdp_media_find_attr(m_loc, &ID_CRYPTO, NULL) == NULL) {
+	    /* Offer only current active crypto if any, otherwise offer all
+	     * crypto-suites in the setting.
+	     */
 	    for (i=0; i<srtp->setting.crypto_count; ++i) {
-		/* Offer crypto-suites based on setting. */
+		if (srtp->tx_policy.name.slen &&
+		    pj_stricmp(&srtp->tx_policy.name,
+			       &srtp->setting.crypto[i].name) != 0)
+		{
+		    continue;
+		}
+
 		buffer_len = MAXLEN;
 		status = generate_crypto_attr_value(srtp->pool, buffer, &buffer_len,
 						    &srtp->setting.crypto[i],
@@ -1444,6 +1460,9 @@ static pj_status_t transport_encode_sdp(pjmedia_transport *tp,
 				       &srtp->setting.crypto[j].name) == 0)
 			{
 			    int cs_idx = get_crypto_idx(&tmp_rx_crypto.name);
+			    
+	    		    if (cs_idx == -1)
+	    		        return PJMEDIA_SRTP_ENOTSUPCRYPTO;
 
 			    /* Force to use test key */
 			    /* bad keys for snom: */

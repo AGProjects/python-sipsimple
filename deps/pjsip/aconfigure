@@ -622,7 +622,6 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 ac_main_obj
 ac_host
-ac_linux_poll
 libcrypto_present
 libssl_present
 openssl_h_present
@@ -654,6 +653,7 @@ ac_ios_cflags
 ac_pjmedia_video_has_ios
 ac_pjmedia_video
 ac_pjmedia_audiodev_objs
+ac_linux_poll
 ac_os_objs
 EGREP
 GREP
@@ -5532,6 +5532,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking ioqueue backend" >&5
 $as_echo_n "checking ioqueue backend... " >&6; }
 # Check whether --enable-epoll was given.
@@ -5540,12 +5541,16 @@ if test "${enable_epoll+set}" = set; then :
 		ac_os_objs=ioqueue_epoll.o
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: /dev/epoll" >&5
 $as_echo "/dev/epoll" >&6; }
+		$as_echo "#define PJ_HAS_LINUX_EPOLL 1" >>confdefs.h
+
+		ac_linux_poll=epoll
 
 else
 
 		ac_os_objs=ioqueue_select.o
-	        { $as_echo "$as_me:${as_lineno-$LINENO}: result: select()" >&5
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: select()" >&5
 $as_echo "select()" >&6; }
+		ac_linux_poll=select
 
 fi
 

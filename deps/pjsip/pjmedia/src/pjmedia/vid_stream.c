@@ -179,7 +179,7 @@ struct pjmedia_vid_stream
     pjmedia_vid_codec	    *codec;	    /**< Codec instance being used. */
     pj_uint32_t		     last_dec_ts;   /**< Last decoded timestamp.    */
     int			     last_dec_seq;  /**< Last decoded sequence.     */
-
+    pj_status_t		     rtp_rx_last_err; /**< Last RTP recv() error.   */
 
     pj_timestamp	     ts_freq;	    /**< Timestamp frequency.	    */
 
@@ -619,9 +619,21 @@ static void on_rx_rtp( void *data,
 
     /* Check for errors */
     if (bytes_read < 0) {
-	LOGERR_((channel->port.info.name.ptr, "RTP recv() error", 
-		(pj_status_t)-bytes_read));
+	status = (pj_status_t)-bytes_read;
+	if (status == PJ_STATUS_FROM_OS(OSERR_EWOULDBLOCK)) {
+	    return;
+	}
+	if (stream->rtp_rx_last_err != status) {
+	    char errmsg[PJ_ERR_MSG_SIZE];
+	    pj_strerror(status, errmsg, sizeof(errmsg));
+	    PJ_LOG(4,(channel->port.info.name.ptr,
+		      "Unable to receive RTP packet, recv() returned %d: %s",
+		      status, errmsg));
+	    stream->rtp_rx_last_err = status;
+	}
 	return;
+    } else {
+	stream->rtp_rx_last_err = PJ_SUCCESS;
     }
 
     /* Ignore keep-alive packets */
@@ -790,8 +802,10 @@ static void on_rx_rtcp( void *data,
 
     /* Check for errors */
     if (bytes_read < 0) {
-	LOGERR_((stream->cname.ptr, "RTCP recv() error", 
-		 (pj_status_t)-bytes_read));
+	if (bytes_read != -PJ_STATUS_FROM_OS(OSERR_EWOULDBLOCK)) {
+	    LOGERR_((stream->cname.ptr, "RTCP recv() error",
+		    (pj_status_t)-bytes_read));
+	}
 	return;
     }
 

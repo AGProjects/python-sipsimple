@@ -548,7 +548,11 @@ PJ_DEF(pjsip_msg_body*) pjsip_multipart_parse(pj_pool_t *pool,
 	 */
 	for (;;) {
 	    while (p!=end && *p!='-') ++p;
-	    if (p!=end && *(p+1)=='-' &&
+
+	    if (p == end)
+		break;
+
+	    if ((p+1<end) && *(p+1)=='-' &&
 		((p>buf && *(p-1)=='\n') || (p==buf)))
 	    {
 		p+=2;
@@ -588,10 +592,10 @@ PJ_DEF(pjsip_msg_body*) pjsip_multipart_parse(pj_pool_t *pool,
     curptr = buf;
     endptr = buf + len;
     {
-	pj_str_t body;
+	pj_str_t strbody;
 
-	body.ptr = buf; body.slen = len;
-	curptr = pj_strstr(&body, &delim);
+	strbody.ptr = buf; strbody.slen = len;
+	curptr = pj_strstr(&strbody, &delim);
 	if (!curptr)
 	    return NULL;
     }

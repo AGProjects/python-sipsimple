@@ -181,6 +181,9 @@ typedef struct pj_ssl_cert_info {
     } subj_alt_name;		    /**< Subject alternative
 					 name extension		*/
 
+    pj_str_t raw;		    /**< Raw certificate in PEM format, only
+					 available for remote certificate. */
+
 } pj_ssl_cert_info;
 
 
@@ -864,6 +867,18 @@ PJ_DECL(void) pj_ssl_sock_param_default(pj_ssl_sock_param *param);
 
 
 /**
+ * Duplicate pj_ssl_sock_param.
+ *
+ * @param pool	Pool to allocate memory.
+ * @param dst	Destination parameter.
+ * @param src	Source parameter.
+ */
+PJ_DECL(void) pj_ssl_sock_param_copy(pj_pool_t *pool, 
+				     pj_ssl_sock_param *dst,
+				     const pj_ssl_sock_param *src);
+
+
+/**
  * Create secure socket instance.
  *
  * @param pool		The pool for allocating secure socket instance.
@@ -1112,6 +1127,30 @@ PJ_DECL(pj_status_t) pj_ssl_sock_start_accept(pj_ssl_sock_t *ssock,
 					      pj_pool_t *pool,
 					      const pj_sockaddr_t *local_addr,
 					      int addr_len);
+
+
+/**
+ * Same as #pj_ssl_sock_start_accept(), but application can provide
+ * a secure socket parameter, which will be used to create a new secure
+ * socket reported in \a on_accept_complete() callback when there is
+ * an incoming connection.
+ *
+ * @param ssock		The secure socket.
+ * @param pool		Pool used to allocate some internal data for the
+ *			operation.
+ * @param localaddr	Local address to bind on.
+ * @param addr_len	Length of buffer containing local address.
+ * @param newsock_param	Secure socket parameter for new accepted sockets.
+ *
+ * @return		PJ_SUCCESS if the operation has been successful,
+ *			or the appropriate error code on failure.
+ */
+PJ_DECL(pj_status_t)
+pj_ssl_sock_start_accept2(pj_ssl_sock_t *ssock,
+			  pj_pool_t *pool,
+			  const pj_sockaddr_t *local_addr,
+			  int addr_len,
+			  const pj_ssl_sock_param *newsock_param);
 
 
 /**

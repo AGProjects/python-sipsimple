@@ -108,9 +108,10 @@ on_error:
     return status;
 }
 
-static void destroy_dialog( pjsip_dialog *dlg )
+static void destroy_dialog( pjsip_dialog *dlg, pj_bool_t unlock_mutex )
 {
     if (dlg->mutex_) {
+        if (unlock_mutex) pj_mutex_unlock(dlg->mutex_);
 	pj_mutex_destroy(dlg->mutex_);
 	dlg->mutex_ = NULL;
     }
@@ -242,25 +243,25 @@ PJ_DEF(pj_status_t) pjsip_dlg_create_uac( pjsip_user_agent *ua,
 	pjsip_sip_uri *sip_uri = (pjsip_sip_uri *)
 				 pjsip_uri_get_uri(dlg->remote.info->uri);
 	if (!pj_list_empty(&sip_uri->header_param)) {
-	    pj_str_t tmp;
+	    pj_str_t tmp2;
 
 	    /* Remove all header param */
 	    pj_list_init(&sip_uri->header_param);
 
 	    /* Print URI */
-	    tmp.ptr = (char*) pj_pool_alloc(dlg->pool,
+	    tmp2.ptr = (char*) pj_pool_alloc(dlg->pool,
 	    				    dlg->remote.info_str.slen);
-	    tmp.slen = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR,
-				       sip_uri, tmp.ptr,
+	    tmp2.slen = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR,
+				       sip_uri, tmp2.ptr,
 				       dlg->remote.info_str.slen);
 
-	    if (tmp.slen < 1) {
+	    if (tmp2.slen < 1) {
 		status = PJSIP_EURITOOLONG;
 		goto on_error;
 	    }
 
 	    /* Assign remote.info_str */
-	    dlg->remote.info_str = tmp;
+	    dlg->remote.info_str = tmp2;
 	}
     }
 
@@ -302,7 +303,7 @@ PJ_DEF(pj_status_t) pjsip_dlg_create_uac( pjsip_user_agent *ua,
     return PJ_SUCCESS;
 
 on_error:
-    destroy_dialog(dlg);
+    destroy_dialog(dlg, PJ_FALSE);
     return status;
 }
 
@@ -310,10 +311,11 @@ on_error:
 /*
  * Create UAS dialog.
  */
-PJ_DEF(pj_status_t) pjsip_dlg_create_uas(   pjsip_user_agent *ua,
-					    pjsip_rx_data *rdata,
-					    const pj_str_t *contact,
-					    pjsip_dialog **p_dlg)
+pj_status_t create_uas_dialog( pjsip_user_agent *ua,
+			       pjsip_rx_data *rdata,
+			       const pj_str_t *contact,
+			       pj_bool_t inc_lock,
+			       pjsip_dialog **p_dlg)
 {
     pj_status_t status;
     pjsip_hdr *pos = NULL;
@@ -391,12 +393,12 @@ PJ_DEF(pj_status_t) pjsip_dlg_create_uas(   pjsip_user_agent *ua,
      *  MUST be a SIPS URI.
      */
     if (contact) {
-	pj_str_t tmp;
+	pj_str_t tmp2;
 
-	pj_strdup_with_null(dlg->pool, &tmp, contact);
+	pj_strdup_with_null(dlg->pool, &tmp2, contact);
 	dlg->local.contact = (pjsip_contact_hdr*)
-			     pjsip_parse_hdr(dlg->pool, &HCONTACT, tmp.ptr,
-					     tmp.slen, NULL);
+			     pjsip_parse_hdr(dlg->pool, &HCONTACT, tmp2.ptr,
+					     tmp2.slen, NULL);
 	if (!dlg->local.contact) {
 	    status = PJSIP_EINVALIDURI;
 	    goto on_error;
@@ -509,6 +511,12 @@ PJ_DEF(pj_status_t) pjsip_dlg_create_uas(   pjsip_user_agent *ua,
     if (status != PJ_SUCCESS)
 	goto on_error;
 
+    /* Increment the dialog's lock since tsx may cause the dialog to be
+     * destroyed prematurely (such as in case of transport error).
+     */
+    if (inc_lock)
+        pjsip_dlg_inc_lock(dlg);
+
     /* Create UAS transaction for this request. */
     status = pjsip_tsx_create_uas(dlg->ua, rdata, &tsx);
     if (status != PJ_SUCCESS)
@@ -551,8 +559,40 @@ on_error:
 	--dlg->tsx_count;
     }
 
-    destroy_dialog(dlg);
+    if (inc_lock) {
+        pjsip_dlg_dec_lock(dlg);
+    } else {
+        destroy_dialog(dlg, PJ_FALSE);
+    }
+    
     return status;
+}
+
+
+#if !DEPRECATED_FOR_TICKET_1902
+/*
+ * Create UAS dialog.
+ */
+PJ_DEF(pj_status_t) pjsip_dlg_create_uas(   pjsip_user_agent *ua,
+					    pjsip_rx_data *rdata,
+					    const pj_str_t *contact,
+					    pjsip_dialog **p_dlg)
+{
+    return create_uas_dialog(ua, rdata, contact, PJ_FALSE, p_dlg);
+}
+#endif
+
+
+/*
+ * Create UAS dialog and increase its session count.
+ */
+PJ_DEF(pj_status_t)
+pjsip_dlg_create_uas_and_inc_lock(    pjsip_user_agent *ua,
+				      pjsip_rx_data *rdata,
+				      const pj_str_t *contact,
+				      pjsip_dialog **p_dlg)
+{
+    return create_uas_dialog(ua, rdata, contact, PJ_TRUE, p_dlg);
 }
 
 
@@ -725,7 +765,7 @@ PJ_DEF(pj_status_t) pjsip_dlg_fork( const pjsip_dialog *first_dlg,
     return PJ_SUCCESS;
 
 on_error:
-    destroy_dialog(dlg);
+    destroy_dialog(dlg, PJ_FALSE);
     return status;
 }
 
@@ -733,7 +773,8 @@ on_error:
 /*
  * Destroy dialog.
  */
-static pj_status_t unregister_and_destroy_dialog( pjsip_dialog *dlg )
+static pj_status_t unregister_and_destroy_dialog( pjsip_dialog *dlg,
+						  pj_bool_t unlock_mutex )
 {
     pj_status_t status;
 
@@ -757,7 +798,7 @@ static pj_status_t unregister_and_destroy_dialog( pjsip_dialog *dlg )
     PJ_LOG(5,(dlg->obj_name, "Dialog destroyed"));
 
     /* Destroy this dialog. */
-    destroy_dialog(dlg);
+    destroy_dialog(dlg, unlock_mutex);
 
     return PJ_SUCCESS;
 }
@@ -774,7 +815,7 @@ PJ_DEF(pj_status_t) pjsip_dlg_terminate( pjsip_dialog *dlg )
     /* MUST not have pending transactions. */
     PJ_ASSERT_RETURN(dlg->tsx_count==0, PJ_EINVALIDOP);
 
-    return unregister_and_destroy_dialog(dlg);
+    return unregister_and_destroy_dialog(dlg, PJ_FALSE);
 }
 
 
@@ -893,7 +934,11 @@ PJ_DEF(void) pjsip_dlg_dec_lock(pjsip_dialog *dlg)
     if (dlg->sess_count==0 && dlg->tsx_count==0) {
 	pj_mutex_unlock(dlg->mutex_);
 	pj_mutex_lock(dlg->mutex_);
-	unregister_and_destroy_dialog(dlg);
+	/* We are holding the dialog mutex here, so before we destroy
+	 * the dialog, make sure that we unlock it first to avoid
+	 * undefined behaviour on some platforms. See ticket #1886.
+	 */
+	unregister_and_destroy_dialog(dlg, PJ_TRUE);
     } else {
 	pj_mutex_unlock(dlg->mutex_);
     }

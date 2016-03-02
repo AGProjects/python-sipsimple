@@ -329,7 +329,9 @@ static void build_server_entries(pj_dns_srv_async_query *query_job,
 	 * Update the IP address of the corresponding SRV record.
 	 */
 	for (j=0; j<query_job->srv_cnt; ++j) {
-	    if (pj_stricmp(&rr->name, &query_job->srv[j].target_name)==0) {
+            if (pj_stricmp(&rr->name, &query_job->srv[j].target_name)==0 &&
+                query_job->srv[j].addr_cnt < ADDR_MAX_COUNT)
+            {
 		unsigned cnt = query_job->srv[j].addr_cnt;
 		query_job->srv[j].addr[cnt].s_addr = rr->rdata.a.ip_addr.s_addr;
 		/* Only increment host_resolved once per SRV record */
@@ -614,25 +616,25 @@ static void dns_callback(void *user_data,
 	srv_rec.count = 0;
 	for (i=0; i<query_job->srv_cnt; ++i) {
 	    unsigned j;
-	    struct srv_target *srv = &query_job->srv[i];
+	    struct srv_target *srv2 = &query_job->srv[i];
 
-	    srv_rec.entry[srv_rec.count].priority = srv->priority;
-	    srv_rec.entry[srv_rec.count].weight = srv->weight;
-	    srv_rec.entry[srv_rec.count].port = (pj_uint16_t)srv->port ;
+	    srv_rec.entry[srv_rec.count].priority = srv2->priority;
+	    srv_rec.entry[srv_rec.count].weight = srv2->weight;
+	    srv_rec.entry[srv_rec.count].port = (pj_uint16_t)srv2->port ;
 
-	    srv_rec.entry[srv_rec.count].server.name = srv->target_name;
-	    srv_rec.entry[srv_rec.count].server.alias = srv->cname;
+	    srv_rec.entry[srv_rec.count].server.name = srv2->target_name;
+	    srv_rec.entry[srv_rec.count].server.alias = srv2->cname;
 	    srv_rec.entry[srv_rec.count].server.addr_count = 0;
 
-	    pj_assert(srv->addr_cnt <= PJ_DNS_MAX_IP_IN_A_REC);
+	    pj_assert(srv2->addr_cnt <= PJ_DNS_MAX_IP_IN_A_REC);
 
-	    for (j=0; j<srv->addr_cnt; ++j) {
+	    for (j=0; j<srv2->addr_cnt; ++j) {
 		srv_rec.entry[srv_rec.count].server.addr[j].s_addr = 
-		    srv->addr[j].s_addr;
+		    srv2->addr[j].s_addr;
 		++srv_rec.entry[srv_rec.count].server.addr_count;
 	    }
 
-	    if (srv->addr_cnt > 0) {
+	    if (srv2->addr_cnt > 0) {
 		++srv_rec.count;
 		if (srv_rec.count == PJ_DNS_SRV_MAX_ADDR)
 		    break;
