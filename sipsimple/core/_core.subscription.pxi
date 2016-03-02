@@ -430,18 +430,20 @@ cdef class IncomingSubscription:
                                                             parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
         contact_str = PJSTR(str(contact_header.body))
         with nogil:
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
         # Increment dialog session count so that it's never destroyed by PJSIP
         with nogil:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
         if status != 0:
+            pjsip_dlg_dec_lock(self._dlg)
             raise PJSIPError("Could not increment dialog session count", status)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
         self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         with nogil:
             status = pjsip_evsub_create_uas(self._dlg, &_incoming_subs_cb, rdata, 0, &self._obj)
+            pjsip_dlg_dec_lock(self._dlg)
         if status != 0:
             with nogil:
                 pjsip_tsx_terminate(self._initial_tsx, 500)

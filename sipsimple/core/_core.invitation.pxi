@@ -143,11 +143,12 @@ cdef class Invitation:
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
             contact_str = PJSTR(str(self.local_contact_header.body))
             with nogil:
-                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_str.pj_str, dialog_address)
+                status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INVITE session", status)
             with nogil:
                 status = pjsip_inv_create_uas(dialog_address[0], rdata, NULL, inv_options, invite_session_address)
+                pjsip_dlg_dec_lock(dialog_address[0])
             if status != 0:
                 raise PJSIPError("Could not create new INVITE session", status)
             tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT

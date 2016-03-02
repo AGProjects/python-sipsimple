@@ -487,7 +487,7 @@ cdef class IncomingReferral:
                                                             parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
         contact_str = PJSTR(self.local_contact_header.body)
         with nogil:
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
         if status != 0:
             with nogil:
                 status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 400, NULL, &self._initial_response)
@@ -504,6 +504,7 @@ cdef class IncomingReferral:
         with nogil:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
         if status != 0:
+            pjsip_dlg_dec_lock(self._dlg)
             raise PJSIPError("Could not increment dialog session count", status)
         # PJSIP event framework needs an Event header, even if it's not needed for REFER, so we insert a fake one
         event_header = <pjsip_event_hdr *> pjsip_msg_find_hdr_by_name(rdata.msg_info.msg, &_event_hdr_name.pj_str, NULL)
@@ -514,6 +515,7 @@ cdef class IncomingReferral:
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
         with nogil:
             status = pjsip_evsub_create_uas(self._dlg, &_incoming_refer_subs_cb, rdata, 0, &self._obj)
+            pjsip_dlg_dec_lock(self._dlg)
         if status != 0:
             with nogil:
                 pjsip_tsx_terminate(self._initial_tsx, 500)

@@ -1264,7 +1264,7 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact,
                              pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg) nogil
     int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set) nogil
-    int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg) nogil
+    int pjsip_dlg_create_uas_and_inc_lock(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg) nogil
     int pjsip_dlg_terminate(pjsip_dialog *dlg) nogil
     int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel) nogil
     int pjsip_dlg_respond(pjsip_dialog *dlg, pjsip_rx_data *rdata, int st_code,
