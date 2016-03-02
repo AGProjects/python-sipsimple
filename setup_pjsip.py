@@ -147,7 +147,8 @@ class PJSIP_build_ext(build_ext):
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
-        open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
+        with open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb") as f:
+            f.write("\n".join(self.config_site+[""]))
         cflags = "-g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label"
         if self.debug or hasattr(sys, 'gettotalrefcount'):
             log.info("PJSIP will be built with debugging symbols")
