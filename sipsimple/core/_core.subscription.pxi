@@ -871,6 +871,8 @@ cdef void _Subscription_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *en
     try:
         if entry.user_data != NULL:
             subscription = <object> entry.user_data
+            if subscription._dlg == NULL:
+                return
             if entry.id == 1:
                 subscription._refresh_timer_active = 0
                 subscription._cb_refresh_timer(ua)
