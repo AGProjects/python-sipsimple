@@ -195,7 +195,10 @@ class OTREncryption(object):
             return self.__dict__['peer_name']
         except KeyError:
             trusted_peer = self.otr_cache.trusted_peers.get(self.peer_fingerprint, None)
-            return self.__dict__.setdefault('peer_name', trusted_peer.description if trusted_peer is not None else u'')
+            if trusted_peer is None:
+                return u''
+            else:
+                return self.__dict__.setdefault('peer_name', trusted_peer.description)
 
     @peer_name.setter
     def peer_name(self, name):
