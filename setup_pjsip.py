@@ -148,7 +148,7 @@ class PJSIP_build_ext(build_ext):
         log.info("Configuring PJSIP")
         with open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb") as f:
             f.write("\n".join(self.config_site+[""]))
-        cflags = "-DNDEBUG -g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label"
+        cflags = "-DNDEBUG -g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label -Wno-unused-but-set-variable"
         if self.debug or hasattr(sys, 'gettotalrefcount'):
             log.info("PJSIP will be built without optimizations")
             cflags += " -O0"
