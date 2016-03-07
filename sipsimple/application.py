@@ -301,7 +301,7 @@ class SIPApplication(object):
 
         # shutdown engine
         self.engine.stop()
-        self.engine.join()
+        self.engine.join(timeout=5)
 
         # stop threads
         thread_manager = ThreadManager()

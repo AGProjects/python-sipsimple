@@ -20,7 +20,8 @@ cdef class PJLIB:
 
     def __dealloc__(self):
         if self._init_done:
-            pj_shutdown()
+            with nogil:
+                pj_shutdown()
 
 
 cdef class PJCachingPool:
@@ -207,7 +208,8 @@ cdef class PJSIPEndpoint:
         if self._pool != NULL:
             pjsip_endpt_release_pool(self._obj, self._pool)
         if self._obj != NULL:
-            pjsip_endpt_destroy(self._obj)
+            with nogil:
+                pjsip_endpt_destroy(self._obj)
 
 
 cdef class PJMEDIAEndpoint:
@@ -229,7 +231,8 @@ cdef class PJMEDIAEndpoint:
         if self._pool != NULL:
             pj_pool_release(self._pool)
         if self._obj != NULL:
-            pjmedia_endpt_destroy(self._obj)
+            with nogil:
+                pjmedia_endpt_destroy(self._obj)
 
     cdef void _audio_subsystem_init(self, PJCachingPool caching_pool):
         cdef int status
