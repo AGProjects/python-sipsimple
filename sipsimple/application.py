@@ -344,6 +344,9 @@ class SIPApplication(object):
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
 
+    def _NH_SIPEngineGotException(self, notification):
+        notification.center.post_notification('SIPApplicationGotFatalError', sender=self, data=notification.data)
+
     @run_in_thread('device-io')
     def _NH_CFGSettingsObjectDidChange(self, notification):
         settings = SIPSimpleSettings()
