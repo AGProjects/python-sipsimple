@@ -193,7 +193,6 @@ unsigned int number_of_cores(void) {
             ncores = 1;
         }
 #elif defined(PJ_HAS_UNISTD_H) && PJ_HAS_UNISTD_H!=0
-        /* XXX: use _SC_NPROCESSORS_CONF instead? */
         ncores = sysconf(_SC_NPROCESSORS_ONLN);
 #else
         ncores = 1;
