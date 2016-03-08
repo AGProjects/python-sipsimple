@@ -1,4 +1,4 @@
-python-sipsimple (3.0.0) UNRELEASED; urgency=medium
+python-sipsimple (3.0.0) unstable; urgency=medium
 
   * Added OTR encryption support in the chat stream
   * Use openfile where we need control over the file creation
@@ -24,8 +24,20 @@ python-sipsimple (3.0.0) UNRELEASED; urgency=medium
   * Changed default transfer reject code from 486 (Busy) to 603 (Decline)
   * Protect SIPPublicationWillExpire from being called by an older publication
   * Handle race condition where state is SameState for initial PUBLISH
+  * Remove bundled RFC/draft files
+  * zrtp: prefer standard AES to Twofish cipher
+  * Log Engine failures using application.log
+  * Set locks to NULL after destroying them
+  * pjsip: fix compilation warnings with recent versions of FFmpeg
+  * pjsip: removed unused files
+  * pjsip: update to revision 5249
+  * Always build pjsip in non-debug mode
+  * Avoid running timers if subscription dialog was destroyed
+  * Suppress some compilation warnings
+  * Avoid lockups on Engine shutdown
+  * Post notification when SIPApplication gets a fatal error
 
- -- Saul Ibarra <saul@ag-projects.com>  Thu, 25 Feb 2016 16:21:36 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 08 Mar 2016 12:46:06 +0100
 
 python-sipsimple (2.6.0) unstable; urgency=medium
 
