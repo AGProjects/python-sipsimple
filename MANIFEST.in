@@ -1,11 +1,27 @@
-include MANIFEST.in AUTHORS LICENSE build_inplace Changelog setup_pjsip.py
+include Changelog
+include AUTHORS
+include LICENSE
+include README
+include MANIFEST.in
+
+include build_inplace
+include setup_pjsip.py
+
 include sipsimple/payloads/xml-schemas/*.xsd
 include sipsimple/util/_sha1.h
-recursive-include debian  changelog compat control copyright rules
-recursive-include debian  pycompat pyversions *.lintian-overrides
-recursive-include debian  dirs docs
-recursive-include debian/source format
-recursive-include docs    *.txt Install*
-recursive-include deps    *
-prune debian/tmp
-prune debian/python-sipsimple
+
+include debian/changelog
+include debian/compat
+include debian/control
+include debian/copyright
+include debian/dirs
+include debian/docs
+include debian/pycompat
+include debian/pyversions
+include debian/python-sipsimple.lintian-overrides
+include debian/python-sipsimple-dbg.lintian-overrides
+include debian/rules
+include debian/source/format
+
+recursive-include docs *
+recursive-include deps *
