@@ -9,9 +9,6 @@ import shutil
 import subprocess
 import sys
 
-from application.version import Version
-
-
 if sys.platform.startswith('linux'):
     sys_platform = 'linux'
 elif sys.platform.startswith('freebsd'):
@@ -82,7 +79,6 @@ class PJSIP_build_ext(build_ext):
         ])
     boolean_options = build_ext.boolean_options
     boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions", "pjsip-verbose-build"])
-    cython_version_required = Version.parse('0.19')
 
     @staticmethod
     def distutils_exec_process(cmdline, silent=True, input=None, **kwargs):
@@ -116,12 +112,6 @@ class PJSIP_build_ext(build_ext):
         """Returns all options that have a particular prefix on a commandline"""
         chunks = [chunk.strip() for chunk in line.split()]
         return [chunk[len(prefix):] for chunk in chunks if chunk.startswith(prefix)]
-
-    @classmethod
-    def check_cython_version(cls):
-        from Cython.Compiler.Version import version as cython_version
-        if Version.parse(cython_version) < cls.cython_version_required:
-            raise DistutilsError("Cython version %s or higher needed" % cls.cython_version_required)
 
     @classmethod
     def get_makefile_variables(cls, makefile):
@@ -209,7 +199,6 @@ class PJSIP_build_ext(build_ext):
     def cython_sources(self, sources, extension):
         log.info("Compiling Cython extension %s" % extension.name)
         if extension.name == "sipsimple.core._core":
-            self.check_cython_version()
             self.build_dir = os.path.join(self.build_temp, "pjsip")
             if self.pjsip_clean_compile:
                 self.clean_pjsip()
