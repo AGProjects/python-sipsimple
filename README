@@ -132,7 +132,7 @@ Conferencing
  * Conference Event Package (RFC 4575)
  * A Framework for Conferencing with the Session Initiation Protocol (RFC 4353)
  * SIP Call Control - Conferencing for User Agents (RFC 4579)
- * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat)
+ * MSRP ad-hoc multi-party chat sessions (RFC 7701)
 
 Presence
 
