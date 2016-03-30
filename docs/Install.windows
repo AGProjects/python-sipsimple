@@ -90,14 +90,12 @@ Step 2.1. Build and install some extra packages
 mingw-w64-intsafe-headers
 
 * Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-intsafe-headers
-* Enter the directory and build the package: cd mingw-w64-intsafe-headers && makepkg-mingw -L --nocheck
-* Install the package: pacman -U mingw-w64-intsafe-headers*any.pkg.tar.xz
+* Enter the directory and build+install the package: cd mingw-w64-intsafe-headers && makepkg-mingw -cfiL --nocheck --nosign
 
 mingw-w64-dshow-baseclasses
 
 * Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-dshow-baseclasses
-* Enter the directory and build the package: cd mingw-w64-dshow-baseclasses && makepkg-mingw -L --nocheck
-* Install the package: pacman -U mingw-w64-dshow-baseclasses*any.pkg.tar.xz
+* Enter the directory and build+install the package: cd mingw-w64-dshow-baseclasses && makepkg-mingw -cfiL --nocheck --nosign
 
 
 Step 3. Install SIP SIMPLE client SDK
