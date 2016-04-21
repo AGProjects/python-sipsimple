@@ -2157,6 +2157,11 @@ static pj_status_t process_answer( pjsip_inv_session *inv,
 	{
 	    status = pjmedia_sdp_neg_set_local_answer(inv->pool_prov, inv->neg,
 						      local_sdp);
+	} else if (pjmedia_sdp_neg_get_state(inv->neg)==
+		   PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER)
+	{
+	    /* Go forward with our local offer */
+	    status = PJ_SUCCESS;
 	} else {
 
 	    /* Can not specify local SDP at this state. */
