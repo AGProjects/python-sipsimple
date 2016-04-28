@@ -48,7 +48,7 @@ void print_usage( char* argv[] )
         "<bits per second>  [options] <input> <output>\n", argv[0]);
     fprintf(stderr, "       %s -d <sampling rate (Hz)> <channels (1/2)> "
         "[options] <input> <output>\n\n", argv[0]);
-    fprintf(stderr, "mode: voip | audio | restricted-lowdelay\n" );
+    fprintf(stderr, "application: voip | audio | restricted-lowdelay\n" );
     fprintf(stderr, "options:\n" );
     fprintf(stderr, "-e                   : only runs the encoder (output the bit-stream)\n" );
     fprintf(stderr, "-d                   : only runs the decoder (reads the bit-stream as input)\n" );
@@ -245,14 +245,14 @@ int main(int argc, char *argv[])
     double bits=0.0, bits_max=0.0, bits_act=0.0, bits2=0.0, nrg;
     double tot_samples=0;
     opus_uint64 tot_in, tot_out;
-    int bandwidth=-1;
+    int bandwidth=OPUS_AUTO;
     const char *bandwidth_string;
     int lost = 0, lost_prev = 1;
     int toggle = 0;
     opus_uint32 enc_final_range[2];
     opus_uint32 dec_final_range;
     int encode_only=0, decode_only=0;
-    int max_frame_size = 960*6;
+    int max_frame_size = 48000*2;
     int curr_read=0;
     int sweep_bps = 0;
     int random_framesize=0, newsize=0, delayed_celt=0;
@@ -336,15 +336,12 @@ int main(int argc, char *argv[])
 
     /* defaults: */
     use_vbr = 1;
-    bandwidth = OPUS_AUTO;
     max_payload_bytes = MAX_PACKET;
     complexity = 10;
     use_inbandfec = 0;
     forcechannels = OPUS_AUTO;
     use_dtx = 0;
     packet_loss_perc = 0;
-    max_frame_size = 2*48000;
-    curr_read=0;
 
     while( args < argc - 2 ) {
         /* process command line options */
@@ -576,7 +573,7 @@ int main(int argc, char *argv[])
          bandwidth_string = "fullband";
          break;
     case OPUS_AUTO:
-         bandwidth_string = "auto";
+         bandwidth_string = "auto bandwidth";
          break;
     default:
          bandwidth_string = "unknown";
@@ -588,7 +585,7 @@ int main(int argc, char *argv[])
                        (long)sampling_rate, channels);
     else
        fprintf(stderr, "Encoding %ld Hz input at %.3f kb/s "
-                       "in %s mode with %d-sample frames.\n",
+                       "in %s with %d-sample frames.\n",
                        (long)sampling_rate, bitrate_bps*0.001,
                        bandwidth_string, frame_size);
 
@@ -637,7 +634,7 @@ int main(int argc, char *argv[])
             case 4: newsize=sampling_rate/25; break;
             case 5: newsize=3*sampling_rate/50; break;
             }
-            while (newsize < sampling_rate/25 && bitrate_bps-fabs(sweep_bps) <= 3*12*sampling_rate/newsize)
+            while (newsize < sampling_rate/25 && bitrate_bps-abs(sweep_bps) <= 3*12*sampling_rate/newsize)
                newsize*=2;
             if (newsize < sampling_rate/100 && frame_size >= sampling_rate/100)
             {
@@ -837,35 +834,39 @@ int main(int argc, char *argv[])
         }
 
         lost_prev = lost;
-
-        /* count bits */
-        bits += len[toggle]*8;
-        bits_max = ( len[toggle]*8 > bits_max ) ? len[toggle]*8 : bits_max;
         if( count >= use_inbandfec ) {
-            nrg = 0.0;
+            /* count bits */
+            bits += len[toggle]*8;
+            bits_max = ( len[toggle]*8 > bits_max ) ? len[toggle]*8 : bits_max;
+            bits2 += len[toggle]*len[toggle]*64;
             if (!decode_only)
             {
+                nrg = 0.0;
                 for ( k = 0; k < frame_size * channels; k++ ) {
                     nrg += in[ k ] * (double)in[ k ];
                 }
+                nrg /= frame_size * channels;
+                if( nrg > 1e5 ) {
+                    bits_act += len[toggle]*8;
+                    count_act++;
+                }
             }
-            if ( ( nrg / ( frame_size * channels ) ) > 1e5 ) {
-                bits_act += len[toggle]*8;
-                count_act++;
-            }
-            /* Variance */
-            bits2 += len[toggle]*len[toggle]*64;
         }
         count++;
         toggle = (toggle + use_inbandfec) & 1;
     }
+
+    /* Print out bitrate statistics */
+    if(decode_only)
+        frame_size = (int)(tot_samples / count);
+    count -= use_inbandfec;
     fprintf (stderr, "average bitrate:             %7.3f kb/s\n",
                      1e-3*bits*sampling_rate/tot_samples);
     fprintf (stderr, "maximum bitrate:             %7.3f kb/s\n",
                      1e-3*bits_max*sampling_rate/frame_size);
     if (!decode_only)
        fprintf (stderr, "active bitrate:              %7.3f kb/s\n",
-               1e-3*bits_act*sampling_rate/(frame_size*(double)count_act));
+               1e-3*bits_act*sampling_rate/(1e-15+frame_size*(double)count_act));
     fprintf (stderr, "bitrate standard deviation:  %7.3f kb/s\n",
             1e-3*sqrt(bits2/count - bits*bits/(count*(double)count))*sampling_rate/frame_size);
     /* Close any files to which intermediate results were stored */

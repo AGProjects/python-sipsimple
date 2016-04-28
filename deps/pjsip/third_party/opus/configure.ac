@@ -23,7 +23,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 # For libtool.
 dnl Please update these for releases.
 OPUS_LT_CURRENT=5
-OPUS_LT_REVISION=0
+OPUS_LT_REVISION=2
 OPUS_LT_AGE=5
 
 AC_SUBST(OPUS_LT_CURRENT)
@@ -189,11 +189,15 @@ AC_ARG_ENABLE([rtcd],
     [AS_HELP_STRING([--disable-rtcd], [Disable run-time CPU capabilities detection])],,
     [enable_rtcd=yes])
 
+AC_ARG_ENABLE([intrinsics],
+    [AS_HELP_STRING([--enable-intrinsics], [Enable intrinsics optimizations for ARM(float) X86(fixed)])],,
+    [enable_intrinsics=no])
+
 rtcd_support=no
 cpu_arm=no
 
 AS_IF([test x"${enable_asm}" = x"yes"],[
-    inline_optimization="No ASM for your platform, please send patches"
+    inline_optimization="No inline ASM for your platform, please send patches"
     case $host_cpu in
       arm*)
         dnl Currently we only have asm for fixed-point
@@ -317,6 +321,14 @@ AS_IF([test x"${enable_asm}" = x"yes"],[
                     [rtcd_support=ARM"$rtcd_support"],
                     [rtcd_support="no"]
                 )
+                AC_MSG_CHECKING([for apple style tools])
+                AC_PREPROC_IFELSE([AC_LANG_PROGRAM([
+#ifndef __APPLE__
+#error 1
+#endif],[])],
+                    [AC_MSG_RESULT([yes]); ARM2GNU_PARAMS="--apple"],
+                    [AC_MSG_RESULT([no]); ARM2GNU_PARAMS=""])
+                AC_SUBST(ARM2GNU_PARAMS)
             ],
             [
                 AC_MSG_WARN(
@@ -331,11 +343,371 @@ AS_IF([test x"${enable_asm}" = x"yes"],[
    asm_optimization="disabled"
 ])
 
-AM_CONDITIONAL([CPU_ARM], [test "$cpu_arm" = "yes"])
 AM_CONDITIONAL([OPUS_ARM_INLINE_ASM],
-    [test x"${inline_optimization:0:3}" = x"ARM"])
+    [test x"${inline_optimization%% *}" = x"ARM"])
 AM_CONDITIONAL([OPUS_ARM_EXTERNAL_ASM],
-    [test x"${asm_optimization:0:3}" = x"ARM"])
+    [test x"${asm_optimization%% *}" = x"ARM"])
+
+AM_CONDITIONAL([HAVE_SSE], [false])
+AM_CONDITIONAL([HAVE_SSE2], [false])
+AM_CONDITIONAL([HAVE_SSE4_1], [false])
+AM_CONDITIONAL([HAVE_AVX], [false])
+
+m4_define([DEFAULT_X86_SSE_CFLAGS], [-msse])
+m4_define([DEFAULT_X86_SSE2_CFLAGS], [-msse2])
+m4_define([DEFAULT_X86_SSE4_1_CFLAGS], [-msse4.1])
+m4_define([DEFAULT_X86_AVX_CFLAGS], [-mavx])
+m4_define([DEFAULT_ARM_NEON_INTR_CFLAGS], [-mfpu=neon])
+# With GCC on ARM32 softfp architectures (e.g. Android, or older Ubuntu) you need to specify
+# -mfloat-abi=softfp for -mfpu=neon to work.  However, on ARM32 hardfp architectures (e.g. newer Ubuntu),
+# this option will break things.
+
+# As a heuristic, if host matches arm*eabi* but not arm*hf*, it's probably soft-float.
+m4_define([DEFAULT_ARM_NEON_SOFTFP_INTR_CFLAGS], [-mfpu=neon -mfloat-abi=softfp])
+
+AS_CASE([$host],
+	[arm*hf*], [AS_VAR_SET([RESOLVED_DEFAULT_ARM_NEON_INTR_CFLAGS], "DEFAULT_ARM_NEON_INTR_CFLAGS")],
+	[arm*eabi*], [AS_VAR_SET([RESOLVED_DEFAULT_ARM_NEON_INTR_CFLAGS], "DEFAULT_ARM_NEON_SOFTFP_INTR_CFLAGS")],
+	[AS_VAR_SET([RESOLVED_DEFAULT_ARM_NEON_INTR_CFLAGS], "DEFAULT_ARM_NEON_INTR_CFLAGS")])
+
+AC_ARG_VAR([X86_SSE_CFLAGS], [C compiler flags to compile SSE intrinsics @<:@default=]DEFAULT_X86_SSE_CFLAGS[@:>@])
+AC_ARG_VAR([X86_SSE2_CFLAGS], [C compiler flags to compile SSE2 intrinsics @<:@default=]DEFAULT_X86_SSE2_CFLAGS[@:>@])
+AC_ARG_VAR([X86_SSE4_1_CFLAGS], [C compiler flags to compile SSE4.1 intrinsics @<:@default=]DEFAULT_X86_SSE4_1_CFLAGS[@:>@])
+AC_ARG_VAR([X86_AVX_CFLAGS], [C compiler flags to compile AVX intrinsics @<:@default=]DEFAULT_X86_AVX_CFLAGS[@:>@])
+AC_ARG_VAR([ARM_NEON_INTR_CFLAGS], [C compiler flags to compile ARM NEON intrinsics @<:@default=]DEFAULT_ARM_NEON_INTR_CFLAGS / DEFAULT_ARM_NEON_SOFTFP_INTR_CFLAGS[@:>@])
+
+AS_VAR_SET_IF([X86_SSE_CFLAGS], [], [AS_VAR_SET([X86_SSE_CFLAGS], "DEFAULT_X86_SSE_CFLAGS")])
+AS_VAR_SET_IF([X86_SSE2_CFLAGS], [], [AS_VAR_SET([X86_SSE2_CFLAGS], "DEFAULT_X86_SSE2_CFLAGS")])
+AS_VAR_SET_IF([X86_SSE4_1_CFLAGS], [], [AS_VAR_SET([X86_SSE4_1_CFLAGS], "DEFAULT_X86_SSE4_1_CFLAGS")])
+AS_VAR_SET_IF([X86_AVX_CFLAGS], [], [AS_VAR_SET([X86_AVX_CFLAGS], "DEFAULT_X86_AVX_CFLAGS")])
+AS_VAR_SET_IF([ARM_NEON_INTR_CFLAGS], [], [AS_VAR_SET([ARM_NEON_INTR_CFLAGS], ["$RESOLVED_DEFAULT_ARM_NEON_INTR_CFLAGS"])])
+
+AC_DEFUN([OPUS_PATH_NE10],
+   [
+      AC_ARG_WITH(NE10,
+                  AC_HELP_STRING([--with-NE10=PFX],[Prefix where libNE10 is installed (optional)]),
+                  NE10_prefix="$withval", NE10_prefix="")
+      AC_ARG_WITH(NE10-libraries,
+                  AC_HELP_STRING([--with-NE10-libraries=DIR],
+                        [Directory where libNE10 library is installed (optional)]),
+                  NE10_libraries="$withval", NE10_libraries="")
+      AC_ARG_WITH(NE10-includes,
+                  AC_HELP_STRING([--with-NE10-includes=DIR],
+                                 [Directory where libNE10 header files are installed (optional)]),
+                  NE10_includes="$withval", NE10_includes="")
+
+      if test "x$NE10_libraries" != "x" ; then
+         NE10_LIBS="-L$NE10_libraries"
+      elif test "x$NE10_prefix" = "xno" || test "x$NE10_prefix" = "xyes" ; then
+         NE10_LIBS=""
+      elif test "x$NE10_prefix" != "x" ; then
+         NE10_LIBS="-L$NE10_prefix/lib"
+      elif test "x$prefix" != "xNONE" ; then
+         NE10_LIBS="-L$prefix/lib"
+      fi
+
+      if test "x$NE10_prefix" != "xno" ; then
+         NE10_LIBS="$NE10_LIBS -lNE10"
+      fi
+
+      if test "x$NE10_includes" != "x" ; then
+         NE10_CFLAGS="-I$NE10_includes"
+      elif test "x$NE10_prefix" = "xno" || test "x$NE10_prefix" = "xyes" ; then
+         NE10_CFLAGS=""
+      elif test "x$ogg_prefix" != "x" ; then
+         NE10_CFLAGS="-I$NE10_prefix/include"
+      elif test "x$prefix" != "xNONE"; then
+         NE10_CFLAGS="-I$prefix/include"
+      fi
+
+      AC_MSG_CHECKING(for NE10)
+      save_CFLAGS="$CFLAGS"; CFLAGS="$NE10_CFLAGS"
+      save_LIBS="$LIBS"; LIBS="$NE10_LIBS $LIBM"
+      AC_LINK_IFELSE(
+         [
+            AC_LANG_PROGRAM(
+               [[#include <NE10_init.h>
+               ]],
+               [[
+                  ne10_fft_cfg_float32_t cfg;
+                  cfg = ne10_fft_alloc_c2c_float32_neon(480);
+               ]]
+            )
+         ],[
+            HAVE_ARM_NE10=1
+            AC_MSG_RESULT([yes])
+         ],[
+            HAVE_ARM_NE10=0
+            AC_MSG_RESULT([no])
+            NE10_CFLAGS=""
+            NE10_LIBS=""
+         ]
+      )
+      CFLAGS="$save_CFLAGS"; LIBS="$save_LIBS"
+      #Now we know if libNE10 is installed or not
+      AS_IF([test x"$HAVE_ARM_NE10" = x"1"],
+         [
+            AC_DEFINE([HAVE_ARM_NE10], 1, [NE10 library is installed on host. Make sure it is on target!])
+            AC_SUBST(HAVE_ARM_NE10)
+            AC_SUBST(NE10_CFLAGS)
+            AC_SUBST(NE10_LIBS)
+         ]
+      )
+   ]
+)
+
+AS_IF([test x"$enable_intrinsics" = x"yes"],[
+   intrinsics_support=""
+   AS_CASE([$host_cpu],
+   [arm*],
+   [
+      cpu_arm=yes
+      OPUS_CHECK_INTRINSICS(
+         [ARM Neon],
+         [$ARM_NEON_INTR_CFLAGS],
+         [OPUS_ARM_MAY_HAVE_NEON_INTR],
+         [OPUS_ARM_PRESUME_NEON_INTR],
+         [[#include <arm_neon.h>
+         ]],
+         [[
+            static float32x4_t A0, A1, SUMM;
+            SUMM = vmlaq_f32(SUMM, A0, A1);
+         ]]
+      )
+      AS_IF([test x"$OPUS_ARM_MAY_HAVE_NEON_INTR" = x"1" && test x"$OPUS_ARM_PRESUME_NEON_INTR" != x"1"],
+          [
+             OPUS_ARM_NEON_INTR_CFLAGS="$ARM_NEON_INTR_CFLAGS"
+             AC_SUBST([OPUS_ARM_NEON_INTR_CFLAGS])
+          ]
+      )
+
+      AS_IF([test x"$OPUS_ARM_MAY_HAVE_NEON_INTR" = x"1"],
+      [
+         AC_DEFINE([OPUS_ARM_MAY_HAVE_NEON_INTR], 1, [Compiler supports ARMv7 Neon Intrinsics])
+         intrinsics_support="$intrinsics_support (Neon_Intrinsics)"
+
+         AS_IF([test x"enable_rtcd" != x"" && test x"$OPUS_ARM_PRESUME_NEON_INTR" != x"1"],
+            [rtcd_support="$rtcd_support (ARMv7_Neon_Intrinsics)"])
+
+         AS_IF([test x"$OPUS_ARM_PRESUME_NEON_INTR" = x"1"],
+            [AC_DEFINE([OPUS_ARM_PRESUME_NEON_INTR], 1, [Define if binary requires NEON intrinsics support])])
+
+         OPUS_PATH_NE10()
+         AS_IF([test x"$NE10_LIBS" != x""],
+         [
+              intrinsics_support="$intrinsics_support (NE10)"
+              AS_IF([test x"enable_rtcd" != x"" \
+               && test x"$OPUS_ARM_PRESUME_NEON_INTR" != x"1"],
+                 [rtcd_support="$rtcd_support (NE10)"])
+         ])
+
+         AS_IF([test x"$rtcd_support" = x""],
+            [rtcd_support=no])
+
+         AS_IF([test x"$intrinsics_support" = x""],
+            [intrinsics_support=no],
+            [intrinsics_support="arm$intrinsics_support"])
+      ],
+      [
+         AC_MSG_WARN([Compiler does not support ARM intrinsics])
+         intrinsics_support=no
+      ])
+   ],
+   [i?86|x86_64],
+   [
+      OPUS_CHECK_INTRINSICS(
+         [SSE],
+         [$X86_SSE_CFLAGS],
+         [OPUS_X86_MAY_HAVE_SSE],
+         [OPUS_X86_PRESUME_SSE],
+         [[#include <xmmintrin.h>
+         ]],
+         [[
+             static __m128 mtest;
+             mtest = _mm_setzero_ps();
+         ]]
+      )
+      AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE" = x"1" && test x"$OPUS_X86_PRESUME_SSE" != x"1"],
+          [
+             OPUS_X86_SSE_CFLAGS="$X86_SSE_CFLAGS"
+             AC_SUBST([OPUS_X86_SSE_CFLAGS])
+          ]
+      )
+      OPUS_CHECK_INTRINSICS(
+         [SSE2],
+         [$X86_SSE2_CFLAGS],
+         [OPUS_X86_MAY_HAVE_SSE2],
+         [OPUS_X86_PRESUME_SSE2],
+         [[#include <emmintrin.h>
+         ]],
+         [[
+             static __m128i mtest;
+             mtest = _mm_setzero_si128();
+         ]]
+      )
+      AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE2" = x"1" && test x"$OPUS_X86_PRESUME_SSE2" != x"1"],
+          [
+             OPUS_X86_SSE2_CFLAGS="$X86_SSE2_CFLAGS"
+             AC_SUBST([OPUS_X86_SSE2_CFLAGS])
+          ]
+      )
+      OPUS_CHECK_INTRINSICS(
+         [SSE4.1],
+         [$X86_SSE4_1_CFLAGS],
+         [OPUS_X86_MAY_HAVE_SSE4_1],
+         [OPUS_X86_PRESUME_SSE4_1],
+         [[#include <smmintrin.h>
+         ]],
+         [[
+            static __m128i mtest;
+            mtest = _mm_setzero_si128();
+            mtest = _mm_cmpeq_epi64(mtest, mtest);
+         ]]
+      )
+      AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE4_1" = x"1" && test x"$OPUS_X86_PRESUME_SSE4_1" != x"1"],
+          [
+             OPUS_X86_SSE4_1_CFLAGS="$X86_SSE4_1_CFLAGS"
+             AC_SUBST([OPUS_X86_SSE4_1_CFLAGS])
+          ]
+      )
+      OPUS_CHECK_INTRINSICS(
+         [AVX],
+         [$X86_AVX_CFLAGS],
+         [OPUS_X86_MAY_HAVE_AVX],
+         [OPUS_X86_PRESUME_AVX],
+         [[#include <immintrin.h>
+         ]],
+         [[
+            static __m256 mtest;
+            mtest = _mm256_setzero_ps();
+         ]]
+      )
+      AS_IF([test x"$OPUS_X86_MAY_HAVE_AVX" = x"1" && test x"$OPUS_X86_PRESUME_AVX" != x"1"],
+          [
+             OPUS_X86_AVX_CFLAGS="$X86_AVX_CFLAGS"
+             AC_SUBST([OPUS_X86_AVX_CFLAGS])
+          ]
+      )
+         AS_IF([test x"$rtcd_support" = x"no"], [rtcd_support=""])
+         AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE" = x"1"],
+         [
+            AC_DEFINE([OPUS_X86_MAY_HAVE_SSE], 1, [Compiler supports X86 SSE Intrinsics])
+            intrinsics_support="$intrinsics_support SSE"
+
+            AS_IF([test x"$OPUS_X86_PRESUME_SSE" = x"1"],
+               [AC_DEFINE([OPUS_X86_PRESUME_SSE], 1, [Define if binary requires SSE intrinsics support])],
+               [rtcd_support="$rtcd_support SSE"])
+         ],
+         [
+            AC_MSG_WARN([Compiler does not support SSE intrinsics])
+         ])
+
+         AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE2" = x"1"],
+         [
+            AC_DEFINE([OPUS_X86_MAY_HAVE_SSE2], 1, [Compiler supports X86 SSE2 Intrinsics])
+            intrinsics_support="$intrinsics_support SSE2"
+
+            AS_IF([test x"$OPUS_X86_PRESUME_SSE2" = x"1"],
+               [AC_DEFINE([OPUS_X86_PRESUME_SSE2], 1, [Define if binary requires SSE2 intrinsics support])],
+               [rtcd_support="$rtcd_support SSE2"])
+         ],
+         [
+            AC_MSG_WARN([Compiler does not support SSE2 intrinsics])
+         ])
+
+         AS_IF([test x"$OPUS_X86_MAY_HAVE_SSE4_1" = x"1"],
+         [
+            AC_DEFINE([OPUS_X86_MAY_HAVE_SSE4_1], 1, [Compiler supports X86 SSE4.1 Intrinsics])
+            intrinsics_support="$intrinsics_support SSE4.1"
+
+            AS_IF([test x"$OPUS_X86_PRESUME_SSE4_1" = x"1"],
+               [AC_DEFINE([OPUS_X86_PRESUME_SSE4_1], 1, [Define if binary requires SSE4.1 intrinsics support])],
+               [rtcd_support="$rtcd_support SSE4.1"])
+         ],
+         [
+            AC_MSG_WARN([Compiler does not support SSE4.1 intrinsics])
+         ])
+         AS_IF([test x"$OPUS_X86_MAY_HAVE_AVX" = x"1"],
+         [
+            AC_DEFINE([OPUS_X86_MAY_HAVE_AVX], 1, [Compiler supports X86 AVX Intrinsics])
+            intrinsics_support="$intrinsics_support AVX"
+
+            AS_IF([test x"$OPUS_X86_PRESUME_AVX" = x"1"],
+               [AC_DEFINE([OPUS_X86_PRESUME_AVX], 1, [Define if binary requires AVX intrinsics support])],
+               [rtcd_support="$rtcd_support AVX"])
+         ],
+         [
+            AC_MSG_WARN([Compiler does not support AVX intrinsics])
+         ])
+
+         AS_IF([test x"$intrinsics_support" = x""],
+            [intrinsics_support=no],
+            [intrinsics_support="x86$intrinsics_support"]
+         )
+         AS_IF([test x"$rtcd_support" = x""],
+            [rtcd_support=no],
+            [rtcd_support="x86$rtcd_support"],
+        )
+
+    AS_IF([test x"$enable_rtcd" = x"yes" && test x"$rtcd_support" != x""],[
+            get_cpuid_by_asm="no"
+            AC_MSG_CHECKING([How to get X86 CPU Info])
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                 #include <stdio.h>
+            ]],[[
+                 unsigned int CPUInfo0;
+                 unsigned int CPUInfo1;
+                 unsigned int CPUInfo2;
+                 unsigned int CPUInfo3;
+                 unsigned int InfoType;
+                 __asm__ __volatile__ (
+                 "cpuid":
+                 "=a" (CPUInfo0),
+                 "=b" (CPUInfo1),
+                 "=c" (CPUInfo2),
+                 "=d" (CPUInfo3) :
+                 "a" (InfoType), "c" (0)
+                );
+            ]])],
+            [get_cpuid_by_asm="yes"
+             AC_MSG_RESULT([Inline Assembly])
+			 AC_DEFINE([CPU_INFO_BY_ASM], [1], [Get CPU Info by asm method])],
+             [AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+                 #include <cpuid.h>
+            ]],[[
+                 unsigned int CPUInfo0;
+                 unsigned int CPUInfo1;
+                 unsigned int CPUInfo2;
+                 unsigned int CPUInfo3;
+                 unsigned int InfoType;
+                 __get_cpuid(InfoType, &CPUInfo0, &CPUInfo1, &CPUInfo2, &CPUInfo3);
+            ]])],
+            [AC_MSG_RESULT([C method])
+			 AC_DEFINE([CPU_INFO_BY_C], [1], [Get CPU Info by c method])],
+            [AC_MSG_ERROR([no supported Get CPU Info method, please disable intrinsics])])])])
+   ],
+   [
+      AC_MSG_WARN([No intrinsics support for your architecture])
+      intrinsics_support="no"
+   ])
+],
+[
+   intrinsics_support="no"
+])
+
+AM_CONDITIONAL([CPU_ARM], [test "$cpu_arm" = "yes"])
+AM_CONDITIONAL([OPUS_ARM_NEON_INTR],
+    [test x"$OPUS_ARM_MAY_HAVE_NEON_INTR" = x"1"])
+AM_CONDITIONAL([HAVE_ARM_NE10],
+    [test x"$HAVE_ARM_NE10" = x"1"])
+AM_CONDITIONAL([HAVE_SSE],
+    [test x"$OPUS_X86_MAY_HAVE_SSE" = x"1"])
+AM_CONDITIONAL([HAVE_SSE2],
+    [test x"$OPUS_X86_MAY_HAVE_SSE2" = x"1"])
+AM_CONDITIONAL([HAVE_SSE4_1],
+    [test x"$OPUS_X86_MAY_HAVE_SSE4_1" = x"1"])
+AM_CONDITIONAL([HAVE_AVX],
+    [test x"$OPUS_X86_MAY_HAVE_AVX" = x"1"])
 
 AS_IF([test x"$enable_rtcd" = x"yes"],[
     AS_IF([test x"$rtcd_support" != x"no"],[
@@ -443,6 +815,7 @@ AC_MSG_NOTICE([
       Fixed point debugging: ......... ${enable_fixed_point_debug}
       Inline Assembly Optimizations: . ${inline_optimization}
       External Assembly Optimizations: ${asm_optimization}
+      Intrinsics Optimizations.......: ${intrinsics_support}
       Run-time CPU detection: ........ ${rtcd_support}
       Custom modes: .................. ${enable_custom_modes}
       Assertion checking: ............ ${enable_assertions}
