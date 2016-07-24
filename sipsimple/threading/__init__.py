@@ -69,13 +69,13 @@ class ThreadManager(object):
 
 
 @decorator
-def run_in_thread(thread_id):
+def run_in_thread(thread_id, scheduled=False):
     def thread_decorator(function):
         @preserve_signature(function)
         def wrapper(*args, **kw):
             thread_manager = ThreadManager()
             thread = thread_manager.get_thread(thread_id)
-            if thread is current_thread():
+            if thread is current_thread() and not scheduled:
                 function(*args, **kw)
             else:
                 thread.put(CallFunctionEvent(function, args, kw))
@@ -90,6 +90,12 @@ def call_in_thread(thread_id, function, *args, **kw):
         function(*args, **kw)
     else:
         thread.put(CallFunctionEvent(function, args, kw))
+
+
+def schedule_in_thread(thread_id, function, *args, **kw):
+    thread_manager = ThreadManager()
+    thread = thread_manager.get_thread(thread_id)
+    thread.put(CallFunctionEvent(function, args, kw))
 
 
 @decorator
