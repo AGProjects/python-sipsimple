@@ -50,7 +50,7 @@ hasn't been tested.
 * Upgrade the system packages by following these instructions:
   https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
 * Install the compiler toolchain: pacman -S mingw-w64-i686-toolchain
-* Install the usual utilities for compiling software: pacman -S make mingw-w64-i686-libtool autoconf automake-wrapper mingw-w64-i686-pkgconf
+* Install the usual utilities for compiling software: pacman -S make mingw-w64-i686-libtool autoconf automake-wrapper
 
 After MSYS2 was installed a new menu group was created on the Window start menu: "MSYS2 32bit",
 which contains 3 links: MinGW-w64 Win32 Shell, MinGW-w64 Win64 Shell and MSYS2 Shell. We'll
@@ -80,7 +80,7 @@ Step 2. Install dependencies
 See Dependencies.txt for detailed description of the required libraries and
 their minimum version number.
 
-* Install required dependencies with pacman: pacman -S mingw-w64-i686-gnutls mingw-w64-i686-python2-lxml mingw-w64-i686-ffmpeg mingw-w64-i686-sqlite3 msys2-w32api-headers
+* Install required dependencies with pacman: pacman -S mingw-w64-i686-gnutls mingw-w64-i686-python2-lxml mingw-w64-i686-ffmpeg mingw-w64-i686-sqlite3 msys2-w32api-headers mingw-w64-i686-gmp mingw-w64-i686-mpc mingw-w64-i686-mpfr
 * Install the Python package dependencies: pip install cython dnspython twisted python-dateutil greenlet python-application python-cjson python-gnutls
 
 
