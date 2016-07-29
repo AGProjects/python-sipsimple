@@ -99,13 +99,13 @@ class MSRPSettings(SettingsGroup):
 
 class Account(SettingsObject):
     """
-    Object represeting a SIP account. Contains configuration settings and
+    Object representing a SIP account. Contains configuration settings and
     attributes for accessing SIP related objects.
 
     When the account is active, it will register, publish its presence and
     subscribe to watcher-info events depending on its settings.
 
-    If the object is unpickled and its enabled flag was set, it will
+    If the object is un-pickled and its enabled flag was set, it will
     automatically activate.
 
     When the save method is called, depending on the value of the enabled flag,
