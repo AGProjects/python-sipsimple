@@ -212,7 +212,7 @@ class ConfigurationManager(object):
                 old_data[key] = value
 
 
-## Descriptors and base classes used for represeting configuration settings
+# Descriptors and base classes used for representing configuration settings
 
 class DefaultValue(object):
     """
@@ -389,7 +389,7 @@ class AbstractSetting(object):
 
 class Setting(AbstractSetting):
     """
-    Descriptor represeting a setting in a configuration object.
+    Descriptor representing a setting in a configuration object.
 
     If a setting is set to the object DefaultValue, it will be reset to the
     default. Also, only Setting attributes with nillable=True can be assigned
@@ -499,7 +499,7 @@ class Setting(AbstractSetting):
 
 class CorrelatedSetting(Setting):
     """
-    Descriptor represeting a setting in a configuration object that is
+    Descriptor representing a setting in a configuration object that is
     correlated with another setting on the same configuration object.
 
     Sibling is the name of the sibling setting and validator is a callable
@@ -528,7 +528,7 @@ class CorrelatedSetting(Setting):
 
 class RuntimeSetting(Setting):
     """
-    Descriptor represeting a runtime setting in a configuration object.
+    Descriptor representing a runtime setting in a configuration object.
 
     Unlike the standard setting, the runtime setting is never written to
     nor read from the configuration file. It resides in memory only and
@@ -601,7 +601,7 @@ class SettingsState(object):
 
     def update(self, object):
         """
-        Update the settings and subsettings of this settings object using the
+        Update the settings and sub-settings of this settings object using the
         ones in the specified object.
         """
         raise NotImplementedError
@@ -663,7 +663,7 @@ class SettingsGroup(SettingsState):
     Base class for settings groups, i.e. non-leaf and non-root nodes in the
     configuration tree. All SettingsGroup subclasses are descriptor instances
     which return an instance of the subclass type when accessed. All
-    SettingsGroup intances are created without passing any arguments to the
+    SettingsGroup instances are created without passing any arguments to the
     constructor.
 
     class ContainedGroup(SettingsGroup):
