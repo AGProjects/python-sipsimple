@@ -427,7 +427,7 @@ class Setting(AbstractSetting):
             if obj in self.values and self.values[obj] == value:
                 return
             self.values[obj] = value
-            self.dirty[obj] = value != self.oldvalues.get(obj, DefaultValue)
+            self.dirty[obj] = value != self.oldvalues.get(obj, DefaultValue)  # if value changes from implicit default (DefaultValue) to explicit default (self.default) we mark it as dirty
 
     def __getstate__(self, obj):
         value = self.values.get(obj, DefaultValue)
@@ -474,7 +474,7 @@ class Setting(AbstractSetting):
         """
         with self.lock:
             try:
-                if self.dirty.get(obj, False):
+                if self.dirty.get(obj, False):  # if the object is dirty because it switched from implicit default to explicit default, ModifiedValue will have old==new==self.default (see __set__)
                     return ModifiedValue(old=self.oldvalues.get(obj, self.default), new=self.values.get(obj, self.default))
                 else:
                     return None
