@@ -532,13 +532,13 @@ class BonjourAccountEnabledSetting(Setting):
 
 class BonjourAccount(SettingsObject):
     """
-    Object represeting a bonjour account. Contains configuration settings and
+    Object representing a bonjour account. Contains configuration settings and
     attributes for accessing bonjour related options.
 
     When the account is active, it will send broadcast its contact address on
     the LAN.
 
-    If the object is unpickled and its enabled flag was set, it will
+    If the object is un-pickled and its enabled flag was set, it will
     automatically activate.
 
     When the save method is called, depending on the value of the enabled flag,
