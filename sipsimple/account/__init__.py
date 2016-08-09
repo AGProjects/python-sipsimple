@@ -169,10 +169,6 @@ class Account(SettingsObject):
         self._presence_version = None
         self._dialog_version = None
 
-    @property
-    def xcap_available(self):
-        return self.xcap.enabled and self.xcap.discovered
-
     def start(self):
         if self._started or self._deleted:
             return
@@ -597,10 +593,6 @@ class BonjourAccount(SettingsObject):
 
     def __repr__(self):
         return '%s()' % self.__class__.__name__
-
-    @property
-    def xcap_available(self):
-        return False
 
     def start(self):
         if self._started:
