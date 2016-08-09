@@ -583,11 +583,17 @@ class BonjourAccount(SettingsObject):
         self._activation_lock = coros.Semaphore(1)
         self._bonjour_services = BonjourServices(self)
 
-        # initialize nat settings
+        # initialize fake settings (these are here to make the bonjour account quack like a duck)
+
         self.nat_traversal = NATTraversalSettings()
         self.nat_traversal.use_ice = False
         self.nat_traversal.msrp_relay = None
         self.nat_traversal.use_msrp_relay_for_outbound = False
+
+        self.xcap = XCAPSettings()
+        self.xcap.enabled = False
+        self.xcap.discovered = False
+        self.xcap.xcap_root = None
 
     def __repr__(self):
         return '%s()' % self.__class__.__name__
