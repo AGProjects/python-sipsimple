@@ -2194,16 +2194,25 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
     cdef pj_ice_strans *ice_st
     cdef pj_ice_sess *ice_sess
     cdef pj_time_val tv, start_time
+    cdef pj_mutex_t *lock
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
     except:
         return
+
+    rtp_transport = _extract_rtp_transport(tp)
+    if rtp_transport is None:
+        return
+
+    lock = rtp_transport._lock
+    with nogil:
+        status = pj_mutex_lock(lock)
+    if status != 0:
+        raise PJSIPError("failed to acquire lock", status)
+
     try:
-        rtp_transport = _extract_rtp_transport(tp)
-        if rtp_transport is None:
-            return
         if op == PJ_ICE_STRANS_OP_NEGOTIATION:
             if status == 0:
                 ice_st = pjmedia_ice_get_strans(tp)
@@ -2239,43 +2248,69 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
         else:
             # silence compiler warning
             pass
-    except:
-        ua._handle_exception(1)
+    finally:
+        with nogil:
+            pj_mutex_unlock(lock)
+
 
 cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil:
+    cdef int status
+    cdef pj_mutex_t *lock
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
     except:
         return
+
+    rtp_transport = _extract_rtp_transport(tp)
+    if rtp_transport is None:
+        return
+
+    lock = rtp_transport._lock
+    with nogil:
+        status = pj_mutex_lock(lock)
+    if status != 0:
+        raise PJSIPError("failed to acquire lock", status)
+
     try:
-        rtp_transport = _extract_rtp_transport(tp)
-        if rtp_transport is None:
-            return
         _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=rtp_transport,
                                                                     prev_state=_ice_state_to_str(prev),
                                                                     state=_ice_state_to_str(curr)))
-    except:
-        ua._handle_exception(1)
+    finally:
+        with nogil:
+            pj_mutex_unlock(lock)
+
 
 cdef void _RTPTransport_cb_ice_stop(pjmedia_transport *tp, char *reason, int err) with gil:
+    cdef int status
+    cdef pj_mutex_t *lock
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
     except:
         return
+
+    rtp_transport = _extract_rtp_transport(tp)
+    if rtp_transport is None:
+        return
+
+    lock = rtp_transport._lock
+    with nogil:
+        status = pj_mutex_lock(lock)
+    if status != 0:
+        raise PJSIPError("failed to acquire lock", status)
+
     try:
-        rtp_transport = _extract_rtp_transport(tp)
-        if rtp_transport is None:
-            return
         rtp_transport._rtp_valid_pair = None
         _reason = reason
         if _reason != b"media stop requested":
             _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_reason))
-    except:
-        ua._handle_exception(1)
+    finally:
+        with nogil:
+            pj_mutex_unlock(lock)
+
 
 cdef void _RTPTransport_cb_zrtp_secure_on(pjmedia_transport *tp, char* cipher) with gil:
    cdef RTPTransport rtp_transport
