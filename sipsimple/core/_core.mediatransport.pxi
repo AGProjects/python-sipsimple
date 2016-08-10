@@ -2190,6 +2190,7 @@ cdef object _extract_rtp_transport(pjmedia_transport *tp):
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
     # Despite the name this callback is not only called when ICE negotiation ends, it depends on the
     # op parameter
+    cdef int lock_status
     cdef double duration
     cdef pj_ice_strans *ice_st
     cdef pj_ice_sess *ice_sess
@@ -2208,8 +2209,8 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
 
     lock = rtp_transport._lock
     with nogil:
-        status = pj_mutex_lock(lock)
-    if status != 0:
+        lock_status = pj_mutex_lock(lock)
+    if lock_status != 0:
         raise PJSIPError("failed to acquire lock", status)
 
     try:
