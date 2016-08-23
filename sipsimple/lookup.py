@@ -299,7 +299,10 @@ class DNSLookup(object):
                     supported_transports = ['tls']
                 # First try NAPTR lookup
                 naptr_services = [service for service, transport in naptr_service_transport_map.iteritems() if transport in supported_transports]
-                pointers = self._lookup_naptr_record(resolver, uri.host, naptr_services, log_context=log_context)
+                try:
+                    pointers = self._lookup_naptr_record(resolver, uri.host, naptr_services, log_context=log_context)
+                except dns.resolver.Timeout:
+                    pointers = []
                 if pointers:
                     return [Route(address=result.address, port=result.port, transport=naptr_service_transport_map[result.service]) for result in pointers]
                 else:
@@ -307,7 +310,10 @@ class DNSLookup(object):
                     routes = []
                     for transport in supported_transports:
                         record_name = '%s.%s' % (transport_service_map[transport], uri.host)
-                        services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
+                        try:
+                            services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
+                        except dns.resolver.Timeout:
+                            continue
                         if services[record_name]:
                             routes.extend(Route(address=result.address, port=result.port, transport=transport) for result in services[record_name])
                     if routes:
