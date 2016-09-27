@@ -1,6 +1,5 @@
 
 import errno
-import ctypes
 import itertools
 import os
 import platform
@@ -22,16 +21,25 @@ else:
 # to be used. -Saul
 
 if sys_platform == "darwin":
-    sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
-    sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
+    min_osx_version = "10.11"
     try:
-        osx_sdk_path = subprocess.check_output(["xcodebuild", "-version", "-sdk", "macosx%s" % sipsimple_osx_sdk, "Path"]).strip()
+        osx_sdk_path = subprocess.check_output(["xcodebuild", "-version", "-sdk", "macosx", "Path"]).strip()
     except subprocess.CalledProcessError as e:
         raise RuntimeError("Could not locate SDK path: %s" % str(e))
-    arch_flags =  "-arch " + " -arch ".join(sipsimple_osx_arch.split())
-    os.environ['CFLAGS'] = os.environ.get('CFLAGS', '') + " %s -mmacosx-version-min=%s -isysroot %s" % (arch_flags, sipsimple_osx_sdk, osx_sdk_path)
-    os.environ['LDFLAGS'] = os.environ.get('LDFLAGS', '') + " %s -isysroot %s" % (arch_flags, osx_sdk_path)
+    # OpenSSL (must be installed with Homebrew)
+    ossl_cflags = "-I/usr/local/opt/openssl/include"
+    ossl_ldflags = "-L/usr/local/opt/openssl/lib"
+    # SQLite (must be installed with Homebrew)
+    sqlite_cflags = "-I/usr/local/opt/sqlite/include"
+    sqlite_ldflags = "-L/usr/local/opt/sqlite/lib"
+    # Prepare final flags
+    arch_flags =  "-arch x86_64"
+    local_cflags = " %s %s %s -mmacosx-version-min=%s -isysroot %s" % (arch_flags, ossl_cflags, sqlite_cflags, min_osx_version, osx_sdk_path)
+    local_ldflags = " %s %s %s -isysroot %s" % (arch_flags, ossl_ldflags, sqlite_ldflags, osx_sdk_path)
+    os.environ['CFLAGS'] = os.environ.get('CFLAGS', '') + local_cflags
+    os.environ['LDFLAGS'] = os.environ.get('LDFLAGS', '') + local_ldflags
     os.environ['ARCHFLAGS'] = arch_flags
+    os.environ['MACOSX_DEPLOYMENT_TARGET'] = min_osx_version
 
 from distutils import log
 from distutils.dir_util import copy_tree
@@ -186,10 +194,11 @@ class PJSIP_build_ext(build_ext):
         extension.extra_compile_args.append("-Wno-unused-function")    # silence warning
 
         if sys_platform == "darwin":
+            extension.define_macros.append(("MACOSX_DEPLOYMENT_TARGET", min_osx_version))
             frameworks = re.findall("-framework (\S+)(?:\s|$)", build_mak_vars["PJ_LDLIBS"])
             extension.extra_link_args = list(itertools.chain(*(("-framework", val) for val in frameworks)))
-            extension.extra_link_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
-            extension.extra_compile_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
+            extension.extra_link_args.append("-mmacosx-version-min=%s" % min_osx_version)
+            extension.extra_compile_args.append("-mmacosx-version-min=%s" % min_osx_version)
             extension.library_dirs.append("%s/usr/lib" % osx_sdk_path)
             extension.include_dirs.append("%s/usr/include" % osx_sdk_path)
 
