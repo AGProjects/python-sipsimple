@@ -76,3 +76,12 @@ TypeError: an integer is required
   in settings may actually be available at runtime on the engine
 - Build contacts on above notification instead of building them on the fly
 
+- Use OpenH264 implementation
+    - We need the binaries?!
+
+- Ability to start stream deactivated / on-hold
+    - VideoStream(direction='sendrecv') like MSRP?
+    - Review stream API, s/deactivate/shutdown/ ?
+
+- Open the camera at its native framerate
+
