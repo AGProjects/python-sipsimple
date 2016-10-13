@@ -1,13 +1,13 @@
 
-Installation procedure for SIP SIMPLE client SDK on MacOSX >= 10.9
-------------------------------------------------------------------
+Installation procedure for SIP SIMPLE client SDK on MacOSX >= 10.11
+-------------------------------------------------------------------
 
 Copyright (c) 2008-2015 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.org
 
-This document describes the installation procedure on MacOSX >= 10.9
+This document describes the installation procedure on MacOSX >= 10.11
 
 The installation procedure consists of the steps described below:
 
@@ -19,15 +19,15 @@ Step 3. Install SIP SIMPLE client SDK
 Step 1. Prerequisites
 ---------------------
 
- * MacOSX >= 10.9
- * Apple Developer tools (XCode 5.1)
- * darcs version control tool from http://www.darcs.net
+ * MacOSX >= 10.11
+ * Apple Developer tools (XCode 7)
  * Homebrew from http://brew.sh
+ * darcs version control tool from http://www.darcs.net (can also be installed with Homebrew)
  * Python virtualenv and virtualenvwrapper modules
  * Python pip installer
 
 The procedure below relies on Python interpreter 2.7 that comes with MacOSX
-Mavericks and Xcode version 5.1. A 64bit build will be produced.
+and Xcode version 7. A 64bit build will be produced.
 
 This guide assumes all software is being installed in a virtualenv (except for
 the packages installed with Homebrew, of course). Creating a virtualenv is
@@ -53,38 +53,36 @@ their minimum version number.
 A. Install the C dependencies, the software will be installed
 under /usr/local folder by default with Homebrew:
 
-brew install gnutls yasm pkg-config
+brew install gnutls yasm pkg-config ffmpeg x264 libvpx
 
-
-B. Install libx264 and libvpx
-
-brew install x264 libvpx
-
-
-C. Build FFmpeg with H264 (via libx264) support
-
-Download and unpack latest versions of FFmpeg
-
-export SIPSIMPLE_FFMPEG_PATH=$HOME/work/ag-projects/video/local
-
-cd ffmpeg
-./configure --enable-shared --disable-static --enable-memalign-hack --enable-gpl --enable-libx264 --disable-avdevice --disable-swresample --disable-postproc --prefix=$SIPSIMPLE_FFMPEG_PATH
-make
-make install
-
-
-D.  Build and install the Python dependencies by using the pip tool.  The
+B.  Build and install the Python dependencies by using the pip tool.  The
 software will be installed in your virtualenv folder.
 
 workon sandbox
 
-Install pip tool:
-
-easy_install pip
-
 Install python dependencies:
 
-pip install -U python-gnutls python-otr dnspython twisted python-application cython python-dateutil greenlet lxml
+pip install -U python-gnutls python-otr dnspython twisted python-application cython python-dateutil greenlet
+
+C.  Install lxml
+
+lxml is notably tricky to install.  In addition, macOS 10.12 (Sierra) bundles libxml 2.9.4, which fails
+to validate XML schemas, so we need to build lxml with a statically linked libxml, but not with version 2.9.4.
+
+git clone https://github.com/lxml/lxml
+cd lxml
+git checkout lxml-3.6.4
+python setup.py build --static-deps --libxml2-version=2.9.3
+python setup.py install
+
+If you get a failure about an LZMA symbol not being found after trying to import etree, edit buildlibxml.py and
+modify the code around line 336 so it looks like this:
+
+# build libxml2
+libxml2_configure_cmd = configure_cmd + [
+    '--without-python',
+    '--without-lzma',
+    '--with-iconv=%s' % prefix]
 
 
 Step 3. Install SIP SIMPLE client SDK
@@ -138,11 +136,6 @@ else
     darcs get --set-scripts-executable http://devel.ag-projects.com/repositories/python-sipsimple
     cd python-sipsimple
 fi
-
-By default the system version SDK will be used to build SIP SIMPLE SDK.
-This can be overridden by setting the following environment variable:
-
-export SIPSIMPLE_OSX_SDK="10.9"
 
 Build and install SIP SIMPLE library:
 
