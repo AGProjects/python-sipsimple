@@ -643,7 +643,7 @@ cdef class Invitation:
             if replaced_dialog_id is not None and None not in replaced_dialog_id:
                 target_uri.headers["Replaces"] = "%s;from-tag=%s;to-tag=%s" % replaced_dialog_id
             refer_to_header = ReferToHeader(str(target_uri))
-            _add_headers_to_tdata(tdata, [refer_to_header, Header('Referred-By', str(self.from_header.uri))])
+            _add_headers_to_tdata(tdata, [refer_to_header, Header('Referred-By', str(self.local_identity.uri))])
             _add_headers_to_tdata(tdata, extra_headers)
             # We can't remove the Event header or PJSIP will fail to match responses to this request
             _remove_headers_from_tdata(tdata, ["Expires"])
