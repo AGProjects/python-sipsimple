@@ -132,6 +132,14 @@ mingw-w64-dshow-baseclasses
 * Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-dshow-baseclasses
 * Enter the directory and build+install the package: cd mingw-w64-dshow-baseclasses && makepkg-mingw -cfiL --nocheck --nosign
 
+mingw-w64-libxml2
+
+This is libxml version 2.9.3, which doesn't exhibit a bug present in 2.9.4, which prevents XSD schemas from being
+parsed.
+
+* Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-libxml2
+* Enter the directory and build+install the package: cd mingw-w64-libxml2 && makepkg-mingw -cfiL --nocheck --nosign
+
 
 Step 3. Install SIP SIMPLE client SDK
 -------------------------------------
