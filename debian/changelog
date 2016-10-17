@@ -1,3 +1,19 @@
+python-sipsimple (3.1.0) unstable; urgency=medium
+
+  * Update Opus to version 1.1.2
+  * pjsip: fix handling empty re-INVITE requests
+  * Updated dependency versions
+  * Improved MANIFEST.in
+  * Removed build time dependency on python-application
+  * Updated building documentation
+  * Added interface for scheduling functions to run in a thread
+  * Added fake xcap settings to the BonjourAccount
+  * Fix race conditions when processing ICE callbacks
+  * Ignore NAPTR and SRV timeouts when doing DNS lookups
+  * Fixed setting Referred-By header
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 18 Oct 2016 01:28:40 +0200
+
 python-sipsimple (3.0.0) unstable; urgency=medium
 
   * Added OTR encryption support in the chat stream
