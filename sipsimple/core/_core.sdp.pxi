@@ -645,7 +645,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
                 rtpmap_lines = '\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']) # iterators are not supported -Dan
                 rtpmap_codecs = dict([(int(type), MediaCodec(name, rate)) for type, name, rate in self.rtpmap_re.findall(rtpmap_lines)])
                 rtp_mappings.update(rtpmap_codecs)
-                self.codec_list = frozenlist([rtp_mappings.get(int(format), MediaCodec('Unknown', 0)) for format in self.formats])
+                self.codec_list = frozenlist([rtp_mappings.get(int(format) if format.isdigit() else None, MediaCodec('Unknown', 0)) for format in self.formats])
             else:
                 self.codec_list = frozenlist()
             self.bandwidth_info = FrozenSDPBandwidthInfoList(bandwidth_info) if not isinstance(bandwidth_info, FrozenSDPBandwidthInfoList) else bandwidth_info
