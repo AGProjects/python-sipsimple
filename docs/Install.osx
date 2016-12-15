@@ -53,7 +53,12 @@ their minimum version number.
 A. Install the C dependencies, the software will be installed
 under /usr/local folder by default with Homebrew:
 
-brew install gnutls yasm pkg-config ffmpeg x264 libvpx
+brew install gnutls yasm pkg-config x264 libvpx
+
+NOTE: Install ffmpeg without SecureTransport support (or you app will be rejected
+      from the Mac App Store:
+
+brew install -s ffmpeg --without-securetransport
 
 B.  Build and install the Python dependencies by using the pip tool.  The
 software will be installed in your virtualenv folder.
