@@ -2,7 +2,7 @@ Source: python-sipsimple
 Section: python
 Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
-Uploaders: Adrian Georgescu <ag@ag-projects.com>, Saul Ibarra <saul@ag-projects.com>
+Uploaders: Adrian Georgescu <ag@ag-projects.com>
 Build-Depends: debhelper (>= 7.3.5),
                python-all-dev (>= 2.7),
                python-all-dbg (>= 2.7),
