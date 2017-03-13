@@ -157,6 +157,7 @@ class PJSIP_build_ext(build_ext):
         if sys_platform == "win32":
             cmd = ["bash", "configure"]
         else:
+    	    os.system("chmod +x "+ self.build_dir +"/*configure")
             cmd = ["./configure"]
         cmd.extend(["--disable-g7221-codec"])
         ffmpeg_path = env.get("SIPSIMPLE_FFMPEG_PATH", None)
