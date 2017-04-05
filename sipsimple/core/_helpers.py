@@ -72,7 +72,7 @@ class Route(object):
         return SIPURI(host=self.address, port=port, parameters=parameters)
 
     def __repr__(self):
-        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.address, self.port, self.transport)
+        return '{0.__class__.__name__}({0.address!r}, port={0.port!r}, transport={0.transport!r})'.format(self)
 
     def __str__(self):
         return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
@@ -94,7 +94,7 @@ class ContactURIFactory(object):
         self.temporary_gruu = None
 
     def __repr__(self):
-        return '%s(username=%r)' % (self.__class__.__name__, self.username)
+        return '{0.__class__.__name__}(username={0.username!r})'.format(self)
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
