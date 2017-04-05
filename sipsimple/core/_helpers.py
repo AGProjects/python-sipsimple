@@ -33,7 +33,7 @@ class Route(object):
 
     def _get_port(self):
         if self._port is None:
-            return 5060 if self.transport in ('udp', 'tcp') else 5061
+            return 5061 if self.transport == 'tls' else 5060
         else:
             return self._port
     def _set_port(self, port):
