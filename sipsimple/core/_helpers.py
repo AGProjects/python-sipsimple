@@ -16,6 +16,8 @@ __all__ = ['Route', 'ContactURIFactory', 'NoGRUU', 'PublicGRUU', 'TemporaryGRUU'
 
 
 class Route(object):
+    _default_ports = dict(udp=5060, tcp=5060, tls=5061)
+
     def __init__(self, address, port=None, transport='udp'):
         self.address = address
         self.port = port
@@ -62,13 +64,8 @@ class Route(object):
 
     @property
     def uri(self):
-        if self.transport in ('udp', 'tcp') and self.port == 5060:
-            port = None
-        elif self.transport == 'tls' and self.port == 5061:
-            port = None
-        else:
-            port = self.port
-        parameters = {'transport': self.transport} if self.transport != 'udp' else {}
+        port = None if self._default_ports[self.transport] == self.port else self.port
+        parameters = {} if self.transport == 'udp' else {'transport': self.transport}
         return SIPURI(host=self.address, port=port, parameters=parameters)
 
     def __repr__(self):
