@@ -72,7 +72,7 @@ class Route(object):
         return '{0.__class__.__name__}({0.address!r}, port={0.port!r}, transport={0.transport!r})'.format(self)
 
     def __str__(self):
-        return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
+        return str(self.uri)
 
 
 class ContactURIType(MarkerType): pass
