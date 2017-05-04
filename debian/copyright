@@ -1,33 +1,16 @@
-This package was debianized by Luci Stanescu <luci@ag-projects.com> on
-Mon, 13 Oct 2008 10:29:08 +0200.
+Copyright: 2008-2017 AG Projects
 
-Authors:
-  Adrian Georgescu
-  Dan Pascu
-  Ruud Klaver
-  Denis Bilenko
-  Lucian Stanescu
-  Saúl Ibarra
-
-Copyright (C) 2008-2013 AG Projects
-
-License:
+License: GPL-3+
 
     This package is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
     Free Software Foundation; either version 3 of the License, or (at your
     option) any later version.
 
-    This package is distributed in the hope that it will be useful, but
-    WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-    General Public License for more details.
+    This package is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this package; if not, write to the Free Software Foundation,
-    Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+    For a copy of the license see /usr/share/common-licenses/GPL-3
 
-On Debian systems, the complete text of the GNU General Public License can
-be found in `/usr/share/common-licenses/GPL-3'.
-
-The Debian packaging is (C) 2008 AG Projects and is licensed under the GPL-3.
