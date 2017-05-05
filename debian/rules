@@ -4,37 +4,15 @@
 
 export DEB_BUILD_HARDENING=1
 
-PYVERS:=$(shell pyversions -r)
+export PYBUILD_NAME=sipsimple
 
 %:
-	dh $@ --with python2
+	dh $@ --with python2 --buildsystem=pybuild
 
 override_dh_clean:
 	dh_clean
 	rm -rf build dist MANIFEST
 
-override_dh_auto_build:
-	for python in $(PYVERS); do \
-		$$python-dbg setup.py build_ext --pjsip-clean-compile; \
-		$$python setup.py build_ext --pjsip-clean-compile; \
-		$$python setup.py build; \
-	done
-
-override_dh_auto_install:
-	for python in $(PYVERS); do \
-		$$python-dbg setup.py install --force --skip-build --no-compile --prefix /usr --root $(CURDIR)/debian/tmp --install-layout deb; \
-		$$python setup.py install --force --skip-build --no-compile --prefix /usr --root $(CURDIR)/debian/tmp --install-layout deb; \
-	done
-
-override_dh_install:
-	# Install everything excluding the *_d.so debug extensions
-	dh_install -X"*_d.so" "debian/tmp/*" -p python-sipsimple
-	# Install the debug extensions to -dbg package
-	dh_install "debian/tmp/usr/lib/python*/*-packages/sipsimple/core/*_d.so" -p python-sipsimple-dbg
-	# Continue with regular dh_install
-	dh_install
-
 override_dh_strip:
-	# Stripped symbols go into -dbg package
 	dh_strip --dbg-package=python-sipsimple-dbg
 
