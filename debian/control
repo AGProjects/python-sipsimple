@@ -39,9 +39,9 @@ Suggests: libavahi-compat-libdnssd1
 Provides: ${python:Provides}
 Description: Python SDK for development of SIP end-points
  SIP SIMPLE client SDK is a Software Development Kit for easy development of
- SIP end-points that support rich media like Audio, Instant Messaging, File
- Transfers, Desktop Sharing and Presence.  Other media types can be easily
- added by using an extensible high-level API.
+ SIP end-points that support rich media like Audio, Video, Instant Messaging,
+ File Transfers, Desktop Sharing and Presence. Other media types can be added
+ by using an extensible high-level API.
 
 Package: python-sipsimple-dbg
 Architecture: any
@@ -50,11 +50,12 @@ Section: debug
 Depends: ${shlibs:Depends}, ${misc:Depends}, python-sipsimple (= ${binary:Version})
 Recommends: python-all-dbg
 Provides: ${python:Provides}
-Description: Python SDK for development of SIP end-points (debug symbols)
+Description: Python SDK for development of SIP end-points (debug extension)
  SIP SIMPLE client SDK is a Software Development Kit for easy development of
- SIP end-points that support rich media like Audio, Instant Messaging, File
- Transfers, Desktop Sharing and Presence.  Other media types can be easily
- added by using an extensible high-level API.
+ SIP end-points that support rich media like Audio, Video, Instant Messaging,
+ File Transfers, Desktop Sharing and Presence. Other media types can be added
+ by using an extensible high-level API.
  .
- This package includes debugging symbols for the python-sipsimple package.
+ This package contains the extensions built for the Python debug interpreter
+ and the debugging symbols for python-sipsimple.
 
