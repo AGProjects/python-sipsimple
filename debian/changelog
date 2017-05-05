@@ -1,3 +1,26 @@
+python-sipsimple (3.1.1) unstable; urgency=medium
+
+  * Fix processing audio / video SDPs with non numeric formats
+  * Document how to compile ffmpeg without SecureTransport
+  * Removed obsolete pycompat/pyversions files
+  * Updated debian uploaders
+  * Updated debian standards version
+  * Simplified condition
+  * PEP-8 compliance changes
+  * Improved object representation
+  * Simplified building the Route's URI
+  * Made output from Route.__str__ be consitent with SIPURI.__str__
+  * Fixed debian build dependency for libssl
+  * Updated copyright years
+  * Increased debian compatibility level to 9
+  * Removed unnecessary phony targets
+  * Updated debian copyright
+  * Updated debian package description
+  * Fixed python-sipsimple-dbg dependencies
+  * Simplified debian build and fixed missing module in the debug package
+
+ -- Dan Pascu <dan@ag-projects.com>  Fri, 05 May 2017 17:29:13 +0300
+
 python-sipsimple (3.1.0) unstable; urgency=medium
 
   * Update Opus to version 1.1.2
