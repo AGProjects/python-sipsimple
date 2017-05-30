@@ -197,6 +197,11 @@ class SIPApplication(object):
                 self.state = 'stopping'
         if stop_pending:
             notification_center.post_notification('SIPApplicationWillEnd', sender=self)
+            # stop the subsystems we already started: threads, engine and reactor
+            self.engine.stop()
+            self.engine.join(timeout=5)
+            thread_manager = ThreadManager()
+            thread_manager.stop()
             reactor.stop()
             return
 
