@@ -342,9 +342,6 @@ class SIPApplication(object):
         with self._lock:
             if self.state == 'stopping':
                 return
-            elif self.state == 'starting':
-                self._stop_pending = True
-                return
             self.state = 'stopping'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
         reactor.stop()
