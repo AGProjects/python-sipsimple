@@ -344,6 +344,19 @@ class SIPApplication(object):
                 return
             self.state = 'stopping'
         notification.center.post_notification('SIPApplicationWillEnd', sender=self)
+        #
+        # In theory we need to stop the subsystems here, based on what subsystems are already running according to our state,
+        # but in practice the majority of those subsystems need the engine even to stop and the engine has failed.
+        #
+        # Even the ThreadManager might have threads that try to execute operations on the engine, which could block indefinitely
+        # waiting for an answer that will no longer arrive, thus blocking the ThreadManager stop operation.
+        #
+        # As a result the safest thing to do is to just stop the engine thread and the reactor, which means in this case we
+        # will not cleanup properly (the engine thread should already have ended as a result of the failure, so stopping it
+        # is technically a no-op).
+        #
+        self.engine.stop()
+        self.engine.join(timeout=5)
         reactor.stop()
 
     def _NH_SIPEngineGotException(self, notification):
