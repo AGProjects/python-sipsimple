@@ -509,6 +509,6 @@ class SIPApplication(object):
     def _NH_SystemIPAddressDidChange(self, notification):
         self._network_conditions_changed()
 
-    def _NH_SystemDidWakeupFromSleep(self, notification):
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
         self._network_conditions_changed()
 
