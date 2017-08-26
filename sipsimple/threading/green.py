@@ -128,7 +128,7 @@ class Worker(object):
             raise RuntimeError("worker has not been started")
         try:
             return self.event.wait()
-        except Exception, e:
+        except Exception as e:
             return e
 
     @classmethod
