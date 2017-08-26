@@ -95,8 +95,8 @@ def run_in_waitable_green_thread(func):
 
 
 class Worker(object):
-    def __init__(self, _func, *args, **kw):
-        self.func = _func
+    def __init__(self, func, *args, **kw):
+        self.func = func
         self.args = args
         self.kw = kw
         self.event = coros.event()
@@ -132,8 +132,8 @@ class Worker(object):
             return e
 
     @classmethod
-    def spawn(cls, _func, *args, **kw):
-        worker = cls(_func, *args, **kw)
+    def spawn(cls, func, *args, **kw):
+        worker = cls(func, *args, **kw)
         worker.start()
         return worker
 
