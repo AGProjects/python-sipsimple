@@ -230,6 +230,7 @@ class RTPStreamEncryption(object):
         notification.center.remove_observer(self, sender=self._rtp_transport)
         self._stream = None
         self._rtp_transport = None
+        self.__dict__['type'] = None
         self.__dict__['zrtp'] = None
 
     def _NH_RTPTransportZRTPSecureOn(self, notification):
