@@ -21,7 +21,7 @@ else:
 # to be used. -Saul
 
 if sys_platform == "darwin":
-    min_osx_version = "10.11"
+    min_osx_version = "10.13"
     try:
         osx_sdk_path = subprocess.check_output(["xcodebuild", "-version", "-sdk", "macosx", "Path"]).strip()
     except subprocess.CalledProcessError as e:
