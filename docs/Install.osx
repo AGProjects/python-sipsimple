@@ -144,7 +144,7 @@ fi
 
 Build and install SIP SIMPLE library:
 
-python setup.py build_ext --pjsip-clean-compile --pjsip-disable-assertions
+python setup.py build_ext --pjsip-clean-compile
 python setup.py install
 
 Additional, you can install the command line interface scripts that can be
