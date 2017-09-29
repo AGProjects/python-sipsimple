@@ -19,29 +19,13 @@ Step 3. Install SIP SIMPLE client SDK
 Step 1. Prerequisites
 ---------------------
 
- * MacOSX >= 10.11
- * Apple Developer tools (XCode 7)
+ * MacOSX >= 10.12
+ * Apple Developer tools (XCode 9)
  * Homebrew from http://brew.sh
- * darcs version control tool from http://www.darcs.net (can also be installed with Homebrew)
- * Python virtualenv and virtualenvwrapper modules
+ * darcs version control tool
  * Python pip installer
+ * Python virtualenv and virtualenvwrapper modules
 
-The procedure below relies on Python interpreter 2.7 that comes with MacOSX
-and Xcode version 7. A 64bit build will be produced.
-
-This guide assumes all software is being installed in a virtualenv (except for
-the packages installed with Homebrew, of course). Creating a virtualenv is
-simple:
-
-mkvirtualenv -p $(which python2.7) sipsimple
-
-You'll be dropped right into it. If you want to exit it:
-
-deactivate
-
-And to activate the virtualenv again:
-
-workon sipsimple
 
 
 Step 2. Install Dependencies
@@ -53,45 +37,68 @@ their minimum version number.
 A. Install the C dependencies, the software will be installed
 under /usr/local folder by default with Homebrew:
 
-brew install gnutls yasm pkg-config x264 libvpx
+brew install darcs gnutls yasm pkg-config x264 libvpx mpfr libmpc
 
 NOTE: Install ffmpeg without SecureTransport support (or you app will be rejected
       from the Mac App Store:
 
 brew install -s ffmpeg --without-securetransport
 
-B.  Build and install the Python dependencies by using the pip tool.  The
-software will be installed in your virtualenv folder.
+B.  Build and install the Python dependencies
 
-workon sandbox
+The procedure below relies on the standard Python interpreter 2.7 that comes
+with MacOSX and Xcode version 9.  A 64bit build will be produced.
+
+This guide assumes all software is being installed in a virtualenv (except for
+the packages installed with Homebrew, of course). 
+
+Install pip:
+
+sudo easy_install pip
+
+Install virtualenv and virtualenvwrapper:
+
+sudo -H pip install virtualenv --upgrade --ignore-installed six
+sudo -H pip install virtualenvwrapper --upgrade --ignore-installed six
+
+The above are installed in /Library/Python/2.7/site-packages
+
+Add to ~/.bashrc:
+
+export WORKON_HOME=$HOME/.virtualenvs
+export PIP_VIRTUALENV_BASE=$WORKON_HOME
+export PIP_RESPECT_VIRTUALENV=true
+[[ -f /usr/share/virtualenvwrapper/virtualenvwrapper_lazy.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper_lazy.sh
+[[ -f /usr/local/bin/virtualenvwrapper_lazy.sh ]] && source /usr/local/bin/virtualenvwrapper_lazy.sh
+
+Creating a virtual environment for python-simple
+
+mkvirtualenv -p $(which python2.7) sipsimple
+
+You'll be dropped right into it. If you want to exit it:
+
+deactivate
+
+And to activate the virtualenv again:
+
+workon sipsimple
 
 Install python dependencies:
 
-pip install -U python-gnutls python-otr dnspython twisted python-application cython python-dateutil greenlet
+pip install -U python-gnutls python-otr dnspython twisted \
+python-application cython python-dateutil greenlet lxml
 
-C.  Install lxml
+All packages are installed in:
 
-lxml is notably tricky to install.  In addition, macOS 10.12 (Sierra) bundles libxml 2.9.4, which fails
-to validate XML schemas, so we need to build lxml with a statically linked libxml, but not with version 2.9.4.
-
-git clone https://github.com/lxml/lxml
-cd lxml
-git checkout lxml-3.6.4
-python setup.py build --static-deps --libxml2-version=2.9.3
-python setup.py install
-
-If you get a failure about an LZMA symbol not being found after trying to import etree, edit buildlibxml.py and
-modify the code around line 336 so it looks like this:
-
-# build libxml2
-libxml2_configure_cmd = configure_cmd + [
-    '--without-python',
-    '--without-lzma',
-    '--with-iconv=%s' % prefix]
+~/.virtualenvs/sipsimple/lib/python2.7/site-packages/
 
 
-Step 3. Install SIP SIMPLE client SDK
--------------------------------------
+Step 3. Build and install SIP SIMPLE client SDK
+-----------------------------------------------
+
+Enter virtual environment:
+
+workon sipsimple
 
 The SDK consists of four parts:
 
