@@ -106,8 +106,6 @@ cdef class Invitation:
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_sdp_session_ptr_const sdp
         cdef pjsip_dialog *replaced_dialog = NULL
-        cdef pjsip_dialog **dialog_address
-        cdef pjsip_inv_session **invite_session_address
         cdef pjsip_tpselector tp_sel
         cdef pjsip_tx_data *tdata = NULL
         cdef PJSTR contact_str
@@ -129,9 +127,6 @@ cdef class Invitation:
                         pjsip_endpt_respond_stateless(ua._pjsip_endpoint._obj, rdata, 500, NULL, NULL, NULL)
                 return 0
 
-            dialog_address = &self._dialog
-            invite_session_address = &self._invite_session
-
             self.direction = "incoming"
             self.transport = rdata.tp_info.transport.type_name.lower()
             self.request_uri = FrozenSIPURI_create(<pjsip_sip_uri *> pjsip_uri_get_uri(rdata.msg_info.msg.line.req.uri))
@@ -143,22 +138,22 @@ cdef class Invitation:
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
             contact_str = PJSTR(str(self.local_contact_header.body))
             with nogil:
-                status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, dialog_address)
+                status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dialog)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INVITE session", status)
             with nogil:
-                status = pjsip_inv_create_uas(dialog_address[0], rdata, NULL, inv_options, invite_session_address)
-                pjsip_dlg_dec_lock(dialog_address[0])
+                status = pjsip_inv_create_uas(self._dialog, rdata, NULL, inv_options, &self._invite_session)
+                pjsip_dlg_dec_lock(self._dialog)
             if status != 0:
                 raise PJSIPError("Could not create new INVITE session", status)
             tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
             tp_sel.u.transport = rdata.tp_info.transport
             with nogil:
-                status = pjsip_dlg_set_transport(dialog_address[0], &tp_sel)
+                status = pjsip_dlg_set_transport(self._dialog, &tp_sel)
             if status != 0:
                 raise PJSIPError("Could not set transport for INVITE session", status)
             with nogil:
-                status = pjsip_inv_initial_answer(invite_session_address[0], rdata, 100, NULL, NULL, &tdata)
+                status = pjsip_inv_initial_answer(self._invite_session, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create initial (unused) response to INVITE", status)
             with nogil:
@@ -186,11 +181,11 @@ cdef class Invitation:
         except:
             if self._invite_session != NULL:
                 with nogil:
-                    pjsip_inv_terminate(invite_session_address[0], 500, 0)
+                    pjsip_inv_terminate(self._invite_session, 500, 0)
                 self._invite_session = NULL
             elif self._dialog != NULL:
                 with nogil:
-                    pjsip_dlg_terminate(dialog_address[0])
+                    pjsip_dlg_terminate(self._dialog)
                 self._dialog = NULL
             else:
                 with nogil:
@@ -323,8 +318,6 @@ cdef class Invitation:
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_sdp_session *local_sdp
         cdef pjsip_cred_info *cred_info
-        cdef pjsip_dialog **dialog_address
-        cdef pjsip_inv_session **invite_session_address
         cdef pjsip_replaces_hdr *pj_replaces_hdr
         cdef pjsip_route_hdr *route_set
         cdef pjsip_tx_data *tdata
@@ -341,8 +334,6 @@ cdef class Invitation:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            dialog_address = &self._dialog
-            invite_session_address = &self._invite_session
             route_set = <pjsip_route_hdr *> &self._route_set
 
             if self.state != None:
@@ -373,7 +364,7 @@ cdef class Invitation:
 
             with nogil:
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_str.pj_str,
-                                              &to_header_str.pj_str, &request_uri_str.pj_str, dialog_address)
+                                              &to_header_str.pj_str, &request_uri_str.pj_str, &self._dialog)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
 
@@ -395,7 +386,7 @@ cdef class Invitation:
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
             local_sdp = self.sdp.proposed_local.get_sdp_session() if sdp is not None else NULL
             with nogil:
-                status = pjsip_inv_create_uac(dialog_address[0], local_sdp, 0, invite_session_address)
+                status = pjsip_inv_create_uac(self._dialog, local_sdp, 0, &self._invite_session)
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
             self._invite_session.sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
@@ -403,17 +394,17 @@ cdef class Invitation:
             if self.credentials is not None:
                 cred_info = self.credentials.get_cred_info()
                 with nogil:
-                    status = pjsip_auth_clt_set_credentials(&dialog_address[0].auth_sess, 1, cred_info)
+                    status = pjsip_auth_clt_set_credentials(&self._dialog.auth_sess, 1, cred_info)
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)
             _BaseRouteHeader_to_pjsip_route_hdr(self.route_header, &self._route_header, self._dialog.pool)
             pj_list_insert_after(<pj_list *> &self._route_set, <pj_list *> &self._route_header)
             with nogil:
-                 status = pjsip_dlg_set_route_set(dialog_address[0], route_set)
+                 status = pjsip_dlg_set_route_set(self._dialog, route_set)
             if status != 0:
                 raise PJSIPError("Could not set route for INVITE session", status)
             with nogil:
-                status = pjsip_inv_invite(invite_session_address[0], &tdata)
+                status = pjsip_inv_invite(self._invite_session, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create INVITE message", status)
             replaces_headers = [header for header in extra_headers if isinstance(header, BaseReplacesHeader)]
@@ -433,7 +424,7 @@ cdef class Invitation:
                 pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *>pj_replaces_hdr)
             _add_headers_to_tdata(tdata, extra_headers)
             with nogil:
-                status = pjsip_inv_send_msg(invite_session_address[0], tdata)
+                status = pjsip_inv_send_msg(self._invite_session, tdata)
             if status != 0:
                 raise PJSIPError("Could not send initial INVITE", status)
             if timeout is not None:
