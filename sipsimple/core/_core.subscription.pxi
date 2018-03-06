@@ -409,6 +409,7 @@ cdef class IncomingSubscription:
         cdef PJSTR contact_str
         cdef dict event_dict
         cdef pjsip_expires_hdr *expires_header
+        cdef pjsip_tpselector tp_sel
 
         expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
         if expires_header == NULL:
@@ -429,13 +430,17 @@ cdef class IncomingSubscription:
                                                             user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                             parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
         contact_str = PJSTR(str(contact_header.body))
+        tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
+        tp_sel.u.transport = rdata.tp_info.transport
+
         with nogil:
             status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
-        # Increment dialog session count so that it's never destroyed by PJSIP
         with nogil:
-            pjsip_dlg_inc_session(self._dlg, &ua._module)  # cannot fail unless self._dlg or ua._module are NULL which are guaranteed not to be
+            # The next 2 statements cannot fails unless self._dlg, ua._module or tp_sel are NULL is are guaranteed not to be
+            pjsip_dlg_inc_session(self._dlg, &ua._module)  # Increment dialog session count so that it's never destroyed by PJSIP
+            pjsip_dlg_set_transport(self._dlg, &tp_sel)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
         self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         with nogil:
