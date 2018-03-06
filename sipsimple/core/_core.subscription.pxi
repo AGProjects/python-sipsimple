@@ -435,10 +435,7 @@ cdef class IncomingSubscription:
             raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
         # Increment dialog session count so that it's never destroyed by PJSIP
         with nogil:
-            status = pjsip_dlg_inc_session(self._dlg, &ua._module)
-        if status != 0:
-            pjsip_dlg_dec_lock(self._dlg)
-            raise PJSIPError("Could not increment dialog session count", status)
+            pjsip_dlg_inc_session(self._dlg, &ua._module)  # cannot fail unless self._dlg or ua._module are NULL which are guaranteed not to be
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
         self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         with nogil:

@@ -149,9 +149,7 @@ cdef class Invitation:
             tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
             tp_sel.u.transport = rdata.tp_info.transport
             with nogil:
-                status = pjsip_dlg_set_transport(self._dialog, &tp_sel)
-            if status != 0:
-                raise PJSIPError("Could not set transport for INVITE session", status)
+                pjsip_dlg_set_transport(self._dialog, &tp_sel)  # cannot fail unless self._dialog or tp_sel are NULL, which are guaranteed not to be
             with nogil:
                 status = pjsip_inv_initial_answer(self._invite_session, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
