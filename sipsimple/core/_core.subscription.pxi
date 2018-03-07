@@ -440,7 +440,7 @@ cdef class IncomingSubscription:
                 error_message = "Could not create dialog for incoming SUBSCRIBE"
             else:
                 pjsip_dlg_inc_session(self._dlg, &ua._module)  # Increment dialog session count so it's never destroyed by PJSIP
-                pjsip_dlg_set_transport(self._dlg, &tp_sel)
+                # pjsip_dlg_set_transport(self._dlg, &tp_sel)  # doesn't work as the NOTIFY has to be sent to the Contact URI and this transport can conflict with that
         if status != 0:
             raise PJSIPError(error_message, status)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
