@@ -109,6 +109,7 @@ cdef class Invitation:
         cdef pjsip_tpselector tp_sel
         cdef pjsip_tx_data *tdata = NULL
         cdef PJSTR contact_str
+        cdef char *error_message
 
         with nogil:
             status = pj_mutex_lock(lock)
@@ -118,13 +119,12 @@ cdef class Invitation:
             # Validate replaces header
             with nogil:
                 status = pjsip_replaces_verify_request(rdata, &replaced_dialog, 0, &tdata)
-            if status != 0:
-                if tdata != NULL:
-                    with nogil:
+                if status != 0:
+                    if tdata != NULL:
                         pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
-                else:
-                    with nogil:
+                    else:
                         pjsip_endpt_respond_stateless(ua._pjsip_endpoint._obj, rdata, 500, NULL, NULL, NULL)
+            if status != 0:
                 return 0
 
             self.direction = "incoming"
@@ -137,25 +137,29 @@ cdef class Invitation:
                                                                              user=self.request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
             contact_str = PJSTR(str(self.local_contact_header.body))
-            with nogil:
-                status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dialog)
-            if status != 0:
-                raise PJSIPError("Could not create dialog for new INVITE session", status)
-            with nogil:
-                status = pjsip_inv_create_uas(self._dialog, rdata, NULL, inv_options, &self._invite_session)
-                pjsip_dlg_dec_lock(self._dialog)
-            if status != 0:
-                raise PJSIPError("Could not create new INVITE session", status)
             tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
             tp_sel.u.transport = rdata.tp_info.transport
+
             with nogil:
-                pjsip_dlg_set_transport(self._dialog, &tp_sel)  # cannot fail unless self._dialog or tp_sel are NULL, which are guaranteed not to be
-            with nogil:
-                status = pjsip_inv_initial_answer(self._invite_session, rdata, 100, NULL, NULL, &tdata)
+                status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dialog)
+                if status != 0:
+                    error_message = "Could not create dialog for new INVITE session"
+                else:
+                    pjsip_dlg_set_transport(self._dialog, &tp_sel)
+                    status = pjsip_inv_create_uas(self._dialog, rdata, NULL, inv_options, &self._invite_session)
+                    pjsip_dlg_dec_lock(self._dialog)
+                    if status != 0:
+                        error_message = "Could not create new INVITE session"
+                    else:
+                        status = pjsip_inv_initial_answer(self._invite_session, rdata, 100, NULL, NULL, &tdata)
+                        if status != 0:
+                            error_message = "Could not create initial (unused) response to INVITE"
+                        else:
+                            pjsip_tx_data_dec_ref(tdata)
+
             if status != 0:
-                raise PJSIPError("Could not create initial (unused) response to INVITE", status)
-            with nogil:
-                pjsip_tx_data_dec_ref(tdata)
+                raise PJSIPError(error_message, status)
+
             if self._invite_session.neg != NULL:
                 if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
                     pjmedia_sdp_neg_get_neg_remote(self._invite_session.neg, &sdp)
@@ -188,14 +192,15 @@ cdef class Invitation:
             else:
                 with nogil:
                     status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 500, NULL, &tdata)
+                    if status != 0:
+                        error_message = "Could not create response"
+                    else:
+                        status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+                        if status != 0:
+                            pjsip_tx_data_dec_ref(tdata)
+                            error_message = "Could not send response"
                 if status != 0:
-                    raise PJSIPError("Could not create response", status)
-                with nogil:
-                    status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
-                if status != 0:
-                    with nogil:
-                        pjsip_tx_data_dec_ref(tdata)
-                    raise PJSIPError("Could not send response", status)
+                    raise PJSIPError(error_message, status)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
@@ -205,23 +210,25 @@ cdef class Invitation:
     cdef int process_incoming_transfer(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         global _incoming_transfer_cb
         global _event_hdr_name
-        cdef int status
+        cdef int status, status2
         cdef dict rdata_dict = dict(obj=self)
         cdef pjsip_tx_data *tdata
         cdef pjsip_transaction *initial_tsx
         cdef Timer timer
+        cdef char *error_message
 
         if self._transfer_usage != NULL:
             with nogil:
                 status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 480, NULL, &tdata)
+                if status != 0:
+                    error_message = "Could not create response"
+                else:
+                    status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+                    if status != 0:
+                        pjsip_tx_data_dec_ref(tdata)
+                        error_message = "Could not send response"
             if status != 0:
-                raise PJSIPError("Could not create response", status)
-            with nogil:
-                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
-            if status != 0:
-                with nogil:
-                    pjsip_tx_data_dec_ref(tdata)
-                raise PJSIPError("Could not send response", status)
+                raise PJSIPError(error_message, status)
             return 0
         _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
         try:
@@ -230,14 +237,15 @@ cdef class Invitation:
         except (KeyError, SIPCoreError):
             with nogil:
                 status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 400, NULL, &tdata)
+                if status != 0:
+                    error_message = "Could not create response"
+                else:
+                    status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+                    if status != 0:
+                        pjsip_tx_data_dec_ref(tdata)
+                        error_message = "Could not send response"
             if status != 0:
-                raise PJSIPError("Could not create response", status)
-            with nogil:
-                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
-            if status != 0:
-                with nogil:
-                    pjsip_tx_data_dec_ref(tdata)
-                raise PJSIPError("Could not send response", status)
+                raise PJSIPError(error_message, status)
             return 0
         try:
             self._set_transfer_state("INCOMING")
@@ -251,30 +259,29 @@ cdef class Invitation:
             initial_tsx = pjsip_rdata_get_tsx(rdata)
             with nogil:
                 status = pjsip_evsub_create_uas(self._dialog, &_incoming_transfer_cb, rdata, 0, &self._transfer_usage)
-            if status != 0:
-                with nogil:
-                    pjsip_tsx_terminate(initial_tsx, 500)
-                raise PJSIPError("Could not create incoming REFER session", status)
-            self._transfer_usage_role = PJSIP_ROLE_UAS
-            pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, <void *> self.weakref)
-            with nogil:
-                status = pjsip_dlg_create_response(self._dialog, rdata, 202, NULL, &tdata)
-            if status != 0:
-                with nogil:
-                    pjsip_tsx_terminate(initial_tsx, 500)
-                raise PJSIPError("Could not create response for incoming REFER", status)
-            pjsip_evsub_update_expires(self._transfer_usage, 90)
-            with nogil:
-                status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
-            if status != 0:
-                with nogil:
-                    status = pjsip_dlg_modify_response(self._dialog, tdata, 500, NULL)
                 if status != 0:
-                    raise PJSIPError("Could not modify response", status)
-                # pjsip_dlg_modify_response() increases ref count unncessarily
-                with nogil:
-                    pjsip_tx_data_dec_ref(tdata)
-                raise PJSIPError("Could not send response", status)
+                    pjsip_tsx_terminate(initial_tsx, 500)
+                    error_message = "Could not create incoming REFER session"
+                else:
+                    self._transfer_usage_role = PJSIP_ROLE_UAS
+                    pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, <void *> self.weakref)
+                    status = pjsip_dlg_create_response(self._dialog, rdata, 202, NULL, &tdata)
+                    if status != 0:
+                        pjsip_tsx_terminate(initial_tsx, 500)
+                        error_message = "Could not create response for incoming REFER"
+                    else:
+                        pjsip_evsub_update_expires(self._transfer_usage, 90)
+                        status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+                        if status != 0:
+                            status2 = pjsip_dlg_modify_response(self._dialog, tdata, 500, NULL)
+                            if status2 != 0:
+                                error_message = "Could not modify response"
+                                status = status2
+                            else:
+                                pjsip_tx_data_dec_ref(tdata)  # pjsip_dlg_modify_response() increases ref count unnecessarily
+                                error_message = "Could not send response"
+            if status != 0:
+                raise PJSIPError(error_message, status)
         except PJSIPError, e:
             code = 0
             reason = e.args[0]
@@ -295,19 +302,21 @@ cdef class Invitation:
         cdef pjsip_tx_data *tdata
         cdef pjsip_transaction *initial_tsx
         cdef int status
+        cdef char *error_message
 
         try:
             initial_tsx = pjsip_rdata_get_tsx(rdata)
             with nogil:
                 status = pjsip_dlg_create_response(self._dialog, rdata, 200, NULL, &tdata)
-            if status != 0:
-                with nogil:
+                if status != 0:
                     pjsip_tsx_terminate(initial_tsx, 500)
-                raise PJSIPError("Could not create response for incoming OPTIONS", status)
-            with nogil:
-                status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+                    error_message = "Could not create response for incoming OPTIONS"
+                else:
+                    status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+                    if status != 0:
+                        error_message = "Could not send response"
             if status != 0:
-                raise PJSIPError("Could not send response", status)
+                raise PJSIPError(error_message, status)
         except PJSIPError:
             pass
 

@@ -410,6 +410,7 @@ cdef class IncomingSubscription:
         cdef dict event_dict
         cdef pjsip_expires_hdr *expires_header
         cdef pjsip_tpselector tp_sel
+        cdef char *error_message
 
         expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
         if expires_header == NULL:
@@ -435,31 +436,34 @@ cdef class IncomingSubscription:
 
         with nogil:
             status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
+            if status != 0:
+                error_message = "Could not create dialog for incoming SUBSCRIBE"
+            else:
+                pjsip_dlg_inc_session(self._dlg, &ua._module)  # Increment dialog session count so it's never destroyed by PJSIP
+                pjsip_dlg_set_transport(self._dlg, &tp_sel)
         if status != 0:
-            raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
-        with nogil:
-            # The next 2 statements cannot fails unless self._dlg, ua._module or tp_sel are NULL is are guaranteed not to be
-            pjsip_dlg_inc_session(self._dlg, &ua._module)  # Increment dialog session count so that it's never destroyed by PJSIP
-            pjsip_dlg_set_transport(self._dlg, &tp_sel)
+            raise PJSIPError(error_message, status)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
         self.call_id = _pj_str_to_str(self._dlg.call_id.id)
         with nogil:
             status = pjsip_evsub_create_uas(self._dlg, &_incoming_subs_cb, rdata, 0, &self._obj)
             pjsip_dlg_dec_lock(self._dlg)
-        if status != 0:
-            with nogil:
+            if status != 0:
                 pjsip_tsx_terminate(self._initial_tsx, 500)
-            self._initial_tsx = NULL
-            self._dlg = NULL
-            raise PJSIPError("Could not create incoming SUBSCRIBE session", status)
-        pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
-        with nogil:
-            status = pjsip_dlg_create_response(self._dlg, rdata, 500, NULL, &self._initial_response)
+                self._initial_tsx = NULL
+                self._dlg = NULL
+                error_message = "Could not create incoming SUBSCRIBE session"
+            else:
+                pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
+                status = pjsip_dlg_create_response(self._dlg, rdata, 500, NULL, &self._initial_response)
+                if status != 0:
+                    pjsip_tsx_terminate(self._initial_tsx, 500)
+                    self._initial_tsx = NULL
+                    error_message = "Could not create response for incoming SUBSCRIBE"
+
         if status != 0:
-            with nogil:
-                pjsip_tsx_terminate(self._initial_tsx, 500)
-            self._initial_tsx = NULL
-            raise PJSIPError("Could not create response for incoming SUBSCRIBE", status)
+            raise PJSIPError(error_message, status)
+
         _add_event("SIPIncomingSubscriptionGotSubscribe", event_dict)
         return 0
 
