@@ -491,7 +491,7 @@ cdef class Invitation:
             if sdp is not None and self.sdp.proposed_remote is None:
                 # There was no remote proposal, this is a reply with an offer
                 with nogil:
-                    status = pjmedia_sdp_neg_modify_local_offer(self._dialog.pool, invite_session.neg, <pjmedia_sdp_session_ptr_const>local_sdp);
+                    status = pjmedia_sdp_neg_modify_local_offer(self._dialog.pool, invite_session.neg, <pjmedia_sdp_session_ptr_const>local_sdp)
                 if status != 0:
                     raise PJSIPError("Could not modify local SDP offer", status)
                 # Retrieve the "fixed" offer from negotiator
