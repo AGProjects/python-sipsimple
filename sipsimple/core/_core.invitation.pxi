@@ -294,6 +294,7 @@ cdef class Invitation:
     cdef int process_incoming_options(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         cdef pjsip_tx_data *tdata
         cdef pjsip_transaction *initial_tsx
+        cdef int status
 
         try:
             initial_tsx = pjsip_rdata_get_tsx(rdata)
