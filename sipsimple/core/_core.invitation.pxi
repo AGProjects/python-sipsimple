@@ -201,6 +201,7 @@ cdef class Invitation:
                             error_message = "Could not send response"
                 if status != 0:
                     raise PJSIPError(error_message, status)
+            raise
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
@@ -291,6 +292,7 @@ cdef class Invitation:
             # Manually trigger the state callback since we handle the timeout ourselves
             state_timer = TransferStateCallbackTimer("TERMINATED", code, reason)
             state_timer.schedule(0, <timer_callback>self._transfer_cb_state, self)
+            raise
         else:
             self._set_transfer_state("ACTIVE")
             _add_event("SIPInvitationTransferDidStart", dict(obj=self))
@@ -304,21 +306,18 @@ cdef class Invitation:
         cdef int status
         cdef char *error_message
 
-        try:
-            initial_tsx = pjsip_rdata_get_tsx(rdata)
-            with nogil:
-                status = pjsip_dlg_create_response(self._dialog, rdata, 200, NULL, &tdata)
-                if status != 0:
-                    pjsip_tsx_terminate(initial_tsx, 500)
-                    error_message = "Could not create response for incoming OPTIONS"
-                else:
-                    status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
-                    if status != 0:
-                        error_message = "Could not send response"
+        initial_tsx = pjsip_rdata_get_tsx(rdata)
+        with nogil:
+            status = pjsip_dlg_create_response(self._dialog, rdata, 200, NULL, &tdata)
             if status != 0:
-                raise PJSIPError(error_message, status)
-        except PJSIPError:
-            pass
+                pjsip_tsx_terminate(initial_tsx, 500)
+                error_message = "Could not create response for incoming OPTIONS"
+            else:
+                status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+                if status != 0:
+                    error_message = "Could not send response"
+        if status != 0:
+            raise PJSIPError(error_message, status)
 
     def send_invite(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, RouteHeader route_header not None, ContactHeader contact_header not None,
                     SDPSession sdp not None, Credentials credentials=None, list extra_headers not None=list(), timeout=None):
