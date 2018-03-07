@@ -409,7 +409,6 @@ cdef class IncomingSubscription:
         cdef PJSTR contact_str
         cdef dict event_dict
         cdef pjsip_expires_hdr *expires_header
-        cdef pjsip_tpselector tp_sel
         cdef char *error_message
 
         expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
@@ -431,8 +430,6 @@ cdef class IncomingSubscription:
                                                             user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                             parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
         contact_str = PJSTR(str(contact_header.body))
-        tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
-        tp_sel.u.transport = rdata.tp_info.transport
 
         with nogil:
             status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact_str.pj_str, &self._dlg)
@@ -440,7 +437,7 @@ cdef class IncomingSubscription:
                 error_message = "Could not create dialog for incoming SUBSCRIBE"
             else:
                 pjsip_dlg_inc_session(self._dlg, &ua._module)  # Increment dialog session count so it's never destroyed by PJSIP
-                # pjsip_dlg_set_transport(self._dlg, &tp_sel)  # doesn't work as the NOTIFY has to be sent to the Contact URI and this transport can conflict with that
+                # setting the transport to rdata.tp_info.transport doesn't work as the NOTIFY has to be sent to the Contact URI and the transports can conflict
         if status != 0:
             raise PJSIPError(error_message, status)
         self._initial_tsx = pjsip_rdata_get_tsx(rdata)
