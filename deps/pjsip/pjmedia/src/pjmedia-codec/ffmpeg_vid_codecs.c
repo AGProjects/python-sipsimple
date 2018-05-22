@@ -1684,12 +1684,12 @@ static pj_status_t ffmpeg_codec_decode_whole(pjmedia_vid_codec *codec,
     avpacket.size = (int)input->size;
 
     /* ffmpeg warns:
-     * - input buffer padding, at least FF_INPUT_BUFFER_PADDING_SIZE
+     * - input buffer padding, at least AV_INPUT_BUFFER_PADDING_SIZE
      * - null terminated
      * Normally, encoded buffer is allocated more than needed, so lets just
      * bzero the input buffer end/pad, hope it will be just fine.
      */
-    pj_bzero(avpacket.data+avpacket.size, FF_INPUT_BUFFER_PADDING_SIZE);
+    pj_bzero(avpacket.data+avpacket.size, AV_INPUT_BUFFER_PADDING_SIZE);
 
     output->bit_info = 0;
     output->timestamp = input->timestamp;
