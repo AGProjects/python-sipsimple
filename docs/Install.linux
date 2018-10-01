@@ -35,7 +35,7 @@ You can use the easy_install script provided by the python-setuptools
 package to install the packages:
 
 sudo pip install -U cython dnspython lxml python-gnutls python-otr \
-python-application dnspython twisted python-dateutil greenlet
+python-application twisted python-dateutil greenlet
 
 
 Step 3. Install SIP SIMPLE client SDK
