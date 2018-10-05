@@ -6,11 +6,23 @@ import os
 from distutils.core import setup
 from distutils.extension import Extension
 from setup_pjsip import PJSIP_build_ext
-from sipsimple import __info__ as package_info
 
 
 def find_packages(root):
     return [directory.replace(os.path.sep, '.') for directory, sub_dirs, files in os.walk(root) if '__init__.py' in files]
+
+
+class PackageInfo(object):
+    def __init__(self, info_file):
+        with open(info_file) as f:
+            exec(f.read(), self.__dict__)
+        self.__dict__.pop('__builtins__', None)
+
+    def __getattribute__(self, name):  # this is here to silence the IDE about missing attributes
+        return super(PackageInfo, self).__getattribute__(name)
+
+
+package_info = PackageInfo(os.path.join('sipsimple', '__info__.py'))
 
 
 setup(
