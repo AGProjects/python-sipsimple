@@ -36,7 +36,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError, IterateTypes, IterateIDs, IterateItems, All
 from sipsimple.payloads import addressbook, commonpolicy, dialogrules, omapolicy, pidf, prescontent, presrules, resourcelists, rlsservices, xcapcaps, xcapdiff
-from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
+from sipsimple.payloads import rpid; del rpid  # needs to be imported to register its namespace
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, Worker, run_in_green_thread
 
