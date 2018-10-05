@@ -1,3 +1,37 @@
+python-sipsimple (3.2.0) unstable; urgency=medium
+
+  * Shutdown already started subsystems if application is stopped early
+  * Fixed a bug that would hang the application if the engine fails to start
+  * Stop the engine thread on engine failure
+  * Reset encryption type when the RTP stream ends
+  * Use a named logger for sipsimple logging
+  * Use modern syntax for catching exception
+  * Removed underscore prefix from argument name
+  * Fixed typo in notification name
+  * Order imports alphabetically
+  * Import statement cleanup
+  * Removed obsolete build option
+  * [core] Removed unnecesary local variables
+  * [core] Removed test for failures that cannot happen
+  * [core] Fixed the transport being used within an incoming SUBSCRIBE dialog
+  * [core] Removed unnecessary semicolon at the end of statement
+  * [core] Added missing cdef statement
+  * [core] Minimize releasing/acquiring the GIL
+  * [core] Propagate exceptions
+  * [core] Undo setting incoming subscription transport as it conflicts
+  * [core] Removed unused code from setting transport
+  * Use the new logging API in python-application 2.5.0
+  * Fixed compiling with newer ffmpeg
+  * Removed duplicate dependency
+  * Update macOS installation instructions
+  * Added deb building instructions for Rasberry Pi
+  * Removed copyright notices from install files
+  * Updated copyright years
+  * Replaced deprecated debian package priority
+  * Switched from dbg package to dbgsym package
+
+ -- Dan Pascu <dan@ag-projects.com>  Fri, 05 Oct 2018 16:42:56 +0300
+
 python-sipsimple (3.1.1) unstable; urgency=medium
 
   * Fix processing audio / video SDPs with non numeric formats
