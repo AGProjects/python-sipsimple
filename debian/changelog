@@ -1,3 +1,9 @@
+python-sipsimple (3.2.1) unstable; urgency=medium
+
+  * Fixed building sipsimple when python-application is not installed
+
+ -- Dan Pascu <dan@ag-projects.com>  Fri, 05 Oct 2018 18:57:56 +0300
+
 python-sipsimple (3.2.0) unstable; urgency=medium
 
   * Shutdown already started subsystems if application is stopped early
