@@ -520,7 +520,7 @@ class Group(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
@@ -548,7 +548,7 @@ class Group(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
@@ -832,7 +832,7 @@ class Contact(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
@@ -866,7 +866,7 @@ class Contact(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
@@ -1021,7 +1021,7 @@ class Policy(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
@@ -1049,7 +1049,7 @@ class Policy(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def save(self):
@@ -1255,7 +1255,7 @@ class AddressbookManager(object):
                     try:
                         contact = Contact(xcap_contact.id)
                     except DuplicateIDError:
-                        log.err()
+                        log.exception()
                         continue
                 contact.name = xcap_contact.name
                 contact.presence.policy = xcap_contact.presence.policy
@@ -1272,7 +1272,7 @@ class AddressbookManager(object):
                         try:
                             uri = ContactURI(xcap_uri.id)
                         except DuplicateIDError:
-                            log.err()
+                            log.exception()
                             continue
                         contact.uris.add(uri)
                     uri.uri = xcap_uri.uri
@@ -1292,7 +1292,7 @@ class AddressbookManager(object):
                     try:
                         group = Group(xcap_group.id)
                     except DuplicateIDError:
-                        log.err()
+                        log.exception()
                         continue
                 group.name = xcap_group.name
                 for name, value in xcap_group.attributes.iteritems():
@@ -1313,7 +1313,7 @@ class AddressbookManager(object):
                     try:
                         policy = Policy(xcap_policy.id)
                     except DuplicateIDError:
-                        log.err()
+                        log.exception()
                         continue
                 policy.uri = xcap_policy.uri
                 policy.name = xcap_policy.name

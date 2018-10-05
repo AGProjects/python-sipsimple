@@ -1040,7 +1040,7 @@ class XCAPManager(object):
                 handler(operation)
             except Exception:
                 # Error while applying operation, needs to be logged -Luci
-                log.err()
+                log.exception()
             operation.applied = True
             api.sleep(0) # Operations are quite CPU intensive
         try:

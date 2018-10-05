@@ -36,8 +36,7 @@ class ThreadManager(object):
         try:
             event.function(*event.args, **event.kw)
         except:
-            log.error('Exception occurred while calling %r in the %r thread' % (event.function, current_thread().name))
-            log.err()
+            log.exception('Exception occurred while calling %r in the %r thread' % (event.function, current_thread().name))
 
     def start(self):
         pass

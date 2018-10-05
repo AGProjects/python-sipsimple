@@ -950,7 +950,7 @@ class SettingsObject(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
@@ -971,7 +971,7 @@ class SettingsObject(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            log.err()
+            log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
     def clone(self, new_id):

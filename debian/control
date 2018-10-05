@@ -26,7 +26,7 @@ Homepage: http://sipsimpleclient.org
 Package: python-sipsimple
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
-         python-application (>= 2.0.0),
+         python-application (>= 2.5.0),
          python-dateutil,
          python-dnspython (>= 1.9),
          python-eventlib,

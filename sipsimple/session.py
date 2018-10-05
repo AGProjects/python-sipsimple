@@ -948,8 +948,7 @@ class Session(object):
                             log.error("Invalid stream: {}".format(e))
                             break
                         except Exception as e:
-                            log.error("Exception occurred while setting up stream from SDP: {}".format(e))
-                            log.err()
+                            log.exception("Exception occurred while setting up stream from SDP: {}".format(e))
                             break
                         else:
                             stream.index = index
@@ -2402,8 +2401,7 @@ class Session(object):
                                             log.error("Invalid stream: {}".format(e))
                                             break
                                         except Exception as e:
-                                            log.error("Exception occurred while setting up stream from SDP: {}".format(e))
-                                            log.err()
+                                            log.exception("Exception occurred while setting up stream from SDP: {}".format(e))
                                             break
                                         else:
                                             stream.index = index
