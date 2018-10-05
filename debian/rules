@@ -13,6 +13,3 @@ override_dh_clean:
 	dh_clean
 	rm -rf build dist MANIFEST
 
-override_dh_strip:
-	dh_strip --dbg-package=python-sipsimple-dbg
-
