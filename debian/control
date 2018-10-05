@@ -46,7 +46,7 @@ Description: Python SDK for development of SIP end-points
 
 Package: python-sipsimple-dbg
 Architecture: any
-Priority: extra
+Priority: optional
 Section: debug
 Depends: python-sipsimple (= ${binary:Version}), ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}
 Provides: ${python:Provides}
