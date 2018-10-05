@@ -14,7 +14,6 @@ import random
 from threading import RLock
 from time import time
 
-from application import log
 from application.notification import IObserver, Notification, NotificationCenter, NotificationData
 from application.python import Null, limit
 from application.python.decorator import decorator, preserve_signature
@@ -24,6 +23,7 @@ from eventlib import api, coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
+from sipsimple import log
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages, sipfrag_re

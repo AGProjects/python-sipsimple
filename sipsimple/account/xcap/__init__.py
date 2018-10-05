@@ -18,7 +18,6 @@ from itertools import chain
 from operator import attrgetter
 from urllib2 import URLError
 
-from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from application.python.decorator import execute_once
@@ -29,6 +28,7 @@ from xcaplib.green import XCAPClient
 from xcaplib.error import HTTPError
 from zope.interface import implements
 
+from sipsimple import log
 from sipsimple.account.subscription import Subscriber, Content
 from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
 from sipsimple.configuration.datatypes import SIPAddress

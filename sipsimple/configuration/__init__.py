@@ -12,12 +12,12 @@ from operator import attrgetter
 from threading import Lock
 from weakref import WeakSet
 
-from application import log
 from application.notification import NotificationCenter, NotificationData
 from application.python.descriptor import isdescriptor
 from application.python.types import Singleton
 from application.python.weakref import weakobjectmap
 
+from sipsimple import log
 from sipsimple.threading import run_in_thread
 
 

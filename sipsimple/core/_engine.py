@@ -10,13 +10,12 @@ import sys
 import traceback
 import atexit
 
-from application import log
 from application.notification import NotificationCenter, NotificationData
 from application.python.types import Singleton
 from threading import Thread, RLock
 
+from sipsimple import log, __version__
 from sipsimple.core._core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
-from sipsimple import __version__
 
 
 class Engine(Thread):

@@ -9,7 +9,6 @@ import uuid
 from threading import Lock
 from weakref import WeakKeyDictionary
 
-from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
 from eventlib import api, coros, proc
@@ -17,6 +16,7 @@ from eventlib.green import select
 from twisted.internet import reactor
 from zope.interface import implements
 
+from sipsimple import log
 from sipsimple.account.bonjour import _bonjour
 from sipsimple.core import FrozenSIPURI, SIPCoreError, NoGRUU
 from sipsimple.configuration.settings import SIPSimpleSettings
