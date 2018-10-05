@@ -11,7 +11,7 @@ python-sipsimple (3.2.0) unstable; urgency=medium
   * Order imports alphabetically
   * Import statement cleanup
   * Removed obsolete build option
-  * [core] Removed unnecesary local variables
+  * [core] Removed unnecessary local variables
   * [core] Removed test for failures that cannot happen
   * [core] Fixed the transport being used within an incoming SUBSCRIBE dialog
   * [core] Removed unnecessary semicolon at the end of statement
@@ -30,7 +30,7 @@ python-sipsimple (3.2.0) unstable; urgency=medium
   * Replaced deprecated debian package priority
   * Switched from dbg package to dbgsym package
 
- -- Dan Pascu <dan@ag-projects.com>  Fri, 05 Oct 2018 16:42:56 +0300
+ -- Dan Pascu <dan@ag-projects.com>  Fri, 05 Oct 2018 17:01:31 +0300
 
 python-sipsimple (3.1.1) unstable; urgency=medium
 

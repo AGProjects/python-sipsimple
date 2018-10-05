@@ -11,7 +11,7 @@ python-sipsimple (3.2.0) unstable; urgency=medium
   * Order imports alphabetically
   * Import statement cleanup
   * Removed obsolete build option
-  * [core] Removed unnecesary local variables
+  * [core] Removed unnecessary local variables
   * [core] Removed test for failures that cannot happen
   * [core] Fixed the transport being used within an incoming SUBSCRIBE dialog
   * [core] Removed unnecessary semicolon at the end of statement
