@@ -24,12 +24,11 @@ from eventlib import api, coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
+from sipsimple.account import AccountManager, BonjourAccount
+from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages, sipfrag_re
 from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
-
-from sipsimple.account import AccountManager, BonjourAccount
-from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import PublicGRUU, PublicGRUUIfAvailable, NoGRUU
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
