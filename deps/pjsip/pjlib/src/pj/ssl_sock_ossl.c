@@ -43,15 +43,31 @@
 /* 
  * Include OpenSSL headers 
  */
+#include <openssl/asn1.h>
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
 
 
+#if !USING_LIBRESSL && OPENSSL_VERSION_NUMBER >= 0x10100000L
+#  define OPENSSL_NO_SSL2	    /* seems to be removed in 1.1.0 */
+#  define M_ASN1_STRING_data(x)	    ASN1_STRING_get0_data(x)
+#  define M_ASN1_STRING_length(x)   ASN1_STRING_length(x)
+#  if defined(OPENSSL_API_COMPAT) && OPENSSL_API_COMPAT >= 0x10100000L
+#     define X509_get_notBefore(x)  X509_get0_notBefore(x)
+#     define X509_get_notAfter(x)   X509_get0_notAfter(x)
+#  endif
+#else
+#  define SSL_CIPHER_get_id(c)	    (c)->id
+#  define SSL_set_session(ssl, s)   (ssl)->session = (s)
+#endif
+
+
 #ifdef _MSC_VER
 #  pragma comment( lib, "libeay32")
 #  pragma comment( lib, "ssleay32")
+#  pragma comment( lib, "crypt32")
 #endif
 
 
@@ -319,8 +335,12 @@ static pj_status_t init_openssl(void)
     pj_assert(status == PJ_SUCCESS);
 
     /* Init OpenSSL lib */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     SSL_library_init();
     SSL_load_error_strings();
+#else
+    OPENSSL_init_ssl(0, NULL);
+#endif
 #if OPENSSL_VERSION_NUMBER < 0x009080ffL
     /* This is now synonym of SSL_library_init() */
     OpenSSL_add_all_algorithms();
@@ -334,6 +354,7 @@ static pj_status_t init_openssl(void)
 	STACK_OF(SSL_CIPHER) *sk_cipher;
 	unsigned i, n;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	meth = (SSL_METHOD*)SSLv23_server_method();
 	if (!meth)
 	    meth = (SSL_METHOD*)TLSv1_server_method();
@@ -345,6 +366,12 @@ static pj_status_t init_openssl(void)
 	if (!meth)
 	    meth = (SSL_METHOD*)SSLv2_server_method();
 #endif
+
+#else
+	/* Specific version methods are deprecated in 1.1.0 */
+	meth = (SSL_METHOD*)TLS_method();
+#endif
+
 	pj_assert(meth);
 
 	ctx=SSL_CTX_new(meth);
@@ -361,7 +388,7 @@ static pj_status_t init_openssl(void)
 	    const SSL_CIPHER *c;
 	    c = sk_SSL_CIPHER_value(sk_cipher,i);
 	    openssl_ciphers[i].id = (pj_ssl_cipher)
-				    (pj_uint32_t)c->id & 0x00FFFFFF;
+				    (pj_uint32_t)SSL_CIPHER_get_id(c) & 0x00FFFFFF;
 	    openssl_ciphers[i].name = SSL_CIPHER_get_name(c);
 	}
 
@@ -526,6 +553,7 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
 	ssock->param.proto = PJ_SSL_SOCK_PROTO_SSL23;
 
     /* Determine SSL method to use */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     switch (ssock->param.proto) {
     case PJ_SSL_SOCK_PROTO_TLS1:
 	ssl_method = (SSL_METHOD*)TLSv1_method();
@@ -541,6 +569,10 @@ static pj_status_t create_ssl(pj_ssl_sock_t *ssock)
 #endif
 	break;
     }
+#else
+    /* Specific version methods are deprecated in 1.1.0 */
+    ssl_method = (SSL_METHOD*)TLS_method();
+#endif
 
     if (!ssl_method) {
 	ssl_method = (SSL_METHOD*)SSLv23_method();
@@ -869,7 +901,8 @@ static pj_status_t set_cipher_list(pj_ssl_sock_t *ssock)
 	    const SSL_CIPHER *c;
 	    c = sk_SSL_CIPHER_value(sk_cipher, j);
 	    if (ssock->param.ciphers[i] == (pj_ssl_cipher)
-					   ((pj_uint32_t)c->id & 0x00FFFFFF))
+					   ((pj_uint32_t)SSL_CIPHER_get_id(c) &
+					   0x00FFFFFF))
 	    {
 		const char *c_name;
 
@@ -994,7 +1027,7 @@ static void get_cert_info(pj_pool_t *pool, pj_ssl_cert_info *ci, X509 *x,
     pj_bool_t update_needed;
     char buf[512];
     pj_uint8_t serial_no[64] = {0}; /* should be >= sizeof(ci->serial_no) */
-    pj_uint8_t *q;
+    const pj_uint8_t *q;
     unsigned len;
     GENERAL_NAMES *names = NULL;
 
@@ -1004,7 +1037,7 @@ static void get_cert_info(pj_pool_t *pool, pj_ssl_cert_info *ci, X509 *x,
     X509_NAME_oneline(X509_get_issuer_name(x), buf, sizeof(buf));
 
     /* Get serial no */
-    q = (pj_uint8_t*) M_ASN1_STRING_data(X509_get_serialNumber(x));
+    q = (const pj_uint8_t*) M_ASN1_STRING_data(X509_get_serialNumber(x));
     len = M_ASN1_STRING_length(X509_get_serialNumber(x));
     if (len > sizeof(ci->serial_no)) 
 	len = sizeof(ci->serial_no);
@@ -1075,8 +1108,8 @@ static void get_cert_info(pj_pool_t *pool, pj_ssl_cert_info *ci, X509 *x,
 		    type = PJ_SSL_CERT_NAME_URI;
                     break;
                 case GEN_IPADD:
-		    p = ASN1_STRING_data(name->d.ip);
-		    len = ASN1_STRING_length(name->d.ip);
+		    p = (unsigned char*)M_ASN1_STRING_data(name->d.ip);
+		    len = M_ASN1_STRING_length(name->d.ip);
 		    type = PJ_SSL_CERT_NAME_IP;
                     break;
 		default:
@@ -2300,7 +2333,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_get_info (pj_ssl_sock_t *ssock,
 
 	/* Current cipher */
 	cipher = SSL_get_current_cipher(ssock->ossl_ssl);
-	info->cipher = (cipher->id & 0x00FFFFFF);
+	info->cipher = (SSL_CIPHER_get_id(cipher) & 0x00FFFFFF);
 
 	/* Remote address */
 	pj_sockaddr_cp(&info->remote_addr, &ssock->rem_addr);
