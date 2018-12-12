@@ -278,11 +278,15 @@ cdef extern from "pjmedia.h":
         PJMEDIA_VID_INVALID_DEV
 
     enum pjmedia_dir:
-        PJMEDIA_DIR_PLAYBACK
-        PJMEDIA_DIR_RENDER
-        PJMEDIA_DIR_CAPTURE
-        PJMEDIA_DIR_CAPTURE_PLAYBACK
-        PJMEDIA_DIR_CAPTURE_RENDER
+        PJMEDIA_DIR_NONE
+        PJMEDIA_DIR_ENCODING
+        PJMEDIA_DIR_DECODING
+        PJMEDIA_DIR_ENCODING_DECODING
+        PJMEDIA_DIR_PLAYBACK = PJMEDIA_DIR_DECODING
+        PJMEDIA_DIR_RENDER = PJMEDIA_DIR_DECODING
+        PJMEDIA_DIR_CAPTURE = PJMEDIA_DIR_ENCODING
+        PJMEDIA_DIR_CAPTURE_PLAYBACK = PJMEDIA_DIR_ENCODING_DECODING
+        PJMEDIA_DIR_CAPTURE_RENDER = PJMEDIA_DIR_ENCODING_DECODING
 
     enum pjmedia_type:
         PJMEDIA_TYPE_NONE
@@ -793,9 +797,6 @@ cdef extern from "pjmedia.h":
     pj_ice_strans *pjmedia_ice_get_strans(pjmedia_transport *tp) with gil
 
     # stream
-    enum pjmedia_dir:
-        PJMEDIA_DIR_ENCODING
-        PJMEDIA_DIR_DECODING
     struct pjmedia_codec_param_setting:
         unsigned int vad
     struct pjmedia_codec_param:
