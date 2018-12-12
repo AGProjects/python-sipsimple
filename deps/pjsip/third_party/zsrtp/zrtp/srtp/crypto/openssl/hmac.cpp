@@ -37,6 +37,8 @@
 #include <openssl/hmac.h>
 #include <crypto/hmac.h>
 
+#include <openssl_compat.h>
+
 #if defined(__APPLE__)
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -55,23 +57,21 @@ void hmac_sha1( uint8_t* key, int32_t key_length,
                 const uint8_t* data_chunks[],
                 uint32_t data_chunck_length[],
                 uint8_t* mac, int32_t* mac_length ) {
-    HMAC_CTX ctx;
-    HMAC_CTX_init(&ctx);
-    HMAC_Init_ex(&ctx, key, key_length, EVP_sha1(), NULL);
+    HMAC_CTX* ctx = HMAC_CTX_new();
+    HMAC_Init_ex(ctx, key, key_length, EVP_sha1(), NULL);
     while (*data_chunks) {
-        HMAC_Update(&ctx, *data_chunks, *data_chunck_length);
+        HMAC_Update(ctx, *data_chunks, *data_chunck_length);
         data_chunks ++;
         data_chunck_length ++;
     }
-    HMAC_Final(&ctx, mac, reinterpret_cast<uint32_t*>(mac_length));
-    HMAC_CTX_cleanup(&ctx);
+    HMAC_Final(ctx, mac, reinterpret_cast<uint32_t*>(mac_length));
+    HMAC_CTX_free(ctx);
 }
 
 void* createSha1HmacContext(uint8_t* key, int32_t key_length)
 {
-    HMAC_CTX* ctx = (HMAC_CTX*)malloc(sizeof(HMAC_CTX));
+    HMAC_CTX* ctx = HMAC_CTX_new();
 
-    HMAC_CTX_init(ctx);
     HMAC_Init_ex(ctx, key, key_length, EVP_sha1(), NULL);
     return ctx;
 }
@@ -80,7 +80,7 @@ void* initializeSha1HmacContext(void* ctx, uint8_t* key, int32_t keyLength)
 {
     HMAC_CTX *pctx = (HMAC_CTX*)ctx;
 
-    HMAC_CTX_init(pctx);
+    HMAC_CTX_reset(pctx);
     HMAC_Init_ex(pctx, key, keyLength, EVP_sha1(), NULL);
     return pctx;
 }
@@ -112,8 +112,7 @@ void hmacSha1Ctx(void* ctx, const uint8_t* data[], uint32_t data_length[],
 void freeSha1HmacContext(void* ctx)
 {
     if (ctx) {
-        HMAC_CTX_cleanup((HMAC_CTX*)ctx);
-        free(ctx);
+        HMAC_CTX_free((HMAC_CTX*)ctx);
     }
 }
 
