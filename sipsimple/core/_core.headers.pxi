@@ -1567,9 +1567,9 @@ cdef object BaseReplacesHeader_richcmp(object self, object other, int op) with g
     if not isinstance(other, BaseReplacesHeader):
         return NotImplemented
     if op == 2:
-        return self.call_id == other.call_id and self.from_tag == other.from_tag and self.to_tag == other.to_tag and self.early_flag == other.early_only and self.parameters == other.parameters
+        return self.call_id == other.call_id and self.from_tag == other.from_tag and self.to_tag == other.to_tag and self.early_only == other.early_only and self.parameters == other.parameters
     else:
-        return self.call_id != other.call_id or self.from_tag != other.from_tag or self.to_tag != other.to_tag or self.early_flag != other.early_only or self.parameters != other.parameters
+        return self.call_id != other.call_id or self.from_tag != other.from_tag or self.to_tag != other.to_tag or self.early_only != other.early_only or self.parameters != other.parameters
 
 cdef class BaseReplacesHeader:
     normal_type = ReplacesHeader
