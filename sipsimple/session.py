@@ -868,6 +868,17 @@ class TransferHandler(object):
             self._terminate()
 
 
+class OptionalTag(str):
+    def __eq__(self, other):
+        return other is None or super(OptionalTag, self).__eq__(other)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, super(OptionalTag, self).__repr__())
+
+
 class SessionReplaceHandler(object):
     implements(IObserver)
 
@@ -967,14 +978,27 @@ class Session(object):
                 self.transfer_info.referred_by = data.headers['Referred-By'].body
             if 'Replaces' in data.headers:
                 replaces_header = data.headers.get('Replaces')
-                replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
+                # Because we only allow the remote tag to be optional, it can only match established dialogs and early outgoing dialogs, but not early incoming dialogs,
+                # which according to RFC3891 should be rejected with 481 (which will happen automatically by never matching them).
+                if replaces_header.early_only or replaces_header.from_tag == '0':
+                    replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=OptionalTag(replaces_header.from_tag))
+                else:
+                    replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
                 session_manager = SessionManager()
                 try:
-                    self.replaced_session = next(session for session in session_manager.sessions if session.dialog_id == replaced_dialog_id)
+                    replaced_session = next(session for session in session_manager.sessions if session.dialog_id == replaced_dialog_id)
                 except StopIteration:
                     invitation.send_response(481)
                     return
                 else:
+                    # Any matched dialog at this point is either established, terminated or early outgoing.
+                    if replaced_session.state in ('terminating', 'terminated'):
+                        invitation.send_response(603)
+                        return
+                    elif replaced_session.dialog_id.remote_tag is not None and replaces_header.early_only:  # The replaced dialog is established, but the early-only flag is set
+                        invitation.send_response(486)
+                        return
+                    self.replaced_session = replaced_session
                     self.transfer_info.replaced_dialog_id = replaced_dialog_id
                     replace_handler = SessionReplaceHandler(self)
                     replace_handler.start()
