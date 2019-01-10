@@ -970,7 +970,7 @@ class Session(object):
                 replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
                 session_manager = SessionManager()
                 try:
-                    self.replaced_session = (session for session in session_manager.sessions if session._invitation is not None and session._invitation.dialog_id == replaced_dialog_id).next()
+                    self.replaced_session = next(session for session in session_manager.sessions if session.dialog_id == replaced_dialog_id)
                 except StopIteration:
                     invitation.send_response(481)
                     return
@@ -2075,7 +2075,7 @@ class Session(object):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPSessionTransferNewOutgoing', self, NotificationData(transfer_destination=target_uri))
         try:
-            self._invitation.transfer(target_uri, replaced_session._invitation.dialog_id if replaced_session is not None else None)
+            self._invitation.transfer(target_uri, replaced_session.dialog_id if replaced_session is not None else None)
         except SIPCoreError, e:
             notification_center.post_notification('SIPSessionTransferDidFail', sender=self, data=NotificationData(code=500, reason=str(e)))
 
@@ -2090,6 +2090,10 @@ class Session(object):
     def reject_transfer(self, code=603, reason=None):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPSessionTransferDidFail', self, NotificationData(code=code, reason=reason or sip_status_messages[code]))
+
+    @property
+    def dialog_id(self):
+        return self._invitation.dialog_id if self._invitation is not None else None
 
     @property
     def local_identity(self):
