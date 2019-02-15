@@ -1201,7 +1201,7 @@ class Session(object):
                     code = 408
                     reason = 'timeout'
                 else:
-                    #TODO: we should know *exactly* when there are set -Saul
+                    # TODO: we should know *exactly* when there are set -Saul
                     code = getattr(e.data, 'code', 0)
                     reason = getattr(e.data, 'reason', 'Session disconnected')
                 if e.data.originator == 'remote' and code // 100 == 3:
