@@ -419,12 +419,6 @@ class RTPStream(object):
         stream = cls()
         stream._incoming_remote_sdp = remote_sdp
         stream._incoming_stream_index = stream_index
-        if "zrtp-hash" in remote_stream.attributes:
-            stream._incoming_stream_encryption = 'zrtp'
-        elif "crypto" in remote_stream.attributes:
-            stream._incoming_stream_encryption = 'sdes_mandatory' if remote_stream.transport=='RTP/SAVP' else 'sdes_optional'
-        else:
-            stream._incoming_stream_encryption = None
         return stream
 
     def initialize(self, session, direction):
@@ -434,15 +428,20 @@ class RTPStream(object):
             self.state = "INITIALIZING"
             self.session = session
             local_encryption_policy = session.account.rtp.encryption.key_negotiation if session.account.rtp.encryption.enabled else None
-            if hasattr(self, "_incoming_remote_sdp"):
+            if hasattr(self, "_incoming_remote_sdp") and hasattr(self, '_incoming_stream_index'):
                 # ICE attributes could come at the session level or at the media level
                 remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
                 self._try_ice = self.session.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
-                if self._incoming_stream_encryption is not None and local_encryption_policy == 'opportunistic':
-                    self._srtp_encryption = self._incoming_stream_encryption
+                if "zrtp-hash" in remote_stream.attributes:
+                    incoming_stream_encryption = 'zrtp'
+                elif "crypto" in remote_stream.attributes:
+                    incoming_stream_encryption = 'sdes_mandatory' if remote_stream.transport == 'RTP/SAVP' else 'sdes_optional'
+                else:
+                    incoming_stream_encryption = None
+                if incoming_stream_encryption is not None and local_encryption_policy == 'opportunistic':
+                    self._srtp_encryption = incoming_stream_encryption
                 else:
                     self._srtp_encryption = 'zrtp' if local_encryption_policy == 'opportunistic' else local_encryption_policy
-                del self._incoming_stream_encryption
             else:
                 self._try_ice = self.session.account.nat_traversal.use_ice
                 self._srtp_encryption = 'zrtp' if local_encryption_policy == 'opportunistic' else local_encryption_policy
