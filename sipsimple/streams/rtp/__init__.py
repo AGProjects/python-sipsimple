@@ -160,10 +160,7 @@ class RTPStreamEncryption(object):
 
     @property
     def active(self):
-        stream = self._stream
-        if stream is None:
-            return False
-        rtp_transport = stream._rtp_transport
+        rtp_transport = self._rtp_transport
         if rtp_transport is None:
             return False
         if self.type == 'SRTP/SDES':
@@ -178,10 +175,7 @@ class RTPStreamEncryption(object):
 
     @property
     def cipher(self):
-        stream = self._stream
-        if stream is None:
-            return None
-        rtp_transport = self._stream._rtp_transport
+        rtp_transport = self._rtp_transport
         if rtp_transport is None:
             return None
         if self.type == 'SRTP/SDES':
