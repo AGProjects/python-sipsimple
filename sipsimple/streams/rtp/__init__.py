@@ -570,11 +570,15 @@ class RTPStream(object):
             stun_address, stun_port = self._stun_servers.pop()
             try:
                 rtp_transport = RTPTransport(ice_stun_address=stun_address, ice_stun_port=stun_port, **self._rtp_args)
-                self.notification_center.add_observer(self, sender=rtp_transport)
-                rtp_transport.set_INIT()
             except SIPCoreError, e:
-                self.notification_center.discard_observer(self, sender=rtp_transport)
                 self._try_next_rtp_transport(e.args[0])
+            else:
+                self.notification_center.add_observer(self, sender=rtp_transport)
+                try:
+                    rtp_transport.set_INIT()
+                except SIPCoreError, e:
+                    self.notification_center.remove_observer(self, sender=rtp_transport)
+                    self._try_next_rtp_transport(e.args[0])
         else:
             self.state = "ENDED"
             self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=failure_reason))
