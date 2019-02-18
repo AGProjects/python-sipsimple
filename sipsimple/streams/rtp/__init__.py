@@ -170,10 +170,6 @@ class RTPStreamEncryption(object):
         return False
 
     @property
-    def type(self):
-        return self.__dict__['type']
-
-    @property
     def cipher(self):
         rtp_transport = self._rtp_transport
         if rtp_transport is None:
@@ -183,6 +179,10 @@ class RTPStreamEncryption(object):
         elif self.type == 'ZRTP':
             return rtp_transport.zrtp_cipher
         return None
+
+    @property
+    def type(self):
+        return self.__dict__['type']
 
     @property
     def zrtp(self):
