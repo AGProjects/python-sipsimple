@@ -1531,11 +1531,7 @@ class Session(object):
                             break
         except SIPCoreInvalidStateError:
             # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was cancelled by the remote party
-            notification_center.remove_observer(self, sender=self._invitation)
             self.greenlet = None
-            self.state = 'terminated'
-            notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
-            notification_center.post_notification('SIPSessionDidFail', self, NotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         except SIPCoreError, e:
             self._fail(originator='local', code=500, reason=sip_status_messages[500], error='SIP core error: %s' % str(e))
         except api.TimeoutError:
