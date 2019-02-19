@@ -187,7 +187,7 @@ class SIPAddress(str):
             Hostname(domain)
         except ValueError:
             raise ValueError("illegal SIP address: %s, must be in user@domain format" % address)
-        return str.__new__(cls, address)
+        return super(SIPAddress, cls).__new__(cls, address)
 
     username = property(lambda self: self.split('@')[0])
     domain = property(lambda self: self.split('@')[1])
@@ -242,7 +242,7 @@ class H264Profile(str):
     def __new__(cls, value):
         if value.lower() not in cls.valid_values:
             raise ValueError('invalid value, must be one of: {}'.format(', '.join(cls.valid_values)))
-        return str.__new__(cls, value.lower())
+        return super(H264Profile, cls).__new__(cls, value.lower())
 
 
 class VideoResolution(tuple):
@@ -256,7 +256,7 @@ class VideoResolution(tuple):
             width, height = value.split('x')
         else:
             raise ValueError('invalid value: %r' % value)
-        return tuple.__new__(cls, (int(width), int(height)))
+        return super(VideoResolution, cls).__new__(cls, (int(width), int(height)))
 
     def __repr__(self):
         return '%s(%d, %d)' % (self.__class__.__name__, self.width, self.height)
@@ -654,7 +654,7 @@ class SRTPKeyNegotiation(str):
 
 class Path(unicode):
     def __new__(cls, path):
-        return unicode.__new__(cls, os.path.normpath(path))
+        return super(Path, cls).__new__(cls, os.path.normpath(path))
 
     @property
     def normalized(self):
