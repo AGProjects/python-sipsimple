@@ -241,7 +241,7 @@ class H264Profile(str):
 
     def __new__(cls, value):
         if value.lower() not in cls.valid_values:
-            raise ValueError('invalid value, must be one of %r' % cls.valid_values)
+            raise ValueError('invalid value, must be one of: {}'.format(', '.join(cls.valid_values)))
         return str.__new__(cls, value.lower())
 
 
