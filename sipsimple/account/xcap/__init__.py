@@ -1335,7 +1335,7 @@ class XCAPManager(object):
             elif self.dialog_rules.content.element.nsmap.get('dr') != dialogrules.namespace:  # TODO: this elif branch should be removed in a later version as it is
                 self.dialog_rules.content = dialogrules.DialogRules()                         # only used to discard documents created with the old namespace. -Dan
 
-            def fix_subhandling(rule, valid_values=[]):
+            def fix_subhandling(rule, valid_values=()):
                 subhandling_elements = sorted((item for item in rule.actions if isinstance(item, dialogrules.SubHandling)), key=attrgetter('value.priority'))
                 if not subhandling_elements:
                     subhandling_elements = [dialogrules.SubHandling('block')] # spec specifies that missing SubHandling means block
