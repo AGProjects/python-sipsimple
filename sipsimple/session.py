@@ -1928,6 +1928,7 @@ class Session(object):
                         if notification.data.code == 487:
                             proposed_streams = self.proposed_streams or []
                             for stream in proposed_streams:
+                                notification_center.remove_observer(self, sender=stream)
                                 stream.deactivate()
                                 stream.end()
                             self.proposed_streams = None
@@ -1942,6 +1943,7 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
             proposed_streams = self.proposed_streams or []
             for stream in proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
                 stream.deactivate()
                 stream.end()
             self.proposed_streams = None
@@ -1949,12 +1951,14 @@ class Session(object):
             self.state = 'connected'
             notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=0, reason='SIP core error: %s' % str(e), proposed_streams=proposed_streams))
         except InvitationDisconnectedError, e:
+            # TODO: clean up proposed streams here as well? -Dan
             self.proposed_streams = None
             self.greenlet = None
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
             notification.center = notification_center
             self.handle_notification(notification)
         else:
+            # TODO: clean up proposed streams here as well? -Dan
             self.proposed_streams = None
             self.greenlet = None
             self.state = 'connected'
