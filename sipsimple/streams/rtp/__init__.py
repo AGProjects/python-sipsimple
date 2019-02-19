@@ -6,8 +6,10 @@ RFC2833 and RFC3711, RFC3489 and RFC5245.
 
 __all__ = ['RTPStream']
 
+import weakref
+
 from abc import ABCMeta, abstractmethod
-from application.notification import IObserver, NotificationCenter, NotificationData
+from application.notification import IObserver, NotificationCenter, NotificationData, ObserverWeakrefProxy
 from application.python import Null
 from threading import RLock
 from zope.interface import implements
@@ -149,14 +151,16 @@ class RTPStreamEncryption(object):
     implements(IObserver)
 
     def __init__(self, stream):
-        self._stream = stream
+        self._stream_ref = weakref.ref(stream)  # Keep a weak reference before the stream is initialized to avoid a memory cycle that would delay releasing audio resources
+        self._stream = None                     # We will store the actual reference once it's initialized and we're guaranteed to get MediaStreamDidEnd and do the cleanup
         self._rtp_transport = None
 
         self.__dict__['type'] = None
         self.__dict__['zrtp'] = None
 
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=stream)
+        notification_center.add_observer(ObserverWeakrefProxy(self), name='MediaStreamDidInitialize')
+        notification_center.add_observer(ObserverWeakrefProxy(self), name='MediaStreamDidNotInitialize')
 
     @property
     def active(self):
@@ -197,22 +201,30 @@ class RTPStreamEncryption(object):
 
     def _NH_MediaStreamDidInitialize(self, notification):
         stream = notification.sender
-        self._rtp_transport = stream._rtp_transport
-        notification.center.add_observer(self, sender=self._rtp_transport)
-        encryption = stream._srtp_encryption or ''
-        if encryption.startswith('sdes'):
-            self.__dict__['type'] = 'SRTP/SDES'
-        elif encryption == 'zrtp':
-            self.__dict__['type'] = 'ZRTP'
-            self.__dict__['zrtp'] = ZRTPStreamOptions(self._stream)
+        if stream is self._stream_ref():
+            self._stream = stream
+            self._rtp_transport = stream._rtp_transport
+            notification.center.remove_observer(ObserverWeakrefProxy(self), name='MediaStreamDidInitialize')
+            notification.center.remove_observer(ObserverWeakrefProxy(self), name='MediaStreamDidNotInitialize')
+            notification.center.add_observer(self, sender=self._stream)
+            notification.center.add_observer(self, sender=self._rtp_transport)
+            encryption = stream._srtp_encryption or ''
+            if encryption.startswith('sdes'):
+                self.__dict__['type'] = 'SRTP/SDES'
+            elif encryption == 'zrtp':
+                self.__dict__['type'] = 'ZRTP'
+                self.__dict__['zrtp'] = ZRTPStreamOptions(stream)
 
     def _NH_MediaStreamDidNotInitialize(self, notification):
-        notification.center.remove_observer(self, sender=self._stream)
-        self._stream = None
+        if notification.sender is self._stream_ref():
+            notification.center.remove_observer(ObserverWeakrefProxy(self), name='MediaStreamDidInitialize')
+            notification.center.remove_observer(ObserverWeakrefProxy(self), name='MediaStreamDidNotInitialize')
+            self._stream_ref = None
+            self._stream = None
 
     def _NH_MediaStreamDidStart(self, notification):
         if self.type == 'SRTP/SDES':
-            stream = self._stream
+            stream = notification.sender
             if self.active:
                 notification.center.post_notification('RTPStreamDidEnableEncryption', sender=stream)
             else:
@@ -223,6 +235,7 @@ class RTPStreamEncryption(object):
         notification.center.remove_observer(self, sender=self._stream)
         notification.center.remove_observer(self, sender=self._rtp_transport)
         self._stream = None
+        self._stream_ref = None
         self._rtp_transport = None
         self.__dict__['type'] = None
         self.__dict__['zrtp'] = None
