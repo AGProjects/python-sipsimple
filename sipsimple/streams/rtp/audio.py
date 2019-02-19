@@ -171,10 +171,10 @@ class AudioStream(RTPStream):
             self._stop_recording()
 
     def _NH_RTPAudioStreamGotDTMF(self, notification):
-        self.notification_center.post_notification('AudioStreamGotDTMF', sender=self, data=NotificationData(digit=notification.data.digit))
+        notification.center.post_notification('AudioStreamGotDTMF', sender=self, data=NotificationData(digit=notification.data.digit))
 
     def _NH_RTPAudioTransportDidTimeout(self, notification):
-        self.notification_center.post_notification('RTPStreamDidTimeout', sender=self)
+        notification.center.post_notification('RTPStreamDidTimeout', sender=self)
 
     # Private methods
     #
