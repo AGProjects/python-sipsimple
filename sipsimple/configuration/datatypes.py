@@ -251,7 +251,7 @@ class VideoResolution(tuple):
 
     def __new__(cls, value):
         if isinstance(value, tuple):
-            width, height = tuple
+            width, height = value
         elif isinstance(value, basestring):
             width, height = value.split('x')
         else:
