@@ -92,14 +92,13 @@ class FileSelector(object):
         self.hash = hash
         self.fd = fd
 
-    def _get_hash(self):
+    @property
+    def hash(self):
         return self.__dict__['hash']
 
-    def _set_hash(self, value):
+    @hash.setter
+    def hash(self, value):
         self.__dict__['hash'] = None if value is None else FileSelectorHash(value)
-
-    hash = property(_get_hash, _set_hash)
-    del _get_hash, _set_hash
 
     @classmethod
     def parse(cls, string):
@@ -317,16 +316,15 @@ class IncomingFileTransferHandler(FileTransferHandler):
         self.offset = 0
         self.received_chunks = 0
 
-    def _get_save_directory(self):
+    @property
+    def save_directory(self):
         return self.__dict__.get('save_directory')
 
-    def _set_save_directory(self, value):
+    @save_directory.setter
+    def save_directory(self, value):
         if self.stream is not None:
             raise AttributeError('cannot set save_directory, transfer is in progress')
         self.__dict__['save_directory'] = value
-
-    save_directory = property(_get_save_directory, _set_save_directory)
-    del _get_save_directory, _set_save_directory
 
     def initialize(self, stream, session):
         super(IncomingFileTransferHandler, self).initialize(stream, session)

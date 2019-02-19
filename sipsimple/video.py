@@ -61,7 +61,12 @@ class VideoDevice(object):
     def real_name(self):
         return self._camera.real_name
 
-    def _set_muted(self, value):
+    @property
+    def muted(self):
+        return self.__dict__.get('muted', False)
+
+    @muted.setter
+    def muted(self, value):
         if not isinstance(value, bool):
             raise ValueError('illegal value for muted property: %r' % (value,))
         if value == self.muted:
@@ -71,10 +76,3 @@ class VideoDevice(object):
         else:
             self._camera.start()
         self.__dict__['muted'] = value
-
-    def _get_muted(self):
-        return self.__dict__.get('muted', False)
-
-    muted = property(_get_muted, _set_muted)
-    del _get_muted, _set_muted
-

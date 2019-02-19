@@ -27,9 +27,12 @@ class AudioStream(RTPStream):
 
         self.bridge.add(self.device)
 
-    def _get_muted(self):
+    @property
+    def muted(self):
         return self.__dict__.get('muted', False)
-    def _set_muted(self, value):
+
+    @muted.setter
+    def muted(self, value):
         if not isinstance(value, bool):
             raise ValueError("illegal value for muted property: %r" % (value,))
         if value == self.muted:
@@ -39,8 +42,6 @@ class AudioStream(RTPStream):
         notification_center = NotificationCenter()
         data = NotificationData(consumer_slot_changed=False, producer_slot_changed=True, old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot)
         notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=data)
-    muted = property(_get_muted, _set_muted)
-    del _get_muted, _set_muted
 
     @property
     def consumer_slot(self):

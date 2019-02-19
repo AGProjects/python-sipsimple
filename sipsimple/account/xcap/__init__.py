@@ -67,16 +67,15 @@ class Document(object):
     def __nonzero__(self):
         return self.content is not None
 
-    def _get_dirty(self):
+    @property
+    def dirty(self):
         return self.__dict__['dirty'] or (self.content is not None and self.content.__dirty__)
 
-    def _set_dirty(self, dirty):
+    @dirty.setter
+    def dirty(self, dirty):
         if self.content is not None and not dirty:
             self.content.__dirty__ = dirty
         self.__dict__['dirty'] = dirty
-
-    dirty = property(_get_dirty, _set_dirty)
-    del _get_dirty, _set_dirty
 
     @property
     def relative_url(self):
@@ -728,18 +727,17 @@ class XCAPManager(object):
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
 
-    def _get_state(self):
+    @property
+    def state(self):
         return self.__dict__['state']
 
-    def _set_state(self, value):
+    @state.setter
+    def state(self, value):
         old_value = self.__dict__.get('state', Null)
         self.__dict__['state'] = value
         if old_value != value and old_value is not Null:
             notification_center = NotificationCenter()
             notification_center.post_notification('XCAPManagerDidChangeState', sender=self, data=NotificationData(prev_state=old_value, state=value))
-
-    state = property(_get_state, _set_state)
-    del _get_state, _set_state
 
     @property
     def documents(self):

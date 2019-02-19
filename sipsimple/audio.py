@@ -75,9 +75,12 @@ class AudioDevice(object):
     def producer_slot(self):
         return 0 if not self.input_muted else None
 
-    def _get_input_muted(self):
+    @property
+    def input_muted(self):
         return self.__dict__['input_muted']
-    def _set_input_muted(self, value):
+
+    @input_muted.setter
+    def input_muted(self, value):
         if not isinstance(value, bool):
             raise ValueError('illegal value for input_muted property: %r' % (value,))
         if value == self.input_muted:
@@ -87,12 +90,13 @@ class AudioDevice(object):
         notification_center = NotificationCenter()
         notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=False, producer_slot_changed=True,
                                                                                                             old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
-    input_muted = property(_get_input_muted, _set_input_muted)
-    del _get_input_muted, _set_input_muted
 
-    def _get_output_muted(self):
+    @property
+    def output_muted(self):
         return self.__dict__['output_muted']
-    def _set_output_muted(self, value):
+
+    @output_muted.setter
+    def output_muted(self, value):
         if not isinstance(value, bool):
             raise ValueError('illegal value for output_muted property: %r' % (value,))
         if value == self.output_muted:
@@ -102,8 +106,6 @@ class AudioDevice(object):
         notification_center = NotificationCenter()
         notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
                                                                                                             old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot))
-    output_muted = property(_get_output_muted, _set_output_muted)
-    del _get_output_muted, _set_output_muted
 
 
 class AudioBridge(object):

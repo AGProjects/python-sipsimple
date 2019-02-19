@@ -94,10 +94,12 @@ class Publisher(object):
     def extra_headers(self):
         return []
 
-    def _get_state(self):
+    @property
+    def state(self):
         return self.__dict__['state']
 
-    def _set_state(self, state):
+    @state.setter
+    def state(self, state):
         if state is not None and not isinstance(state, self.payload_type.root_element):
             raise ValueError("state must be a %s document or None" % self.payload_type.root_element.__name__)
         with self._lock:
@@ -106,9 +108,6 @@ class Publisher(object):
             if state == old_state:
                 return
             self._publish(state)
-
-    state = property(_get_state, _set_state)
-    del _get_state, _set_state
 
     def start(self):
         if self.started:

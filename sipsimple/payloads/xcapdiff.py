@@ -46,16 +46,16 @@ class Document(XMLElement):
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.selector, self.new_etag, self.previous_etag)
 
-    def _get_empty_body(self):
+    @property
+    def empty_body(self):
         return self.body_not_changed is not None
 
-    def _set_empty_body(self, body_not_changed):
+    @empty_body.setter
+    def empty_body(self, body_not_changed):
         if body_not_changed:
             self.body_not_changed = BodyNotChanged()
         else:
             self.body_not_changed = None
-    empty_body = property(_get_empty_body, _set_empty_body)
-    del _get_empty_body, _set_empty_body
 
 
 class Element(XMLElement):

@@ -462,19 +462,18 @@ class DNSManager(object):
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
-    def _get_nameservers(self):
+    @property
+    def nameservers(self):
         return self.__dict__['nameservers']
 
-    def _set_nameservers(self, value):
+    @nameservers.setter
+    def nameservers(self, value):
         old_value = self.__dict__.get('nameservers', Null)
         self.__dict__['nameservers'] = value
         if old_value is Null:
             NotificationCenter().post_notification('DNSResolverDidInitialize', sender=self, data=NotificationData(nameservers=value))
         elif value != old_value:
             NotificationCenter().post_notification('DNSNameserversDidChange', sender=self, data=NotificationData(nameservers=value))
-
-    nameservers = property(_get_nameservers, _set_nameservers)
-    del _get_nameservers, _set_nameservers
 
     def start(self):
         self._proc = proc.spawn(self._run)

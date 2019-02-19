@@ -287,35 +287,33 @@ class Account(SettingsObject):
     def voicemail_uri(self):
         return self._mwi_voicemail_uri or self.message_summary.voicemail_uri
 
-    def _get_presence_state(self):
+    @property
+    def presence_state(self):
         try:
             return self._presence_publisher.state
         except AttributeError:
             return None
 
-    def _set_presence_state(self, state):
+    @presence_state.setter
+    def presence_state(self, state):
         try:
             self._presence_publisher.state = state
         except AttributeError:
             pass
 
-    presence_state = property(_get_presence_state, _set_presence_state)
-    del _get_presence_state, _set_presence_state
-
-    def _get_dialog_state(self):
+    @property
+    def dialog_state(self):
         try:
             return self._dialog_publisher.state
         except AttributeError:
             return None
 
-    def _set_dialog_state(self, state):
+    @dialog_state.setter
+    def dialog_state(self, state):
         try:
             self._dialog_publisher.state = state
         except AttributeError:
             pass
-
-    dialog_state = property(_get_dialog_state, _set_dialog_state)
-    del _get_dialog_state, _set_dialog_state
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -652,14 +650,13 @@ class BonjourAccount(SettingsObject):
     def uri(self):
         return SIPURI(user=self.contact.username, host=Host.default_ip or '127.0.0.1')
 
-    def _get_presence_state(self):
+    @property
+    def presence_state(self):
         return self._bonjour_services.presence_state
 
-    def _set_presence_state(self, state):
+    @presence_state.setter
+    def presence_state(self, state):
         self._bonjour_services.presence_state = state
-
-    presence_state = property(_get_presence_state, _set_presence_state)
-    del _get_presence_state, _set_presence_state
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -826,11 +823,13 @@ class AccountManager(object):
                 except StopIteration:
                     self.default_account = None
 
-    def _get_default_account(self):
+    @property
+    def default_account(self):
         settings = SIPSimpleSettings()
         return self.accounts.get(settings.default_account, None)
 
-    def _set_default_account(self, account):
+    @default_account.setter
+    def default_account(self, account):
         if account is not None and not account.enabled:
             raise ValueError("account %s is not enabled" % account.id)
         notification_center = NotificationCenter()
@@ -848,8 +847,3 @@ class AccountManager(object):
             # SIPAccountManagerDidAddAccount notification that is triggered when the account is saved the first
             # time, because save is executed in the file-io thread while this runs in the current thread. -Dan
             call_in_thread('file-io', notification_center.post_notification, 'SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(old_account=old_account, account=account))
-
-    default_account = property(_get_default_account, _set_default_account)
-    del _get_default_account, _set_default_account
-
-

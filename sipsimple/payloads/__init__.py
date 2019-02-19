@@ -976,19 +976,18 @@ class XMLSimpleElement(XMLElement):
     def __unicode__(self):
         return unicode(self.value)
 
-    def _get_value(self):
+    @property
+    def value(self):
         return self.__dict__['value']
 
-    def _set_value(self, value):
+    @value.setter
+    def value(self, value):
         if not isinstance(value, self._xml_value_type):
             value = self._xml_value_type(value)
         if self.__dict__.get('value', Null) == value:
             return
         self.__dict__['value'] = value
         self.__dirty__ = True
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
 
     def _parse_element(self, element):
         super(XMLSimpleElement, self)._parse_element(element)

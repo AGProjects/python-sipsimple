@@ -205,14 +205,15 @@ class CodecList(List):
     type = str
     available_values = None    # to be defined in a subclass
 
-    def _get_values(self):
+    @property
+    def values(self):
         return self.__dict__['values']
-    def _set_values(self, values):
+
+    @values.setter
+    def values(self, values):
         if not set(values).issubset(self.available_values):
             raise ValueError("illegal codec values: %s" % ', '.join(values))
         self.__dict__['values'] = values
-    values = property(_get_values, _set_values)
-    del _get_values, _set_values
 
 
 ## Audio datatypes
@@ -338,15 +339,17 @@ class IPAddress(str):
 class DomainList(List):
     type = str
     _domain_re = re.compile(r"^[a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*$")
-    def _get_values(self):
+
+    @property
+    def values(self):
         return self.__dict__['values']
-    def _set_values(self, values):
+
+    @values.setter
+    def values(self, values):
         for value in values:
             if self._domain_re.match(value) is None:
                 raise ValueError("illegal domain: %s" % value)
         self.__dict__['values'] = values
-    values = property(_get_values, _set_values)
-    del _get_values, _set_values
 
 
 class EndpointAddress(object):

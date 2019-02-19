@@ -38,12 +38,14 @@ class ZRTPStreamOptions(object):
             return self.master.encryption.zrtp.sas
         return self.__dict__['sas']
 
-    def _get_verified(self):
+    @property
+    def verified(self):
         if self.master is not None:
             return self.master.encryption.zrtp.verified
         return self.__dict__['verified']
 
-    def _set_verified(self, verified):
+    @verified.setter
+    def verified(self, verified):
         if self.__dict__['verified'] == verified:
             return
         if self.sas is None:
@@ -61,9 +63,6 @@ class ZRTPStreamOptions(object):
                 self.__dict__['verified'] = verified
                 update_verified(rtp_transport, verified)
 
-    verified = property(_get_verified, _set_verified)
-    del _get_verified, _set_verified
-
     @property
     def peer_id(self):
         if self.master is not None:
@@ -73,12 +72,14 @@ class ZRTPStreamOptions(object):
             return None
         return rtp_transport.zrtp_peer_id
 
-    def _get_peer_name(self):
+    @property
+    def peer_name(self):
         if self.master is not None:
             return self.master.encryption.zrtp.peer_name
         return self.__dict__['peer_name']
 
-    def _set_peer_name(self, name):
+    @peer_name.setter
+    def peer_name(self, name):
         if self.__dict__['peer_name'] == name:
             return
         if self.master is not None:
@@ -94,13 +95,12 @@ class ZRTPStreamOptions(object):
                 self.__dict__['peer_name'] = name
                 update_name(rtp_transport, name)
 
-    peer_name = property(_get_peer_name, _set_peer_name)
-    del _get_peer_name, _set_peer_name
-
-    def _get_master(self):
+    @property
+    def master(self):
         return self.__dict__['master']
 
-    def _set_master(self, master):
+    @master.setter
+    def master(self, master):
         old_master = self.__dict__['master']
         if old_master is master:
             return
@@ -110,9 +110,6 @@ class ZRTPStreamOptions(object):
         if master is not None:
             notification_center.add_observer(self, sender=master)
         self.__dict__['master'] = master
-
-    master = property(_get_master, _set_master)
-    del _get_master, _set_master
 
     def _enable(self, master_stream=None):
         rtp_transport = self._stream._rtp_transport
