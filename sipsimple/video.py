@@ -20,7 +20,8 @@ class IVideoProducer(Interface):
     producer = Attribute("The core producer object which can be connected to a consumer")
 
 
-class VideoError(Exception): pass
+class VideoError(Exception):
+    pass
 
 
 class VideoDevice(object):

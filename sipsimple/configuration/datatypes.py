@@ -1,7 +1,8 @@
 
 """Definitions of datatypes for use in configuration settings"""
 
-__all__ = [# Base datatypes
+__all__ = [
+           # Base datatypes
            'List',
            # Generic datatypes
            'ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'PositiveInteger', 'SIPAddress',
@@ -28,7 +29,7 @@ import urlparse
 from operator import itemgetter
 
 
-## Base datatypes
+# Base datatypes
 
 class List(object):
     type = unicode
@@ -130,7 +131,7 @@ class List(object):
         return u', '.join(unicode(item) for item in self)
 
 
-## Generic datatypes
+# Generic datatypes
 
 class ContentType(str):
     def __new__(cls, value):
@@ -153,6 +154,7 @@ class ContentTypeList(List):
 
 class CountryCode(str):
     code_pattern = re.compile(r'[1-9][0-9]*')
+
     def __new__(cls, value):
         value = str(value)
         if cls.code_pattern.match(value) is None:
@@ -191,7 +193,7 @@ class SIPAddress(str):
     domain = property(lambda self: self.split('@')[1])
 
 
-## Custom datatypes
+# Custom datatypes
 
 class PJSIPLogLevel(int):
     def __new__(cls, value):
@@ -216,7 +218,7 @@ class CodecList(List):
         self.__dict__['values'] = values
 
 
-## Audio datatypes
+# Audio datatypes
 
 class AudioCodecList(CodecList):
     available_values = {'opus', 'speex', 'G722', 'GSM', 'iLBC', 'PCMU', 'PCMA'}
@@ -224,6 +226,7 @@ class AudioCodecList(CodecList):
 
 class SampleRate(int):
     valid_values = (16000, 32000, 44100, 48000)
+
     def __new__(cls, value):
         value = int(value)
         if value not in cls.valid_values:
@@ -231,7 +234,7 @@ class SampleRate(int):
         return value
 
 
-## Video datatypes
+# Video datatypes
 
 class H264Profile(str):
     valid_values = ('baseline', 'main', 'high')
@@ -269,7 +272,7 @@ class VideoCodecList(CodecList):
     available_values = {'H264', 'VP8'}
 
 
-## Address and transport datatypes
+# Address and transport datatypes
 
 class Port(int):
     def __new__(cls, value):
@@ -320,6 +323,7 @@ class PortRange(object):
 
 class Hostname(str):
     _host_re = re.compile(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*)$")
+
     def __new__(cls, value):
         value = str(value)
         if not cls._host_re.match(value):
@@ -329,6 +333,7 @@ class Hostname(str):
 
 class IPAddress(str):
     _ip_re = re.compile(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$")
+
     def __new__(cls, value):
         value = str(value)
         if not cls._ip_re.match(value):
@@ -602,14 +607,17 @@ class XCAPRoot(str):
 
 class MSRPConnectionModel(str):
     available_values = ('relay', 'acm')
+
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
             raise ValueError("illegal value for MSRP NAT model: %s" % value)
         return value
 
+
 class MSRPTransport(str):
     available_values = ('tls', 'tcp')
+
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
@@ -619,6 +627,7 @@ class MSRPTransport(str):
 
 class SIPTransport(str):
     available_values = ('udp', 'tcp', 'tls')
+
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
@@ -633,6 +642,7 @@ class SIPTransportList(List):
 
 class SRTPKeyNegotiation(str):
     available_values = ('opportunistic', 'sdes_optional', 'sdes_mandatory', 'zrtp')
+
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
@@ -640,7 +650,7 @@ class SRTPKeyNegotiation(str):
         return value
 
 
-## Path datatypes
+# Path datatypes
 
 class Path(unicode):
     def __new__(cls, path):
@@ -652,4 +662,3 @@ class Path(unicode):
             return self
         encoding = locale.getpreferredencoding() or 'ascii'
         return os.path.expanduser(self.encode(encoding)).decode(encoding)
-

@@ -732,4 +732,3 @@ class FileTransferStream(MSRPStreamBase):
             self.msrp_session.send_chunk(response)
             return
         self.handler.process_chunk(chunk)
-

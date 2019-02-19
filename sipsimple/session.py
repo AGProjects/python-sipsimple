@@ -1583,7 +1583,7 @@ class Session(object):
                         local_sdp.media[index] = media
                     else:
                         local_sdp.media.append(media)
-                elif index >= len(local_sdp.media): # actually == is sufficient
+                elif index >= len(local_sdp.media):  # actually == is sufficient
                     media = SDPMediaStream.new(media)
                     media.connection = connection
                     media.port = 0

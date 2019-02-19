@@ -1006,7 +1006,7 @@ class XMLSimpleElement(XMLElement):
 
 
 class XMLStringElement(XMLSimpleElement):
-    _xml_value_type = unicode # Can be overwritten in subclasses
+    _xml_value_type = unicode  # Can be overwritten in subclasses
 
     def __len__(self):
         return len(self.value)

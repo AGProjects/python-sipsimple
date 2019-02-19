@@ -234,4 +234,3 @@ class AudioStream(RTPStream):
 
     def _resume(self):
         self.bridge.add(self)
-

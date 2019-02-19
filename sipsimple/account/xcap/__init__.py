@@ -1332,8 +1332,8 @@ class XCAPManager(object):
         if self.dialog_rules.supported:
             if self.dialog_rules.content is None:
                 self.dialog_rules.content = dialogrules.DialogRules()
-            elif self.dialog_rules.content.element.nsmap.get('dr') != dialogrules.namespace: # TODO: this elif branch should be removed in a later version as it is
-                self.dialog_rules.content = dialogrules.DialogRules()                        #       only used to discard documents created with the old namespace. -Dan
+            elif self.dialog_rules.content.element.nsmap.get('dr') != dialogrules.namespace:  # TODO: this elif branch should be removed in a later version as it is
+                self.dialog_rules.content = dialogrules.DialogRules()                         # only used to discard documents created with the old namespace. -Dan
 
             def fix_subhandling(rule, valid_values=[]):
                 subhandling_elements = sorted((item for item in rule.actions if isinstance(item, dialogrules.SubHandling)), key=attrgetter('value.priority'))
@@ -1672,7 +1672,7 @@ class XCAPManager(object):
         if set(['__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
         if 'enabled' in notification.data.modified:
-            return # global account activation is handled separately by the account itself
+            return  # global account activation is handled separately by the account itself
         if self.account.enabled and 'xcap.enabled' in notification.data.modified:
             if self.account.xcap.enabled:
                 self.start()

@@ -22,7 +22,8 @@ from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_waitable_green_thread
 
 
-class WavePlayerError(Exception): pass
+class WavePlayerError(Exception):
+    pass
 
 
 class IAudioPort(Interface):
@@ -46,9 +47,9 @@ class IAudioPort(Interface):
     All attributes of this interface are read-only.
     """
 
-    mixer           = Attribute("The mixer that is responsible for mixing the audio data to/from this audio port")
-    consumer_slot   = Attribute("The slot to which audio data can be written")
-    producer_slot   = Attribute("The slot from which audio data can be read")
+    mixer         = Attribute("The mixer that is responsible for mixing the audio data to/from this audio port")
+    consumer_slot = Attribute("The slot to which audio data can be written")
+    producer_slot = Attribute("The slot from which audio data can be read")
 
 
 class AudioDevice(object):
@@ -538,5 +539,3 @@ class WaveRecorder(object):
         notification_center = NotificationCenter()
         notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=NotificationData(consumer_slot_changed=True, producer_slot_changed=False,
                                                                                                             old_consumer_slot=old_slot, new_consumer_slot=None))
-
-
