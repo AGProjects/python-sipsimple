@@ -673,7 +673,7 @@ class BonjourAccount(SettingsObject):
             elif self.enabled:
                 if 'display_name' in notification.data.modified:
                     self._bonjour_services.update_registrations()
-                if set(['sip.transport_list', 'tls.certificate']).intersection(notification.data.modified):
+                if {'sip.transport_list', 'tls.certificate'}.intersection(notification.data.modified):
                     self._bonjour_services.update_registrations()
                     self._bonjour_services.restart_discovery()
 

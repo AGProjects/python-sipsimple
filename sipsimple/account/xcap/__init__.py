@@ -976,13 +976,13 @@ class XCAPManager(object):
             self.storage = self.storage_factory(self.account.id)
             self.journal = []
             self._save_journal()
-        if set(['__id__', 'xcap.xcap_root']).intersection(command.modified):
+        if {'__id__', 'xcap.xcap_root'}.intersection(command.modified):
             for document in self.documents:
                 document.reset()
         if self.state == 'stopped':
             command.signal()
             return
-        if set(['__id__', 'auth.username', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
+        if {'__id__', 'auth.username', 'auth.password', 'xcap.xcap_root'}.intersection(command.modified):
             self.state = 'initializing'
             self.command_channel.send(Command('initialize'))
         else:
@@ -1321,7 +1321,7 @@ class XCAPManager(object):
 
         # Remove any other rules
         all_rule_names = set(pres_rules[IterateIDs])
-        known_rule_names = set(('wp_prs_grantedcontacts', 'wp_prs_blockedcontacts', 'wp_prs_unlisted', 'wp_prs_allow_unlisted', 'wp_prs_block_anonymous', 'wp_prs_allow_own'))
+        known_rule_names = {'wp_prs_grantedcontacts', 'wp_prs_blockedcontacts', 'wp_prs_unlisted', 'wp_prs_allow_unlisted', 'wp_prs_block_anonymous', 'wp_prs_allow_own'}
         for name in all_rule_names - known_rule_names:
             del pres_rules[name]
 
@@ -1425,7 +1425,7 @@ class XCAPManager(object):
 
             # Remove any other rules
             all_rule_names = set(dialog_rules[IterateIDs])
-            known_rule_names = set(('wp_dlg_grantedcontacts', 'wp_dlg_blockedcontacts', 'wp_dlg_unlisted', 'wp_dlg_allow_unlisted', 'wp_dlg_block_anonymous', 'wp_dlg_allow_own'))
+            known_rule_names = {'wp_dlg_grantedcontacts', 'wp_dlg_blockedcontacts', 'wp_dlg_unlisted', 'wp_dlg_allow_unlisted', 'wp_dlg_block_anonymous', 'wp_dlg_allow_own'}
             for name in all_rule_names - known_rule_names:
                 del dialog_rules[name]
 
@@ -1669,7 +1669,7 @@ class XCAPManager(object):
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if set(['__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+        if {'__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list'}.intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
         if 'enabled' in notification.data.modified:
             return  # global account activation is handled separately by the account itself

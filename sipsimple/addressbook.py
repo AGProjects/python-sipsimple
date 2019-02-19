@@ -213,7 +213,7 @@ class XCAPGroup(xcap.Group):
         return cls(group.id, group.name, group.contacts, **group.attributes)
 
     def get_modified(self, modified_keys):
-        names = set(['name'])
+        names = {'name'}
         attributes = dict((name, getattr(self, name)) for name in names.intersection(modified_keys))
         attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
         return attributes
@@ -233,7 +233,7 @@ class XCAPContactURI(xcap.ContactURI):
         return cls(uri.id, uri.uri, uri.type, **uri.attributes)
 
     def get_modified(self, modified_keys):
-        names = set(['uri', 'type'])
+        names = {'uri', 'type'}
         attributes = dict((name, getattr(self, name)) for name in names.intersection(modified_keys))
         attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
         return attributes
@@ -254,7 +254,7 @@ class XCAPContact(xcap.Contact):
         return cls(contact.id, contact.name, contact.uris, contact.presence, contact.dialog, **contact.attributes)
 
     def get_modified(self, modified_keys):
-        names = set(['name', 'uris.default', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
+        names = {'name', 'uris.default', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'}
         attributes = dict((name, recursive_getattr(self, name)) for name in names.intersection(modified_keys))
         attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
         return attributes
@@ -274,7 +274,7 @@ class XCAPPolicy(xcap.Policy):
         return cls(policy.id, policy.uri, policy.name, policy.presence, policy.dialog, **policy.attributes)
 
     def get_modified(self, modified_keys):
-        names = set(['uri', 'name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'])
+        names = {'uri', 'name', 'presence.policy', 'presence.subscribe', 'dialog.policy', 'dialog.subscribe'}
         attributes = dict((name, recursive_getattr(self, name)) for name in names.intersection(modified_keys))
         attributes.update((name, self.attributes[name]) for name in self.__attributes__.intersection(modified_keys))
         return attributes

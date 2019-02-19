@@ -370,8 +370,8 @@ class MWISubscriber(Subscriber):
                 self.activate()
             else:
                 self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'message_summary.voicemail_uri', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
-                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+        elif self.active and {'__id__', 'auth.password', 'auth.username', 'message_summary.voicemail_uri', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
+                              'sip.subscribe_interval', 'sip.transport_list'}.intersection(notification.data.modified):
             self._command_channel.send(Command('subscribe'))
 
 
@@ -409,8 +409,7 @@ class AbstractPresenceSubscriber(Subscriber):
                 self.activate()
             else:
                 self.deactivate()
-        elif self.active and set(['__id__', 'auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy',
-                                  'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+        elif self.active and {'__id__', 'auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy', 'sip.subscribe_interval', 'sip.transport_list'}.intersection(notification.data.modified):
             self._command_channel.send(Command('subscribe'))
 
 
