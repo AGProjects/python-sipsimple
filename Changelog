@@ -1,3 +1,33 @@
+python-sipsimple (3.4.0) unstable; urgency=medium
+
+  * Fixed attribute name in comparison
+  * Added dialog_id property on the Session class
+  * Added logic to handle early-only and RFC2543 style tags for Replaces
+  * Avoid unnecessary list copy
+  * Removed unnecessary boolean variable
+  * Do not reset the proposed_streams attribute when the session is rejected
+  * Reordered some operations for consistency
+  * Make sure the greenlet attribute is always removed when greenlet exits
+  * Removed code that duplicated cancel handling inside reject handler
+  * Simplified RTPStreamEncryption properties
+  * Ordered RTPStreamEncryption properties alphabetically
+  * Fixed potential access to uninitialized variable
+  * Removed unnecessary attribute from RTPStream
+  * Fixed memory leak for unused streams that bleeded out audio resources
+  * Fixed memory leak that did not release streams when canceling proposals
+  * Use setter syntax for defining properties
+  * PEP-8 compliance changes
+  * Use set literals instead of set instances
+  * Do not use mutable value for function default argument
+  * Improved error message
+  * Use local variable instead of instance attribute
+  * Fixed right hand value in assignment
+  * Use super when instantiating data types
+  * Always clean up proposed streams when cancelling proposal
+  * Added language_level for cython sources
+
+ -- Dan Pascu <dan@ag-projects.com>  Mon, 25 Feb 2019 13:51:22 +0200
+
 python-sipsimple (3.3.0) unstable; urgency=medium
 
   * Updated to support openssl-1.1 in pjsip and zrtp
