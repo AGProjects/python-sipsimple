@@ -1,3 +1,4 @@
+# cython: language_level=2
 
 __all__ = ['sha1']
 
