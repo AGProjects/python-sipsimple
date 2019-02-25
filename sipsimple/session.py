@@ -1951,14 +1951,20 @@ class Session(object):
             self.state = 'connected'
             notification_center.post_notification('SIPSessionProposalRejected', self, NotificationData(originator='local', code=0, reason='SIP core error: %s' % str(e), proposed_streams=proposed_streams))
         except InvitationDisconnectedError, e:
-            # TODO: clean up proposed streams here as well? -Dan
+            for stream in self.proposed_streams or []:
+                notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
+                stream.end()
             self.proposed_streams = None
             self.greenlet = None
             notification = Notification('SIPInvitationChangedState', e.invitation, e.data)
             notification.center = notification_center
             self.handle_notification(notification)
         else:
-            # TODO: clean up proposed streams here as well? -Dan
+            for stream in self.proposed_streams or []:
+                notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
+                stream.end()
             self.proposed_streams = None
             self.greenlet = None
             self.state = 'connected'
