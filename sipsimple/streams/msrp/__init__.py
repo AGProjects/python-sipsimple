@@ -94,6 +94,7 @@ class MSRPStreamBase(object):
 
     # The public API (the IMediaStream interface)
 
+    # noinspection PyUnusedLocal
     def get_local_media(self, remote_sdp=None, index=0):
         return self.local_media
 
@@ -164,6 +165,7 @@ class MSRPStreamBase(object):
             self._initialize_done = True
             self.greenlet = None
 
+    # noinspection PyUnusedLocal
     @run_in_green_thread
     def start(self, local_sdp, remote_sdp, stream_index):
         self.greenlet = api.getcurrent()
@@ -243,6 +245,7 @@ class MSRPStreamBase(object):
             self.msrp_connector = None
             self.session = None
 
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def validate_update(self, remote_sdp, stream_index):
         return True  # TODO
 
