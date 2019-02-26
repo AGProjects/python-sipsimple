@@ -2597,12 +2597,12 @@ class Session(object):
                             # There must have been an error involved
                             notification.center.post_notification('SIPSessionDidFail', self, NotificationData(originator='local', code=0, reason=None, failure_reason=notification.data.disconnect_reason, redirect_identities=None))
                     else:
+                        self.state = 'terminated'
                         notification.center.post_notification('SIPSessionWillEnd', self, NotificationData(originator=notification.data.originator))
                         for stream in self.streams:
                             notification.center.remove_observer(self, sender=stream)
                             stream.deactivate()
                             stream.end()
-                        self.state = 'terminated'
                         if notification.data.originator == 'remote':
                             if hasattr(notification.data, 'method'):
                                 notification.center.post_notification('SIPSessionDidProcessTransaction', self, NotificationData(originator=notification.data.originator, method=notification.data.method, code=200, reason=sip_status_messages[200]))
