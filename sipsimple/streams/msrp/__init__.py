@@ -23,7 +23,8 @@ from sipsimple.streams import IMediaStream, MediaStreamType, StreamError
 from sipsimple.threading.green import run_in_green_thread
 
 
-class MSRPStreamError(StreamError): pass
+class MSRPStreamError(StreamError):
+    pass
 
 
 class MSRPStreamBase(object):
@@ -56,9 +57,9 @@ class MSRPStreamBase(object):
         self.greenlet = None
         self.local_media = None
         self.remote_media = None
-        self.msrp = None ## Placeholder for the MSRPTransport that will be set when started
+        self.msrp = None  # Placeholder for the MSRPTransport that will be set when started
         self.msrp_connector = None
-        self.cpim_enabled = None ## Boolean value. None means it was not negotiated yet
+        self.cpim_enabled = None  # Boolean value. None means it was not negotiated yet
         self.session = None
         self.msrp_session = None
         self.shutting_down = False
@@ -91,7 +92,7 @@ class MSRPStreamBase(object):
         connection = SDPConnection(local_ip)
         return SDPMediaStream(self.media_type, uri_path[-1].port or 2855, transport, connection=connection, formats=["*"], attributes=attributes)
 
-    ## The public API (the IMediaStream interface)
+    # The public API (the IMediaStream interface)
 
     def get_local_media(self, remote_sdp=None, index=0):
         return self.local_media
@@ -107,14 +108,14 @@ class MSRPStreamBase(object):
         try:
             self.session = session
             self.transport = self.session.account.msrp.transport
-            outgoing = direction=='outgoing'
+            outgoing = direction == 'outgoing'
             logger = NotificationProxyLogger()
             if self.session.account is BonjourAccount():
                 if outgoing:
                     self.msrp_connector = DirectConnector(logger=logger)
                     self.local_role = 'active'
                 else:
-                    if self.transport=='tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
+                    if self.transport == 'tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
                         raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                     self.msrp_connector = DirectAcceptor(logger=logger)
                     self.local_role = 'passive'
@@ -149,7 +150,7 @@ class MSRPStreamBase(object):
                         self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
                         self.local_role = 'active'
                     else:
-                        if not outgoing and self.transport=='tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
+                        if not outgoing and self.transport == 'tls' and None in (self.session.account.tls_credentials.cert, self.session.account.tls_credentials.key):
                             raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                         self.msrp_connector = DirectAcceptor(logger=logger, use_sessmatch=True)
                         self.local_role = 'actpass' if outgoing else 'passive'
@@ -243,10 +244,10 @@ class MSRPStreamBase(object):
             self.session = None
 
     def validate_update(self, remote_sdp, stream_index):
-        return True #TODO
+        return True  # TODO
 
     def update(self, local_sdp, remote_sdp, stream_index):
-        pass #TODO
+        pass  # TODO
 
     def hold(self):
         pass
@@ -394,4 +395,3 @@ class NotificationProxyLogger(object):
 
 
 from sipsimple.streams.msrp import chat, filetransfer, screensharing
-
