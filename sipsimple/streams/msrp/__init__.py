@@ -219,31 +219,40 @@ class MSRPStreamBase(object):
         self._done = True
         notification_center = NotificationCenter()
         if not self._initialize_done:
-            if self.greenlet is not None:
-                # we are in the middle of initialize()
-                api.kill(self.greenlet)
-            notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
-            return
-        notification_center.post_notification('MediaStreamWillEnd', sender=self)
-        msrp = self.msrp
-        msrp_session = self.msrp_session
-        msrp_connector = self.msrp_connector
-        try:
-            if self.greenlet is not None:
-                api.kill(self.greenlet)
-            if msrp_session is not None:
-                msrp_session.shutdown()
-            elif msrp is not None:
-                msrp.loseConnection(wait=False)
-            if msrp_connector is not None:
-                msrp_connector.cleanup()
-        finally:
-            notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
-            notification_center.remove_observer(self, sender=self)
-            self.msrp = None
-            self.msrp_session = None
-            self.msrp_connector = None
-            self.session = None
+            # we are in the middle of initialize()
+            try:
+                msrp_connector = self.msrp_connector
+                if self.greenlet is not None:
+                    api.kill(self.greenlet)
+                if msrp_connector is not None:
+                    msrp_connector.cleanup()
+            finally:
+                notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason='Interrupted'))
+                notification_center.remove_observer(self, sender=self)
+                self.msrp_connector = None
+                self.greenlet = None
+        else:
+            notification_center.post_notification('MediaStreamWillEnd', sender=self)
+            msrp = self.msrp
+            msrp_session = self.msrp_session
+            msrp_connector = self.msrp_connector
+            try:
+                if self.greenlet is not None:
+                    api.kill(self.greenlet)
+                if msrp_session is not None:
+                    msrp_session.shutdown()
+                elif msrp is not None:
+                    msrp.loseConnection(wait=False)
+                if msrp_connector is not None:
+                    msrp_connector.cleanup()
+            finally:
+                notification_center.post_notification('MediaStreamDidEnd', sender=self, data=NotificationData(error=self._failure_reason))
+                notification_center.remove_observer(self, sender=self)
+                self.msrp = None
+                self.msrp_session = None
+                self.msrp_connector = None
+                self.session = None
+                self.greenlet = None
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def validate_update(self, remote_sdp, stream_index):
