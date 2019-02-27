@@ -1,3 +1,11 @@
+python-sipsimple (3.4.1) unstable; urgency=medium
+
+  * Fixed cleanup of media stream when ending to avoid memory leak
+  * Fixed inconsistency in session state at the time of posting notification
+  * Fixed memory leak caused by out of order execution from race condition
+
+ -- Dan Pascu <dan@ag-projects.com>  Wed, 27 Feb 2019 10:14:48 +0200
+
 python-sipsimple (3.4.0) unstable; urgency=medium
 
   * Fixed attribute name in comparison
