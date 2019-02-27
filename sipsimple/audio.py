@@ -19,7 +19,7 @@ from zope.interface import Attribute, Interface, implements
 
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command, run_in_waitable_green_thread
+from sipsimple.threading.green import Command, run_in_green_thread, run_in_waitable_green_thread
 
 
 class WavePlayerError(Exception):
@@ -427,7 +427,7 @@ class WavePlayer(object):
     def start(self):
         self.play()
 
-    @run_in_twisted_thread
+    @run_in_green_thread  # run stop in a green thread in order to be similar with start/play. this avoids start/stop running out of order.
     def stop(self):
         if self._state != 'started':
             return
