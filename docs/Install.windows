@@ -38,13 +38,14 @@ The following instructions will guide you through the installation of a MSYS2 an
 installation for a 32 bit Windows system. A 64 bit build is definitely possible but
 hasn't been tested.
 
-* Go to http://msys2.github.io and download the most recent 32 bit (i686) MSYS2 installer
-* Run it and install it on C:\msys2 (or any other path, but note it has to be ASCII
-  only and with no spaces!)
-* Once the process is finished, check the box to "Run MSYS2 32bit now", a new terminal
-  window will appear
-* Upgrade the system packages by following these instructions:
-  https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
+* Go to http://msys2.github.io and download the 32 bit (i686) MSYS2 installer
+* Run it and install it on C:\msys2 (or any other path, but note it has to be
+  ASCII only and with no spaces! The no spaces restriction also applies to the
+  paths of the packages that will be built during the installation)
+* Once the process is finished, check the box to "Run MSYS2 32bit now", a new
+  terminal window will appear
+* Upgrade the system packages by following the instructions from:
+  http://msys2.github.io
 * Install the compiler toolchain and assorted tools:
   pacman -S mingw-w64-i686-toolchain make mingw-w64-i686-libtool autoconf automake-wrapper
 
@@ -85,12 +86,9 @@ their minimum version number.
 Step 2.1. Install python-otr dependencies (if installation fails)
 -----------------------------------------------------------------
 
-At the time of this writing installing python-otr straight from PyPI is not possible due
-to some of its dependencies having problems in the MinGW toolchain:
-
-* cffi: https://bitbucket.org/cffi/cffi/issues/159/python-setuppy-install-fails-with-mingw
-* cryptography: https://github.com/pyca/cryptography/pull/3191 and https://github.com/pyca/cryptography/pull/3081
-* gmpy2: https://github.com/aleaxit/gmpy/pull/117
+At the time of this writing installing python-otr straight from PyPI is not
+possible due to some of its dependencies having problems in the MinGW
+toolchain.
 
 Installing these from source works though, so let's do that.
 
@@ -103,12 +101,18 @@ Installing these from source works though, so let's do that.
   pip install .
 
 * Install cryptography:
-  git clone -b mingw-cxfreeze https://github.com/saghul/cryptography.git
-  cd cffi
+  git clone https://github.com/pyca/cryptography.git
+  cd cryptography
   pip install .
 
+  Note: if pip install fails, with:
+
+    distutils.errors.DistutilsPlatformError: VC 6.0 is not supported by this module
+
+  check: https://github.com/pypa/setuptools/issues/1118 (PeterMosmans' answer)
+
 * Install gmpy2:
-  git clone -b mingw https://github.com/saghul/gmpy.git
+  git clone https://github.com/aleaxit/gmpy.git
   cd gmpy
   pip install .
 
@@ -128,14 +132,6 @@ mingw-w64-dshow-baseclasses
 
 * Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-dshow-baseclasses
 * Enter the directory and build+install the package: cd mingw-w64-dshow-baseclasses && makepkg-mingw -cfiL --nocheck --nosign
-
-mingw-w64-libxml2
-
-This is libxml version 2.9.3, which doesn't exhibit a bug present in 2.9.4, which prevents XSD schemas from being
-parsed.
-
-* Get the package code: darcs get http://devel.ag-projects.com/repositories/windows/mingw-w64-libxml2
-* Enter the directory and build+install the package: cd mingw-w64-libxml2 && makepkg-mingw -cfiL --nocheck --nosign
 
 
 Step 3. Install SIP SIMPLE client SDK
@@ -193,7 +189,7 @@ else
         cd python-sipsimple
 fi
 ./build_inplace --pjsip-clean-compile
-python setup.py install
+pip install .
 cd ..
 
 
