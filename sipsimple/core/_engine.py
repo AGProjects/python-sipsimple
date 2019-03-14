@@ -64,6 +64,13 @@ class Engine(Thread):
         return (hasattr(self, "_ua") and hasattr(self, "_thread_started")
                 and self._thread_started and not self._thread_stopping)
 
+    def __dir__(self):
+        if hasattr(self, '_ua'):
+            ua_attributes = [attr for attr in dir(self._ua) if not attr.startswith('__') and attr != 'poll']
+        else:
+            ua_attributes = []
+        return sorted(set(dir(self.__class__) + self.__dict__.keys() + ua_attributes))
+
     def __getattr__(self, attr):
         if attr not in ["_ua", "poll"] and hasattr(self, "_ua") and attr in dir(self._ua):
             return getattr(self._ua, attr)
