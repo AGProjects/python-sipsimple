@@ -44,7 +44,7 @@ CryptoContext::CryptoContext( uint32_t ssrc,
                               int32_t tagLength):
 
         ssrcCtx(ssrc), mkiLength(0),mki(NULL), roc(roc),guessed_roc(0),
-        s_l(0),key_deriv_rate(key_deriv_rate), labelBase(0), seqNumSet(false), 
+        s_l(0),key_deriv_rate(key_deriv_rate), labelBase(0), seqNumSet(false),
         macCtx(NULL), cipher(NULL), f8Cipher(NULL)
 {
     replay_window[0] = replay_window[1] = 0;
@@ -93,7 +93,7 @@ CryptoContext::CryptoContext( uint32_t ssrc,
             break;
     }
 
-    switch (aalg ) {
+    switch (aalg) {
         case SrtpAuthenticationNull:
             n_a = 0;
             k_a = NULL;
