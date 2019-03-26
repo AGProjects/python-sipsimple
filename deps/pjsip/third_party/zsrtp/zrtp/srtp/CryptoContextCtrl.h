@@ -296,12 +296,6 @@ class CryptoContextCtrl {
     CryptoContextCtrl* newCryptoContextForSSRC(uint32_t ssrc);
 
     private:
-
-        typedef union _hmacCtx {
-            SkeinCtx_t       hmacSkeinCtx;
-            hmacSha1Context  hmacSha1Ctx;
-        } HmacCtx;
-
         uint32_t ssrcCtx;
         uint32_t mkiLength;
         uint8_t* mki;
@@ -333,8 +327,7 @@ class CryptoContextCtrl {
         uint32_t srtcpIndex;
         uint8_t labelBase;
 
-        void*   macCtx;
-        HmacCtx hmacCtx;
+        void* macCtx;
 
         SrtpSymCrypto* cipher;
         SrtpSymCrypto* f8Cipher;

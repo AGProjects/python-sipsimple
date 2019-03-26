@@ -100,10 +100,17 @@ labelBase(3), macCtx(NULL), cipher(NULL), f8Cipher(NULL)        // SRTCP labels 
             break;
 
         case SrtpAuthenticationSha1Hmac:
+            n_a = akeyl;
+            k_a = new uint8_t[n_a];
+            this->tagLength = tagLength;
+            this->macCtx = createSha1HmacContext(k_a, n_a);
+            break;
+
         case SrtpAuthenticationSkeinHmac:
             n_a = akeyl;
             k_a = new uint8_t[n_a];
             this->tagLength = tagLength;
+            this->macCtx = createSkeinMacContext(k_a, n_a, tagLength*8, Skein512);  // Skein MAC uses number of bits as MAC size, not just bytes
             break;
     }
 }
@@ -117,7 +124,20 @@ labelBase(3), macCtx(NULL), cipher(NULL), f8Cipher(NULL)        // SRTCP labels 
  */
 static void * (*volatile memset_volatile)(void *, int, size_t) = memset;
 
-CryptoContextCtrl::~CryptoContextCtrl(){
+CryptoContextCtrl::~CryptoContextCtrl()
+{
+    if (macCtx) {
+        switch (aalg) {
+            case SrtpAuthenticationSha1Hmac:
+                freeSha1HmacContext(macCtx);
+                break;
+
+            case SrtpAuthenticationSkeinHmac:
+                freeSkeinMacContext(macCtx);
+                break;
+        }
+        macCtx = NULL;
+    }
 
     if (mki)
         delete [] mki;
@@ -306,14 +326,10 @@ void CryptoContextCtrl::deriveSrtcpKeys()
     // Initialize MAC context with the derived key
     switch (aalg) {
     case SrtpAuthenticationSha1Hmac:
-        macCtx = &hmacCtx.hmacSha1Ctx;
-        macCtx = initializeSha1HmacContext(macCtx, k_a, n_a);
+        initializeSha1HmacContext(macCtx, k_a, n_a);
         break;
     case SrtpAuthenticationSkeinHmac:
-        macCtx = &hmacCtx.hmacSkeinCtx;
-
-        // Skein MAC uses number of bits as MAC size, not just bytes
-        macCtx = initializeSkeinMacContext(macCtx, k_a, n_a, tagLength*8, Skein512);
+        initializeSkeinMacContext(macCtx, k_a, n_a, tagLength*8, Skein512);  // Skein MAC uses number of bits as MAC size, not just bytes
         break;
     }
     memset(k_a, 0, n_a);
