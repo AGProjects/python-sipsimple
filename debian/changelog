@@ -1,3 +1,11 @@
+python-sipsimple (3.4.2) unstable; urgency=medium
+
+  * Fixed crash when using sha1 hmac with zrtp
+  * Added __dir__ method to Engine to correctly reflect UA attributes
+  * Updated windows installation instructions
+
+ -- Dan Pascu <dan@ag-projects.com>  Tue, 26 Mar 2019 11:30:05 +0200
+
 python-sipsimple (3.4.1) unstable; urgency=medium
 
   * Fixed cleanup of media stream when ending to avoid memory leak
