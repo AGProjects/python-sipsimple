@@ -616,7 +616,7 @@ static int ca_thread_func (void *arg)
 
 	tstamp.u64 += nframes;
     }
-    snd_pcm_drain (pcm);
+    snd_pcm_drop (pcm);
     TRACE_((THIS_FILE, "ca_thread_func: Stopped"));
 
     return PJ_SUCCESS;
