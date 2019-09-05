@@ -1,3 +1,8 @@
+- If the SIP account password is changed on the server, then the client
+  modifies some contact, xcap PUT will keep failing with 401 even after
+  the password is reverted on the server. This will only be fixed by
+  deactivating/reactivating the account or restarting the application.
+
 - Warning header takes a code (300-399) a hostname (not user agent) and a
   message. Class allows any code (100-999) and we use engine.user_agent
   for the hostname where we use this header in session.py
