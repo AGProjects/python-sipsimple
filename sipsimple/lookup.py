@@ -270,7 +270,11 @@ class DNSLookup(object):
                     raise DNSLookupError("Transport %s dictated by URI is not supported" % transport)
                 addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                 if addresses[uri.host]:
-                    return [Route(address=addr, port=uri.port, transport=transport) for addr in addresses[uri.host]]
+                    # Don't return route w/ the IP Address if the transport is TLS
+                    if transport == 'tls':
+                        return [Route(address=uri.host, port=uri.port, transport='tls')]
+                    else:
+                        return [Route(address=addr, port=uri.port, transport=transport) for addr in addresses[uri.host]]
 
             # If the transport was already set as a parameter on the SIP URI, only do SRV lookups
             elif 'transport' in uri.parameters:
@@ -279,6 +283,10 @@ class DNSLookup(object):
                     raise DNSLookupError("Requested lookup for URI with %s transport, but it is not supported" % transport)
                 if uri.secure and transport != 'tls':
                     raise DNSLookupError("Requested lookup for SIPS URI, but with %s transport parameter" % transport)
+                # if TLS, we defer the SRV lookup to pjsip to PASS TLS verification a'la https://tools.ietf.org/html/rfc5922#section-7.3
+                # uri.host == SIP AUS
+                if transport == 'tls':
+                    return [Route(address=uri.host, port=None, transport='tls')]
                 record_name = '%s.%s' % (transport_service_map[transport], uri.host)
                 services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
                 if services[record_name]:
@@ -288,7 +296,11 @@ class DNSLookup(object):
                     addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                     port = 5061 if transport=='tls' else 5060
                     if addresses[uri.host]:
-                        return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
+                        # Don't return route w/ the IP Address if the transport is TLS
+                        if transport == 'tls':
+                             return [Route(address=uri.host, port=port, transport='tls')]
+                        else:
+                             return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
 
             # Otherwise, it means we don't have a numeric IP address, a port isn't specified and neither is a transport. So we have to do a full NAPTR lookup
             else:
@@ -304,6 +316,12 @@ class DNSLookup(object):
                 except dns.resolver.Timeout:
                     pointers = []
                 if pointers:
+                    for result in pointers:
+                        if 'tls' == naptr_service_transport_map[result.service]:
+                            # NAPTR TLS transport present -> all other transports ignored! (BTW, Is this the correct behaviour?)
+                            # we defer the SRV lookup to pjsip to PASS TLS verification a'la https://tools.ietf.org/html/rfc5922#section-7.3
+                            # uri.host == SIP AUS
+                            return [Route(address=uri.host, port=None, transport='tls')]
                     return [Route(address=result.address, port=result.port, transport=naptr_service_transport_map[result.service]) for result in pointers]
                 else:
                     # If that fails, try SRV lookup
@@ -325,7 +343,11 @@ class DNSLookup(object):
                             addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                             port = 5061 if transport=='tls' else 5060
                             if addresses[uri.host]:
-                                return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
+                                # Don't return route w/ the IP Address if the transport is TLS
+                                if transport == 'tls':
+                                    return [Route(address=uri.host, port=port, transport='tls')]
+                                else:
+                                    return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
             raise DNSLookupError("Timeout in lookup for routes for SIP URI %s" % uri)
         else:

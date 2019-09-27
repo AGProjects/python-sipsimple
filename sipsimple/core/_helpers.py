@@ -4,6 +4,7 @@
 import random
 import socket
 import string
+import re
 
 from application.python.types import MarkerType
 from application.system import host
@@ -17,6 +18,7 @@ __all__ = ['Route', 'ContactURIFactory', 'NoGRUU', 'PublicGRUU', 'TemporaryGRUU'
 
 class Route(object):
     _default_ports = dict(udp=5060, tcp=5060, tls=5061)
+    _allowed_name = re.compile('^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$', re.IGNORECASE)
 
     def __init__(self, address, port=None, transport='udp'):
         self.address = address
@@ -29,10 +31,11 @@ class Route(object):
 
     @address.setter
     def address(self, address):
-        try:
-            socket.inet_aton(address)
-        except:
-            raise ValueError('illegal address: %s' % address)
+        if not (len(address) <= 253 and len(address) >= 1 and all(self._allowed_name.match(x) for x in address.split('.'))):
+            try:
+                socket.inet_aton(address)
+            except:
+               raise ValueError('illegal address: %s' % address)
         self._address = address
 
     @property

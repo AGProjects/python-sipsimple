@@ -1629,10 +1629,13 @@ static pj_bool_t on_connect_complete(pj_ssl_sock_t *ssock,
 	unsigned i;
 
 	/* Remote name may be hostname or IP address */
-	if (tls->remote_name.slen)
+	if (tls->remote_name.slen) {
 	    remote_name = &tls->remote_name;
-	else
+	    if (tls->verify_server) PJ_LOG(4,(tls->base.obj_name, "TLS verify: %.*s", remote_name->slen, remote_name->ptr));
+	}
+	else {
 	    remote_name = &tls->base.remote_name.host;
+	}
 
 	/* Start matching remote name with SubjectAltName fields of 
 	 * server certificate.
