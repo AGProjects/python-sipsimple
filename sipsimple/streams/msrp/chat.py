@@ -330,7 +330,7 @@ class ChatStream(MSRPStreamBase):
     @property
     def local_identity(self):
         try:
-            return ChatIdentity(self.session.local_identity.uri, self.session.account.display_name)
+            return ChatIdentity(self.session.local_identity.uri, self.session.local_identity.display_name)
         except AttributeError:
             return None
 
