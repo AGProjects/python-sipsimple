@@ -10,17 +10,17 @@ cdef class BaseCredentials:
     def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
         self._credentials.scheme = _Credentials_scheme_digest.pj_str
-        self._credentials.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
-    def __init__(self, str username not None, str password not None, str realm='*'):
+    def __init__(self, str username not None, str password not None, str realm='*', bint digest=False):
         if self.__class__ is BaseCredentials:
             raise TypeError("BaseCredentials cannot be instantiated directly")
         self.username = username
         self.realm = realm
         self.password = password
+        self._credentials.data_type = PJSIP_CRED_DATA_DIGEST if digest else PJSIP_CRED_DATA_PLAIN_PASSWD
 
     def __repr__(self):
-        return "%s(%r, %r, %r)" % (self.__class__.__name__, self.username, self.password, self.realm)
+        return "%s(username=%r, password=%r, realm=%r, digest=%r)" % (self.__class__.__name__, self.username, self.password, self.realm, self.digest)
 
     def __str__(self):
         return '<%s for "%s@%s">' % (self.__class__.__name__, self.username, self.realm)
@@ -54,32 +54,41 @@ cdef class Credentials(BaseCredentials):
             _str_to_pj_str(password, &self._credentials.data)
             self._password = password
 
+    property digest:
+        def __get__(self):
+            return self._credentials.data_type == PJSIP_CRED_DATA_DIGEST
+
+        def __set__(self, bint digest):
+            self._credentials.data_type = PJSIP_CRED_DATA_DIGEST if digest else PJSIP_CRED_DATA_PLAIN_PASSWD
+
     @classmethod
     def new(cls, BaseCredentials credentials):
-        return cls(credentials.username, credentials.password, credentials.realm)
+        return cls(credentials.username, credentials.password, credentials.realm, credentials.digest)
 
 
 cdef class FrozenCredentials(BaseCredentials):
-    def __init__(self, str username not None, str password not None, str realm='*'):
+    def __init__(self, str username not None, str password not None, str realm='*', bint digest=False):
         if not self.initialized:
             self.username = username
             self.realm = realm
             self.password = password
+            self.digest = digest
             _str_to_pj_str(self.username, &self._credentials.username)
             _str_to_pj_str(self.realm, &self._credentials.realm)
             _str_to_pj_str(self.password, &self._credentials.data)
+            self._credentials.data_type = PJSIP_CRED_DATA_DIGEST if digest else PJSIP_CRED_DATA_PLAIN_PASSWD
             self.initialized = 1
         else:
             raise TypeError("{0.__class__.__name__} is read-only".format(self))
 
     def __hash__(self):
-        return hash((self.username, self.realm, self.password))
+        return hash((self.username, self.realm, self.password, self.digest))
 
     @classmethod
     def new(cls, BaseCredentials credentials):
         if isinstance(credentials, FrozenCredentials):
             return credentials
-        return cls(credentials.username, credentials.password, credentials.realm)
+        return cls(credentials.username, credentials.password, credentials.realm, credentials.digest)
 
 
 cdef class BaseSIPURI:

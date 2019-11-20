@@ -1235,6 +1235,7 @@ cdef extern from "pjsip.h":
         PJSIP_EFAILEDCREDENTIAL
     enum pjsip_cred_data_type:
         PJSIP_CRED_DATA_PLAIN_PASSWD
+        PJSIP_CRED_DATA_DIGEST
     struct pjsip_cred_info:
         pj_str_t realm
         pj_str_t scheme
@@ -1494,6 +1495,7 @@ cdef class FrozenCredentials(BaseCredentials):
     cdef readonly str username
     cdef readonly str realm
     cdef readonly str password
+    cdef readonly bint digest
 
 cdef class BaseSIPURI(object):
     pass
