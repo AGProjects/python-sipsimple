@@ -1792,7 +1792,7 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
 
 # core.ua
 
-ctypedef int (*timer_callback)(object, object) except -1 with gil
+ctypedef int (*timer_callback)(object, object) except -1
 cdef class Timer(object):
     # attributes
     cdef int _scheduled
@@ -2590,7 +2590,7 @@ cdef class AudioTransport(object):
 
     # private methods
     cdef PJSIPUA _check_ua(self)
-    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1
 
 cdef class VideoTransport(object):
     # attributes
@@ -2612,7 +2612,7 @@ cdef class VideoTransport(object):
 
     # private methods
     cdef PJSIPUA _check_ua(self)
-    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1
 
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, pj_ice_strans_state prev, pj_ice_strans_state curr) with gil

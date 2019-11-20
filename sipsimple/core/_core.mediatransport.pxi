@@ -1431,7 +1431,7 @@ cdef class AudioTransport:
             with nogil:
                 pj_mutex_unlock(lock)
 
-    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil:
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1:
         cdef int status
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_rtcp_stat stat
@@ -1966,7 +1966,7 @@ cdef class VideoTransport:
             with nogil:
                 pj_mutex_unlock(lock)
 
-    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil:
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1:
         cdef int status
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_rtcp_stat stat
