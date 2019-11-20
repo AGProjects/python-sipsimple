@@ -343,7 +343,7 @@ cdef class Invitation:
         try:
             route_set = <pjsip_route_hdr *> &self._route_set
 
-            if self.state != None:
+            if self.state is not None:
                 raise SIPCoreInvalidStateError('Can only transition to the "outgoing" state from the "None" state, currently in the "%s" state' % self.state)
             if timeout is not None and timeout <= 0:
                 raise ValueError("Timeout value must be positive")

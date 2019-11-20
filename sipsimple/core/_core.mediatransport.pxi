@@ -1193,7 +1193,7 @@ cdef class AudioTransport:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            is_offer = remote_sdp == None
+            is_offer = remote_sdp is None
             if is_offer and direction not in valid_sdp_directions:
                 raise SIPCoreError("Unknown direction: %s" % direction)
             self._sdp_info.index = index
@@ -1661,7 +1661,7 @@ cdef class VideoTransport:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            is_offer = remote_sdp == None
+            is_offer = remote_sdp is None
             if is_offer and direction not in valid_sdp_directions:
                 raise SIPCoreError("Unknown direction: %s" % direction)
             self._sdp_info.index = index
