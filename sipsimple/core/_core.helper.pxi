@@ -17,7 +17,7 @@ cdef class BaseCredentials:
         self.username = username
         self.realm = realm
         self.password = password
-        self._credentials.data_type = PJSIP_CRED_DATA_DIGEST if digest else PJSIP_CRED_DATA_PLAIN_PASSWD
+        self.digest = digest
 
     def __repr__(self):
         return "%s(username=%r, password=%r, realm=%r, digest=%r)" % (self.__class__.__name__, self.username, self.password, self.realm, self.digest)
