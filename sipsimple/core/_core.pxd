@@ -1488,6 +1488,7 @@ cdef class Credentials(BaseCredentials):
     cdef str _username
     cdef str _realm
     cdef str _password
+    cdef bint _digest
 
 cdef class FrozenCredentials(BaseCredentials):
     # attributes

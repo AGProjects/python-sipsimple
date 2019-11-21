@@ -56,10 +56,11 @@ cdef class Credentials(BaseCredentials):
 
     property digest:
         def __get__(self):
-            return self._credentials.data_type == PJSIP_CRED_DATA_DIGEST
+            return self._digest
 
         def __set__(self, bint digest):
             self._credentials.data_type = PJSIP_CRED_DATA_DIGEST if digest else PJSIP_CRED_DATA_PLAIN_PASSWD
+            self._digest = digest
 
     @classmethod
     def new(cls, BaseCredentials credentials):
