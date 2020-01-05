@@ -27,9 +27,7 @@ from sipsimple.threading import run_in_twisted_thread
 class VNCConnectionError(Exception): pass
 
 
-class ScreenSharingHandler(object):
-    __metaclass__ = ABCMeta
-
+class ScreenSharingHandler(object, metaclass=ABCMeta):
     implements(IObserver)
 
     def __init__(self):
@@ -132,7 +130,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
             try:
                 data = self.incoming_msrp_queue.wait()
                 self.vnc_socket.sendall(data)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', reason=str(e)))
                 break
@@ -144,7 +142,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
                 if not data:
                     raise VNCConnectionError("connection with the VNC viewer was closed")
                 self.outgoing_msrp_queue.send(data)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', reason=str(e)))
                 break
@@ -155,7 +153,7 @@ class ExternalVNCViewerHandler(ScreenSharingViewerHandler):
             self.vnc_socket.close()
             self.vnc_socket = sock
             self.vnc_socket.settimeout(None)
-        except Exception, e:
+        except Exception as e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
             NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', reason=str(e)))
         else:
@@ -189,7 +187,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
             try:
                 data = self.incoming_msrp_queue.wait()
                 self.vnc_socket.sendall(data)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='sending', reason=str(e)))
                 break
@@ -201,7 +199,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
                 if not data:
                     raise VNCConnectionError("connection to the VNC server was closed")
                 self.outgoing_msrp_queue.send(data)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='reading', reason=str(e)))
                 break
@@ -212,7 +210,7 @@ class ExternalVNCServerHandler(ScreenSharingServerHandler):
             self.vnc_socket.settimeout(self.connect_timeout)
             self.vnc_socket.connect(self.address)
             self.vnc_socket.settimeout(None)
-        except Exception, e:
+        except Exception as e:
             self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
             NotificationCenter().post_notification('ScreenSharingHandlerDidFail', sender=self, data=NotificationData(context='connecting', reason=str(e)))
         else:
@@ -305,7 +303,7 @@ class ScreenSharingStream(MSRPStreamBase):
                     self.msrp.write_chunk(response)
                 if report is not None:
                     self.msrp.write_chunk(report)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break
@@ -322,7 +320,7 @@ class ScreenSharingStream(MSRPStreamBase):
                 chunk.add_header(FailureReportHeader('partial'))
                 chunk.add_header(ContentTypeHeader('application/x-rfb'))
                 self.msrp.write_chunk(chunk)
-            except Exception, e:
+            except Exception as e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
                 if self.shutting_down and isinstance(e, ConnectionDone):
                     break

@@ -1,7 +1,7 @@
 
 """Video support"""
 
-from __future__ import absolute_import
+
 
 __all__ = ['IVideoProducer', 'VideoDevice', 'VideoError']
 
@@ -36,7 +36,7 @@ class VideoDevice(object):
             return VideoCamera(device_name, resolution, framerate)
         except SIPCoreError:
             try:
-                return VideoCamera(u'system_default', resolution, framerate)
+                return VideoCamera('system_default', resolution, framerate)
             except SIPCoreError:
                 return VideoCamera(None, resolution, framerate)
 

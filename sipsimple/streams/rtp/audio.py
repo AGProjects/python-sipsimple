@@ -87,7 +87,7 @@ class AudioStream(RTPStream):
                 self._transport.stop()
                 try:
                     self._transport = AudioTransport(self.mixer, self._rtp_transport, remote_sdp, stream_index, codecs=list(self.session.account.rtp.audio_codec_list or settings.rtp.audio_codec_list))
-                except SIPCoreError, e:
+                except SIPCoreError as e:
                     self.state = "ENDED"
                     self._failure_reason = e.args[0]
                     self.notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context='update', reason=self._failure_reason))
@@ -150,7 +150,7 @@ class AudioStream(RTPStream):
                 raise RuntimeError("AudioStream.send_dtmf() cannot be used in %s state" % self.state)
             try:
                 self._transport.send_dtmf(digit)
-            except PJSIPError, e:
+            except PJSIPError as e:
                 if not e.args[0].endswith("(PJ_ETOOMANY)"):
                     raise
 
@@ -210,7 +210,7 @@ class AudioStream(RTPStream):
             self.notification_center.post_notification('AudioStreamWillStartRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename))
             try:
                 self._audio_rec.start()
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 self._audio_rec = None
                 self.notification_center.post_notification('AudioStreamDidStopRecording', sender=self, data=NotificationData(filename=self._audio_rec.filename, reason=e.args[0]))
                 return

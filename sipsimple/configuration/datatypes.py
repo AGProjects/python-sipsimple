@@ -24,7 +24,7 @@ __all__ = [
 import locale
 import os
 import re
-import urlparse
+import urllib.parse
 
 from operator import itemgetter
 
@@ -32,7 +32,7 @@ from operator import itemgetter
 # Base datatypes
 
 class List(object):
-    type = unicode
+    type = str
 
     def __init__(self, values=()):
         self.values = [item if isinstance(item, self.type) else self.type(item) for item in values]
@@ -43,15 +43,15 @@ class List(object):
             if item is None:
                 pass
             elif issubclass(self.type, bool):
-                item = u'true' if item else u'false'
-            elif issubclass(self.type, (int, long, basestring)):
-                item = unicode(item)
+                item = 'true' if item else 'false'
+            elif issubclass(self.type, (int, int, str)):
+                item = str(item)
             elif hasattr(item, '__getstate__'):
                 item = item.__getstate__()
-                if type(item) is not unicode:
+                if type(item) is not str:
                     raise TypeError("Expected unicode type for list member, got %s" % item.__class__.__name__)
             else:
-                item = unicode(item)
+                item = str(item)
             state.append(item)
         return state
 
@@ -69,7 +69,7 @@ class List(object):
                     item = False
                 else:
                     raise ValueError("invalid boolean value: %s" % (item,))
-            elif issubclass(self.type, (int, long, basestring)):
+            elif issubclass(self.type, (int, int, str)):
                 item = self.type(item)
             elif hasattr(self.type, '__setstate__'):
                 object = self.type.__new__(self.type)
@@ -128,7 +128,7 @@ class List(object):
         return ', '.join(str(item) for item in self)
 
     def __unicode__(self):
-        return u', '.join(unicode(item) for item in self)
+        return ', '.join(str(item) for item in self)
 
 
 # Generic datatypes
@@ -252,7 +252,7 @@ class VideoResolution(tuple):
     def __new__(cls, value):
         if isinstance(value, tuple):
             width, height = value
-        elif isinstance(value, basestring):
+        elif isinstance(value, str):
             width, height = value.split('x')
         else:
             raise ValueError('invalid value: %r' % value)
@@ -265,7 +265,7 @@ class VideoResolution(tuple):
         return '%dx%d' % (self.width, self.height)
 
     def __unicode__(self):
-        return u'%dx%d' % (self.width, self.height)
+        return '%dx%d' % (self.width, self.height)
 
 
 class VideoCodecList(CodecList):
@@ -294,7 +294,7 @@ class PortRange(object):
             raise ValueError("illegal port range: start port (%d) cannot be larger than end port (%d)" % (self.start, self.end))
 
     def __getstate__(self):
-        return unicode(self)
+        return str(self)
 
     def __setstate__(self, state):
         self.__init__(*state.split('-'))
@@ -318,7 +318,7 @@ class PortRange(object):
         return '%d-%d' % (self.start, self.end)
 
     def __unicode__(self):
-        return u'%d-%d' % (self.start, self.end)
+        return '%d-%d' % (self.start, self.end)
 
 
 class Hostname(str):
@@ -369,7 +369,7 @@ class EndpointAddress(object):
             raise ValueError("illegal port value: 0")
 
     def __getstate__(self):
-        return unicode(self)
+        return str(self)
 
     def __setstate__(self, state):
         match = self._description_re.match(state)
@@ -396,7 +396,7 @@ class EndpointAddress(object):
         return '%s:%d' % (self.host, self.port)
 
     def __unicode__(self):
-        return u'%s:%d' % (self.host, self.port)
+        return '%s:%d' % (self.host, self.port)
 
     @classmethod
     def from_description(cls, description):
@@ -442,13 +442,13 @@ class MSRPRelayAddress(object):
         self.transport = MSRPTransport(transport)
 
     def __getstate__(self):
-        return unicode(self)
+        return str(self)
 
     def __setstate__(self, state):
         match = self._description_re.match(state)
         if match is None:
             raise ValueError("illegal MSRP relay address: %s" % state)
-        self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        self.__init__(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
     def __eq__(self, other):
         if isinstance(other, MSRPRelayAddress):
@@ -469,7 +469,7 @@ class MSRPRelayAddress(object):
         return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     def __unicode__(self):
-        return u'%s:%d;transport=%s' % (self.host, self.port, self.transport)
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     @classmethod
     def from_description(cls, description):
@@ -478,7 +478,7 @@ class MSRPRelayAddress(object):
         match = cls._description_re.match(description)
         if match is None:
             raise ValueError("illegal MSRP relay address: %s" % description)
-        return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        return cls(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
 
 class SIPProxyAddress(object):
@@ -492,13 +492,13 @@ class SIPProxyAddress(object):
         self.transport = SIPTransport(transport)
 
     def __getstate__(self):
-        return unicode(self)
+        return str(self)
 
     def __setstate__(self, state):
         match = self._description_re.match(state)
         if match is None:
             raise ValueError("illegal SIP proxy address: %s" % state)
-        self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        self.__init__(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
     def __eq__(self, other):
         if isinstance(other, SIPProxyAddress):
@@ -519,7 +519,7 @@ class SIPProxyAddress(object):
         return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     def __unicode__(self):
-        return u'%s:%d;transport=%s' % (self.host, self.port, self.transport)
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     @classmethod
     def from_description(cls, description):
@@ -528,7 +528,7 @@ class SIPProxyAddress(object):
         match = cls._description_re.match(description)
         if match is None:
             raise ValueError("illegal SIP proxy address: %s" % description)
-        return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        return cls(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
 
 class STUNServerAddress(object):
@@ -541,13 +541,13 @@ class STUNServerAddress(object):
         self.port = Port(port)
 
     def __getstate__(self):
-        return unicode(self)
+        return str(self)
 
     def __setstate__(self, state):
         match = self._description_re.match(state)
         if match is None:
             raise ValueError("illegal STUN server address: %s" % state)
-        self.__init__(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        self.__init__(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
     def __eq__(self, other):
         if isinstance(other, STUNServerAddress):
@@ -568,7 +568,7 @@ class STUNServerAddress(object):
         return '%s:%d' % (self.host, self.port)
 
     def __unicode__(self):
-        return u'%s:%d' % (self.host, self.port)
+        return '%s:%d' % (self.host, self.port)
 
     @classmethod
     def from_description(cls, description):
@@ -577,7 +577,7 @@ class STUNServerAddress(object):
         match = cls._description_re.match(description)
         if match is None:
             raise ValueError("illegal STUN server address: %s" % description)
-        return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
+        return cls(**dict((k, v) for k, v in match.groupdict().items() if v is not None))
 
 
 class STUNServerAddressList(List):
@@ -587,8 +587,8 @@ class STUNServerAddressList(List):
 class XCAPRoot(str):
     def __new__(cls, value):
         value = str(value)
-        uri = urlparse.urlparse(value)
-        if uri.scheme not in (u'http', u'https'):
+        uri = urllib.parse.urlparse(value)
+        if uri.scheme not in ('http', 'https'):
             raise ValueError("illegal XCAP root scheme (http and https only): %s" % uri.scheme)
         if uri.params:
             raise ValueError("XCAP root must not contain parameters: %s" % (uri.params,))
@@ -652,7 +652,7 @@ class SRTPKeyNegotiation(str):
 
 # Path datatypes
 
-class Path(unicode):
+class Path(str):
     def __new__(cls, path):
         return super(Path, cls).__new__(cls, os.path.normpath(path))
 

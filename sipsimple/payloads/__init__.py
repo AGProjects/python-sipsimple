@@ -44,11 +44,11 @@ __all__ = ['ParserError',
 
 import os
 import sys
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from collections import defaultdict, deque
 from copy import deepcopy
 from decimal import Decimal
-from itertools import chain, izip
+from itertools import chain
 from weakref import WeakValueDictionary
 
 from application.python import Null
@@ -71,11 +71,11 @@ class ValidationError(ParserError): pass
 
 ## Markers
 
-class IterateTypes: __metaclass__ = MarkerType
-class IterateIDs:   __metaclass__ = MarkerType
-class IterateItems: __metaclass__ = MarkerType
+class IterateTypes(metaclass=MarkerType): pass
+class IterateIDs(metaclass=MarkerType):   pass
+class IterateItems(metaclass=MarkerType): pass
 
-class StoredAttribute: __metaclass__ = MarkerType
+class StoredAttribute(metaclass=MarkerType): pass
 
 
 ## Utilities
@@ -122,12 +122,12 @@ class XMLDocumentType(type):
 
     def _update_schema(cls):
         if cls.schema_map:
-            location_map = {ns: urllib.quote(os.path.abspath(os.path.join(cls.schema_path, schema_file)).replace('\\', '//')) for ns, schema_file in cls.schema_map.iteritems()}
+            location_map = {ns: urllib.parse.quote(os.path.abspath(os.path.join(cls.schema_path, schema_file)).replace('\\', '//')) for ns, schema_file in cls.schema_map.items()}
             schema = """<?xml version="1.0"?>
                 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
                     %s
                 </xs:schema>
-            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (namespace, schema_location) for namespace, schema_location in location_map.iteritems())
+            """ % '\r\n'.join('<xs:import namespace="%s" schemaLocation="%s"/>' % (namespace, schema_location) for namespace, schema_location in location_map.items())
             cls.schema = etree.XMLSchema(etree.XML(schema))
             cls.parser = etree.XMLParser(schema=cls.schema, remove_blank_text=True)
         else:
@@ -135,9 +135,7 @@ class XMLDocumentType(type):
             cls.parser = etree.XMLParser(remove_blank_text=True)
 
 
-class XMLDocument(object):
-    __metaclass__ = XMLDocumentType
-
+class XMLDocument(object, metaclass=XMLDocumentType):
     encoding = 'UTF-8'
     content_type = None
     schema_path = os.path.join(os.path.dirname(__file__), 'xml-schemas')
@@ -147,14 +145,14 @@ class XMLDocument(object):
         try:
             if isinstance(document, str):
                 xml = etree.XML(document, parser=cls.parser)
-            elif isinstance(document, unicode):
+            elif isinstance(document, str):
                 xml = etree.XML(document.encode('utf-8'), parser=cls.parser)
             else:
                 xml = etree.parse(document, parser=cls.parser).getroot()
             if cls.schema is not None:
                 cls.schema.assertValid(xml)
             return cls.root_element.from_element(xml, xml_document=cls)
-        except (etree.DocumentInvalid, etree.XMLSyntaxError, ValueError), e:
+        except (etree.DocumentInvalid, etree.XMLSyntaxError, ValueError) as e:
             raise ParserError(str(e))
 
     @classmethod
@@ -165,7 +163,7 @@ class XMLDocument(object):
         if validate and cls.schema is not None:
             cls.schema.assertValid(element)
         # Cleanup namespaces and move element NS mappings to the global scope.
-        normalized_element = etree.Element(element.tag, attrib=element.attrib, nsmap=dict(chain(element.nsmap.iteritems(), cls.nsmap.iteritems())))
+        normalized_element = etree.Element(element.tag, attrib=element.attrib, nsmap=dict(chain(iter(element.nsmap.items()), iter(cls.nsmap.items()))))
         normalized_element.text = element.text
         normalized_element.tail = element.tail
         normalized_element.extend(deepcopy(child) for child in element)
@@ -190,7 +188,7 @@ class XMLDocument(object):
     def register_namespace(cls, namespace, prefix=None, schema=None):
         if prefix in cls.nsmap:
             raise ValueError("prefix %s is already registered in %s" % (prefix, cls.__name__))
-        if namespace in cls.nsmap.itervalues():
+        if namespace in iter(cls.nsmap.values()):
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
         cls.nsmap[prefix] = namespace
         if schema is not None:
@@ -202,7 +200,7 @@ class XMLDocument(object):
     @classmethod
     def unregister_namespace(cls, namespace):
         try:
-            prefix = (prefix for prefix in cls.nsmap if cls.nsmap[prefix]==namespace).next()
+            prefix = next((prefix for prefix in cls.nsmap if cls.nsmap[prefix]==namespace))
         except StopIteration:
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
         del cls.nsmap[prefix]
@@ -219,13 +217,13 @@ class XMLDocument(object):
 ## Children descriptors
 
 class XMLAttribute(object):
-    def __init__(self, name, xmlname=None, type=unicode, default=None, required=False, test_equal=True, onset=None, ondel=None):
+    def __init__(self, name, xmlname=None, type=str, default=None, required=False, test_equal=True, onset=None, ondel=None):
         self.name = name
         self.xmlname = xmlname or name
         self.type = type
         self.default = default
         self.__xmlparse__ = getattr(type, '__xmlparse__', lambda value: value)
-        self.__xmlbuild__ = getattr(type, '__xmlbuild__', unicode)
+        self.__xmlbuild__ = getattr(type, '__xmlbuild__', str)
         self.required = required
         self.test_equal = test_equal
         self.onset = onset
@@ -460,10 +458,10 @@ class XMLStringChoiceChild(XMLElementChoiceChild):
         if obj is None or objtype is StoredAttribute or value is None or isinstance(value, self.extension_type or ()):
             return value
         else:
-            return unicode(value)
+            return str(value)
 
     def __set__(self, obj, value):
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             if self.registry is not None and value in self.registry.names:
                 value = self.registry.class_map[value]()
             elif self.other_type is not None:
@@ -512,7 +510,7 @@ class XMLElementType(type):
             if hasattr(base, '_xml_element_children') and hasattr(base, '_xml_children_qname_map'):
                 cls._xml_element_children.update(base._xml_element_children)
                 cls._xml_children_qname_map.update(base._xml_children_qname_map)
-        for name, value in dct.iteritems():
+        for name, value in dct.items():
             if isinstance(value, XMLElementID):
                 if cls._xml_id is not None:
                     raise AttributeError("Only one XMLElementID attribute can be defined in the %s class" % cls.__name__)
@@ -532,9 +530,7 @@ class XMLElementType(type):
         if cls._xml_document is not None:
             cls._xml_document.register_element(cls)
 
-class XMLElement(XMLElementBase):
-    __metaclass__ = XMLElementType
-    
+class XMLElement(XMLElementBase, metaclass=XMLElementType):
     _xml_tag = None # To be defined in subclass
     _xml_namespace = None # To be defined in subclass
     _xml_document = None # To be defined in subclass
@@ -569,13 +565,13 @@ class XMLElement(XMLElementBase):
 
     def check_validity(self):
         # check attributes
-        for name, attribute in self._xml_attributes.iteritems():
+        for name, attribute in self._xml_attributes.items():
             # if attribute has default but it was not set, will also be added with this occasion
             value = getattr(self, name, None)
             if attribute.required and value is None:
                 raise ValidationError("required attribute %s of %s is not set" % (name, self.__class__.__name__))
         # check element children
-        for name, element_child in self._xml_element_children.iteritems():
+        for name, element_child in self._xml_element_children.items():
             # if child has default but it was not set, will also be added with this occasion
             child = getattr(self, name, None)
             if child is None and element_child.required:
@@ -584,7 +580,7 @@ class XMLElement(XMLElementBase):
     def to_element(self):
         try:
             self.check_validity()
-        except ValidationError, e:
+        except ValidationError as e:
             raise BuilderError(str(e))
         # build element children
         for name in self._xml_element_children:
@@ -601,7 +597,7 @@ class XMLElement(XMLElementBase):
         obj._xml_document = xml_document if xml_document is not None else cls._xml_document
         obj.element = element
         # set known attributes
-        for name, attribute in cls._xml_attributes.iteritems():
+        for name, attribute in cls._xml_attributes.items():
             xmlvalue = element.get(attribute.xmlname, None)
             if xmlvalue is not None:
                 try:
@@ -659,9 +655,9 @@ class XMLElement(XMLElementBase):
     def _insert_element(self, element):
         if element in self.element:
             return
-        order = self._xml_children_order.get(element.tag, self._xml_children_order.get(None, sys.maxint))
-        for i in xrange(len(self.element)):
-            child_order = self._xml_children_order.get(self.element[i].tag, self._xml_children_order.get(None, sys.maxint))
+        order = self._xml_children_order.get(element.tag, self._xml_children_order.get(None, sys.maxsize))
+        for i in range(len(self.element)):
+            child_order = self._xml_children_order.get(self.element[i].tag, self._xml_children_order.get(None, sys.maxsize))
             if child_order > order:
                 position = i
                 break
@@ -673,11 +669,11 @@ class XMLElement(XMLElementBase):
         if isinstance(other, XMLElement):
             if self is other:
                 return True
-            for name, attribute in self._xml_attributes.iteritems():
+            for name, attribute in self._xml_attributes.items():
                 if attribute.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
                         return False
-            for name, element_child in self._xml_element_children.iteritems():
+            for name, element_child in self._xml_element_children.items():
                 if element_child.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
                         return False
@@ -711,9 +707,7 @@ class XMLRootElementType(XMLElementType):
                 raise TypeError('there is already a root element registered for %s' % cls.__name__)
             cls._xml_document.root_element = cls
 
-class XMLRootElement(XMLElement):
-    __metaclass__ = XMLRootElementType
-
+class XMLRootElement(XMLElement, metaclass=XMLRootElementType):
     def __init__(self):
         XMLElement.__init__(self)
         self.__cache__ = WeakValueDictionary({self.element: self})
@@ -808,10 +802,8 @@ class XMLListMixinType(type):
         super(XMLListMixinType, cls).__setattr__(name, value)
 
 
-class XMLListMixin(XMLElementBase):
+class XMLListMixin(XMLElementBase, metaclass=XMLListMixinType):
     """A mixin representing a list of other XML elements"""
-
-    __metaclass__ = XMLListMixinType
 
     _xml_item_type = None
 
@@ -824,7 +816,7 @@ class XMLListMixin(XMLElementBase):
         return instance
 
     def __contains__(self, item):
-        return item in self._element_map.itervalues()
+        return item in iter(self._element_map.values())
 
     def __iter__(self):
         return (self._element_map[element] for element in self.element if element in self._element_map)
@@ -837,7 +829,7 @@ class XMLListMixin(XMLElementBase):
 
     def __eq__(self, other):
         if isinstance(other, XMLListMixin):
-            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other)))
+            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in zip(self, other)))
         else:
             return NotImplemented
 
@@ -847,7 +839,7 @@ class XMLListMixin(XMLElementBase):
 
     def __getitem__(self, key):
         if key is IterateTypes:
-            return (cls for cls, mapping in self._xmlid_map.iteritems() if mapping)
+            return (cls for cls, mapping in self._xmlid_map.items() if mapping)
         if not isinstance(key, tuple):
             raise KeyError(key)
         try:
@@ -855,9 +847,9 @@ class XMLListMixin(XMLElementBase):
         except ValueError:
             raise KeyError(key)
         if id is IterateIDs:
-            return self._xmlid_map[cls].iterkeys()
+            return iter(self._xmlid_map[cls].keys())
         elif id is IterateItems:
-            return self._xmlid_map[cls].itervalues()
+            return iter(self._xmlid_map[cls].values())
         else:
             return self._xmlid_map[cls][id]
 
@@ -869,18 +861,18 @@ class XMLListMixin(XMLElementBase):
         except ValueError:
             raise KeyError(key)
         if id is All:
-            for item in self._xmlid_map[cls].values():
+            for item in list(self._xmlid_map[cls].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[cls][id])
 
     def __get_dirty__(self):
-        return any(item.__dirty__ for item in self._element_map.itervalues()) or super(XMLListMixin, self).__get_dirty__()
+        return any(item.__dirty__ for item in self._element_map.values()) or super(XMLListMixin, self).__get_dirty__()
 
     def __set_dirty__(self, dirty):
         super(XMLListMixin, self).__set_dirty__(dirty)
         if not dirty:
-            for item in self._element_map.itervalues():
+            for item in self._element_map.values():
                 item.__dirty__ = dirty
 
     def _parse_element(self, element):
@@ -904,7 +896,7 @@ class XMLListMixin(XMLElementBase):
 
     def _build_element(self):
         super(XMLListMixin, self)._build_element()
-        for child in self._element_map.itervalues():
+        for child in self._element_map.values():
             child.to_element()
 
     def add(self, item):
@@ -940,7 +932,7 @@ class XMLListMixin(XMLElementBase):
             self.add(item)
 
     def clear(self):
-        for item in self._element_map.values():
+        for item in list(self._element_map.values()):
             self.remove(item)
 
 
@@ -964,7 +956,7 @@ class XMLSimpleElement(XMLElement):
         else:
             return self.value == other
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self.value)
 
     def __repr__(self):
@@ -974,7 +966,7 @@ class XMLSimpleElement(XMLElement):
         return str(self.value)
 
     def __unicode__(self):
-        return unicode(self.value)
+        return str(self.value)
 
     @property
     def value(self):
@@ -991,7 +983,7 @@ class XMLSimpleElement(XMLElement):
 
     def _parse_element(self, element):
         super(XMLSimpleElement, self)._parse_element(element)
-        value = element.text or u''
+        value = element.text or ''
         if hasattr(self._xml_value_type, '__xmlparse__'):
             self.value = self._xml_value_type.__xmlparse__(value)
         else:
@@ -1002,11 +994,11 @@ class XMLSimpleElement(XMLElement):
         if hasattr(self.value, '__xmlbuild__'):
             self.element.text = self.value.__xmlbuild__()
         else:
-            self.element.text = unicode(self.value)
+            self.element.text = str(self.value)
 
 
 class XMLStringElement(XMLSimpleElement):
-    _xml_value_type = unicode  # Can be overwritten in subclasses
+    _xml_value_type = str  # Can be overwritten in subclasses
 
     def __len__(self):
         return len(self.value)
@@ -1120,7 +1112,7 @@ class XMLEmptyElementRegistryType(type):
         typename = getattr(cls, '__typename__', name.partition('Registry')[0]).capitalize()
         class BaseElementType(XMLEmptyElement):
             def __str__(self): return self._xml_tag
-            def __unicode__(self): return unicode(self._xml_tag)
+            def __unicode__(self): return str(self._xml_tag)
         cls.__basetype__ = BaseElementType
         cls.__basetype__.__name__ = 'Base%sType' % typename
         cls.class_map = {}
@@ -1141,19 +1133,15 @@ class XMLListElementType(XMLElementType, XMLListMixinType): pass
 
 class XMLListRootElementType(XMLRootElementType, XMLListMixinType): pass
 
-class XMLListElement(XMLElement, XMLListMixin):
-    __metaclass__ = XMLListElementType
-
-    def __nonzero__(self):
+class XMLListElement(XMLElement, XMLListMixin, metaclass=XMLListElementType):
+    def __bool__(self):
         if self._xml_attributes or self._xml_element_children:
             return True
         else:
             return len(self._element_map) != 0
 
-class XMLListRootElement(XMLRootElement, XMLListMixin):
-    __metaclass__ = XMLListRootElementType
-
-    def __nonzero__(self):
+class XMLListRootElement(XMLRootElement, XMLListMixin, metaclass=XMLListRootElementType):
+    def __bool__(self):
         if self._xml_attributes or self._xml_element_children:
             return True
         else:
@@ -1170,26 +1158,24 @@ class XMLStringListElementType(XMLListElementType):
         super(XMLStringListElementType, cls).__init__(name, bases, dct)
 
 
-class XMLStringListElement(XMLListElement):
-    __metaclass__ = XMLStringListElementType
-
+class XMLStringListElement(XMLListElement, metaclass=XMLStringListElementType):
     _xml_item_registry = None
     _xml_item_other_type = None
     _xml_item_extension_type = None
 
     def __contains__(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             if self._xml_item_registry is not None and item in self._xml_item_registry.names:
                 item = self._xml_item_registry.class_map[item]()
             elif self._xml_item_other_type is not None:
                 item = self._xml_item_other_type.from_string(item)
-        return item in self._element_map.itervalues()
+        return item in iter(self._element_map.values())
 
     def __iter__(self):
-        return (item if isinstance(item, self._xml_item_extension_types) else unicode(item) for item in super(XMLStringListElement, self).__iter__())
+        return (item if isinstance(item, self._xml_item_extension_types) else str(item) for item in super(XMLStringListElement, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             if self._xml_item_registry is not None and item in self._xml_item_registry.names:
                 item = self._xml_item_registry.class_map[item]()
             elif self._xml_item_other_type is not None:
@@ -1197,17 +1183,17 @@ class XMLStringListElement(XMLListElement):
         super(XMLStringListElement, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             if self._xml_item_registry is not None and item in self._xml_item_registry.names:
                 xmlitem = self._xml_item_registry.class_map[item]()
                 try:
-                    item = (entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem).next()
+                    item = next((entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem))
                 except StopIteration:
                     raise KeyError(item)
             elif self._xml_item_other_type is not None:
                 xmlitem = self._xml_item_other_type.from_string(item)
                 try:
-                    item = (entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem).next()
+                    item = next((entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem))
                 except StopIteration:
                     raise KeyError(item)
         super(XMLStringListElement, self).remove(item)

@@ -74,11 +74,11 @@ class Route(object):
 
 class ContactURIType(MarkerType): pass
 
-class NoGRUU:                   __metaclass__ = ContactURIType
-class PublicGRUU:               __metaclass__ = ContactURIType
-class TemporaryGRUU:            __metaclass__ = ContactURIType
-class PublicGRUUIfAvailable:    __metaclass__ = ContactURIType
-class TemporaryGRUUIfAvailable: __metaclass__ = ContactURIType
+class NoGRUU(metaclass=ContactURIType):                   pass
+class PublicGRUU(metaclass=ContactURIType):               pass
+class TemporaryGRUU(metaclass=ContactURIType):            pass
+class PublicGRUUIfAvailable(metaclass=ContactURIType):    pass
+class TemporaryGRUUIfAvailable(metaclass=ContactURIType): pass
 
 
 class ContactURIFactory(object):
@@ -97,10 +97,10 @@ class ContactURIFactory(object):
                 raise KeyError("unsupported contact type: %r" % contact_type)
         else:
             contact_type = NoGRUU
-        if not isinstance(key, (basestring, Route)):
+        if not isinstance(key, (str, Route)):
             raise KeyError("key must be a transport name or Route instance")
 
-        transport = key if isinstance(key, basestring) else key.transport
+        transport = key if isinstance(key, str) else key.transport
         parameters = {} if transport == 'udp' else {'transport': transport}
 
         if contact_type is PublicGRUU:
@@ -116,7 +116,7 @@ class ContactURIFactory(object):
         elif contact_type is TemporaryGRUUIfAvailable and self.temporary_gruu is not None:
             uri = SIPURI.new(self.temporary_gruu)
         else:
-            ip = host.default_ip if isinstance(key, basestring) else host.outgoing_ip_for(key.address)
+            ip = host.default_ip if isinstance(key, str) else host.outgoing_ip_for(key.address)
             if ip is None:
                 raise KeyError("could not get outgoing IP address")
             port = getattr(Engine(), '%s_port' % transport, None)

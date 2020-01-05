@@ -142,7 +142,7 @@ class ProvideDevices(XMLListElement, commonpolicy.TransformationElement):
     def remove(self, item):
         if item == All:
             try:
-                item = (item for item in super(ProvideDevices, self).__iter__() if type(item) is AllDevices).next()
+                item = next((item for item in super(ProvideDevices, self).__iter__() if type(item) is AllDevices))
             except StopIteration:
                 raise KeyError(item)
         super(ProvideDevices, self).remove(item)
@@ -189,7 +189,7 @@ class ProvidePersons(XMLListElement, commonpolicy.TransformationElement):
     def remove(self, item):
         if item == All:
             try:
-                item = (item for item in super(ProvidePersons, self).__iter__() if type(item) is AllPersons).next()
+                item = next((item for item in super(ProvidePersons, self).__iter__() if type(item) is AllPersons))
             except StopIteration:
                 raise KeyError(item)
         super(ProvidePersons, self).remove(item)
@@ -248,7 +248,7 @@ class ProvideServices(XMLListElement, commonpolicy.TransformationElement):
     def remove(self, item):
         if item == All:
             try:
-                item = (item for item in super(ProvideServices, self).__iter__() if type(item) is AllServices).next()
+                item = next((item for item in super(ProvideServices, self).__iter__() if type(item) is AllServices))
             except StopIteration:
                 raise KeyError(item)
         super(ProvideServices, self).remove(item)

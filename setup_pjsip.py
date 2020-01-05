@@ -99,7 +99,7 @@ class PJSIP_build_ext(build_ext):
             if not silent:
                 sys.stdout.write(stdout)
                 sys.stderr.write(stderr)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.ENOENT:
                 raise RuntimeError('"%s" is not present on this system' % cmdline[0])
             else:
@@ -131,7 +131,7 @@ class PJSIP_build_ext(build_ext):
     def makedirs(cls, path):
         try:
             os.makedirs(path)
-        except OSError, e:
+        except OSError as e:
             if e.errno==errno.EEXIST and os.path.isdir(path) and os.access(path, os.R_OK | os.W_OK | os.X_OK):
                 return
             raise
@@ -178,7 +178,7 @@ class PJSIP_build_ext(build_ext):
         log.info("Cleaning PJSIP")
         try:
             shutil.rmtree(self.build_dir)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.ENOENT:
                 return
             raise

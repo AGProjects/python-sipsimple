@@ -5,18 +5,18 @@ __all__ = ['Group', 'Contact', 'ContactURI', 'EventHandling', 'Policy', 'Icon', 
 
 
 import base64
-import cPickle
+import pickle
 import os
 import random
 import socket
 import weakref
 
-from cStringIO import StringIO
+from io import StringIO
 from collections import OrderedDict
 from datetime import datetime
 from itertools import chain
 from operator import attrgetter
-from urllib2 import URLError
+from urllib.error import URLError
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python import Null
@@ -64,7 +64,7 @@ class Document(object):
         self.dirty = False
         self.supported = False
 
-    def __nonzero__(self):
+    def __bool__(self):
         return self.content is not None
 
     @property
@@ -120,16 +120,16 @@ class Document(object):
             self.content = self.payload_type.parse(document)
             self.etag = document.etag
             self.__dict__['dirty'] = False
-        except (BadStatusLine, ConnectionLost, URLError, socket.error), e:
+        except (BadStatusLine, ConnectionLost, URLError, socket.error) as e:
             raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
-        except HTTPError, e:
+        except HTTPError as e:
             if e.status == 404: # Not Found
                 if self.content is not None:
                     self.reset()
                     self.fetch_time = datetime.utcnow()
             elif e.status != 304: # Other than Not Modified:
                 raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
-        except ParserError, e:
+        except ParserError as e:
             raise XCAPError("failed to parse %s document: %s" % (self.name, e))
         else:
             self.fetch_time = datetime.utcnow()
@@ -149,9 +149,9 @@ class Document(object):
                 response = self.manager.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
             else:
                 response = self.manager.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
-        except (BadStatusLine, ConnectionLost, URLError), e:
+        except (BadStatusLine, ConnectionLost, URLError) as e:
             raise XCAPError("failed to update %s document: %s" % (self.name, e))
-        except HTTPError, e:
+        except HTTPError as e:
             if e.status == 412: # Precondition Failed
                 raise FetchRequiredError("document %s was modified externally" % self.name)
             elif e.status == 404 and data is None: # attempted to delete a document that did't exist in the first place
@@ -308,7 +308,7 @@ class ItemCollection(object):
     def __contains__(self, key):
         return key in self.items
     def __iter__(self):
-        return self.items.itervalues()
+        return iter(self.items.values())
     def __reversed__(self):
         return (self[id] for id in reversed(self.items))
     def __len__(self):
@@ -321,11 +321,11 @@ class ItemCollection(object):
         equal = self.__eq__(other)
         return NotImplemented if equal is NotImplemented else not equal
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.items.values())
+        return "%s(%r)" % (self.__class__.__name__, list(self.items.values()))
     def ids(self):
-        return self.items.keys()
+        return list(self.items.keys())
     def iterids(self):
-        return self.items.iterkeys()
+        return iter(self.items.keys())
     def get(self, key, default=None):
         return self.items.get(key, default)
     def add(self, item):
@@ -349,7 +349,7 @@ class ContactURIList(ItemCollection):
         return NotImplemented
 
     def __repr__(self):
-        return "%s(%r, default=%r)" % (self.__class__.__name__, self.items.values(), self.default)
+        return "%s(%r, default=%r)" % (self.__class__.__name__, list(self.items.values()), self.default)
 
 
 class Group(object):
@@ -594,7 +594,7 @@ class OfflineStatus(object):
 class Operation(object):
     __params__ = ()
     def __init__(self, **params):
-        for name, value in params.iteritems():
+        for name, value in params.items():
             setattr(self, name, value)
         for param in set(self.__params__).difference(params):
             raise ValueError("missing operation parameter: '%s'" % param)
@@ -716,7 +716,7 @@ class XCAPManager(object):
             self.journal = []
         else:
             try:
-                self.journal = cPickle.loads(journal)
+                self.journal = pickle.loads(journal)
             except Exception:
                 self.journal = []
 
@@ -1740,7 +1740,7 @@ class XCAPManager(object):
 
     def _save_journal(self):
         try:
-            self.storage.save('journal', cPickle.dumps(self.journal))
+            self.storage.save('journal', pickle.dumps(self.journal))
         except XCAPStorageError:
             pass
 

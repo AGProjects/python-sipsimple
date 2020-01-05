@@ -46,7 +46,7 @@ class ContactList(XMLListElement):
         self.update(contacts)
 
     def __contains__(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = ContactID(item)
         return super(ContactList, self).__contains__(item)
 
@@ -54,14 +54,14 @@ class ContactList(XMLListElement):
         return (item.value for item in super(ContactList, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = ContactID(item)
         super(ContactList, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             try:
-                item = (entry for entry in super(ContactList, self).__iter__() if entry.value == item).next()
+                item = next((entry for entry in super(ContactList, self).__iter__() if entry.value == item))
             except StopIteration:
                 raise KeyError(item)
         super(ContactList, self).remove(item)
@@ -84,7 +84,7 @@ class Group(XMLElement, ListElement):
         self.contacts = ContactList(contacts)
 
     def __unicode__(self):
-        return unicode(self.name)
+        return str(self.name)
 
     def __repr__(self):
         return '%s(%r, %r, contacts=%r)' % (self.__class__.__name__, self.id, self.name, list(self.contacts))
@@ -98,7 +98,7 @@ class ContactURI(XMLElement):
 
     id = XMLElementID('id', type=ID, required=True, test_equal=True)
     uri = XMLAttribute('uri', type=AnyURI, required=True, test_equal=True)
-    type = XMLAttribute('type', type=unicode, required=False, test_equal=True)
+    type = XMLAttribute('type', type=str, required=False, test_equal=True)
 
     def __init__(self, id, uri, type=None):
         XMLElement.__init__(self)
@@ -107,7 +107,7 @@ class ContactURI(XMLElement):
         self.type = type
 
     def __unicode__(self):
-        return unicode(self.uri)
+        return str(self.uri)
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, self.uri, self.type)
@@ -128,15 +128,15 @@ class ContactURIList(XMLListElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[ContactURI].iterkeys()
+            return iter(self._xmlid_map[ContactURI].keys())
         elif key is IterateItems:
-            return self._xmlid_map[ContactURI].itervalues()
+            return iter(self._xmlid_map[ContactURI].values())
         else:
             return self._xmlid_map[ContactURI][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[ContactURI].values():
+            for item in list(self._xmlid_map[ContactURI].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[ContactURI][key])
@@ -246,7 +246,7 @@ class Policy(XMLElement, ListElement):
         self.presence = presence_handling or PresenceHandling('default', False)
 
     def __unicode__(self):
-        return unicode(self.uri)
+        return str(self.uri)
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.uri, self.name, self.presence, self.dialog)
@@ -273,12 +273,12 @@ class ElementAttributes(XMLElement, ElementExtension):
             if 'nil' in child.attrib:
                 self[child.attrib['name']] = None
             else:
-                self[child.attrib['name']] = unicode(child.text or u'')
+                self[child.attrib['name']] = str(child.text or '')
 
     def _build_element(self):
         self.element.clear()
         attribute_tag = '{%s}attribute' % self._xml_namespace
-        for key, value in self.iteritems():
+        for key, value in self.items():
             child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_document.nsmap)
             child.attrib['name'] = key
             if value is None:
@@ -323,19 +323,19 @@ class ElementAttributes(XMLElement, ElementExtension):
         return key in self._attributes
 
     def items(self):
-        return self._attributes.items()
+        return list(self._attributes.items())
 
     def iteritems(self):
-        return self._attributes.iteritems()
+        return iter(self._attributes.items())
 
     def iterkeys(self):
-        return self._attributes.iterkeys()
+        return iter(self._attributes.keys())
 
     def itervalues(self):
-        return self._attributes.itervalues()
+        return iter(self._attributes.values())
 
     def keys(self):
-        return self._attributes.keys()
+        return list(self._attributes.keys())
 
     def pop(self, key, *args):
         value = self._attributes.pop(key, *args)

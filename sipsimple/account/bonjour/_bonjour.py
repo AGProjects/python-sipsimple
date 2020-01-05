@@ -318,10 +318,10 @@ class _utf8_char_p(ctypes.c_char_p):
     @classmethod
     def from_param(cls, obj):
         if (obj is not None) and (not isinstance(obj, cls)):
-            if not isinstance(obj, basestring):
+            if not isinstance(obj, str):
                 raise TypeError('parameter must be a string type instance')
-            if not isinstance(obj, unicode):
-                obj = unicode(obj)
+            if not isinstance(obj, str):
+                obj = str(obj)
             obj = obj.encode('utf-8')
         return ctypes.c_char_p.from_param(obj)
 
@@ -819,7 +819,7 @@ def _create_function_bindings():
         }
 
 
-    for name, (restype, errcheck, outparam, argtypes) in specs.iteritems():
+    for name, (restype, errcheck, outparam, argtypes) in specs.items():
         prototype = _CFunc(restype, *argtypes)
 
         paramflags = [1] * len(argtypes)
@@ -887,7 +887,7 @@ def _string_to_length_and_void_p(string):
 
 def _length_and_void_p_to_string(length, void_p):
     char_p = ctypes.cast(void_p, ctypes.POINTER(ctypes.c_char))
-    return ''.join(char_p[i] for i in xrange(length))
+    return ''.join(char_p[i] for i in range(length))
 
 
 
@@ -1974,7 +1974,7 @@ class TXTRecord(object):
         self._names = []
         self._items = {}
 
-        for name, value in items.iteritems():
+        for name, value in items.items():
             self[name] = value
 
     def __contains__(self, name):
@@ -1990,7 +1990,7 @@ class TXTRecord(object):
         'Return the number of name/value pairs'
         return len(self._names)
 
-    def __nonzero__(self):
+    def __bool__(self):
         'Return False if the record is empty, True otherwise'
         return bool(self._items)
 
@@ -2050,7 +2050,7 @@ class TXTRecord(object):
         length = len(name)
 
         if value is not None:
-            if isinstance(value, unicode):
+            if isinstance(value, str):
                 value = value.encode('utf-8')
             else:
                 value = str(value)

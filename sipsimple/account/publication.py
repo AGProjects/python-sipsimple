@@ -29,7 +29,7 @@ from sipsimple.threading.green import Command, run_in_green_thread
 Command.register_defaults('publish', refresh_interval=None)
 
 
-class SameState: __metaclass__ = MarkerType
+class SameState(metaclass=MarkerType): pass
 
 
 class SIPPublicationDidFail(Exception):
@@ -60,8 +60,7 @@ class PublisherNickname(dict):
         raise AttributeError('cannot delete attribute')
 
 
-class Publisher(object):
-    __metaclass__ = ABCMeta
+class Publisher(object, metaclass=ABCMeta):
     __nickname__  = PublisherNickname()
     __transports__ = frozenset(['tls', 'tcp', 'udp'])
 
@@ -204,7 +203,7 @@ class Publisher(object):
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, valid_transports).wait()
-            except DNSLookupError, e:
+            except DNSLookupError as e:
                 retry_after = random.uniform(self._dns_wait, 2*self._dns_wait)
                 self._dns_wait = limit(2*self._dns_wait, max=30)
                 raise PublicationError('DNS lookup failed: %s' % e, retry_after=retry_after)
@@ -240,7 +239,7 @@ class Publisher(object):
                                 break
                             if notification.name == 'SIPPublicationDidEnd':
                                 raise PublicationError('Publication expired', retry_after=0)  # publication expired while we were trying to re-publish
-                    except SIPPublicationDidFail, e:
+                    except SIPPublicationDidFail as e:
                         if e.data.code == 407:
                             # Authentication failed, so retry the publication in some time
                             raise PublicationError('Authentication failed', retry_after=random.uniform(60, 120))
@@ -268,7 +267,7 @@ class Publisher(object):
                 retry_after = random.uniform(self._publish_wait, 2*self._publish_wait)
                 self._publish_wait = limit(self._publish_wait*2, max=30)
                 raise PublicationError('No more routes to try', retry_after=retry_after)
-        except PublicationError, e:
+        except PublicationError as e:
             self.publishing = False
             notification_center.remove_observer(self, sender=self._publication)
             def publish():

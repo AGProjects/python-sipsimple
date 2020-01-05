@@ -36,17 +36,17 @@ class AUIDS(XMLListElement):
         self.update(children)
 
     def __iter__(self):
-        return (unicode(item) for item in super(AUIDS, self).__iter__())
+        return (str(item) for item in super(AUIDS, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = AUID(item)
         super(AUIDS, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             try:
-                item = (entry for entry in super(AUIDS, self).__iter__() if entry == item).next()
+                item = next((entry for entry in super(AUIDS, self).__iter__() if entry == item))
             except StopIteration:
                 raise KeyError(item)
         super(AUIDS, self).remove(item)
@@ -69,17 +69,17 @@ class Extensions(XMLListElement):
         self.update(children)
 
     def __iter__(self):
-        return (unicode(item) for item in super(Extensions, self).__iter__())
+        return (str(item) for item in super(Extensions, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = Extension(item)
         super(Extensions, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             try:
-                item = (entry for entry in super(Extensions, self).__iter__() if entry == item).next()
+                item = next((entry for entry in super(Extensions, self).__iter__() if entry == item))
             except StopIteration:
                 raise KeyError(item)
         super(Extensions, self).remove(item)
@@ -102,17 +102,17 @@ class Namespaces(XMLListElement):
         self.update(children)
 
     def __iter__(self):
-        return (unicode(item) for item in super(Namespaces, self).__iter__())
+        return (str(item) for item in super(Namespaces, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = Namespace(item)
         super(Namespaces, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             try:
-                item = (entry for entry in super(Namespaces, self).__iter__() if entry == item).next()
+                item = next((entry for entry in super(Namespaces, self).__iter__() if entry == item))
             except StopIteration:
                 raise KeyError(item)
         super(Namespaces, self).remove(item)

@@ -1,7 +1,7 @@
 
 """Audio support"""
 
-from __future__ import absolute_import
+
 
 __all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'AudioConference', 'WavePlayer', 'WavePlayerError', 'WaveRecorder']
 
@@ -458,7 +458,7 @@ class WavePlayer(object):
                     self._wave_file.volume = self.volume
                     try:
                         self._wave_file.start()
-                    except SIPCoreError, e:
+                    except SIPCoreError as e:
                         notification_center.post_notification('WavePlayerDidFail', sender=self, data=NotificationData(error=e))
                         raise WavePlayerError(e)
                     else:

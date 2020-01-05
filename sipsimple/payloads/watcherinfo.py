@@ -130,15 +130,15 @@ class WatcherList(XMLListElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[Watcher].iterkeys()
+            return iter(self._xmlid_map[Watcher].keys())
         elif key is IterateItems:
-            return self._xmlid_map[Watcher].itervalues()
+            return iter(self._xmlid_map[Watcher].values())
         else:
             return self._xmlid_map[Watcher][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[Watcher].values():
+            for item in list(self._xmlid_map[Watcher].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[Watcher][key])
@@ -189,15 +189,15 @@ class WatcherInfo(XMLListRootElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[WatcherList].iterkeys()
+            return iter(self._xmlid_map[WatcherList].keys())
         elif key is IterateItems:
-            return self._xmlid_map[WatcherList].itervalues()
+            return iter(self._xmlid_map[WatcherList].values())
         else:
             return self._xmlid_map[WatcherList][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[WatcherList].values():
+            for item in list(self._xmlid_map[WatcherList].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[WatcherList][key])
@@ -205,10 +205,10 @@ class WatcherInfo(XMLListRootElement):
     def get(self, key, default=None):
         return self._xmlid_map[WatcherList].get(key, default)
 
-    wlists = property(lambda self: self._element_map.values())
-    pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self._element_map.itervalues()))
-    waiting = property(lambda self: dict((wlist, list(wlist.waiting)) for wlist in self._element_map.itervalues()))
-    active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self._element_map.itervalues()))
-    terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self._element_map.itervalues()))
+    wlists = property(lambda self: list(self._element_map.values()))
+    pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self._element_map.values()))
+    waiting = property(lambda self: dict((wlist, list(wlist.waiting)) for wlist in self._element_map.values()))
+    active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self._element_map.values()))
+    terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self._element_map.values()))
 
 

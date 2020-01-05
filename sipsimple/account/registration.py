@@ -130,7 +130,7 @@ class Registrar(object):
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
-            except DNSLookupError, e:
+            except DNSLookupError as e:
                 retry_after = random.uniform(self._dns_wait, 2*self._dns_wait)
                 self._dns_wait = limit(2*self._dns_wait, max=30)
                 raise RegistrationError('DNS lookup failed: %s' % e, retry_after=retry_after)
@@ -162,7 +162,7 @@ class Registrar(object):
                                 break
                             if notification.name == 'SIPRegistrationDidEnd':
                                 raise RegistrationError('Registration expired', retry_after=0)  # registration expired while we were trying to re-register
-                    except SIPRegistrationDidFail, e:
+                    except SIPRegistrationDidFail as e:
                         notification_data = NotificationData(code=e.data.code, reason=e.data.reason, registration=self._registration, registrar=route)
                         notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account, data=notification_data)
                         if e.data.code == 401:
@@ -211,7 +211,7 @@ class Registrar(object):
                 retry_after = random.uniform(self._register_wait, 2*self._register_wait)
                 self._register_wait = limit(self._register_wait*2, max=30)
                 raise RegistrationError('No more routes to try', retry_after=retry_after)
-        except RegistrationError, e:
+        except RegistrationError as e:
             self.registered = False
             notification_center.remove_observer(self, sender=self._registration)
             notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account, data=NotificationData(error=e.error, retry_after=e.retry_after))
@@ -240,7 +240,7 @@ class Registrar(object):
                         notification = self._data_channel.wait()
                         if notification.name == 'SIPRegistrationDidEnd':
                             break
-                except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
+                except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd) as e:
                     notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account, data=NotificationData(code=e.data.code, reason=e.data.reason,
                                                                                                                                         registration=self._registration))
                 else:

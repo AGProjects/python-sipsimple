@@ -1,7 +1,7 @@
 
 """Implementation of an addressbook management system"""
 
-from __future__ import absolute_import
+
 
 __all__ = ['AddressbookManager', 'Contact', 'ContactURI', 'Group', 'Policy', 'SharedSetting', 'ContactExtension', 'ContactURIExtension', 'GroupExtension', 'PolicyExtension']
 
@@ -36,8 +36,8 @@ def recursive_getattr(obj, name):
     return reduce(getattr, name.split('.'), obj)
 
 
-class Local(object):
-    __metaclass__ = MarkerType
+class Local(object, metaclass=MarkerType):
+    pass
 
 
 class Remote(object):
@@ -89,13 +89,13 @@ class Setting(AbstractSetting):
         if value is None:
             pass
         elif issubclass(self.type, bool):
-            value = u'true' if value else u'false'
-        elif issubclass(self.type, (int, long, basestring)):
-            value = unicode(value)
+            value = 'true' if value else 'false'
+        elif issubclass(self.type, (int, int, str)):
+            value = str(value)
         elif hasattr(value, '__getstate__'):
             value = value.__getstate__()
         else:
-            value = unicode(value)
+            value = str(value)
         return value
 
     def __setstate__(self, obj, value):
@@ -110,7 +110,7 @@ class Setting(AbstractSetting):
                 value = False
             else:
                 raise ValueError("invalid boolean value: %s" % (value,))
-        elif issubclass(self.type, (int, long, basestring)):
+        elif issubclass(self.type, (int, int, str)):
             value = self.type(value)
         elif hasattr(self.type, '__setstate__'):
             object = self.type.__new__(self.type)
@@ -161,7 +161,7 @@ class SharedSetting(Setting):
             _xml_namespace = 'urn:%s:xml:ns:addressbook' % namespace
         ResourceListsDocument.unregister_namespace(ElementAttributes._xml_namespace)
         ResourceListsDocument.register_namespace(ApplicationElementAttributes._xml_namespace, prefix=namespace.rpartition(':')[2])
-        for cls, attribute_name in ((cls, name) for cls in ResourceListsDocument.element_map.values() for name, elem in cls._xml_element_children.items() if elem.type is ElementAttributes):
+        for cls, attribute_name in ((cls, name) for cls in list(ResourceListsDocument.element_map.values()) for name, elem in list(cls._xml_element_children.items()) if elem.type is ElementAttributes):
             cls.unregister_extension(attribute_name)
             cls.register_extension(attribute_name, ApplicationElementAttributes)
 
@@ -204,7 +204,7 @@ class XCAPGroup(xcap.Group):
     __attributes__ = set()
 
     def __init__(self, id, name, contacts, **attributes):
-        normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
+        normalized_attributes = dict((name, str(value) if value is not None else None) for name, value in attributes.items() if name in self.__attributes__)
         contacts = [XCAPContact.normalize(contact) for contact in contacts]
         super(XCAPGroup, self).__init__(id, name, contacts, **normalized_attributes)
 
@@ -225,7 +225,7 @@ class XCAPContactURI(xcap.ContactURI):
     __attributes__ = set()
 
     def __init__(self, id, uri, type, **attributes):
-        normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
+        normalized_attributes = dict((name, str(value) if value is not None else None) for name, value in attributes.items() if name in self.__attributes__)
         super(XCAPContactURI, self).__init__(id, uri, type, **normalized_attributes)
 
     @classmethod
@@ -245,7 +245,7 @@ class XCAPContact(xcap.Contact):
     __attributes__ = set()
 
     def __init__(self, id, name, uris, presence_handling=None, dialog_handling=None, **attributes):
-        normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
+        normalized_attributes = dict((name, str(value) if value is not None else None) for name, value in attributes.items() if name in self.__attributes__)
         uris = xcap.ContactURIList((XCAPContactURI.normalize(uri) for uri in uris), default=getattr(uris, 'default', None))
         super(XCAPContact, self).__init__(id, name, uris, presence_handling, dialog_handling, **normalized_attributes)
 
@@ -266,7 +266,7 @@ class XCAPPolicy(xcap.Policy):
     __attributes__ = set()
 
     def __init__(self, id, uri, name, presence_handling=None, dialog_handling=None, **attributes):
-        normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
+        normalized_attributes = dict((name, str(value) if value is not None else None) for name, value in attributes.items() if name in self.__attributes__)
         super(XCAPPolicy, self).__init__(id, uri, name, presence_handling, dialog_handling, **normalized_attributes)
 
     @classmethod
@@ -355,10 +355,10 @@ class ContactList(object):
         return key in self.contacts
 
     def __iter__(self):
-        return iter(sorted(self.contacts.values(), key=attrgetter('id')))
+        return iter(sorted(list(self.contacts.values()), key=attrgetter('id')))
 
     def __reversed__(self):
-        return iter(sorted(self.contacts.values(), key=attrgetter('id'), reverse=True))
+        return iter(sorted(list(self.contacts.values()), key=attrgetter('id'), reverse=True))
 
     __hash__ = None
 
@@ -375,10 +375,10 @@ class ContactList(object):
         return NotImplemented if equal is NotImplemented else not equal
 
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, sorted(self.contacts.values(), key=attrgetter('id')))
+        return "%s(%r)" % (self.__class__.__name__, sorted(list(self.contacts.values()), key=attrgetter('id')))
 
     def __getstate__(self):
-        return self.contacts.keys()
+        return list(self.contacts.keys())
 
     def __setstate__(self, value):
         addressbook_manager = AddressbookManager()
@@ -406,7 +406,7 @@ class Group(SettingsState):
     __id__  = SettingsObjectImmutableID(type=ID)
 
     id = __id__
-    name = Setting(type=unicode, default='')
+    name = Setting(type=str, default='')
     contacts = ContactListDescriptor()
 
     def __new__(cls, id=None):
@@ -415,7 +415,7 @@ class Group(SettingsState):
                 raise RuntimeError("cannot instantiate %s before calling AddressbookManager.load" % cls.__name__)
         if id is None:
             id = unique_id()
-        elif not isinstance(id, basestring):
+        elif not isinstance(id, str):
             raise TypeError("id needs to be a string or unicode object")
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
@@ -443,7 +443,7 @@ class Group(SettingsState):
 
     def __toxcap__(self):
         xcap_contacts = [contact.__xcapcontact__ for contact in self.contacts]
-        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
+        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).items() if isinstance(attr, SharedSetting))
         return XCAPGroup(self.id, self.name, xcap_contacts, **attributes)
 
     @run_in_thread('file-io')
@@ -519,7 +519,7 @@ class Group(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
@@ -547,7 +547,7 @@ class Group(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
@@ -602,13 +602,13 @@ class ContactURI(SettingsState):
     __id__ = SettingsObjectImmutableID(type=ID)
 
     id = __id__
-    uri = Setting(type=unicode, default='')
-    type = Setting(type=unicode, default=None, nillable=True)
+    uri = Setting(type=str, default='')
+    type = Setting(type=str, default=None, nillable=True)
 
     def __new__(cls, id=None, **state):
         if id is None:
             id = unique_id()
-        elif not isinstance(id, basestring):
+        elif not isinstance(id, str):
             raise TypeError("id needs to be a string or unicode object")
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
@@ -619,7 +619,7 @@ class ContactURI(SettingsState):
         return "%s(id=%r)" % (self.__class__.__name__, self.id)
 
     def __toxcap__(self):
-        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
+        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).items() if isinstance(attr, SharedSetting))
         return XCAPContactURI(self.id, self.uri, self.type, **attributes)
 
     @classmethod
@@ -712,7 +712,7 @@ class Contact(SettingsState):
     __id__  = SettingsObjectImmutableID(type=ID)
 
     id = __id__
-    name = Setting(type=unicode, default='')
+    name = Setting(type=str, default='')
     uris = ContactURIList
     dialog = DialogSettings
     presence = PresenceSettings
@@ -723,7 +723,7 @@ class Contact(SettingsState):
                 raise RuntimeError("cannot instantiate %s before calling AddressbookManager.load" % cls.__name__)
         if id is None:
             id = unique_id()
-        elif not isinstance(id, basestring):
+        elif not isinstance(id, str):
             raise TypeError("id needs to be a string or unicode object")
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
@@ -753,7 +753,7 @@ class Contact(SettingsState):
         contact_uris = xcap.ContactURIList((uri.__toxcap__() for uri in self.uris), default=self.uris.default.id if self.uris.default is not None else None)
         dialog_handling = xcap.EventHandling(self.dialog.policy, self.dialog.subscribe)
         presence_handling = xcap.EventHandling(self.presence.policy, self.presence.subscribe)
-        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
+        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).items() if isinstance(attr, SharedSetting))
         return XCAPContact(self.id, self.name, contact_uris, presence_handling, dialog_handling, **attributes)
 
     @run_in_thread('file-io')
@@ -801,7 +801,7 @@ class Contact(SettingsState):
                 xcap_uris = self.__xcapcontact__.uris
                 added_uris = [xcap_uris[uri.id] for uri in modified_settings['uris'].added]
                 removed_uris = [uri.__toxcap__() for uri in modified_settings['uris'].removed]
-                modified_uris = dict((xcap_uris[id], xcap_uris[id].get_modified(changemap)) for id, changemap in modified_settings['uris'].modified.iteritems())
+                modified_uris = dict((xcap_uris[id], xcap_uris[id].get_modified(changemap)) for id, changemap in modified_settings['uris'].modified.items())
             else:
                 added_uris = []
                 removed_uris = []
@@ -821,7 +821,7 @@ class Contact(SettingsState):
                         xcap_manager.add_contact_uri(self.__xcapcontact__, xcapuri)
                     for xcapuri in removed_uris:
                         xcap_manager.remove_contact_uri(self.__xcapcontact__, xcapuri)
-                    for xcapuri, uri_attributes in modified_uris.iteritems():
+                    for xcapuri, uri_attributes in modified_uris.items():
                         xcap_manager.update_contact_uri(self.__xcapcontact__, xcapuri, uri_attributes)
                     if contact_attributes:
                         xcap_manager.update_contact(self.__xcapcontact__, contact_attributes)
@@ -831,7 +831,7 @@ class Contact(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
@@ -865,7 +865,7 @@ class Contact(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
@@ -921,8 +921,8 @@ class Policy(SettingsState):
     __id__  = SettingsObjectImmutableID(type=ID)
 
     id = __id__
-    uri  = Setting(type=unicode, default='')
-    name = Setting(type=unicode, default='')
+    uri  = Setting(type=str, default='')
+    name = Setting(type=str, default='')
     dialog = DialogSettings
     presence = PresenceSettings
 
@@ -932,7 +932,7 @@ class Policy(SettingsState):
                 raise RuntimeError("cannot instantiate %s before calling AddressbookManager.load" % cls.__name__)
         if id is None:
             id = unique_id()
-        elif not isinstance(id, basestring):
+        elif not isinstance(id, str):
             raise TypeError("id needs to be a string or unicode object")
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
@@ -961,7 +961,7 @@ class Policy(SettingsState):
     def __toxcap__(self):
         dialog_handling = xcap.EventHandling(self.dialog.policy, self.dialog.subscribe)
         presence_handling = xcap.EventHandling(self.presence.policy, self.presence.subscribe)
-        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
+        attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).items() if isinstance(attr, SharedSetting))
         return XCAPPolicy(self.id, self.uri, self.name, presence_handling, dialog_handling, **attributes)
 
     @run_in_thread('file-io')
@@ -1020,7 +1020,7 @@ class Policy(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
@@ -1048,7 +1048,7 @@ class Policy(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 
@@ -1099,9 +1099,7 @@ class PolicyExtension(object):
         raise TypeError("PolicyExtension subclasses cannot be instantiated")
 
 
-class AddressbookManager(object):
-    __metaclass__ = Singleton
-
+class AddressbookManager(object, metaclass=Singleton):
     implements(IObserver)
 
     def __init__(self):
@@ -1150,7 +1148,7 @@ class AddressbookManager(object):
         return self.contacts[id]
 
     def get_contacts(self):
-        return self.contacts.values()
+        return list(self.contacts.values())
 
     def has_group(self, id):
         return id in self.groups
@@ -1159,7 +1157,7 @@ class AddressbookManager(object):
         return self.groups[id]
 
     def get_groups(self):
-        return self.groups.values()
+        return list(self.groups.values())
 
     def has_policy(self, id):
         return id in self.policies
@@ -1168,7 +1166,7 @@ class AddressbookManager(object):
         return self.policies[id]
 
     def get_policies(self):
-        return self.policies.values()
+        return list(self.policies.values())
 
     @classmethod
     def transaction(cls):
@@ -1214,11 +1212,11 @@ class AddressbookManager(object):
     def _NH_SIPAccountDidDiscoverXCAPSupport(self, notification):
         xcap_manager = notification.sender.xcap_manager
         with xcap_manager.transaction():
-            for contact in self.contacts.values():
+            for contact in list(self.contacts.values()):
                 xcap_manager.add_contact(contact.__xcapcontact__)
-            for group in self.groups.values():
+            for group in list(self.groups.values()):
                 xcap_manager.add_group(group.__xcapgroup__)
-            for policy in self.policies.values():
+            for policy in list(self.policies.values()):
                 xcap_manager.add_policy(policy.__xcappolicy__)
 
     @run_in_thread('file-io')
@@ -1262,7 +1260,7 @@ class AddressbookManager(object):
                 contact.presence.subscribe = xcap_contact.presence.subscribe
                 contact.dialog.policy = xcap_contact.dialog.policy
                 contact.dialog.subscribe = xcap_contact.dialog.subscribe
-                for name, value in xcap_contact.attributes.iteritems():
+                for name, value in xcap_contact.attributes.items():
                     setattr(contact, name, value)
                 for xcap_uri in xcap_contact.uris:
                     xcap_uri = XCAPContactURI.normalize(xcap_uri)
@@ -1277,7 +1275,7 @@ class AddressbookManager(object):
                         contact.uris.add(uri)
                     uri.uri = xcap_uri.uri
                     uri.type = xcap_uri.type
-                    for name, value in xcap_uri.attributes.iteritems():
+                    for name, value in xcap_uri.attributes.items():
                         setattr(uri, name, value)
                 for uri in (uri for uri in list(contact.uris) if uri.id not in xcap_contact.uris):
                     contact.uris.remove(uri)
@@ -1295,7 +1293,7 @@ class AddressbookManager(object):
                         log.exception()
                         continue
                 group.name = xcap_group.name
-                for name, value in xcap_group.attributes.iteritems():
+                for name, value in xcap_group.attributes.items():
                     setattr(group, name, value)
                 old_contact_ids = set(group.contacts.ids())
                 new_contact_ids = set(xcap_group.contacts.ids())
@@ -1321,16 +1319,16 @@ class AddressbookManager(object):
                 policy.presence.subscribe = xcap_policy.presence.subscribe
                 policy.dialog.policy = xcap_policy.dialog.policy
                 policy.dialog.subscribe = xcap_policy.dialog.subscribe
-                for name, value in xcap_policy.attributes.iteritems():
+                for name, value in xcap_policy.attributes.items():
                     setattr(policy, name, value)
                 policy._internal_save(originator=Remote(xcap_manager.account, xcap_policy))
 
             originator = Remote(xcap_manager.account, None)
-            for policy in (policy for policy in self.policies.values() if policy.id not in xcap_policies):
+            for policy in (policy for policy in list(self.policies.values()) if policy.id not in xcap_policies):
                 policy._internal_delete(originator=originator)
-            for group in (group for group in self.groups.values() if group.id not in xcap_groups):
+            for group in (group for group in list(self.groups.values()) if group.id not in xcap_groups):
                 group._internal_delete(originator=originator)
-            for contact in (contact for contact in self.contacts.values() if contact.id not in xcap_contacts):
+            for contact in (contact for contact in list(self.contacts.values()) if contact.id not in xcap_contacts):
                 contact._internal_delete(originator=originator)
 
     def __migrate_contacts(self, old_data):
@@ -1341,18 +1339,18 @@ class AddressbookManager(object):
             old_groups = old_data['groups']
             old_contacts = old_data['contacts']
             group_idmap = {}
-            for group_id, group_state in old_groups.iteritems():
+            for group_id, group_state in old_groups.items():
                 group_idmap[group_id] = group = Group()
-                for name, value in group_state.iteritems():
+                for name, value in group_state.items():
                     try:
                         setattr(group, name, value)
                     except (ValueError, TypeError):
                         pass
-            for account_id, account_contacts in old_contacts.iteritems():
-                for group_id, contact_map in account_contacts.iteritems():
-                    for uri, contact_data in contact_map.iteritems():
+            for account_id, account_contacts in old_contacts.items():
+                for group_id, contact_map in account_contacts.items():
+                    for uri, contact_data in contact_map.items():
                         contact = Contact()
-                        for name, value in contact_data.iteritems():
+                        for name, value in contact_data.items():
                             try:
                                 setattr(contact, name, value)
                             except (ValueError, TypeError):
@@ -1361,7 +1359,7 @@ class AddressbookManager(object):
                         contact.save()
                         group = group_idmap.get(group_id, Null)
                         group.contacts.add(contact)
-            for group in group_idmap.itervalues():
+            for group in group_idmap.values():
                 group.save()
 
 

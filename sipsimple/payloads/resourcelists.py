@@ -87,7 +87,7 @@ class Entry(XMLElement):
         self.display_name = display_name
 
     def __unicode__(self):
-        return self.display_name and u'"%s" <%s>' % (self.display_name, self.uri) or self.uri
+        return self.display_name and '"%s" <%s>' % (self.display_name, self.uri) or self.uri
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.uri, self.display_name)
@@ -147,7 +147,7 @@ class List(XMLListElement):
                            External.qname: 1}
     _xml_item_type = (Entry, EntryRef, External, List, ListElement)
 
-    name = XMLElementID('name', type=unicode, required=False, test_equal=True)
+    name = XMLElementID('name', type=str, required=False, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
 
     def __init__(self, entries=[], name=None, display_name=None):
@@ -160,11 +160,11 @@ class List(XMLListElement):
         return '%s(%s, %r, %r)' % (self.__class__.__name__, list(self), self.name, self.display_name)
 
     def __unicode__(self):
-        name = u'List element'
+        name = 'List element'
         if self.name is not None:
-            name += u' %s' % self.name
+            name += ' %s' % self.name
         if self.display_name is not None:
-            name += u' (%s)' % self.display_name
+            name += ' (%s)' % self.display_name
         return name
 
 List._xml_children_order[List.qname] = 1 # cannot self reference in declaration
@@ -183,15 +183,15 @@ class ResourceLists(XMLListRootElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[List].iterkeys()
+            return iter(self._xmlid_map[List].keys())
         elif key is IterateItems:
-            return self._xmlid_map[List].itervalues()
+            return iter(self._xmlid_map[List].values())
         else:
             return self._xmlid_map[List][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[List].values():
+            for item in list(self._xmlid_map[List].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[List][key])
@@ -202,7 +202,7 @@ class ResourceLists(XMLListRootElement):
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
             raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
-        nsmap = dict((namespace, prefix) for prefix, namespace in self._xml_document.nsmap.iteritems())
+        nsmap = dict((namespace, prefix) for prefix, namespace in self._xml_document.nsmap.items())
         nsmap[self._xml_namespace] = None
         xpath_nsmap = {}
         root_xpath = '/' + self._xml_tag
@@ -248,7 +248,7 @@ class ResourceLists(XMLListRootElement):
                 components.append('/%s[@%s=%s]' % (name, External.anchor.xmlname, quoteattr(obj.anchor)))
             obj = parents[obj]
         components.reverse()
-        return root_xpath + ''.join(components) + ('?' + ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in xpath_nsmap.iteritems()) if xpath_nsmap else '')
+        return root_xpath + ''.join(components) + ('?' + ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in xpath_nsmap.items()) if xpath_nsmap else '')
 
     def find_parent(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External)):
@@ -289,12 +289,12 @@ class EntryAttributes(XMLElement, EntryExtension):
             if 'nil' in child.attrib:
                 self[child.attrib['name']] = None
             else:
-                self[child.attrib['name']] = unicode(child.text or u'')
+                self[child.attrib['name']] = str(child.text or '')
 
     def _build_element(self):
         self.element.clear()
         attribute_tag = '{%s}attribute' % self._xml_namespace
-        for key, value in self.iteritems():
+        for key, value in self.items():
             child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_document.nsmap)
             child.attrib['name'] = key
             if value is None:
@@ -336,19 +336,19 @@ class EntryAttributes(XMLElement, EntryExtension):
         return key in self._attributes
 
     def items(self):
-        return self._attributes.items()
+        return list(self._attributes.items())
 
     def iteritems(self):
-        return self._attributes.iteritems()
+        return iter(self._attributes.items())
 
     def iterkeys(self):
-        return self._attributes.iterkeys()
+        return iter(self._attributes.keys())
 
     def itervalues(self):
-        return self._attributes.itervalues()
+        return iter(self._attributes.values())
 
     def keys(self):
-        return self._attributes.keys()
+        return list(self._attributes.keys())
 
     def pop(self, key, *args):
         value = self._attributes.pop(key, *args)

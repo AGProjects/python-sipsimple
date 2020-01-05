@@ -38,7 +38,7 @@ class Registration(object):
         with self._lock:
             try:
                 self._make_and_send_request(contact_header, route_header, timeout, True)
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 notification_center = NotificationCenter()
                 notification_center.post_notification('SIPRegistrationDidFail', sender=self, data=NotificationData(code=0, reason=e.args[0], route_header=route_header))
 
@@ -50,7 +50,7 @@ class Registration(object):
             notification_center.post_notification('SIPRegistrationWillEnd', sender=self)
             try:
                 self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), RouteHeader.new(self._last_request.route_header), timeout, False)
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 notification_center.post_notification('SIPRegistrationDidNotEnd', sender=self, data=NotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):
@@ -228,7 +228,7 @@ class Publication(object):
             notification_center.post_notification('SIPPublicationWillEnd', sender=self)
             try:
                 self._make_and_send_request(None, RouteHeader.new(self._last_request.route_header), timeout, False)
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 notification_center.post_notification('SIPPublicationDidNotEnd', sender=self, data=NotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):

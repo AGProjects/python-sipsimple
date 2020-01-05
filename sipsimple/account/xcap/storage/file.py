@@ -29,7 +29,7 @@ class FileStorage(object):
         """Read the file given by name and return its content."""
         try:
             document = open(os.path.join(self.directory, self.account_id, name)).read()
-        except (IOError, OSError), e:
+        except (IOError, OSError) as e:
             raise XCAPStorageError("failed to load XCAP data for %s/%s: %s" % (self.account_id, name, str(e)))
         else:
             self.names.add(name)
@@ -41,7 +41,7 @@ class FileStorage(object):
         tmp_filename = '%s.%d.%08X' % (filename, os.getpid(), random.getrandbits(32))
         try:
             makedirs(os.path.join(self.directory, self.account_id))
-            file = openfile(tmp_filename, 'wb', permissions=0600)
+            file = openfile(tmp_filename, 'wb', permissions=0o600)
             file.write(data)
             file.close()
             if platform.system() == 'Windows':
@@ -49,7 +49,7 @@ class FileStorage(object):
                 # It seems there is no atomic way to do this on Windows.
                 unlink(filename)
             os.rename(tmp_filename, filename)
-        except (IOError, OSError), e:
+        except (IOError, OSError) as e:
             raise XCAPStorageError("failed to save XCAP data for %s/%s: %s" % (self.account_id, name, str(e)))
         else:
             self.names.add(name)
@@ -58,7 +58,7 @@ class FileStorage(object):
         """Delete the data stored in the file identified by name"""
         try:
             os.unlink(os.path.join(self.directory, self.account_id, name))
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.ENOENT:
                 self.names.discard(name)
                 return
@@ -72,7 +72,7 @@ class FileStorage(object):
         for name in self.names:
             try:
                 os.unlink(os.path.join(self.directory, self.account_id, name))
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.ENOENT:
                     continue
                 failed.append(name)

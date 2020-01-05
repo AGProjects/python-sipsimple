@@ -216,7 +216,7 @@ class Validity(XMLListElement):
     def _parse_element(self, element):
         iterator = iter(element)
         for first_child in iterator:
-            second_child = iterator.next()
+            second_child = next(iterator)
             if first_child.tag == '{%s}from' % self._xml_namespace and second_child.tag == '{%s}until' % self._xml_namespace:
                 try:
                     item = ValidityInterval.from_elements(first_child, second_child, xml_document=self._xml_document)
@@ -324,15 +324,15 @@ class RuleSet(XMLListRootElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[Rule].iterkeys()
+            return iter(self._xmlid_map[Rule].keys())
         elif key is IterateItems:
-            return self._xmlid_map[Rule].itervalues()
+            return iter(self._xmlid_map[Rule].values())
         else:
             return self._xmlid_map[Rule][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[Rule].values():
+            for item in list(self._xmlid_map[Rule].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[Rule][key])

@@ -286,8 +286,7 @@ class RTPStreamType(ABCMeta, MediaStreamType):
     pass
 
 
-class RTPStream(object):
-    __metaclass__ = RTPStreamType
+class RTPStream(object, metaclass=RTPStreamType):
     implements(IMediaStream, IObserver)
 
     type = None
@@ -520,7 +519,7 @@ class RTPStream(object):
                     self._save_remote_sdp_rtp_info(remote_sdp, stream_index)
                 else:
                     transport = self._create_transport(rtp_transport)
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 self.state = "ENDED"
                 self.notification_center.remove_observer(self, sender=rtp_transport)
                 self.notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=e.args[0]))
@@ -579,13 +578,13 @@ class RTPStream(object):
             stun_address, stun_port = self._stun_servers.pop()
             try:
                 rtp_transport = RTPTransport(ice_stun_address=stun_address, ice_stun_port=stun_port, **self._rtp_args)
-            except SIPCoreError, e:
+            except SIPCoreError as e:
                 self._try_next_rtp_transport(e.args[0])
             else:
                 self.notification_center.add_observer(self, sender=rtp_transport)
                 try:
                     rtp_transport.set_INIT()
-                except SIPCoreError, e:
+                except SIPCoreError as e:
                     self.notification_center.remove_observer(self, sender=rtp_transport)
                     self._try_next_rtp_transport(e.args[0])
         else:

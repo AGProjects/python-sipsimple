@@ -27,7 +27,7 @@ __all__ = ['pidf_namespace',
            'DeviceInfo']
 
 
-from itertools import izip
+
 
 from application.python.weakref import weakobjectmap
 
@@ -67,20 +67,20 @@ class BasicStatusValue(str):
 
 ## General elements
 
-class Note(unicode):
+class Note(str):
     def __new__(cls, value, lang=None):
-        instance = unicode.__new__(cls, value)
+        instance = str.__new__(cls, value)
         instance.lang = lang
         return instance
 
     def __repr__(self):
-        return "%s(%s, lang=%r)" % (self.__class__.__name__, unicode.__repr__(self), self.lang)
+        return "%s(%s, lang=%r)" % (self.__class__.__name__, str.__repr__(self), self.lang)
 
     def __eq__(self, other):
         if isinstance(other, Note):
-            return unicode.__eq__(self, other) and self.lang == other.lang
-        elif isinstance(other, basestring):
-            return self.lang is None and unicode.__eq__(self, other)
+            return str.__eq__(self, other) and self.lang == other.lang
+        elif isinstance(other, str):
+            return self.lang is None and str.__eq__(self, other)
         else:
             return NotImplemented
 
@@ -136,19 +136,19 @@ class NoteList(object):
     def __contains__(self, item):
         if isinstance(item, Note):
             item = self.note_type(item, item.lang)
-        elif isinstance(item, basestring):
+        elif isinstance(item, str):
             item = self.note_type(item)
-        return item in self.xml_element._note_map.itervalues()
+        return item in iter(self.xml_element._note_map.values())
 
     def __iter__(self):
-        return (unicode(self.xml_element._note_map[element]) for element in self.xml_element.element if element in self.xml_element._note_map)
+        return (str(self.xml_element._note_map[element]) for element in self.xml_element.element if element in self.xml_element._note_map)
 
     def __len__(self):
         return len(self.xml_element._note_map)
 
     def __eq__(self, other):
         if isinstance(other, NoteList):
-            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in izip(self, other)))
+            return self is other or (len(self) == len(other) and all(self_item == other_item for self_item, other_item in zip(self, other)))
         else:
             return NotImplemented
 
@@ -168,13 +168,13 @@ class NoteList(object):
                     self.xml_element._note_map[note.element] = note
 
     def _build_element(self):
-        for note in self.xml_element._note_map.itervalues():
+        for note in self.xml_element._note_map.values():
             note.to_element()
 
     def add(self, item):
         if isinstance(item, Note):
             item = self.note_type(item, item.lang)
-        elif isinstance(item, basestring):
+        elif isinstance(item, str):
             item = self.note_type(item)
         if type(item) is not self.note_type:
             raise TypeError("%s cannot add notes of type %s" % (self.xml_element.__class__.__name__, item.__class__.__name__))
@@ -185,12 +185,12 @@ class NoteList(object):
     def remove(self, item):
         if isinstance(item, Note):
             try:
-                item = (entry for entry in self.xml_element._note_map.itervalues() if unicode(entry) == item).next()
+                item = next((entry for entry in self.xml_element._note_map.values() if str(entry) == item))
             except StopIteration:
                 raise KeyError(item)
-        elif isinstance(item, basestring):
+        elif isinstance(item, str):
             try:
-                item = (entry for entry in self.xml_element._note_map.itervalues() if entry == item).next()
+                item = next((entry for entry in self.xml_element._note_map.values() if entry == item))
             except StopIteration:
                 raise KeyError(item)
         if type(item) is not self.note_type:
@@ -204,7 +204,7 @@ class NoteList(object):
             self.add(item)
 
     def clear(self):
-        for item in self.xml_element._note_map.values():
+        for item in list(self.xml_element._note_map.values()):
             self.remove(item)
 
 
@@ -436,7 +436,7 @@ class PIDF(XMLListRootElement):
         return super(PIDF, self).__contains__(item)
 
     def __iter__(self):
-        return (unicode(item) if type(item) is PIDFNote else item for item in super(PIDF, self).__iter__())
+        return (str(item) if type(item) is PIDFNote else item for item in super(PIDF, self).__iter__())
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.entity, list(self))
@@ -449,7 +449,7 @@ class PIDF(XMLListRootElement):
     def remove(self, item):
         if isinstance(item, Note):
             try:
-                item = (entry for entry in super(PIDF, self).__iter__() if type(entry) is PIDFNote and unicode(entry) == item).next()
+                item = next((entry for entry in super(PIDF, self).__iter__() if type(entry) is PIDFNote and str(entry) == item))
             except StopIteration:
                 raise KeyError(item)
         super(PIDF, self).remove(item)
@@ -498,7 +498,7 @@ class TimeOffset(XMLStringElement):
     _xml_namespace = agp_pidf_namespace
     _xml_document = PIDFDocument
 
-    description = XMLAttribute('description', type=unicode, required=False, test_equal=True)
+    description = XMLAttribute('description', type=str, required=False, test_equal=True)
 
     def __init__(self, value=None, description=None):
         if value is None:

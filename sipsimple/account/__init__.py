@@ -129,7 +129,7 @@ class Account(SettingsObject):
 
     id = __id__
     enabled = Setting(type=bool, default=False)
-    display_name = Setting(type=unicode, default=None, nillable=True)
+    display_name = Setting(type=str, default=None, nillable=True)
 
     auth = AuthSettings
     sip = SIPSettings
@@ -556,7 +556,7 @@ class BonjourAccount(SettingsObject):
 
     id = property(lambda self: self.__id__)
     enabled = BonjourAccountEnabledSetting(type=bool, default=True)
-    display_name = Setting(type=unicode, default=user_info.fullname, nillable=False)
+    display_name = Setting(type=str, default=user_info.fullname, nillable=False)
 
     msrp = BonjourMSRPSettings
     presence = PresenceSettings
@@ -698,7 +698,7 @@ class BonjourAccount(SettingsObject):
             notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
 
-class AccountManager(object):
+class AccountManager(object, metaclass=Singleton):
     """
     This is a singleton object which manages all the SIP accounts. It is
     also used to manage the default account (the one used for outbound
@@ -712,8 +712,6 @@ class AccountManager(object):
      * SIPAccountManagerDidAddAccount
      * SIPAccountManagerDidChangeDefaultAccount
     """
-
-    __metaclass__ = Singleton
 
     implements(IObserver)
 
@@ -737,7 +735,7 @@ class AccountManager(object):
         default_account = self.default_account
         if default_account is None or not default_account.enabled:
             try:
-                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+                self.default_account = next((account for account in self.accounts.values() if account.enabled))
             except StopIteration:
                 self.default_account = None
 
@@ -748,7 +746,7 @@ class AccountManager(object):
         """
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountManagerWillStart', sender=self)
-        proc.waitall([proc.spawn(account.start) for account in self.accounts.itervalues()])
+        proc.waitall([proc.spawn(account.start) for account in self.accounts.values()])
         notification_center.post_notification('SIPAccountManagerDidStart', sender=self)
 
     def stop(self):
@@ -759,7 +757,7 @@ class AccountManager(object):
         """
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountManagerWillEnd', sender=self)
-        proc.waitall([proc.spawn(account.stop) for account in self.accounts.itervalues()])
+        proc.waitall([proc.spawn(account.stop) for account in self.accounts.values()])
         notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
 
     def has_account(self, id):
@@ -769,17 +767,17 @@ class AccountManager(object):
         return self.accounts[id]
 
     def get_accounts(self):
-        return self.accounts.values()
+        return list(self.accounts.values())
 
     def iter_accounts(self):
-        return self.accounts.itervalues()
+        return iter(self.accounts.values())
 
     def find_account(self, contact_uri):
         # compare contact_address with account contact
-        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.contact.username==contact_uri.user)
+        exact_matches = (account for account in self.accounts.values() if account.enabled and account.contact.username==contact_uri.user)
         # compare username in contact URI with account username
-        loose_matches = (account for account in self.accounts.itervalues() if account.enabled and account.id.username==contact_uri.user)
-        return chain(exact_matches, loose_matches, [None]).next()
+        loose_matches = (account for account in self.accounts.values() if account.enabled and account.id.username==contact_uri.user)
+        return next(chain(exact_matches, loose_matches, [None]))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -819,7 +817,7 @@ class AccountManager(object):
                 self.default_account = account
             elif not account.enabled and self.default_account is account:
                 try:
-                    self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+                    self.default_account = next((account for account in self.accounts.values() if account.enabled))
                 except StopIteration:
                     self.default_account = None
 

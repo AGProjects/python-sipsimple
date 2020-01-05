@@ -27,9 +27,7 @@ class MSRPStreamError(StreamError):
     pass
 
 
-class MSRPStreamBase(object):
-    __metaclass__ = MediaStreamType
-
+class MSRPStreamBase(object, metaclass=MediaStreamType):
     implements(IMediaStream, IObserver)
 
     # Attributes that need to be defined by each MSRP stream type
@@ -157,7 +155,7 @@ class MSRPStreamBase(object):
                         self.local_role = 'actpass' if outgoing else 'passive'
             full_local_path = self.msrp_connector.prepare(local_uri=URI(host=host.default_ip, port=0, use_tls=self.transport=='tls', credentials=self.session.account.tls_credentials))
             self.local_media = self._create_local_media(full_local_path)
-        except Exception, e:
+        except Exception as e:
             notification_center.post_notification('MediaStreamDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
         else:
             notification_center.post_notification('MediaStreamDidInitialize', sender=self)
@@ -201,7 +199,7 @@ class MSRPStreamBase(object):
             if self.msrp_session_class is not None:
                 self.msrp_session = self.msrp_session_class(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming, automatic_reports=False)
             self.msrp_connector = None
-        except Exception, e:
+        except Exception as e:
             self._failure_reason = str(e)
             notification_center.post_notification('MediaStreamDidFail', sender=self, data=NotificationData(context=context, reason=self._failure_reason))
         else:

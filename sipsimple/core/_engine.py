@@ -18,8 +18,7 @@ from sipsimple import log, __version__
 from sipsimple.core._core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
 
 
-class Engine(Thread):
-    __metaclass__ = Singleton
+class Engine(Thread, metaclass=Singleton):
     default_start_options = {"ip_address": None,
                              "udp_port": 0,
                              "tcp_port": None,
@@ -69,7 +68,7 @@ class Engine(Thread):
             ua_attributes = [attr for attr in dir(self._ua) if not attr.startswith('__') and attr != 'poll']
         else:
             ua_attributes = []
-        return sorted(set(dir(self.__class__) + self.__dict__.keys() + ua_attributes))
+        return sorted(set(dir(self.__class__) + list(self.__dict__.keys()) + ua_attributes))
 
     def __getattr__(self, attr):
         if attr not in ["_ua", "poll"] and hasattr(self, "_ua") and attr in dir(self._ua):

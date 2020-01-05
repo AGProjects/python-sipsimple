@@ -10,7 +10,7 @@ from sipsimple.payloads import rlmi, pidf
 from sipsimple.payloads import rpid; rpid # needs to be imported to register its namespace
 
 
-class ResourceURI(unicode):
+class ResourceURI(str):
     def __eq__(self, other):
         return super(ResourceURI, self).__eq__(other) or self.rpartition('sip:')[2] == other
 

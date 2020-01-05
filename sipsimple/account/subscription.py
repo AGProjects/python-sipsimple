@@ -56,8 +56,7 @@ class SubscriberNickname(dict):
         raise AttributeError('cannot delete attribute')
 
 
-class Subscriber(object):
-    __metaclass__  = ABCMeta
+class Subscriber(object, metaclass=ABCMeta):
     __nickname__   = SubscriberNickname()
     __transports__ = frozenset(['tls', 'tcp', 'udp'])
 
@@ -191,7 +190,7 @@ class Subscriber(object):
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, valid_transports).wait()
-            except DNSLookupError, e:
+            except DNSLookupError as e:
                 raise SubscriptionError('DNS lookup failed: %s' % e, retry_after=random.uniform(15, 30))
 
             subscription_uri = SIPURI(user=subscription_uri.username, host=subscription_uri.domain)
@@ -224,7 +223,7 @@ class Subscriber(object):
                             notification = self._data_channel.wait()
                             if notification.name == 'SIPSubscriptionDidStart':
                                 break
-                    except SIPSubscriptionDidFail, e:
+                    except SIPSubscriptionDidFail as e:
                         notification_center.remove_observer(self, sender=subscription)
                         self._subscription = None
                         if e.data.code == 407:
@@ -268,7 +267,7 @@ class Subscriber(object):
                 if self.active:
                     self._command_channel.send(Command('subscribe'))
             notification_center.remove_observer(self, sender=self._subscription)
-        except InterruptSubscription, e:
+        except InterruptSubscription as e:
             if not self.subscribed:
                 command.signal(e)
             if self._subscription is not None:
@@ -279,7 +278,7 @@ class Subscriber(object):
                     pass
                 finally:
                     notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=NotificationData(originator='local'))
-        except TerminateSubscription, e:
+        except TerminateSubscription as e:
             if not self.subscribed:
                 command.signal(e)
             if self._subscription is not None:
@@ -298,7 +297,7 @@ class Subscriber(object):
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
                     notification_center.post_notification(self.__nickname__ + 'SubscriptionDidEnd', sender=self, data=NotificationData(originator='local'))
-        except SubscriptionError, e:
+        except SubscriptionError as e:
             def subscribe():
                 if self.active:
                     self._command_channel.send(Command('subscribe', command.event, refresh_interval=e.refresh_interval))

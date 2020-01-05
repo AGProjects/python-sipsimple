@@ -5,7 +5,7 @@ This module provides classes to parse and generate SDP related to SIP sessions t
 
 __all__ = ['FileTransferStream', 'FileSelector']
 
-import cPickle as pickle
+import pickle as pickle
 import hashlib
 import mimetypes
 import os
@@ -23,7 +23,7 @@ from itertools import count
 from msrplib.protocol import MSRPHeader, FailureReportHeader, SuccessReportHeader, ContentTypeHeader
 from msrplib.session import MSRPSession
 from msrplib.transport import make_response
-from Queue import Queue
+from queue import Queue
 from threading import Event, Lock
 from zope.interface import implements
 
@@ -39,7 +39,7 @@ from sipsimple.util import sha1
 HASH = type(hashlib.sha1())
 
 
-class RandomID: __metaclass__ = MarkerType
+class RandomID(metaclass=MarkerType): pass
 
 
 class FileSelectorHash(str):
@@ -114,7 +114,7 @@ class FileSelector(object):
 
     @classmethod
     def for_file(cls, path, type=None, hash=None):
-        name = unicode(path)
+        name = str(path)
         fd = open(name, 'rb')
         size = os.fstat(fd.fileno()).st_size
         if type is None:
@@ -177,7 +177,7 @@ class FileTransfersMetadata(object):
             except Exception:
                 data = {}
             now = time.time()
-            for hash, entry in data.items():
+            for hash, entry in list(data.items()):
                 try:
                     mtime = os.path.getmtime(entry.filename)
                 except OSError:
@@ -205,9 +205,7 @@ class FileTransfersMetadata(object):
         self.lock.release()
 
 
-class FileTransferHandler(object):
-    __metaclass__ = ABCMeta
-
+class FileTransferHandler(object, metaclass=ABCMeta):
     implements(IObserver)
 
     threadpool = ThreadPool(name='FileTransfers', min_threads=0, max_threads=100)
@@ -303,7 +301,7 @@ class FileTransferHandler(object):
         self.__terminate()
 
 
-class EndTransfer: __metaclass__ = MarkerType
+class EndTransfer(metaclass=MarkerType): pass
 
 
 class IncomingFileTransferHandler(FileTransferHandler):
@@ -357,7 +355,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
                         else:
                             stream.file_selector.name = name
                             break
-        except Exception, e:
+        except Exception as e:
             NotificationCenter().post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
         else:
             NotificationCenter().post_notification('FileTransferHandlerDidInitialize', sender=self)
@@ -396,7 +394,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
                 break
             try:
                 fd.write(chunk.data)
-            except EnvironmentError, e:
+            except EnvironmentError as e:
                 fd.close()
                 notification_center.post_notification('FileTransferHandlerError', sender=self, data=NotificationData(error=str(e)))
                 notification_center.post_notification('FileTransferHandlerDidEnd', sender=self, data=NotificationData(error=True, reason=str(e)))
@@ -486,7 +484,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         while not self.stop_event.is_set():
             try:
                 content = fd.read(self.file_part_size)
-            except EnvironmentError, e:
+            except EnvironmentError as e:
                 fd.close()
                 notification_center.post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason=str(e)))
                 return
@@ -523,7 +521,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
             while not self.stop_event.is_set():
                 try:
                     data = fd.read(self.file_part_size)
-                except EnvironmentError, e:
+                except EnvironmentError as e:
                     failure_reason = str(e)
                     break
                 if not data:
@@ -564,7 +562,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         chunk.headers.update(self.headers)
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
-        except Exception, e:
+        except Exception as e:
             NotificationCenter().post_notification('FileTransferHandlerError', sender=self, data=NotificationData(error=str(e)))
         else:
             self.offset += data_len
@@ -587,7 +585,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         chunk = self.stream.msrp.make_request('FILE_OFFSET')
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=response_cb)
-        except Exception, e:
+        except Exception as e:
             NotificationCenter().post_notification('FileTransferHandlerError', sender=self, data=NotificationData(error=str(e)))
 
     def process_chunk(self, chunk):

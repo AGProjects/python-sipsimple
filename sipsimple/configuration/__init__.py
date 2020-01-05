@@ -19,6 +19,7 @@ from application.python.weakref import weakobjectmap
 
 from sipsimple import log
 from sipsimple.threading import run_in_thread
+from functools import reduce
 
 
 ## Exceptions
@@ -31,9 +32,9 @@ class DuplicateIDError(ValueError): pass
 
 ## Structure markers
 
-class PersistentKey(unicode):
+class PersistentKey(str):
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, unicode.__repr__(self))
+        return "%s(%s)" % (self.__class__.__name__, str.__repr__(self))
 
 
 class ItemContainer(dict):
@@ -43,13 +44,12 @@ class ItemContainer(dict):
 
 ## ConfigurationManager
 
-class ConfigurationManager(object):
+class ConfigurationManager(object, metaclass=Singleton):
     """
     Singleton class used for storing and retrieving options, organized in
     sections. A section contains a list of objects, each with an assigned name
     which allows access to the object.
     """
-    __metaclass__ = Singleton
 
     def __init__(self):
         self.backend = None
@@ -140,7 +140,7 @@ class ConfigurationManager(object):
             raise KeyError("key cannot be empty")
         try:
             data = self._get(self.data, list(key))
-            return data.keys()
+            return list(data.keys())
         except KeyError:
             return []
 
@@ -190,7 +190,7 @@ class ConfigurationManager(object):
             del data_tree[subtree_key]
 
     def _update_dict(self, old_data, new_data):
-        for key, value in new_data.iteritems():
+        for key, value in new_data.items():
             if value is DefaultValue:
                 old_data.pop(key, None)
             elif isinstance(value, ItemContainer):
@@ -280,7 +280,7 @@ class SettingsObjectID(object):
                 self.dirty[obj] = False
                 return
             try:
-                other_obj = (key for key, val in chain(self.values.iteritems(), self.oldvalues.iteritems()) if val==value).next()
+                other_obj = next((key for key, val in chain(iter(self.values.items()), iter(self.oldvalues.items())) if val==value))
             except StopIteration:
                 pass
             else:
@@ -339,7 +339,7 @@ class SettingsObjectImmutableID(object):
             if not isinstance(value, self.type):
                 value = self.type(value)
             try:
-                other_obj = (key for key, val in self.values.iteritems() if val==value).next()
+                other_obj = next((key for key, val in self.values.items() if val==value))
             except StopIteration:
                 pass
             else:
@@ -350,10 +350,8 @@ class SettingsObjectImmutableID(object):
         raise AttributeError('cannot delete attribute')
 
 
-class AbstractSetting(object):
+class AbstractSetting(object, metaclass=ABCMeta):
     """Abstract base class for setting type descriptors"""
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def __get__(self, obj, objtype):
@@ -434,13 +432,13 @@ class Setting(AbstractSetting):
         if value in (None, DefaultValue):
             pass
         elif issubclass(self.type, bool):
-            value = u'true' if value else u'false'
-        elif issubclass(self.type, (int, long, basestring)):
-            value = unicode(value)
+            value = 'true' if value else 'false'
+        elif issubclass(self.type, (int, int, str)):
+            value = str(value)
         elif hasattr(value, '__getstate__'):
             value = value.__getstate__()
         else:
-            value = unicode(value)
+            value = str(value)
         return value
 
     def __setstate__(self, obj, value):
@@ -456,7 +454,7 @@ class Setting(AbstractSetting):
                     value = False
                 else:
                     raise ValueError("invalid boolean value: %s" % (value,))
-            elif issubclass(self.type, (int, long, basestring)):
+            elif issubclass(self.type, (int, int, str)):
                 value = self.type(value)
             elif hasattr(self.type, '__setstate__'):
                 object = self.type.__new__(self.type)
@@ -563,12 +561,10 @@ class SettingsStateMeta(type):
         return instance
 
 
-class SettingsState(object):
+class SettingsState(object, metaclass=SettingsStateMeta):
     """
     This class represents configuration objects which can be saved and restored.
     """
-
-    __metaclass__ = SettingsStateMeta
 
     @property
     def __settings__(self):
@@ -586,7 +582,7 @@ class SettingsState(object):
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, SettingsGroupMeta):
                 modified_settings = getattr(self, name).get_modified()
-                modified.update(dict((name+'.'+k if k else name, v) for k,v in modified_settings.iteritems()))
+                modified.update(dict((name+'.'+k if k else name, v) for k,v in modified_settings.items()))
             elif isinstance(attribute, AbstractSetting):
                 modified_value = attribute.get_modified(self)
                 if modified_value is not None:
@@ -619,18 +615,18 @@ class SettingsState(object):
     def __setstate__(self, state):
         configuration_manager = ConfigurationManager()
         notification_center = NotificationCenter()
-        for name, value in state.iteritems():
+        for name, value in state.items():
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, SettingsGroupMeta):
                 group = getattr(self, name)
                 try:
                     group.__setstate__(value)
-                except ValueError, e:
+                except ValueError as e:
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=NotificationData(attribute=name, container=self, error=e))
             elif isinstance(attribute, AbstractSetting):
                 try:
                     attribute.__setstate__(self, value)
-                except ValueError, e:
+                except ValueError as e:
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=NotificationData(attribute=name, container=self, error=e))
 
 
@@ -658,7 +654,7 @@ class SettingsGroupMeta(SettingsStateMeta):
         raise AttributeError('cannot delete group of settings')
 
 
-class SettingsGroup(SettingsState):
+class SettingsGroup(SettingsState, metaclass=SettingsGroupMeta):
     """
     Base class for settings groups, i.e. non-leaf and non-root nodes in the
     configuration tree. All SettingsGroup subclasses are descriptor instances
@@ -671,8 +667,6 @@ class SettingsGroup(SettingsState):
     class ContainingGroup(SettingsGroup):
         subgroup = ContainedGroup
     """
-
-    __metaclass__ = SettingsGroupMeta
 
 
 class ItemMap(dict):
@@ -731,10 +725,8 @@ class ItemCollectionMeta(SettingsGroupMeta):
         raise AttributeError('cannot delete item collection')
 
 
-class ItemCollection(SettingsGroup):
+class ItemCollection(SettingsGroup, metaclass=ItemCollectionMeta):
     """A SettingsGroup that also contains a dynamic collection of sub-setting"""
-
-    __metaclass__ = ItemCollectionMeta
 
     _item_type = None
     _item_management = ItemManagement()
@@ -750,10 +742,10 @@ class ItemCollection(SettingsGroup):
         return key in self._item_map
 
     def __iter__(self):
-        return iter(sorted(self._item_map.values(), key=attrgetter('id')))
+        return iter(sorted(list(self._item_map.values()), key=attrgetter('id')))
 
     def __reversed__(self):
-        return iter(sorted(self._item_map.values(), key=attrgetter('id'), reverse=True))
+        return iter(sorted(list(self._item_map.values()), key=attrgetter('id'), reverse=True))
 
     __hash__ = None
 
@@ -762,7 +754,7 @@ class ItemCollection(SettingsGroup):
 
     def __getstate__(self):
         with self._lock:
-            state = ItemContainer((id, item.__getstate__()) for id, item in self._item_map.iteritems())
+            state = ItemContainer((id, item.__getstate__()) for id, item in self._item_map.items())
             state.update(super(ItemCollection, self).__getstate__())
             return state
 
@@ -770,7 +762,7 @@ class ItemCollection(SettingsGroup):
         with self._lock:
             super(ItemCollection, self).__setstate__(state)
             setting_names = set(name for name in dir(self.__class__) if isinstance(getattr(self.__class__, name, None), (SettingsGroupMeta, AbstractSetting)))
-            self._item_map = ItemMap((id, self._item_type(id, **item_state)) for id, item_state in state.iteritems() if id not in setting_names)
+            self._item_map = ItemMap((id, self._item_type(id, **item_state)) for id, item_state in state.items() if id not in setting_names)
 
     def get_modified(self):
         with self._lock:
@@ -810,7 +802,7 @@ class ConditionalSingleton(type):
         cls.__instance__ = None
 
     def __call__(cls, *args, **kw):
-        if isinstance(cls.__id__, basestring):
+        if isinstance(cls.__id__, str):
             if args or kw:
                 raise TypeError("cannot have arguments for %s because it is a singleton" % cls.__name__)
             with cls.__instlock__:
@@ -825,12 +817,12 @@ class SettingsObjectMeta(SettingsStateMeta, ConditionalSingleton):
     """Metaclass to singleton-ize SettingsObject subclasses with static ids"""
 
     def __init__(cls, name, bases, dic):
-        if not (cls.__id__ is None or isinstance(cls.__id__, basestring) or isdescriptor(cls.__id__)):
+        if not (cls.__id__ is None or isinstance(cls.__id__, str) or isdescriptor(cls.__id__)):
             raise TypeError("%s.__id__ must be None, a string instance or a descriptor" % name)
         super(SettingsObjectMeta, cls).__init__(name, bases, dic)
 
 
-class SettingsObject(SettingsState):
+class SettingsObject(SettingsState, metaclass=SettingsObjectMeta):
     """
     Subclass for top-level configuration objects. These objects are identifiable
     by either a global id (set in the __id__ attribute of the class) or a local
@@ -847,8 +839,6 @@ class SettingsObject(SettingsState):
     also when the object is retrieved from the configuration.
     """
 
-    __metaclass__ = SettingsObjectMeta
-
     __group__ = None
     __id__ = None
 
@@ -856,7 +846,7 @@ class SettingsObject(SettingsState):
         id = id or cls.__id__
         if id is None:
             raise ValueError("id is required for instantiating %s" % cls.__name__)
-        if not isinstance(id, basestring):
+        if not isinstance(id, str):
             raise TypeError("id needs to be a string instance")
         configuration = ConfigurationManager()
         instance = SettingsState.__new__(cls)
@@ -882,7 +872,7 @@ class SettingsObject(SettingsState):
         if isinstance(self.__class__.__id__, (SettingsObjectID, SettingsObjectImmutableID)):
             id_key = PersistentKey(self.__id__)
         else:
-            id_key = unicode(self.__id__)
+            id_key = str(self.__id__)
         if self.__group__ is not None:
             return [self.__group__, id_key]
         else:
@@ -895,7 +885,7 @@ class SettingsObject(SettingsState):
         elif isinstance(self.__class__.__id__, SettingsObjectImmutableID):
             id_key = PersistentKey(self.__id__)
         else:
-            id_key = unicode(self.__id__)
+            id_key = str(self.__id__)
         if self.__group__ is not None:
             return [self.__group__, id_key]
         else:
@@ -949,7 +939,7 @@ class SettingsObject(SettingsState):
 
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
@@ -970,7 +960,7 @@ class SettingsObject(SettingsState):
         notification_center.post_notification('CFGSettingsObjectWasDeleted', sender=self)
         try:
             configuration.save()
-        except Exception, e:
+        except Exception as e:
             log.exception()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, operation='delete', exception=e))
 

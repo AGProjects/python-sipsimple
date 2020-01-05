@@ -50,18 +50,18 @@ class Packages(XMLListElement):
         self.update(packages)
 
     def __iter__(self):
-        return (unicode(item) if type(item) is Package else item for item in super(Packages, self).__iter__())
+        return (str(item) if type(item) is Package else item for item in super(Packages, self).__iter__())
 
     def add(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             item = Package(item)
         super(Packages, self).add(item)
 
     def remove(self, item):
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             package = Package(item)
             try:
-                item = (entry for entry in super(Packages, self).__iter__() if entry == package).next()
+                item = next((entry for entry in super(Packages, self).__iter__() if entry == package))
             except StopIteration:
                 raise KeyError(item)
         super(Packages, self).remove(item)
@@ -116,15 +116,15 @@ class RLSServices(XMLListRootElement):
 
     def __getitem__(self, key):
         if key is IterateIDs:
-            return self._xmlid_map[Service].iterkeys()
+            return iter(self._xmlid_map[Service].keys())
         elif key is IterateItems:
-            return self._xmlid_map[Service].itervalues()
+            return iter(self._xmlid_map[Service].values())
         else:
             return self._xmlid_map[Service][key]
 
     def __delitem__(self, key):
         if key is All:
-            for item in self._xmlid_map[Service].values():
+            for item in list(self._xmlid_map[Service].values()):
                 self.remove(item)
         else:
             self.remove(self._xmlid_map[Service][key])

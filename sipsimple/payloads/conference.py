@@ -779,10 +779,10 @@ class FileResource(XMLElement):
     _xml_namespace = agp_conf_namespace
     _xml_document = ConferenceDocument
 
-    name = XMLAttribute('name', type=unicode, required=True, test_equal=False)
+    name = XMLAttribute('name', type=str, required=True, test_equal=False)
     hash = XMLAttribute('hash', type=str, required=True, test_equal=False)
     size = XMLAttribute('size', type=int, required=True, test_equal=False)
-    sender = XMLAttribute('sender', type=unicode, required=True, test_equal=False)
+    sender = XMLAttribute('sender', type=str, required=True, test_equal=False)
     status = XMLAttribute('status', type=str, required=True, test_equal=False)
 
     def __init__(self, name, hash, size, sender, status):

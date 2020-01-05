@@ -5,7 +5,7 @@ various sub-systems required to implement a fully featured SIP User Agent
 application.
 """
 
-from __future__ import absolute_import
+
 
 __all__ = ["SIPApplication"]
 
@@ -51,9 +51,7 @@ class ApplicationAttribute(object):
         raise AttributeError('cannot delete attribute')
 
 
-class SIPApplication(object):
-    __metaclass__ = Singleton
-
+class SIPApplication(object, metaclass=Singleton):
     implements(IObserver)
 
     storage = ApplicationAttribute(value=None)
@@ -183,7 +181,7 @@ class SIPApplication(object):
                                             ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                             cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
                                             privkey_file=account.tls.certificate.normalized if account.tls.certificate else None)
-            except Exception, e:
+            except Exception as e:
                 notification_center = NotificationCenter()
                 notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
@@ -221,14 +219,14 @@ class SIPApplication(object):
 
         # initialize audio objects
         alert_device = settings.audio.alert_device
-        if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
-            alert_device = u'system_default'
+        if alert_device not in (None, 'system_default') and alert_device not in self.engine.output_devices:
+            alert_device = 'system_default'
         input_device = settings.audio.input_device
-        if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
-            input_device = u'system_default'
+        if input_device not in (None, 'system_default') and input_device not in self.engine.input_devices:
+            input_device = 'system_default'
         output_device = settings.audio.output_device
-        if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
-            output_device = u'system_default'
+        if output_device not in (None, 'system_default') and output_device not in self.engine.output_devices:
+            output_device = 'system_default'
         tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
         voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
         voice_mixer.muted = settings.audio.muted
@@ -370,14 +368,14 @@ class SIPApplication(object):
         if notification.sender is settings:
             if 'audio.sample_rate' in notification.data.modified:
                 alert_device = settings.audio.alert_device
-                if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
-                    alert_device = u'system_default'
+                if alert_device not in (None, 'system_default') and alert_device not in self.engine.output_devices:
+                    alert_device = 'system_default'
                 input_device = settings.audio.input_device
-                if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
-                    input_device = u'system_default'
+                if input_device not in (None, 'system_default') and input_device not in self.engine.input_devices:
+                    input_device = 'system_default'
                 output_device = settings.audio.output_device
-                if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
-                    output_device = u'system_default'
+                if output_device not in (None, 'system_default') and output_device not in self.engine.output_devices:
+                    output_device = 'system_default'
                 tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                 voice_mixer = AudioMixer(input_device, output_device, settings.audio.sample_rate, tail_length)
                 voice_mixer.muted = settings.audio.muted
@@ -397,11 +395,11 @@ class SIPApplication(object):
             else:
                 if {'audio.input_device', 'audio.output_device', 'audio.alert_device', 'audio.echo_canceller.enabled', 'audio.echo_canceller.tail_length'}.intersection(notification.data.modified):
                     input_device = settings.audio.input_device
-                    if input_device not in (None, u'system_default') and input_device not in self.engine.input_devices:
-                        input_device = u'system_default'
+                    if input_device not in (None, 'system_default') and input_device not in self.engine.input_devices:
+                        input_device = 'system_default'
                     output_device = settings.audio.output_device
-                    if output_device not in (None, u'system_default') and output_device not in self.engine.output_devices:
-                        output_device = u'system_default'
+                    if output_device not in (None, 'system_default') and output_device not in self.engine.output_devices:
+                        output_device = 'system_default'
                     tail_length = settings.audio.echo_canceller.tail_length if settings.audio.echo_canceller.enabled else 0
                     if (input_device, output_device, tail_length) != attrgetter('input_device', 'output_device', 'ec_tail_length')(self.voice_audio_bridge.mixer):
                         self.voice_audio_bridge.mixer.set_sound_devices(input_device, output_device, tail_length)
@@ -409,8 +407,8 @@ class SIPApplication(object):
                         settings.audio.output_device = self.voice_audio_bridge.mixer.output_device
                         settings.save()
                     alert_device = settings.audio.alert_device
-                    if alert_device not in (None, u'system_default') and alert_device not in self.engine.output_devices:
-                        alert_device = u'system_default'
+                    if alert_device not in (None, 'system_default') and alert_device not in self.engine.output_devices:
+                        alert_device = 'system_default'
                     if alert_device != self.alert_audio_bridge.mixer.output_device:
                         self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
                         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
@@ -463,12 +461,12 @@ class SIPApplication(object):
         current_output_device = self.voice_audio_bridge.mixer.output_device
         current_alert_device = self.alert_audio_bridge.mixer.output_device
         ec_tail_length = self.voice_audio_bridge.mixer.ec_tail_length
-        if notification.data.changed_input and u'system_default' in (current_input_device, settings.audio.input_device):
-            self.voice_audio_bridge.mixer.set_sound_devices(u'system_default', current_output_device, ec_tail_length)
-        if notification.data.changed_output and u'system_default' in (current_output_device, settings.audio.output_device):
-            self.voice_audio_bridge.mixer.set_sound_devices(current_input_device, u'system_default', ec_tail_length)
-        if notification.data.changed_output and u'system_default' in (current_alert_device, settings.audio.alert_device):
-            self.alert_audio_bridge.mixer.set_sound_devices(None, u'system_default', 0)
+        if notification.data.changed_input and 'system_default' in (current_input_device, settings.audio.input_device):
+            self.voice_audio_bridge.mixer.set_sound_devices('system_default', current_output_device, ec_tail_length)
+        if notification.data.changed_output and 'system_default' in (current_output_device, settings.audio.output_device):
+            self.voice_audio_bridge.mixer.set_sound_devices(current_input_device, 'system_default', ec_tail_length)
+        if notification.data.changed_output and 'system_default' in (current_alert_device, settings.audio.alert_device):
+            self.alert_audio_bridge.mixer.set_sound_devices(None, 'system_default', 0)
 
     @run_in_thread('device-io')
     def _NH_AudioDevicesDidChange(self, notification):
@@ -483,11 +481,11 @@ class SIPApplication(object):
         output_device = self.voice_audio_bridge.mixer.output_device
         alert_device = self.alert_audio_bridge.mixer.output_device
         if self.voice_audio_bridge.mixer.real_input_device in removed_devices:
-            input_device = u'system_default' if new_devices else None
+            input_device = 'system_default' if new_devices else None
         if self.voice_audio_bridge.mixer.real_output_device in removed_devices:
-            output_device = u'system_default' if new_devices else None
+            output_device = 'system_default' if new_devices else None
         if self.alert_audio_bridge.mixer.real_output_device in removed_devices:
-            alert_device = u'system_default' if new_devices else None
+            alert_device = 'system_default' if new_devices else None
 
         self.voice_audio_bridge.mixer.set_sound_devices(input_device, output_device, self.voice_audio_bridge.mixer.ec_tail_length)
         self.alert_audio_bridge.mixer.set_sound_devices(None, alert_device, 0)
@@ -509,7 +507,7 @@ class SIPApplication(object):
 
         device = self.video_device.name
         if self.video_device.real_name in removed_devices:
-            device = u'system_default' if new_devices else None
+            device = 'system_default' if new_devices else None
 
         settings = SIPSimpleSettings()
         self.video_device.set_camera(device, settings.video.resolution, settings.video.framerate)

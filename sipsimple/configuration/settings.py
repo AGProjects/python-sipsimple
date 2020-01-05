@@ -23,9 +23,9 @@ class EchoCancellerSettings(SettingsGroup):
 
 
 class AudioSettings(SettingsGroup):
-    alert_device = Setting(type=unicode, default=u'system_default', nillable=True)
-    input_device = Setting(type=unicode, default=u'system_default', nillable=True)
-    output_device = Setting(type=unicode, default=u'system_default', nillable=True)
+    alert_device = Setting(type=str, default='system_default', nillable=True)
+    input_device = Setting(type=str, default='system_default', nillable=True)
+    output_device = Setting(type=str, default='system_default', nillable=True)
     sample_rate = Setting(type=SampleRate, default=44100)
     muted = RuntimeSetting(type=bool, default=False)
     silent = Setting(type=bool, default=False)
@@ -38,7 +38,7 @@ class H264Settings(SettingsGroup):
 
 
 class VideoSettings(SettingsGroup):
-    device = Setting(type=unicode, default=u'system_default', nillable=True)
+    device = Setting(type=str, default='system_default', nillable=True)
     resolution = Setting(type=VideoResolution, default=VideoResolution('1280x720'))
     framerate = Setting(type=int, default=25)
     max_bitrate = Setting(type=float, default=None, nillable=True)
