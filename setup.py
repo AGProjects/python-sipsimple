@@ -37,6 +37,7 @@ setup(
     author_email=package_info.__email__,
 
     platforms=["Platform Independent"],
+    python_requires='>3.5.2',
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",

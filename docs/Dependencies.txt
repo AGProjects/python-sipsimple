@@ -4,7 +4,7 @@ Dependencies for SIP SIMPLE client SDK
 
 Home page: http://sipsimpleclient.org
 
- * python                   http://python.org                                     2.7
+ * python                   http://python.org                                     >=3
  * python-application       http://pypi.python.org/simple/python-application  >=2.5.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * python-dateutil          http://niemeyer.net/python-dateutil                 >=1.4
