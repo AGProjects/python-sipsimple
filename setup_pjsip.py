@@ -93,20 +93,19 @@ class PJSIP_build_ext(build_ext):
         """Execute a subprocess and returns the returncode, stdout buffer and stderr buffer.
         Optionally prints stdout and stderr while running."""
         try:
-            sub = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
-            stdout, stderr = sub.communicate(input=input)
+            sub = subprocess.run(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
             returncode = sub.returncode
             if not silent:
-                sys.stdout.write(stdout)
-                sys.stderr.write(stderr)
+                sys.stdout.write(sub.stdout)
+                sys.stderr.write(sub.stderr)
         except OSError as e:
             if e.errno == errno.ENOENT:
                 raise RuntimeError('"%s" is not present on this system' % cmdline[0])
             else:
                 raise
         if returncode != 0:
-            raise RuntimeError('Got return value %d while executing "%s", stderr output was:\n%s' % (returncode, " ".join(cmdline), stderr.rstrip("\n")))
-        return stdout
+            raise RuntimeError('Got return value %d while executing "%s", stderr output was:\n%s' % (returncode, " ".join(cmdline), sub.stderr.rstrip("\n")))
+        return sub.stdout
 
     @staticmethod
     def get_make_cmd():
@@ -125,7 +124,7 @@ class PJSIP_build_ext(build_ext):
     def get_makefile_variables(cls, makefile):
         """Returns all variables in a makefile as a dict"""
         stdout = cls.distutils_exec_process([cls.get_make_cmd(), "-f", makefile, "-pR", makefile], silent=True)
-        return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
+        return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout.decode('utf-8'), re.MULTILINE))
 
     @classmethod
     def makedirs(cls, path):
@@ -144,7 +143,9 @@ class PJSIP_build_ext(build_ext):
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
-        with open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb") as f:
+        # open(.., "wb") causes an error
+        # no need to open a C header file as binary
+        with open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "w") as f:
             f.write("\n".join(self.config_site+[""]))
         cflags = "-DNDEBUG -g -fPIC -fno-omit-frame-pointer -fno-strict-aliasing -Wno-unused-label"
         if self.debug or hasattr(sys, 'gettotalrefcount'):
