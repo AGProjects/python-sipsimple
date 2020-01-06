@@ -1,3 +1,9 @@
+python3-sipsimple (3.5.0) UNRELEASED; urgency=medium
+
+  * updated sipsimple for python3
+
+ -- Bjoern Boschman <bjoern@boschman.de>  Mon, 06 Jan 2020 10:34:08 +0000
+
 python-sipsimple (3.4.2) unstable; urgency=medium
 
   * Fixed crash when using sha1 hmac with zrtp
