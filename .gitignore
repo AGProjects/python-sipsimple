@@ -1,2 +1,4 @@
 *.pyc
 build
+sipsimple/core/_core.c
+sipsimple/util/_sha1.c
