@@ -1,13 +1,13 @@
-Source: python-sipsimple
+Source: python3-sipsimple
 Section: python
 Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
 Uploaders: Adrian Georgescu <ag@ag-projects.com>
 Build-Depends: debhelper (>= 9),
                dh-python,
-               python-all-dev (>= 2.7),
-               python-all-dbg (>= 2.7),
-               cython-dbg (>= 0.19),
+               python3-all-dev,
+               python3-all-dbg,
+               cython3-dbg,
                libasound2-dev,
                libssl-dev,
                libv4l-dev,
@@ -23,15 +23,15 @@ Build-Depends: debhelper (>= 9),
 Standards-Version: 3.9.8
 Homepage: http://sipsimpleclient.org
 
-Package: python-sipsimple
+Package: python3-sipsimple
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
+         python3-dateutil,
+         python3-dnspython (>= 1.9),
+         python3-lxml,
          python-application (>= 2.5.0),
-         python-dateutil,
-         python-dnspython (>= 1.9),
          python-eventlib,
          python-gnutls,
-         python-lxml,
          python-msrplib (>= 0.19.0),
          python-otr (>= 1.2.0),
          python-twisted-core (>= 8.1.0),
