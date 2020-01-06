@@ -1,4 +1,7 @@
+.pybuild
 *.pyc
 build
+debian/.debhelper
 sipsimple/core/_core.c
 sipsimple/util/_sha1.c
+debian/python3-sipsimple.debhelper.log
