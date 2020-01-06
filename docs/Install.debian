@@ -53,8 +53,8 @@ Creating Debian Packages
 
 Install the building dependencies:
 
-sudo apt-get install cython cython-dbg python-setuptools \
-debhelper python-all-dev python-all-dbg libasound2-dev libssl-dev
+sudo apt-get install cython cython-dbg python-setuptools devscripts \
+debhelper python-all-dev python-all-dbg libasound2-dev libssl-dev libsqlite3-dev
 
 For adding Video support:
 
