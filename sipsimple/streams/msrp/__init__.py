@@ -15,7 +15,7 @@ from zope.interface import implements
 
 from eventlib import api
 from msrplib.connect import DirectConnector, DirectAcceptor, RelayConnection, MSRPRelaySettings
-from msrplib.protocol import URI, parse_uri
+from msrplib.protocol import URI
 from msrplib.session import contains_mime_type
 
 from sipsimple.account import Account, BonjourAccount
@@ -182,7 +182,7 @@ class MSRPStreamBase(object):
             remote_uri_path = remote_media.attributes.getfirst('path')
             if remote_uri_path is None:
                 raise AttributeError("remote SDP media does not have 'path' attribute")
-            full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
+            full_remote_path = [URI.parse(uri) for uri in remote_uri_path.split()]
             remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
             if self.transport != remote_transport:
                 raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
