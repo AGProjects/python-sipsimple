@@ -5,6 +5,8 @@ Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547 and RFC399
 
 __all__ = ['MSRPStreamError', 'MSRPStreamBase']
 
+import traceback
+
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.python import Null
 from application.system import host
@@ -348,62 +350,54 @@ class NotificationProxyLogger(object):
     def __init__(self):
         from application import log
         self.level = log.level
-        self.chunks = {}
         self.notification_center = NotificationCenter()
         self.log_settings = SIPSimpleSettings().logs
 
-    def report_out(self, data, transport, new_chunk=True):
-        pass
-
-    def report_in(self, data, transport, new_chunk=False, packet_done=False):
-        pass
-
-    def received_new_chunk(self, data, transport, chunk):
-        self.chunks[chunk.transaction_id] = ChunkInfo(chunk.content_type, header=data)
-
-    def received_chunk_data(self, data, transport, transaction_id):
-        self.chunks[transaction_id].data += data
-
-    def received_chunk_end(self, data, transport, transaction_id):
-        chunk_info = self.chunks.pop(transaction_id)
-        chunk_info.footer = data
+    def received_chunk(self, data, transport):
         if self.log_settings.trace_msrp:
-            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content)
+            chunk_info = ChunkInfo(data.content_type, header=data.chunk_header, footer=data.chunk_footer, data=data.data)
+            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content, illegal=False)
             self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
-    def sent_new_chunk(self, data, transport, chunk):
-        self.chunks[chunk.transaction_id] = ChunkInfo(chunk.content_type, header=data)
-
-    def sent_chunk_data(self, data, transport, transaction_id):
-        self.chunks[transaction_id].data += data
-
-    def sent_chunk_end(self, data, transport, transaction_id):
-        chunk_info = self.chunks.pop(transaction_id)
-        chunk_info.footer = data
+    def sent_chunk(self, data, transport):
         if self.log_settings.trace_msrp:
-            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content)
+            chunk_info = ChunkInfo(data.content_type, header=data.encoded_header, footer=data.encoded_footer, data=data.data)
+            notification_data = NotificationData(direction='outgoing', local_address=transport.getHost(), remote_address=transport.getPeer(), data=chunk_info.normalized_content, illegal=False)
             self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
 
-    def debug(self, message, **context):
+    def received_illegal_data(self, data, transport):
+        if self.log_settings.trace_msrp:
+            notification_data = NotificationData(direction='incoming', local_address=transport.getHost(), remote_address=transport.getPeer(), data=data, illegal=True)
+            self.notification_center.post_notification('MSRPTransportTrace', sender=transport, data=notification_data)
+
+    def debug(self, message, *args, **kw):
         pass
 
-    def info(self, message, **context):
+    def info(self, message, *args, **kw):
         if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.INFO))
-    msg = info
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message % args if args else message, level=self.level.INFO))
 
-    def warn(self, message, **context):
+    def warning(self, message, *args, **kw):
         if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.WARNING))
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message % args if args else message, level=self.level.WARNING))
 
-    def error(self, message, **context):
-        if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.ERROR))
-    err = error
+    warn = warning
 
-    def fatal(self, message, **context):
+    def error(self, message, *args, **kw):
         if self.log_settings.trace_msrp:
-            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message, level=self.level.CRITICAL))
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message % args if args else message, level=self.level.ERROR))
+
+    def exception(self, message='', *args, **kw):
+        if self.log_settings.trace_msrp:
+            message = message % args if args else message
+            exception = traceback.format_exc()
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message + '\n' + exception if message else exception, level=self.level.ERROR))
+
+    def critical(self, message, *args, **kw):
+        if self.log_settings.trace_msrp:
+            self.notification_center.post_notification('MSRPLibraryLog', data=NotificationData(message=message % args if args else message, level=self.level.CRITICAL))
+
+    fatal = critical
 
 
 from sipsimple.streams.msrp import chat, filetransfer, screensharing
