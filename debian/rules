@@ -1,9 +1,7 @@
 #!/usr/bin/make -f
 
-#export DH_VERBOSE=1
-
+export DH_VERBOSE=0
 export DEB_BUILD_HARDENING=1
-
 export PYBUILD_NAME=sipsimple
 
 %:
