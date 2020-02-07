@@ -458,7 +458,6 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         self.file_offset_event = Event()
         self.message_id = '%x' % random.getrandbits(64)
         self.offset = 0
-        self.headers = {}
 
     def initialize(self, stream, session):
         super(OutgoingFileTransferHandler, self).initialize(stream, session)
@@ -468,10 +467,6 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         if stream.file_selector.size == 0:
             NotificationCenter().post_notification('FileTransferHandlerDidNotInitialize', sender=self, data=NotificationData(reason='file is empty'))
             return
-
-        self.headers[ContentTypeHeader.name] = ContentTypeHeader(stream.file_selector.type)
-        self.headers[SuccessReportHeader.name] = SuccessReportHeader('yes')
-        self.headers[FailureReportHeader.name] = FailureReportHeader('yes')
 
         if stream.file_selector.hash is None:
             self._calculate_file_hash()
@@ -566,7 +561,10 @@ class OutgoingFileTransferHandler(FileTransferHandler):
                                                    start=self.offset+1,
                                                    end=self.offset+data_len,
                                                    length=self.stream.file_selector.size)
-        chunk.headers.update(self.headers)
+        chunk.add_header(ContentTypeHeader(self.stream.file_selector.type))
+        chunk.add_header(SuccessReportHeader('yes'))
+        chunk.add_header(FailureReportHeader('yes'))
+
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=self._on_transaction_response)
         except Exception, e:
