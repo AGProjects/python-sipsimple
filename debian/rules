@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
-export DEB_BUILD_HARDENING=1
-export PYBUILD_NAME=sipsimple
+export DEB_BUILD_HARDENING = 1
+export PYBUILD_NAME = sipsimple
 
 %:
 	dh $@ --with python2 --buildsystem=pybuild
