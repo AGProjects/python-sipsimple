@@ -20,7 +20,7 @@ from application.python.threadpool import ThreadPool, run_in_threadpool
 from application.python.types import MarkerType
 from application.system import FileExistsError, makedirs, openfile, unlink
 from itertools import count
-from msrplib.protocol import MSRPHeader, FailureReportHeader, SuccessReportHeader, ContentTypeHeader
+from msrplib.protocol import FailureReportHeader, SuccessReportHeader, ContentTypeHeader, IntegerHeaderType, MSRPNamedHeader, HeaderParsingError
 from msrplib.session import MSRPSession
 from msrplib.transport import make_response
 from Queue import Queue
@@ -303,6 +303,11 @@ class FileTransferHandler(object):
         self.__terminate()
 
 
+class OffsetHeader(MSRPNamedHeader):
+    name = 'Offset'
+    type = IntegerHeaderType
+
+
 class EndTransfer: __metaclass__ = MarkerType
 
 
@@ -380,7 +385,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
             else:
                 offset = self.stream.file_selector.fd.tell()
                 response = make_response(chunk, 200, 'OK')
-                response.headers['Offset'] = MSRPHeader('Offset', offset)
+                response.add_header(OffsetHeader(offset))
             self.stream.msrp_session.send_chunk(response)
 
     @run_in_threadpool(FileTransferHandler.threadpool)
@@ -574,8 +579,8 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         def response_cb(response):
             if not self.stop_event.is_set() and response.code == 200:
                 try:
-                    offset = int(response.headers['Offset'].decoded)
-                except (KeyError, ValueError):
+                    offset = response.headers['Offset'].decoded
+                except (KeyError, HeaderParsingError):
                     offset = 0
                 self.offset = offset
             self.file_offset_event.set()
