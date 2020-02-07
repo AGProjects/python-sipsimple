@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 # Copyright (C) 2002-2013 Xiph.org Foundation
 #
 # Redistribution and use in source and binary forms, with or without

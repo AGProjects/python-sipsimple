@@ -1,3 +1,4 @@
+#!/bin/sh
 
 # libtool (GNU libtool) 2.4.2
 # Written by Gordon Matzigkeit <gord@gnu.ai.mit.edu>, 1996

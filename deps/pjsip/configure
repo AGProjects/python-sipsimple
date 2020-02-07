@@ -1,4 +1,5 @@
 #!/bin/sh
+
 ./aconfigure "$@"
 
 # Note:

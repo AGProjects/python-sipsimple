@@ -1,5 +1,5 @@
 #!/bin/sh
-# 
+ 
 # usage: undos <file>
 # 
 # strips CRs from a file - useful when moving DOS-created files

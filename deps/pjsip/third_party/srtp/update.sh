@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+
 # update.sh
 #
 # update copyright dates in files
@@ -10,6 +10,3 @@ for x in $a; do
     mv $x.tmp $x; 
 done
 
-
-
- 
