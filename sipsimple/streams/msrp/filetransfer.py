@@ -372,7 +372,7 @@ class IncomingFileTransferHandler(FileTransferHandler):
 
     def process_chunk(self, chunk):
         if chunk.method == 'SEND':
-            if not self.received_chunks and chunk.byte_range[0] == 1:
+            if not self.received_chunks and chunk.byte_range.start == 1:
                 self.stream.file_selector.fd.truncate(0)
                 self.stream.file_selector.fd.seek(0)
                 self.hash = sha1()
@@ -408,8 +408,8 @@ class IncomingFileTransferHandler(FileTransferHandler):
                 return
             self.hash.update(chunk.data)
             self.offset += chunk.size
-            transferred_bytes = chunk.byte_range[0] + chunk.size - 1
-            total_bytes = file_selector.size = chunk.byte_range[2]
+            transferred_bytes = chunk.byte_range.start + chunk.size - 1
+            total_bytes = file_selector.size = chunk.byte_range.total
             notification_center.post_notification('FileTransferHandlerProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
             if transferred_bytes == total_bytes:
                 break
@@ -597,8 +597,8 @@ class OutgoingFileTransferHandler(FileTransferHandler):
         # here we process the REPORT chunks
         notification_center = NotificationCenter()
         if chunk.status.code == 200:
-            transferred_bytes = chunk.byte_range[1]
-            total_bytes = chunk.byte_range[2]
+            transferred_bytes = chunk.byte_range.end
+            total_bytes = chunk.byte_range.total
             notification_center.post_notification('FileTransferHandlerProgress', sender=self, data=NotificationData(transferred_bytes=transferred_bytes, total_bytes=total_bytes))
             if transferred_bytes == total_bytes:
                 self.finished_event.set()
