@@ -67,7 +67,7 @@ class FileSelectorHash(str):
             return NotImplemented
 
     def __ne__(self, other):
-        return not (self == other)
+        return not self == other
 
     @classmethod
     def encode_hash(cls, hash_instance):
