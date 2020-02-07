@@ -584,7 +584,7 @@ class OutgoingFileTransferHandler(FileTransferHandler):
             self.file_offset_event.set()
             return
 
-        chunk = self.stream.msrp.make_request('FILE_OFFSET')
+        chunk = self.stream.msrp.make_request('FILE_OFFSET')  # TODO: _ is illegal in MSRP method names according to RFC 4975
         try:
             self.stream.msrp_session.send_chunk(chunk, response_cb=response_cb)
         except Exception, e:
