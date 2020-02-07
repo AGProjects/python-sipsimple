@@ -43,8 +43,8 @@ class RandomID: __metaclass__ = MarkerType
 
 
 class FileSelectorHash(str):
-    _hash_re = re.compile('^sha-1(:[0-9A-F]{2}){20}$')
-    _byte_re = re.compile('..')
+    _hash_re = re.compile(r'^sha-1(:[0-9A-F]{2}){20}$')
+    _byte_re = re.compile(r'..')
 
     def __new__(cls, value):
         if isinstance(value, str):
@@ -78,10 +78,10 @@ class FileSelectorHash(str):
 
 
 class FileSelector(object):
-    _name_re = re.compile('name:"([^"]+)"')
-    _size_re = re.compile('size:(\d+)')
-    _type_re = re.compile('type:([^ ]+)')
-    _hash_re = re.compile('hash:([^ ]+)')
+    _name_re = re.compile(r'name:"([^"]+)"')
+    _size_re = re.compile(r'size:(\d+)')
+    _type_re = re.compile(r'type:([^ ]+)')
+    _hash_re = re.compile(r'hash:([^ ]+)')
 
     def __init__(self, name=None, type=None, size=None, hash=None, fd=None):
         # If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
