@@ -20,7 +20,7 @@ Build-Depends: debhelper (>= 11),
                libsqlite3-dev,
                pkg-config,
                uuid-dev
-Standards-Version: 3.9.8
+Standards-Version: 4.5.0
 Homepage: http://sipsimpleclient.org
 
 Package: python-sipsimple
