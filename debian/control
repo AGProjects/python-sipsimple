@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
 Uploaders: Adrian Georgescu <ag@ag-projects.com>
-Build-Depends: debhelper (>= 9),
+Build-Depends: debhelper (>= 11),
                dh-python,
                python-all-dev (>= 2.7),
                python-all-dbg (>= 2.7),
