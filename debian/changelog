@@ -1,3 +1,34 @@
+python-sipsimple (3.5.0) unstable; urgency=medium
+
+  * Fixed issue with clients locking when using PulseAudio as input device
+  * Fixed correctness and consistency issue with getting the display name
+  * Use identity tests instead of equality tests for None
+  * Fixed timer callback function signatures
+  * Added support for digest passwords in credentials objects
+  * Simplified setting attribute in init
+  * Use an internal attribute for digest for symmetry with FrozenCredentials
+  * Fix build with LibreSSL 2.7
+  * Adapted the MSRP logger to the API changes in msrplib
+  * Replaced parse_uri with the new URI.parse in msrplib
+  * Added note about illegal character used by filetransfer MSRP extension
+  * Use r-strings for regular expressions
+  * Removed redundant parentheses
+  * Added OffsetHeader type to encode/decode MSRP file offset headers
+  * Changed how headers are added to MSRPData to be consistent
+  * Use named attributes instead of tuple indexes when accessing byte_range
+  * Preserve quoted arguments with build_inplace
+  * Cleanup after build_inplace
+  * Updated shebang line in setup.py
+  * Updated debian build flags
+  * Removed DH_VERBOSE definition in debian rules
+  * Explicitly use python2 in shebang lines
+  * Updated license and copyright years
+  * Updated minimum version of debian dependencies
+  * Increased debian compatibility level to 11
+  * Increased debian standards version to 4.5.0
+
+ -- Dan Pascu <dan@ag-projects.com>  Fri, 14 Feb 2020 12:46:51 +0200
+
 python-sipsimple (3.4.2) unstable; urgency=medium
 
   * Fixed crash when using sha1 hmac with zrtp
