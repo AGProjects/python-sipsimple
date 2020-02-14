@@ -5,7 +5,7 @@ Dependencies for SIP SIMPLE client SDK
 Home page: http://sipsimpleclient.org
 
  * python                   http://python.org                                     2.7
- * python-application       http://pypi.python.org/simple/python-application  >=2.5.0
+ * python-application       http://pypi.python.org/simple/python-application  >=2.8.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * python-dateutil          http://niemeyer.net/python-dateutil                 >=1.4
  * python-eventlib          http://download.ag-projects.com/SipClient         >=0.1.0
@@ -13,7 +13,7 @@ Home page: http://sipsimpleclient.org
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-otr               http://pypi.python.org/pypi/python-otr/           >=1.2.0
- * python-msrplib           http://download.ag-projects.com/MSRP             >=0.15.0
+ * python-msrplib           http://download.ag-projects.com/MSRP             >=0.20.0
  * python-xcaplib           http://download.ag-projects.com/XCAP             >=1.0.17
  * cython                   http://www.cython.org                            >=0.19.0
  * dnspython                http://www.dnspython.org                          >=1.9.0
