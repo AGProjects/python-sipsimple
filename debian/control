@@ -26,13 +26,13 @@ Homepage: http://sipsimpleclient.org
 Package: python-sipsimple
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
-         python-application (>= 2.5.0),
+         python-application (>= 2.8.0),
          python-dateutil,
          python-dnspython (>= 1.9),
          python-eventlib,
          python-gnutls,
          python-lxml,
-         python-msrplib (>= 0.19.0),
+         python-msrplib (>= 0.20.0),
          python-otr (>= 1.2.0),
          python-twisted-core (>= 8.1.0),
          python-xcaplib (>= 1.0.17)
