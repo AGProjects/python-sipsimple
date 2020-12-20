@@ -7,18 +7,18 @@ Home page: http://sipsimpleclient.org
 This document described the installation procedure on Rasbian Linux
 operating system on a Rasberry Pi (armhf architecture).
 
-Note. Acoustic Echo Cancellation is not available on armhf architecture
+Note. Acoustic Echo Cancellation is not available on arm architecture
 
 
 Install building dependencies 
 -----------------------------
 
 sudo apt-get install darcs devscripts libgmp3-dev cython python-lxml python-dnspython \
-python-twisted python-dateutil python-greenlet libv4l-dev libavcodec-dev \
-libavformat-dev libavutil-dev libswscale-dev libx264-dev libvpx-dev \
-libsqlite3-dev uuid-dev python-all-dbg cython-dbg libasound2-dev libssl1.0-dev \
-libmpfr-dev libmpfr-doc libmpfr4 libmpfr4-dbg libmpc-dev libffi-dev \
-python-enum34 python-cryptography python-gnutls python-gnutls python-gmpy2 -y
+python-twisted python-dateutil python-greenlet libv4l-dev libavcodec-dev pkg-config \
+libavformat-dev libavutil-dev libswscale-dev libx264-dev libvpx-dev python-all-dev \
+libsqlite3-dev uuid-dev python-all-dbg cython-dbg libasound2-dev libssl-dev \
+libmpfr-dev libmpfr-doc libmpc-dev libffi-dev dh-python python-enum34 \
+python-cryptography python-gnutls python-gnutls python-gmpy2 -y
 
 
 Build the debian packages
@@ -33,7 +33,7 @@ For each of the projects listed bellow:
  * python-application
  * python-otr
  * python-eventlib
- * python-scap
+ * python-xcap
  * python-msrp
  * python-sipsimple
  * sipclients
@@ -47,19 +47,27 @@ Go to the ./dist directory and untar the file created at the step above.
 
 Go to the newly created directory and type:
 
-debuild -us -uc
+debuild -us -uc --no-sign
 
 The .deb and related files are built in one of the upper directories.
 
 The end result looks like the following:
 
- * python-application_2.5.0_all.deb
- * python-eventlib_0.2.3_all.deb
- * python-msrplib_0.19.1_all.deb
- * python-otr_1.2.0_all.deb
- * python-sipsimple_3.1.1_armhf.deb
- * python-xcaplib_1.2.0_all.deb
- * sipclients_3.1.0_all.deb
+ * python-application_2.8.0_all.deb
+ * python-eventlib_0.2.5_all.deb
+ * python-msrplib_0.20.0_all.deb
+ * python-otr_1.2.2_all.deb
+ * python-sipsimple_3.5.0_armhf.deb
+ * python-xcaplib_1.2.2_all.deb
+ * sipclients_3.5.3_all.deb
 
 Use dpkg -i package_name.deb command to install the software.
+
+
+Prebuild binary packages
+------------------------
+
+You can download and install prebuild binary packages from:
+
+http://download.ag-projects.com/SipClient/Raspberry/
 
