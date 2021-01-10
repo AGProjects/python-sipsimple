@@ -207,7 +207,6 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, sender=self._self_presence_subscriber)
         notification_center.remove_observer(self, sender=self._dialog_subscriber)
 
-    @run_in_green_thread
     def delete(self):
         if self._deleted:
             return
