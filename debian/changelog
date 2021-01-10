@@ -1,6 +1,6 @@
 python-sipsimple (3.5.1) unstable; urgency=medium
 
- * Do not run account delete inside green thread
+  * Do not run account delete inside green thread
 
  -- Adrian Georgescu <ag@ag-projects.com>  Sun, 10 Jan 2021 20:26:12 +0100
 
