@@ -858,6 +858,11 @@ class CPIMPayload(object):
         if content_type is None:
             raise CPIMParserError("CPIM message missing Content-Type MIME header")
         content = mime_message.get_payload()
+        # If the content_type is 'message/imdn+xml' the parser thinks it is a multipart message, hence the result of get_payload
+        # will be a list. Since it is not actually a list we take first item in the list and get the payload again
+        # --Tijmen
+        if content_type == 'message/imdn+xml':
+            content = content[0].get_payload()
         charset = mime_message.get_content_charset()
 
         return cls(content, content_type, charset, sender, recipients, courtesy_recipients, subject, timestamp, required, additional_headers)
