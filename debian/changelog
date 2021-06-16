@@ -1,3 +1,10 @@
+python-sipsimple (3.6.0) unstable; urgency=medium
+
+  * Added support for creating and parsing IMDN (RFC5438) documents
+  * Fixed CPIM decode if envelope has content type message/imdn+xml
+
+ -- Tijmen de Mes <tijmen@ag-projects.com>  Wed, 16 Jun 2021 15:04:04 +0200
+
 python-sipsimple (3.5.1) unstable; urgency=medium
 
   * Do not run account delete inside green thread

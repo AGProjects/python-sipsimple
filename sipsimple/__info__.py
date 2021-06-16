@@ -5,7 +5,7 @@ __project__ = "python-sipsimple"
 __summary__ = "SIP SIMPLE implementation for Python"
 __webpage__ = "https://sipsimpleclient.org"
 
-__version__ = "3.5.1"
+__version__ = "3.6.0"
 
 __author__ = "AG Projects"
 __email__ = "support@ag-projects.com"
